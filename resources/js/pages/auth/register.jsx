@@ -106,10 +106,10 @@ export default function Register() {
                     <img src="./images/register.avif" alt="" className="h-full w-full rounded-s-4xl object-cover" />
                 </div>
                 {/* right side */}
-                <div className="h-full w-[50%] ">
+                <div className="h-full w-[50%]">
                     <AuthLayout
                         title="Créer un compte"
-                        className="rounded-e-4xl bg-[#fbf6f6] h-full"
+                        className="h-full rounded-e-4xl bg-[#fbf6f6]"
                         description="Saisissez vos coordonnées ci-dessous pour créer votre compte."
                     >
                         <Head title="Register" />
@@ -247,7 +247,7 @@ export default function Register() {
                                         <InputError message={errors.city} />
                                     </div>
                                 </div>
-                                <div className='grid grid-cols-2 gap-x-4'>
+                                <div className="grid grid-cols-2 gap-x-4">
                                     <div className="grid gap-2">
                                         <Label className="text-label text-[13px]" htmlFor="password">
                                             Mot de passe
@@ -325,90 +325,256 @@ export default function Register() {
                                                     Conditions générales d'utilisation
                                                 </button>
                                             </DialogTrigger>
-                                            <DialogContent className="max-h-[80vh] max-w-2xl overflow-y-auto">
+                                            <DialogContent className="max-h-[80vh] w-[80vw] !max-w-none overflow-y-auto">
                                                 <DialogHeader>
-                                                    <DialogTitle>Terms and Conditions</DialogTitle>
+                                                    <DialogTitle>Conditions Générales d'Utilisation de Centre Zawaj Maroc</DialogTitle>
                                                 </DialogHeader>
                                                 <div className="space-y-4 text-sm">
                                                     <div>
-                                                        <h3 className="mb-2 font-semibold">1. Acceptance of Terms</h3>
+                                                        <h3 className="mb-2 font-semibold">1. Introduction</h3>
                                                         <p>
-                                                            By accessing and using this website, you accept and agree to be bound by the terms and
-                                                            provision of this agreement.
+                                                            Les présentes Conditions Générales d'Utilisation ("Conditions") régissent l'utilisation du
+                                                            site web et des services fournis par Centre Zawaj Maroc ("CZM", "le Centre", "nous",
+                                                            "notre") aux utilisateurs ("vous", "l'utilisateur"), qu'ils soient clients ou visiteurs.
+                                                            En accédant à notre site ou en utilisant nos services, vous acceptez ces Conditions. Si
+                                                            vous n'acceptez pas ces Conditions, vous devez immédiatement cesser d'utiliser notre site
+                                                            et nos services.
                                                         </p>
                                                     </div>
 
                                                     <div>
-                                                        <h3 className="mb-2 font-semibold">2. Use License</h3>
+                                                        <h3 className="mb-2 font-semibold">2. Services Proposés</h3>
                                                         <p>
-                                                            Permission is granted to temporarily download one copy of the materials on this website
-                                                            for personal, non-commercial transitory viewing only.
+                                                            Centre Zawaj Maroc propose plusieurs services, notamment :<br />
+                                                            • Coaching matrimonial spécialisé : accompagnement personnalisé et orientation prénuptiale
+                                                            pour les célibataires en quête de conseils et fiancés souhaitant se préparer au mariage.
+                                                            <br />
+                                                            • Matchmaking personnalisé : service de mise en relation hautement personnalisé et
+                                                            confidentiel pour trouver un partenaire compatible.
+                                                            <br />
+                                                            • Conseil conjugal post-mariage : assistance pour la résolution de conflits et
+                                                            l'épanouissement du couple.
+                                                            <br />
+                                                            • Ateliers et séminaires : formations sur le mariage, la communication et la gestion de la
+                                                            vie de couple.
+                                                            <br />
+                                                            <br />
+                                                            Notre mission est de promouvoir des relations matrimoniales saines et durables.
                                                         </p>
                                                     </div>
 
                                                     <div>
-                                                        <h3 className="mb-2 font-semibold">3. Privacy Policy</h3>
+                                                        <h3 className="mb-2 font-semibold">3. Conditions d'Utilisation</h3>
                                                         <p>
-                                                            Your privacy is important to us. We collect and use your personal information in
-                                                            accordance with our Privacy Policy.
+                                                            • L'utilisation du site et des services est réservée aux personnes majeures (18 ans et
+                                                            plus).
+                                                            <br />
+                                                            • Toute utilisation à des fins illégales ou contraires à l'éthique du Centre est
+                                                            strictement interdite.
+                                                            <br />• Il est interdit d'utiliser le site pour diffamer, harceler ou porter atteinte à la
+                                                            réputation du Centre ou d'un tiers.
                                                         </p>
                                                     </div>
 
                                                     <div>
-                                                        <h3 className="mb-2 font-semibold">4. User Accounts</h3>
+                                                        <h3 className="mb-2 font-semibold">4. Comptes Utilisateurs</h3>
                                                         <p>
-                                                            You are responsible for maintaining the confidentiality of your account and password and
-                                                            for restricting access to your computer.
+                                                            • La création d'un compte utilisateur peut être nécessaire pour accéder à certains
+                                                            services.
+                                                            <br />
+                                                            • Vous êtes responsable de la confidentialité de vos identifiants et de l'utilisation de
+                                                            votre compte.
+                                                            <br />• Toute utilisation frauduleuse ou non autorisée de votre compte doit être signalée
+                                                            immédiatement au Centre.
                                                         </p>
                                                     </div>
 
                                                     <div>
-                                                        <h3 className="mb-2 font-semibold">5. Prohibited Uses</h3>
+                                                        <h3 className="mb-2 font-semibold">5. Propriété Intellectuelle</h3>
                                                         <p>
-                                                            You may not use our website for any unlawful purpose or to solicit others to perform
-                                                            unlawful acts.
+                                                            • Tout le contenu du site (textes, images, logos, vidéos) est protégé par les lois sur la
+                                                            propriété intellectuelle.
+                                                            <br />• Toute reproduction, modification ou diffusion sans autorisation écrite du Centre
+                                                            est interdite.
                                                         </p>
                                                     </div>
 
                                                     <div>
-                                                        <h3 className="mb-2 font-semibold">6. Content</h3>
+                                                        <h3 className="mb-2 font-semibold">6. Protection des Données et Confidentialité</h3>
                                                         <p>
-                                                            Our website allows you to post, link, store, share and otherwise make available certain
-                                                            information, text, graphics, videos, or other material.
+                                                            • CZM s'engage à protéger vos données personnelles conformément à notre politique de
+                                                            confidentialité.
+                                                            <br />
+                                                            • Les informations collectées sont utilisées uniquement pour fournir et améliorer nos
+                                                            services.
+                                                            <br />• Vous avez le droit d'accéder, de modifier ou de supprimer vos données personnelles
+                                                            sur simple demande.
                                                         </p>
                                                     </div>
 
                                                     <div>
-                                                        <h3 className="mb-2 font-semibold">7. Termination</h3>
+                                                        <h3 className="mb-2 font-semibold">7. Utilisation des Cookies</h3>
                                                         <p>
-                                                            We may terminate or suspend your account and bar access to the website immediately,
-                                                            without prior notice or liability, under our sole discretion.
+                                                            • Notre site utilise des cookies pour améliorer l'expérience utilisateur.
+                                                            <br />• Vous pouvez désactiver les cookies via les paramètres de votre navigateur, mais
+                                                            certaines fonctionnalités du site pourraient être affectées.
                                                         </p>
                                                     </div>
 
                                                     <div>
-                                                        <h3 className="mb-2 font-semibold">8. Disclaimer</h3>
+                                                        <h3 className="mb-2 font-semibold">8. Modification des Conditions</h3>
                                                         <p>
-                                                            The information on this website is provided on an "as is" basis. To the fullest extent
-                                                            permitted by law, this Company excludes all representations, warranties, conditions and
-                                                            terms.
+                                                            • Le Centre se réserve le droit de modifier ces Conditions à tout moment.
+                                                            <br />• Toute modification sera publiée sur le site et votre utilisation continue du site
+                                                            après publication constitue une acceptation des nouvelles Conditions.
                                                         </p>
                                                     </div>
 
                                                     <div>
-                                                        <h3 className="mb-2 font-semibold">9. Governing Law</h3>
+                                                        <h3 className="mb-2 font-semibold">9. Limitation de Responsabilité</h3>
                                                         <p>
-                                                            These terms and conditions are governed by and construed in accordance with the laws and
-                                                            you irrevocably submit to the exclusive jurisdiction of the courts in that state or
-                                                            location.
+                                                            • CZM ne saurait être tenu responsable des dommages directs ou indirects résultant de
+                                                            l'utilisation du site ou des services.
+                                                            <br />• Nous nous réservons le droit de suspendre ou de résilier l'accès au site à notre
+                                                            seule discrétion.
                                                         </p>
                                                     </div>
 
                                                     <div>
-                                                        <h3 className="mb-2 font-semibold">10. Contact Information</h3>
+                                                        <h3 className="mb-2 font-semibold">10. Résiliation</h3>
                                                         <p>
-                                                            If you have any questions about these Terms and Conditions, please contact us at
-                                                            support@example.com.
+                                                            • En cas de violation de ces Conditions, CZM se réserve le droit de suspendre ou de
+                                                            résilier votre accès au site et aux services.
+                                                            <br />• Aucune indemnité ne pourra être réclamée en cas de résiliation pour non-respect
+                                                            des Conditions.
+                                                        </p>
+                                                    </div>
+
+                                                    <div>
+                                                        <h3 className="mb-2 font-semibold">11. Conformité Légale</h3>
+                                                        <p>
+                                                            Vous acceptez d'utiliser notre site en conformité avec les lois marocaines et
+                                                            internationales applicables.
+                                                        </p>
+                                                    </div>
+
+                                                    <div>
+                                                        <h3 className="mb-2 font-semibold">12. Indemnisation</h3>
+                                                        <p>
+                                                            Vous acceptez d'indemniser CZM en cas de réclamation, litige ou dommage résultant de votre
+                                                            utilisation du site ou de la violation des présentes Conditions.
+                                                        </p>
+                                                    </div>
+
+                                                    <div>
+                                                        <h3 className="mb-2 font-semibold">13. Règlement des Litiges</h3>
+                                                        <p>
+                                                            Tout litige relatif à ces Conditions sera soumis à la juridiction exclusive des tribunaux
+                                                            marocains.
+                                                        </p>
+                                                    </div>
+
+                                                    <div>
+                                                        <h3 className="mb-2 font-semibold">14. Interdiction des Contenus Inappropriés</h3>
+                                                        <p>
+                                                            Les utilisateurs s'engagent à ne pas publier, transmettre ou partager des contenus
+                                                            offensants, diffamatoires, injurieux ou incitant à la haine. Le Centre se réserve le droit
+                                                            de supprimer tout contenu inapproprié et de suspendre ou résilier le compte de
+                                                            l'utilisateur concerné.
+                                                        </p>
+                                                    </div>
+
+                                                    <div>
+                                                        <h3 className="mb-2 font-semibold">15. Politique de Remboursement et d'Annulation</h3>
+                                                        <p>
+                                                            • Aucun remboursement ne sera effectué après la prestation du service.
+                                                            <br />
+                                                            • Toute demande d'annulation doit être soumise au minimum 48 heures avant la date prévue
+                                                            du service.
+                                                            <br />• Les remboursements ne sont possibles qu'en cas d'erreur avérée de CZM ou
+                                                            d'impossibilité avérée de fournir le service.
+                                                        </p>
+                                                    </div>
+
+                                                    <div>
+                                                        <h3 className="mb-2 font-semibold">16. Engagement des Utilisateurs</h3>
+                                                        <p>
+                                                            Les utilisateurs s'engagent à fournir des informations exactes et véridiques lors de leur
+                                                            inscription et dans leurs interactions. Tout manquement pourra entraîner la suspension ou
+                                                            la suppression du compte.
+                                                        </p>
+                                                    </div>
+
+                                                    <div>
+                                                        <h3 className="mb-2 font-semibold">17. Responsabilité des Utilisateurs</h3>
+                                                        <p>
+                                                            CZM met en relation des personnes mais ne garantit pas la compatibilité ni la réussite des
+                                                            relations établies. L'utilisateur est seul responsable de ses interactions et rencontres
+                                                            avec d'autres membres.
+                                                        </p>
+                                                    </div>
+
+                                                    <div>
+                                                        <h3 className="mb-2 font-semibold">18. Droit de Refus d'Inscription et de Suspension</h3>
+                                                        <p>
+                                                            CZM se réserve le droit de refuser l'inscription d'un utilisateur sans obligation de
+                                                            justification et de suspendre ou supprimer un compte en cas de non-respect des présentes
+                                                            conditions.
+                                                        </p>
+                                                    </div>
+
+                                                    <div>
+                                                        <h3 className="mb-2 font-semibold">19. Durée et Résiliation du Contrat</h3>
+                                                        <p>
+                                                            L'utilisation du site et des services est valable pour une durée indéterminée. Un
+                                                            utilisateur peut demander la fermeture de son compte à tout moment.
+                                                        </p>
+                                                    </div>
+
+                                                    <div>
+                                                        <h3 className="mb-2 font-semibold">20. Sécurité et Usage des Données Personnelles</h3>
+                                                        <p>
+                                                            Les informations personnelles des utilisateurs ne seront ni revendues ni partagées avec
+                                                            des tiers sans consentement. CZM applique des mesures de sécurité pour protéger les
+                                                            données contre toute intrusion ou fuite.
+                                                        </p>
+                                                    </div>
+
+                                                    <div>
+                                                        <h3 className="mb-2 font-semibold">21. Sécurisation des Transactions</h3>
+                                                        <p>
+                                                            Toutes les transactions financières effectuées sur le site sont sécurisées par un
+                                                            protocole de cryptage. CZM ne stocke pas les informations bancaires des utilisateurs.
+                                                        </p>
+                                                    </div>
+
+                                                    <div>
+                                                        <h3 className="mb-2 font-semibold">
+                                                            22. Conditions Complémentaires de Sécurité et d'Authenticité
+                                                        </h3>
+                                                        <p>
+                                                            • Garantie de sérieux pour les femmes de moins de 26 ans : toute femme âgée de moins de 26
+                                                            ans souhaitant s'inscrire doit fournir les coordonnées téléphoniques de l'un de ses
+                                                            parents.
+                                                            <br />
+                                                            • Limitation du temps de rendez-vous avant l'officialisation (pour les hommes) : délai
+                                                            limité à un mois maximum.
+                                                            <br />
+                                                            • Organisation des rendez-vous hors du Centre : tout rendez-vous doit se tenir dans un
+                                                            lieu public choisi par la femme.
+                                                            <br />• Obligation de justificatifs légaux pour l'inscription : présentation obligatoire
+                                                            de la Carte d'Identité Nationale (CIN).
+                                                        </p>
+                                                    </div>
+
+                                                    <div>
+                                                        <h3 className="mb-2 font-semibold">Contact</h3>
+                                                        <p>
+                                                            Pour toute question ou demande d'information :<br />
+                                                            • Email : contact@czm.ma
+                                                            <br />
+                                                            • Adresse : 2MARS Casablanca. Maroc
+                                                            <br />• Téléphone : +212 6 98 98 96 97
                                                         </p>
                                                     </div>
                                                 </div>
