@@ -99,8 +99,9 @@ export default function Register() {
     };
 
     return (
-        <div className="flex h-[100svh] w-[100svw] place-content-center place-items-center">
-            <div className="flex h-[90svh] w-[90svw]">
+        <div className="flex h-[100svh] w-[100svw] place-content-center place-items-center auth-layout-bg">
+            <div className='w-full bg-red-400 absolute top-0 left-0 auth-layout-overlay '></div>
+            <div className="flex h-[90svh] w-[90svw] z-50">
                 {/* left side  */}
                 <div className="contenr-center h-full w-[50%]">
                     <img loading="lazy" src="./images/wedding-boucket.avif" alt="" className="h-full w-full rounded-s-4xl object-cover" />
@@ -117,7 +118,7 @@ export default function Register() {
                         <form className=" " onSubmit={submit}>
                             <div className="flex flex-col gap-y-2">
                                 <div className="flex flex-col gap-y-2">
-                                    <Label htmlFor="name" className="text-label text-[13px]">
+                                    <Label htmlFor="name" >
                                         Identifiant
                                     </Label>
                                     <Input
@@ -136,7 +137,7 @@ export default function Register() {
                                 </div>
 
                                 <div className="">
-                                    <Label className="text-label text-[13px]" htmlFor="email">
+                                    <Label  htmlFor="email">
                                         Adress Email
                                     </Label>
                                     <Input
@@ -154,7 +155,7 @@ export default function Register() {
                                 </div>
 
                                 <div className="">
-                                    <Label className="text-label text-[13px]" htmlFor="phone">
+                                    <Label  htmlFor="phone">
                                         Numéro de téléphone
                                     </Label>
                                     <Input
@@ -172,7 +173,7 @@ export default function Register() {
                                 </div>
 
                                 <div className="grid gap-2">
-                                    <Label className="text-label text-[13px]" htmlFor="gender">
+                                    <Label  htmlFor="gender">
                                         Sexe
                                     </Label>
                                     <Select value={data.gender} onValueChange={(value) => setData('gender', value)} disabled={processing}>
@@ -188,7 +189,7 @@ export default function Register() {
                                 </div>
                                 <div className="flex w-full gap-x-4">
                                     <div className="grid w-[50%] gap-2">
-                                        <Label className="text-label text-[13px]" htmlFor="country">
+                                        <Label  htmlFor="country">
                                             Pays
                                         </Label>
                                         <Select
@@ -217,7 +218,7 @@ export default function Register() {
                                     </div>
 
                                     <div className="grid w-[50%] gap-2">
-                                        <Label className="text-label text-[13px]" htmlFor="city">
+                                        <Label  htmlFor="city">
                                             Ville
                                         </Label>
                                         <Select
@@ -249,7 +250,7 @@ export default function Register() {
                                 </div>
                                 <div className="grid grid-cols-2 gap-x-4">
                                     <div className="grid gap-2">
-                                        <Label className="text-label text-[13px]" htmlFor="password">
+                                        <Label  htmlFor="password">
                                             Mot de passe
                                         </Label>
                                         <div className="relative">
@@ -280,7 +281,7 @@ export default function Register() {
                                     </div>
 
                                     <div className="grid gap-2">
-                                        <Label className="text-label text-[13px]" htmlFor="password_confirmation">
+                                        <Label  htmlFor="password_confirmation">
                                             Confirmer Mot de passe
                                         </Label>
                                         <div className="relative">
@@ -317,7 +318,7 @@ export default function Register() {
                                         onCheckedChange={() => setTermsAccepted(!termsAccepted)}
                                         disabled={processing}
                                     />
-                                    <Label className="text-label text-[13px]" htmlFor="terms">
+                                    <Label  htmlFor="terms">
                                         J'accepte les{' '}
                                         <Dialog>
                                             <DialogTrigger asChild>
