@@ -24,75 +24,95 @@ export default function Login({ status, canResetPassword }) {
     };
 
     return (
-        <AuthLayout title="Log in to your account" description="Enter your email and password below to log in">
-            <Head title="Log in" />
+        <div className="flex h-[100svh] w-[100svw] place-content-center place-items-center">
+            <div className="flex h-[90svh] w-[90svw]">
+                {/* left side  */}
+                <div className="h-full w-[50%]">
+                    <AuthLayout
+                        className="h-full rounded-s-4xl bg-[#fbf6f6]"
+                        title="Log in to your account"
+                        description="Enter your email and password below to log in"
+                    >
+                        <Head title="Log in" />
 
-            <form className="flex flex-col gap-6" onSubmit={submit}>
-                <div className="grid gap-6">
-                    <div className="grid gap-2">
-                        <Label htmlFor="email">Email address</Label>
-                        <Input
-                            id="email"
-                            type="email"
-                            required
-                            autoFocus
-                            tabIndex={1}
-                            autoComplete="email"
-                            value={data.email}
-                            onChange={(e) => setData('email', e.target.value)}
-                            placeholder="email@example.com"
-                        />
-                        <InputError message={errors.email} />
-                    </div>
+                        <form className="flex flex-col gap-6" onSubmit={submit}>
+                            <div className="grid gap-6">
+                                <div className="grid gap-2">
+                                    <Label htmlFor="email">Adress Email</Label>
+                                    <Input
+                                        id="email"
+                                        type="email"
+                                        required
+                                        autoFocus
+                                        tabIndex={1}
+                                        autoComplete="email"
+                                        value={data.email}
+                                        onChange={(e) => setData('email', e.target.value)}
+                                        placeholder="email@example.com"
+                                    />
+                                    <InputError message={errors.email} />
+                                </div>
 
-                    <div className="grid gap-2">
-                        <div className="flex items-center">
-                            <Label htmlFor="password">Password</Label>
-                            {canResetPassword && (
-                                <TextLink href={route('password.request')} className="ml-auto text-sm" tabIndex={5}>
-                                    Forgot password?
+                                <div className="grid gap-2">
+                                    <div className="flex items-center">
+                                        <Label htmlFor="password">Mot de passe</Label>
+                                        {canResetPassword && (
+                                            <TextLink href={route('password.request')} className="ml-auto text-sm" tabIndex={5}>
+                                                Mot de passe oublié?
+                                            </TextLink>
+                                        )}
+                                    </div>
+                                    <Input
+                                        id="password"
+                                        type="password"
+                                        required
+                                        tabIndex={2}
+                                        autoComplete="current-password"
+                                        value={data.password}
+                                        onChange={(e) => setData('password', e.target.value)}
+                                        placeholder="Mot de passe"
+                                    />
+                                    <InputError message={errors.password} />
+                                </div>
+
+                                <div className="flex items-center space-x-3">
+                                    <Checkbox
+                                        id="remember"
+                                        name="remember"
+                                        checked={data.remember}
+                                        onClick={() => setData('remember', !data.remember)}
+                                        tabIndex={3}
+                                    />
+                                    <Label htmlFor="remember"> Se souvenir de moi</Label>
+                                </div>
+
+                                <Button
+                                    type="submit"
+                                    className="bg-button-primary hover:bg-button-primary-hover mt-4 w-full cursor-pointer"
+                                    tabIndex={4}
+                                    disabled={processing}
+                                >
+                                    {processing && <LoaderCircle className="h-4 w-4 animate-spin" />}
+                                    Se connecter
+                                </Button>
+                            </div>
+
+                            <div className="text-muted-foreground text-center text-sm">
+                                Vous n'avez pas de compte ?{' '}
+                                <TextLink href={route('register')} tabIndex={5}>
+                                    Inscrivez-vous
                                 </TextLink>
-                            )}
-                        </div>
-                        <Input
-                            id="password"
-                            type="password"
-                            required
-                            tabIndex={2}
-                            autoComplete="current-password"
-                            value={data.password}
-                            onChange={(e) => setData('password', e.target.value)}
-                            placeholder="Password"
-                        />
-                        <InputError message={errors.password} />
-                    </div>
+                            </div>
+                        </form>
 
-                    <div className="flex items-center space-x-3">
-                        <Checkbox
-                            id="remember"
-                            name="remember"
-                            checked={data.remember}
-                            onClick={() => setData('remember', !data.remember)}
-                            tabIndex={3}
-                        />
-                        <Label htmlFor="remember">Remember me</Label>
-                    </div>
-
-                    <Button type="submit" className="mt-4 w-full" tabIndex={4} disabled={processing}>
-                        {processing && <LoaderCircle className="h-4 w-4 animate-spin" />}
-                        Log in
-                    </Button>
+                        {status && <div className="mb-4 text-center text-sm font-medium text-green-600">{status}</div>}
+                    </AuthLayout>
                 </div>
-
-                <div className="text-muted-foreground text-center text-sm">
-                    Don't have an account?{' '}
-                    <TextLink href={route('register')} tabIndex={5}>
-                        Sign up
-                    </TextLink>
+                {/* right side */}
+                <div className="contenr-center h-full w-[50%]">
+                    <img loading="lazy" src="./images/Wedding-photo.avif" alt="Flower Bouquet" className="h-full w-full rounded-e-4xl object-cover" />
                 </div>
-            </form>
-
-            {status && <div className="mb-4 text-center text-sm font-medium text-green-600">{status}</div>}
-        </AuthLayout>
+            </div>
+        </div>
     );
 }

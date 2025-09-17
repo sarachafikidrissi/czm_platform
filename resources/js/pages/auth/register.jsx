@@ -103,7 +103,7 @@ export default function Register() {
             <div className="flex h-[90svh] w-[90svw]">
                 {/* left side  */}
                 <div className="contenr-center h-full w-[50%]">
-                    <img src="./images/register.avif" alt="" className="h-full w-full rounded-s-4xl object-cover" />
+                    <img loading="lazy" src="./images/wedding-boucket.avif" alt="" className="h-full w-full rounded-s-4xl object-cover" />
                 </div>
                 {/* right side */}
                 <div className="h-full w-[50%]">
@@ -584,16 +584,21 @@ export default function Register() {
                                 </div>
                                 <InputError message={errors.condition} />
 
-                                <Button type="submit" className="mt-2 w-full" tabIndex={9} disabled={processing || !termsAccepted}>
+                                <Button
+                                    type="submit"
+                                    className="ursor-pointer bg-button-primary hover:bg-button-primary-hover mt-2 w-full"
+                                    tabIndex={9}
+                                    disabled={processing || !termsAccepted}
+                                >
                                     {processing && <LoaderCircle className="h-4 w-4 animate-spin" />}
-                                    Create account
+                                    Inscrivez-vous
                                 </Button>
                             </div>
 
                             <div className="text-muted-foreground text-center text-sm">
-                                Already have an account?{' '}
+                                Vous avez déjà un compte ?{' '}
                                 <TextLink href={route('login')} tabIndex={6}>
-                                    Log in
+                                    Se connecter
                                 </TextLink>
                             </div>
                         </form>

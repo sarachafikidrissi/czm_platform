@@ -18,6 +18,8 @@
     --color-background: var(--background);
     --color-foreground: var(--foreground);
     --color-label: var(--label);
+    --color-button-primary: var(--button-primary-background);
+    --color-button-primary-hover: var(--button-primary-hover);
 
     --color-card: var(--card);
     --color-card-foreground: var(--card-foreground);
@@ -113,6 +115,8 @@
     --sidebar-border: oklch(0.922 0 0);
     --sidebar-ring: oklch(0.87 0 0);
     --label: oklch(67.64% 0.032 291.77);
+    --button-primary-background: oklch(39.82% 0.160 28.75);
+    --button-primary-hover: #722323;
 }
 
 .dark {
