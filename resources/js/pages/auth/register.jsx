@@ -1,6 +1,6 @@
 import { Head, useForm } from '@inertiajs/react';
 import { LoaderCircle, Eye, EyeOff } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import InputError from '@/components/input-error';
 import TextLink from '@/components/text-link';
@@ -16,6 +16,11 @@ export default function Register() {
     const [showPassword, setShowPassword] = useState(false);
     const [showPasswordConfirmation, setShowPasswordConfirmation] = useState(false);
     const [termsAccepted, setTermsAccepted] = useState(false);
+    const [countries, setCountries] = useState([]);
+    const [countryCodeToCities, setCountryCodeToCities] = useState({});
+    const [selectedCountryCode, setSelectedCountryCode] = useState('');
+    const [loadingCountries, setLoadingCountries] = useState(false);
+    const [errorCountries, setErrorCountries] = useState('');
 
     const { data, setData, post, processing, errors, reset } = useForm({
         name: '',
@@ -29,13 +34,65 @@ export default function Register() {
         password_confirmation: '',
     });
 
+    // Fetch countries and cities
+    useEffect(() => {
+        let isMounted = true;
+        const fetchCountries = async () => {
+            try {
+                setLoadingCountries(true);
+                setErrorCountries('');
+                const response = await fetch('https://countriesnow.space/api/v0.1/countries');
+                if (!response.ok) throw new Error('Failed to fetch countries');
+                const json = await response.json();
+                const list = Array.isArray(json?.data) ? json.data : [];
+                if (!isMounted) return;
+                // Map: keep iso2 and cities; localize country display to French via Intl.DisplayNames
+                const regionNamesFr = new Intl.DisplayNames(['fr'], { type: 'region' });
+                const normalized = list
+                    .filter(item => item?.iso2)
+                    .map(item => ({
+                        iso2: item.iso2,
+                        iso3: item.iso3,
+                        englishName: item.country,
+                        frenchName: regionNamesFr.of(item.iso2) || item.country,
+                        cities: Array.isArray(item.cities) ? item.cities : [],
+                    }))
+                    .sort((a, b) => a.frenchName.localeCompare(b.frenchName, 'fr'));
+
+                const codeToCities = normalized.reduce((acc, item) => {
+                    acc[item.iso2] = item.cities;
+                    return acc;
+                }, {});
+
+                setCountries(normalized);
+                setCountryCodeToCities(codeToCities);
+            } catch (err) {
+                if (!isMounted) return;
+                setErrorCountries('Impossible de charger la liste des pays.');
+            } finally {
+                if (isMounted) setLoadingCountries(false);
+            }
+        };
+        fetchCountries();
+        return () => {
+            isMounted = false;
+        };
+    }, []);
+
+    const availableCities = useMemo(() => {
+        if (!selectedCountryCode) return [];
+        const list = countryCodeToCities[selectedCountryCode] || [];
+        return list;
+    }, [selectedCountryCode, countryCodeToCities]);
+
     const submit = (e) => {
         e.preventDefault();
         if (!termsAccepted) {
             alert('Please accept the terms and conditions to continue.');
             return;
         }
-        setData('condition', termsAccepted);
+        // setData('condition', termsAccepted);
+        data.condition = termsAccepted;
         post(route('register'), {
             onFinish: () => reset('password', 'password_confirmation'),
         });
@@ -90,7 +147,7 @@ export default function Register() {
                             value={data.phone}
                             onChange={(e) => setData('phone', e.target.value)}
                             disabled={processing}
-                            placeholder="+1 (555) 123-4567"
+                            placeholder="+212 6-XX-XX-XX-XX"
                         />
                         <InputError message={errors.phone} />
                     </div>
@@ -104,8 +161,6 @@ export default function Register() {
                             <SelectContent>
                                 <SelectItem value="male">Male</SelectItem>
                                 <SelectItem value="female">Female</SelectItem>
-                                <SelectItem value="other">Other</SelectItem>
-                                <SelectItem value="prefer-not-to-say">Prefer not to say</SelectItem>
                             </SelectContent>
                         </Select>
                         <InputError message={errors.gender} />
@@ -113,33 +168,49 @@ export default function Register() {
 
                     <div className="grid gap-2">
                         <Label htmlFor="country">Country</Label>
-                        <Input
-                            id="country"
-                            type="text"
-                            required
-                            tabIndex={5}
-                            autoComplete="country"
-                            value={data.country}
-                            onChange={(e) => setData('country', e.target.value)}
-                            disabled={processing}
-                            placeholder="Enter your country"
-                        />
+                        <Select
+                            value={selectedCountryCode}
+                            onValueChange={(value) => {
+                                setSelectedCountryCode(value);
+                                const selected = countries.find(c => c.iso2 === value);
+                                setData('country', selected ? selected.frenchName : '');
+                                setData('city', '');
+                            }}
+                            disabled={processing || loadingCountries}
+                        >
+                            <SelectTrigger tabIndex={5}>
+                                <SelectValue placeholder={loadingCountries ? 'Chargement des pays…' : 'Sélectionnez votre pays'} />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {countries.map((c) => (
+                                    <SelectItem key={c.iso2} value={c.iso2}>
+                                        {c.frenchName}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        {errorCountries && <p className="text-sm text-destructive">{errorCountries}</p>}
                         <InputError message={errors.country} />
                     </div>
 
                     <div className="grid gap-2">
                         <Label htmlFor="city">City</Label>
-                        <Input
-                            id="city"
-                            type="text"
-                            required
-                            tabIndex={6}
-                            autoComplete="address-level2"
+                        <Select
                             value={data.city}
-                            onChange={(e) => setData('city', e.target.value)}
-                            disabled={processing}
-                            placeholder="Enter your city"
-                        />
+                            onValueChange={(value) => setData('city', value)}
+                            disabled={processing || !selectedCountryCode || availableCities.length === 0}
+                        >
+                            <SelectTrigger tabIndex={6}>
+                                <SelectValue placeholder={!selectedCountryCode ? 'Sélectionnez d’abord un pays' : (availableCities.length ? 'Sélectionnez votre ville' : 'Aucune ville disponible')} />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {availableCities.map((city) => (
+                                    <SelectItem key={city} value={city}>
+                                        {city}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                         <InputError message={errors.city} />
                     </div>
 
@@ -211,7 +282,7 @@ export default function Register() {
                         <Checkbox
                             id="terms"
                             checked={termsAccepted}
-                            onCheckedChange={setTermsAccepted}
+                            onCheckedChange={() => (setTermsAccepted(!termsAccepted))}
                             disabled={processing}
                         />
                         <Label htmlFor="terms" className="text-sm font-normal">
