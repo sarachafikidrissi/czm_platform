@@ -176,7 +176,7 @@
 
 /* Optional: Overlay for better text readability */
 .auth-layout-overlay {
-    background: rgba(0, 0, 0, 0.5); /* Dark overlay */
+    background: rgba(0, 0, 0, 0.2); /* Dark overlay */
     min-height: 100vh;
 
 }

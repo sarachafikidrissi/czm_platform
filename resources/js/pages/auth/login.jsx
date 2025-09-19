@@ -26,7 +26,7 @@ export default function Login({ status, canResetPassword }) {
     return (
         <div className="flex h-[100svh] w-[100svw] place-content-center place-items-center auth-layout-bg">
             <div className='w-full bg-red-400 absolute top-0 left-0 auth-layout-overlay '></div>
-            <div className="flex h-[90svh] w-[90svw] z-50">
+            <div className="flex h-[90svh] w-[80svw] z-50">
                 {/* left side  */}
                 <div className="h-full w-[50%]">
                     <AuthLayout

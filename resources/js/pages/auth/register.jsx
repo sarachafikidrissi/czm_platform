@@ -101,7 +101,7 @@ export default function Register() {
     return (
         <div className="flex h-[100svh] w-[100svw] place-content-center place-items-center auth-layout-bg">
             <div className='w-full bg-red-400 absolute top-0 left-0 auth-layout-overlay '></div>
-            <div className="flex h-[90svh] w-[90svw] z-50">
+            <div className="flex h-[90svh] w-[80svw] z-50">
                 {/* left side  */}
                 <div className="contenr-center h-full w-[50%]">
                     <img loading="lazy" src="./images/wedding-boucket.avif" alt="" className="h-full w-full rounded-s-4xl object-cover" />
