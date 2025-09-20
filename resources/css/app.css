@@ -167,7 +167,7 @@
 
 /* In your CSS file */
 .auth-layout-bg {
-    background-image: url('./images/flower-background.jpg');
+    background-image: url('/images/flower-background.jpg');
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
