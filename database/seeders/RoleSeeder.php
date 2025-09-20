@@ -25,6 +25,10 @@ class RoleSeeder extends Seeder
             [
                 "name" => "matchmaker",
                 "guard_name" => "web"
+            ],
+            [
+                "name" => "user",
+                "guard_name" => "web"
             ]
         ]);
     }
