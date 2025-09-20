@@ -26,11 +26,11 @@ export default function Login({ status, canResetPassword }) {
     return (
         <div className="flex h-[100svh] w-[100svw] place-content-center place-items-center auth-layout-bg">
             <div className='w-full bg-red-400 absolute top-0 left-0 auth-layout-overlay '></div>
-            <div className="flex h-[90svh] w-[80svw] z-50">
+            <div className="flex h-[90svh] w-[80svw] z-50 relative translate-x-[-50px]">
                 {/* left side  */}
-                <div className="h-full w-[50%]">
+                <div className="h-full w-[50%] ">
                     <AuthLayout
-                        className="h-full rounded-s-4xl bg-[#fbf6f6]"
+                        className="h-full rounded-s-4xl rounded-e-[40px] absolute left-[160px] bg-[#fbf6f6]"
                         title="Accès à votre compte"
                         description="Entrez votre email et votre mot de passe ci-dessous pour vous connecter"
                     >

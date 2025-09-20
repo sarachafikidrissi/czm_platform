@@ -99,9 +99,9 @@ export default function Register() {
     };
 
     return (
-        <div className="flex h-[100svh] w-[100svw] place-content-center place-items-center auth-layout-bg">
+        <div className="flex h-[100svh] w-[100svw] place-content-center place-items-center auth-layout-bg ">
             <div className='w-full bg-red-400 absolute top-0 left-0 auth-layout-overlay '></div>
-            <div className="flex h-[90svh] w-[80svw] z-50">
+            <div className="flex h-[90svh] w-[80svw] z-50 relative translate-x-[100px]">
                 {/* left side  */}
                 <div className="contenr-center h-full w-[50%]">
                     <img loading="lazy" src="./images/wedding-boucket.avif" alt="" className="h-full w-full rounded-s-4xl object-cover" />
@@ -110,7 +110,7 @@ export default function Register() {
                 <div className="h-full w-[50%]">
                     <AuthLayout
                         title="Créer un compte"
-                        className="h-full rounded-e-4xl bg-[#fbf6f6]"
+                        className="h-full rounded-e-4xl rounded-s-[40px] absolute right-[170px] bg-[#fbf6f6]"
                         description="Saisissez vos coordonnées ci-dessous pour créer votre compte."
                     >
                         <Head title="Register" />
@@ -188,7 +188,7 @@ export default function Register() {
                                     <InputError message={errors.gender} />
                                 </div>
                                 <div className="flex w-full gap-x-4">
-                                    <div className="grid w-[50%] gap-2">
+                                    <div className="grid w-[50%] gap-2 truncate">
                                         <Label  htmlFor="country">
                                             Pays
                                         </Label>
@@ -217,7 +217,7 @@ export default function Register() {
                                         <InputError message={errors.country} />
                                     </div>
 
-                                    <div className="grid w-[50%] gap-2">
+                                    <div className="grid w-[60%] gap-2">
                                         <Label  htmlFor="city">
                                             Ville
                                         </Label>

@@ -11,7 +11,7 @@ interface AuthLayoutProps {
 
 export default function AuthSimpleLayout({ children, title, description, className }: PropsWithChildren<AuthLayoutProps>) {
     return (
-        <div className={(` flex min-h-svhflex-col items-center justify-center px-6 ${className}`)}>
+        <div className={(` flex min-h-svhflex-col items-center justify-center px-6 font-nunito ${className}`)}>
             <div className="w-full ">
                 <div className="flex flex-col gap-y-1">
                     <div className="flex flex-col items-center">
