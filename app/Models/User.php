@@ -53,4 +53,10 @@ class User extends Authenticatable
             'condition' => 'boolean',
         ];
     }
+
+    public function profile() {
+        return $this->hasOne(Profile::class)->withDefault([
+            'current_step' => 1
+        ]);
+    }
 }

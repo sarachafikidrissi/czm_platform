@@ -54,10 +54,15 @@ class RegisteredUserController extends Controller
 
         $user->assignRole('user');
 
+        $user->profile()->create([]);
+
         event(new Registered($user));
 
         Auth::login($user);
 
-        return to_route('dashboard');
+
+
+        // return to_route('dashboard');
+        return to_route('profile.index');
     }
 }
