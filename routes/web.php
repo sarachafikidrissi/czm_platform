@@ -8,9 +8,9 @@ Route::get('/', function () {
     return Inertia::render('welcome');
 })->name('home');
 
-Route::middleware(['auth'])->group(function () {
-    Route::get('/profile', [MainProfileController::class, 'index'])->name('profile.index');
-});
+// Route::middleware(['auth'])->group(function () {
+// });
+Route::get('/profile', [MainProfileController::class, 'index'])->name('profile.index');
 
 Route::middleware(['auth', 'verified', 'isComplete'])->group(function () {
     Route::get('dashboard', function () {
