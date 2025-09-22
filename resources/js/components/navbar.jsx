@@ -1,6 +1,6 @@
 const Navbar = () => {
     return (
-        <div className="navbar grid  w-[100vw] grid-cols-3 bg-[#fbf6f6] px-4 shadow-sm">
+        <div className="navbar grid  w-[100vw] grid-cols-3 bg-[rgb(250,244,244)] px-4 shadow-sm fixed top-0">
             <div className="flex h-10 items-center ">
                     <img src="/images/CENTRE-ZAWAJ-PNG-LOGO.png" alt="centre zawaj maroc" className="w-[100px]" />
 

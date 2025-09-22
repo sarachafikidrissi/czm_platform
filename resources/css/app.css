@@ -14,6 +14,9 @@
     font-weight: normal;
     font-style: normal;
 }
+*{
+    font-family: Nunito-Regular;
+}
 
 
 @theme {
@@ -30,6 +33,7 @@
     --color-label: var(--label);
     --color-button-primary: var(--button-primary-background);
     --color-button-primary-hover: var(--button-primary-hover);
+    --color-button-secondary: var(--button-secondary-background);
 
     --color-card: var(--card);
     --color-card-foreground: var(--card-foreground);
@@ -127,6 +131,7 @@
     --label: oklch(67.64% 0.032 291.77);
     --button-primary-background: oklch(39.82% 0.160 28.75);
     --button-primary-hover: #722323;
+    --button-secondary-background: #076826;
 }
 
 .dark {
@@ -192,4 +197,11 @@
     min-height: 100vh;
 
 }
+.footer-layout-bg{
+    background-image: url('/images/morocco-flag-banner.jpg');
+    background-size: 100%;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
 
