@@ -75,8 +75,8 @@ export default function Profile({ auth }) {
                     {/* form steps */}
                     <div className="rounded-lg bg-white p-6 shadow-md sm:p-8">
                         {currentStep === 1 && <PersonalInfo />}
-                        {currentStep === 2 && <PartnerInfo />}
-                        {currentStep === 3 && <Details />}
+                        {currentStep === 2 && <Details />}
+                        {currentStep === 3 && <PartnerInfo />}
                         {currentStep === 4 && <UploadPicture />}
                     </div>
                     {/* buttons */}

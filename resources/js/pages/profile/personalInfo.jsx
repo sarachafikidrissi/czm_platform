@@ -1,172 +1,233 @@
 import { useState } from 'react';
 
 const PersonalInfo = () => {
-  const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
-    fullName: '',
-    dateOfBirth: '',
-    email: '',
-    gender: '',
-    city: '',
-    phoneNumber: ''
+    nom: '',
+    prenom: '',
+    dateNaissance: '',
+    niveauEtudes: '',
+    situationProfessionnelle: '',
+    secteur: '',
+    revenu: '',
+    religion: '',
   });
 
-//   const steps = [
-//     { number: 1, label: 'Personal' },
-//     { number: 2, label: 'Education' },
-//     { number: 3, label: 'Experience' },
-//     { number: 4, label: 'Goals' },
-//     { number: 5, label: 'Background' },
-//     { number: 6, label: 'Upload' }
-//   ];
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  const handleNext = () => {
-    if (currentStep < 6) {
-      setCurrentStep(currentStep + 1);
-    }
-  };
-
-  const handlePrevious = () => {
-    if (currentStep > 1) {
-      setCurrentStep(currentStep - 1);
-    }
-  };
-
-  return (
-    <div>
+    const handleInputChange = (e) => {
+        const { name, value } = e.target;
+        setFormData((prev) => ({
+            ...prev,
+            [name]: value,
+        }));
         
-
-       
-
-        {/* Form Content */}
-        {/* <div className="bg-white rounded-lg shadow-md p-6 sm:p-8"> */}
-          {/* Step Title */}
-          <div className="mb-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Personal Information</h2>
-            <p className="text-gray-600">Tell us about yourself</p>
-          </div>
-
-          {/* Form Fields */}
-          <div className="space-y-6">
-            {/* Full Name */}
-            <div>
-              <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 mb-1">
-                Full Name *
-              </label>
-              <input
-                type="text"
-                id="fullName"
-                name="fullName"
-                value={formData.fullName}
-                onChange={handleInputChange}
-                placeholder="Enter your full name"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-              />
+    };
+    
+    return (
+        <div>
+            {/* Form Content */}
+            {/* Step Title */}
+            <div className="mb-8">
+                <h2 className="mb-2 text-2xl font-bold text-gray-900">Informations Personnelles</h2>
+                <p className="text-gray-600">Parlez-nous un peu de vous</p>
             </div>
 
-            {/* Date of Birth */}
-            <div>
-              <label htmlFor="dateOfBirth" className="block text-sm font-medium text-gray-700 mb-1">
-                Date of Birth *
-              </label>
-              <input
-                type="text"
-                id="dateOfBirth"
-                name="dateOfBirth"
-                value={formData.dateOfBirth}
-                onChange={handleInputChange}
-                placeholder="dd/mm/yyyy"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-              />
-            </div>
+            {/* Form Fields */}
+            <div className="space-y-6">
+                {/* Nom */}
+                <div>
+                    <label htmlFor="nom" className="mb-1 block text-sm font-medium text-gray-700">
+                        Nom *
+                    </label>
+                    <input
+                        type="text"
+                        id="nom"
+                        name="nom"
+                        value={formData.nom}
+                        onChange={handleInputChange}
+                        placeholder="Nom"
+                        className="w-full rounded-lg border border-gray-300 px-4 py-3 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                    />
+                </div>
 
-            {/* Email Address */}
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                Email Address *
-              </label>
-              <input
-                type="email"
-                id="email"
-                name="email"
-                value={formData.email}
-                onChange={handleInputChange}
-                placeholder="youremail@example.com"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-              />
-            </div>
+                {/* Prénom */}
+                <div>
+                    <label htmlFor="prenom" className="mb-1 block text-sm font-medium text-gray-700">
+                        Prénom *
+                    </label>
+                    <input
+                        type="text"
+                        id="prenom"
+                        name="prenom"
+                        value={formData.prenom}
+                        onChange={handleInputChange}
+                        placeholder="Prénom"
+                        className="w-full rounded-lg border border-gray-300 px-4 py-3 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                    />
+                </div>
 
-            {/* Gender */}
-            <div>
-              <label htmlFor="gender" className="block text-sm font-medium text-gray-700 mb-1">
-                Gender
-              </label>
-              <select
-                id="gender"
-                name="gender"
-                value={formData.gender}
-                onChange={handleInputChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-              >
-                <option value="">Select gender</option>
-                <option value="male">Male</option>
-                <option value="female">Female</option>
-                <option value="other">Other</option>
-                <option value="prefer-not-to-say">Prefer not to say</option>
-              </select>
-            </div>
+                {/* Date de naissance */}
+                <div>
+                    <label htmlFor="dateNaissance" className="mb-1 block text-sm font-medium text-gray-700">
+                        Date de naissance *
+                    </label>
+                    <input
+                        type="text"
+                        id="dateNaissance"
+                        name="dateNaissance"
+                        value={formData.dateNaissance}
+                        onChange={handleInputChange}
+                        placeholder="dd / mm / yyyy"
+                        className="w-full rounded-lg border border-gray-300 px-4 py-3 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                    />
+                </div>
 
-            {/* City */}
-            <div>
-              <label htmlFor="city" className="block text-sm font-medium text-gray-700 mb-1">
-                City *
-              </label>
-              <select
-                id="city"
-                name="city"
-                value={formData.city}
-                onChange={handleInputChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-              >
-                <option value="">Select your city</option>
-                <option value="casablanca">Casablanca</option>
-                <option value="rabat">Rabat</option>
-                <option value="marrakech">Marrakech</option>
-                <option value="fes">Fes</option>
-                <option value="tanger">Tanger</option>
-                <option value="agadir">Agadir</option>
-              </select>
-            </div>
+                {/* Niveau d'études */}
+                <div>
+                    <label htmlFor="niveauEtudes" className="mb-1 block text-sm font-medium text-gray-700">
+                        Niveau d'études *
+                    </label>
+                    <select
+                        id="niveauEtudes"
+                        name="niveauEtudes"
+                        value={formData.niveauEtudes}
+                        onChange={handleInputChange}
+                        className="w-full rounded-lg border border-gray-300 px-4 py-3 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                    >
+                        <option value="">Please fill out this field</option>
+                        <option value="moins-bac">Moins Bac</option>
+                        <option value="bac">Bac</option>
+                        <option value="bac+2">Bac +2</option>
+                        <option value="bac+3-4">Bac +3/4</option>
+                        <option value="bac+5-master">Bac +5/Master</option>
+                        <option value="bac+8-doctorat">Bac +8/Doctorat</option>
+                    </select>
+                </div>
 
-            {/* Phone Number */}
-            <div>
-              <label htmlFor="phoneNumber" className="block text-sm font-medium text-gray-700 mb-1">
-                Phone Number *
-              </label>
-              <input
-                type="tel"
-                id="phoneNumber"
-                name="phoneNumber"
-                value={formData.phoneNumber}
-                onChange={handleInputChange}
-                placeholder="+212 6XX XXX XXX"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-              />
-            </div>
-          </div>
+                {/* Emploi - Situation professionnelle */}
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <div>
+                        <label htmlFor="situationProfessionnelle" className="mb-1 block text-sm font-medium text-gray-700">
+                            Situation professionnelle *
+                        </label>
+                        <select
+                            id="situationProfessionnelle"
+                            name="situationProfessionnelle"
+                            value={formData.situationProfessionnelle}
+                            onChange={handleInputChange}
+                            className="w-full rounded-lg border border-gray-300 px-4 py-3 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                        >
+                            <option value="">Sélectionnez</option>
+                            <option value="etudiant">Étudiant</option>
+                            <option value="propre-patron">Propre patron</option>
+                            <option value="emploi-salarie">Emploi salarié</option>
+                            <option value="retraite">Retraité</option>
+                            <option value="autre">Autre</option>
+                        </select>
+                    </div>
 
-         
-        {/* </div> */}
-    </div>
-  );
+                    <div>
+                        <label htmlFor="secteur" className="mb-1 block text-sm font-medium text-gray-700">
+                            Secteur d'activité
+                        </label>
+                        <select
+                            id="secteur"
+                            name="secteur"
+                            value={formData.secteur}
+                            onChange={handleInputChange}
+                            className="w-full rounded-lg border border-gray-300 px-4 py-3 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                        >
+                            <option value="">Sélectionnez un secteur</option>
+                            <option value="agriculture">Agriculture</option>
+                            <option value="artisanat">Artisanat</option>
+                            <option value="assurance">Assurance</option>
+                            <option value="automobile">Automobile</option>
+                            <option value="banque">Banque</option>
+                            <option value="batiment-tp">Bâtiment / Travaux Publics</option>
+                            <option value="commerce-distribution">Commerce / Distribution</option>
+                            <option value="communication-publicite">Communication / Publicité</option>
+                            <option value="culture-loisirs-sport">Culture / Loisirs / Sport</option>
+                            <option value="defense-securite">Défense / Sécurité</option>
+                            <option value="education-enseignement">Éducation / Enseignement</option>
+                            <option value="energie-environnement">Énergie / Environnement</option>
+                            <option value="finance-audit-comptabilite">Finance / Audit / Comptabilité</option>
+                            <option value="immobilier">Immobilier</option>
+                            <option value="industrie">Industrie</option>
+                            <option value="informatique-telecoms">Informatique / Télécoms</option>
+                            <option value="juridique">Juridique</option>
+                            <option value="logistique-transport">Logistique / Transport</option>
+                            <option value="medias-journalisme">Médias / Journalisme</option>
+                            <option value="mode-luxe-beaute">Mode / Luxe / Beauté</option>
+                            <option value="recherche-sciences">Recherche / Sciences</option>
+                            <option value="restauration-hotellerie-tourisme">Restauration / Hôtellerie / Tourisme</option>
+                            <option value="sante-social">Santé / Social</option>
+                            <option value="services-entreprises">Services aux entreprises</option>
+                            <option value="textile-habillement-cuir">Textile / Habillement / Cuir</option>
+                        </select>
+                    </div>
+                </div>
+
+                {/* Revenu */}
+                <div>
+                    <label htmlFor="revenu" className="mb-1 block text-sm font-medium text-gray-700">
+                        Revenu mensuel (MAD) *
+                    </label>
+                    <select
+                        id="revenu"
+                        name="revenu"
+                        value={formData.revenu}
+                        onChange={handleInputChange}
+                        className="w-full rounded-lg border border-gray-300 px-4 py-3 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                    >
+                        <option value="">Sélectionnez une tranche de revenu</option>
+                        <option value="0-2500">0-2500 MAD</option>
+                        <option value="2500-5000">2500-5000 MAD</option>
+                        <option value="5000-10000">5000-10000 MAD</option>
+                        <option value="10000-20000">10000-20000 MAD</option>
+                        <option value="20000-50000">20000-50000 MAD</option>
+                        <option value="50000+">+50000 MAD</option>
+                    </select>
+                </div>
+
+                {/* Religion */}
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <div>
+                        <label htmlFor="religion" className="mb-1 block text-sm font-medium text-gray-700">
+                            Religion
+                        </label>
+                        <select
+                            id="religion"
+                            name="religion"
+                            value={formData.religion}
+                            onChange={handleInputChange}
+                            className="w-full rounded-lg border border-gray-300 px-4 py-3 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                        >
+                            <option value="">Sélectionnez</option>
+                            <option value="pratiquant">Pratiquant(e)</option>
+                            <option value="non-pratiquant">Non pratiquant(e)</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label htmlFor="origine" className="mb-1 block text-sm font-medium text-gray-700">
+                            Origine
+                        </label>
+                        <select
+                            id="origine"
+                            name="origine"
+                            value={formData.origine}
+                            onChange={handleInputChange}
+                            className="w-full rounded-lg border border-gray-300 px-4 py-3 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                        >
+                            <option value="">Sélectionnez</option>
+                            <option value="amazigh">Amazigh</option>
+                            <option value="arabe">Arabe</option>
+                            <option value="chamali">Chamali</option>
+                            <option value="sahraoui">Sahraoui(e)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
 };
 
 export default PersonalInfo;
