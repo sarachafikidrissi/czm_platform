@@ -1,5 +1,3 @@
-import { useState } from 'react';
-
 function Details({ formData, setFormData }) {
     // const [formData, setFormData] = useState({
     //   etatMatrimonial: '',
@@ -20,7 +18,13 @@ function Details({ formData, setFormData }) {
             ...prev,
             [name]: value,
         }));
-        
+    };
+    const handleTextareaChange = (e) => {
+        const { name, value } = e.target;
+        setFormData((prev) => ({
+            ...prev,
+            [name]: value,
+        }));
     };
 
     return (
@@ -125,6 +129,59 @@ function Details({ formData, setFormData }) {
                             <span className="ml-2 text-sm text-gray-700">Familial</span>
                         </label>
                     </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <div>
+                        <label htmlFor="taille" className="mb-1 block text-sm font-medium text-gray-700">
+                            Taille (cm) *
+                        </label>
+                        <input
+                            type="number"
+                            id="taille"
+                            name="taille"
+                            min="100"
+                            max="250"
+                            value={formData.taille || ''}
+                            onChange={handleInputChange}
+                            placeholder="Ex: 175"
+                            className="w-full rounded-lg border border-gray-300 px-4 py-3 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                        />
+                    </div>
+
+                    <div>
+                        <label htmlFor="poids" className="mb-1 block text-sm font-medium text-gray-700">
+                            Poids (kg) *
+                        </label>
+                        <input
+                            type="number"
+                            id="poids"
+                            name="poids"
+                            min="30"
+                            max="200"
+                            value={formData.poids || ''}
+                            onChange={handleInputChange}
+                            placeholder="Ex: 70"
+                            className="w-full rounded-lg border border-gray-300 px-4 py-3 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                        />
+                    </div>
+                </div>
+
+                {/* État de santé */}
+                <div>
+                    <label htmlFor="etatSante" className="mb-1 block text-sm font-medium text-gray-700">
+                        État de santé général
+                    </label>
+                    <textarea
+                        id="etatSante"
+                        name="etatSante"
+                        value={formData.etatSante || ''}
+                        onChange={handleTextareaChange}
+                        placeholder="Décrivez votre état de santé général, allergies, conditions médicales, etc."
+                        rows={4}
+                        className="w-full rounded-lg border border-gray-300 px-4 py-3 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                    />
+                    <p className="mt-1 text-xs text-gray-500">Optionnel - Ces informations resteront confidentielles</p>
                 </div>
 
                 {/* Habitudes */}

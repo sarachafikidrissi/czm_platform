@@ -150,6 +150,14 @@ class ProfileController extends Controller
         $request->validate([
             'etatMatrimonial' => 'required|string',
             'logement' => 'required|string',
+            'taille' => 'nullable|integer|min:100|max:250',
+            'poids' => 'nullable|integer|min:30|max:200',
+            'etatSante' => 'nullable|string|max:1000',
+            'fumeur' => 'nullable|string',
+            'buveur' => 'nullable|string',
+            'sport' => 'nullable|string',
+            'motorise' => 'nullable|string',
+            'loisirs' => 'nullable|string|max:1000',
         ]);
     }
 

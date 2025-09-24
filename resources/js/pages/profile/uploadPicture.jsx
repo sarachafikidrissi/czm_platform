@@ -8,6 +8,8 @@ function UploadPicture({ formData, setFormData }) {
 
     const handleFileChange = (e) => {
         const file = e.target.files[0];
+        console.log(file);
+        
 
         if (!file) {
             setFormData((prev) => ({ ...prev, profilePictureError: '' }));
@@ -67,6 +69,7 @@ function UploadPicture({ formData, setFormData }) {
                 profilePictureError: '',
             }));
         };
+        
 
         img.onerror = function () {
             setFormData((prev) => ({
