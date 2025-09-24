@@ -1,16 +1,6 @@
 import { useState } from 'react';
 
-function PartnerInfo() {
-    const [formData, setFormData] = useState({
-        ageMinimum: '',
-        situationMatrimoniale: '',
-        pays: 'maroc',
-        villes: [],
-        niveauEtudesRecherche: '',
-        statutEmploi: '',
-        revenuMinimum: '',
-        religionRecherche: '',
-    });
+function PartnerInfo({ formData, setFormData }) {
     const handleInputChange = (e) => {
         const { name, value, type, checked } = e.target;
 
@@ -36,12 +26,28 @@ function PartnerInfo() {
         }        
     };
 
+    // Safe handling for villes array - ensure it's always an array
+    const safeVilles = Array.isArray(formData.villesRecherche) ? formData.villesRecherche : [];
+
+    const handleVilleChange = (e) => {
+        const { value, checked } = e.target;
+        setFormData((prev) => {
+            const currentVilles = Array.isArray(prev.villesRecherche) ? prev.villesRecherche : [];
+            return {
+                ...prev,
+                villesRecherche: checked 
+                    ? [...currentVilles, value] 
+                    : currentVilles.filter((v) => v !== value),
+            };
+        });
+    };
+
     return (
         <div>
             {/* Form Content */}
             {/* Step Title */}
             <div className="mb-8">
-                <h2 className="mb-2 text-2xl font-bold text-gray-900">Ce que vous recherchez chez l’autre</h2>
+                <h2 className="mb-2 text-2xl font-bold text-gray-900">Ce que vous recherchez chez l'autre</h2>
                 <p className="text-gray-600">
                     Chacun·e a une vision unique du bonheur à deux. Aidez-nous à vous proposer des profils qui vous correspondent vraiment.
                 </p>
@@ -81,7 +87,7 @@ function PartnerInfo() {
                     <select
                         id="ageMinimum"
                         name="ageMinimum"
-                        value={formData.ageMinimum}
+                        value={formData.ageMinimum || ''}
                         onChange={handleInputChange}
                         className="w-full rounded-lg border border-gray-300 px-4 py-3 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
                     >
@@ -101,9 +107,9 @@ function PartnerInfo() {
                         <label className="inline-flex items-center">
                             <input
                                 type="radio"
-                                name="situationMatrimoniale"
+                                name="situationMatrimonialeRecherche"
                                 value="celibataire"
-                                checked={formData.situationMatrimoniale === 'celibataire'}
+                                checked={formData.situationMatrimonialeRecherche === 'celibataire'}
                                 onChange={handleInputChange}
                                 className="text-blue-600 focus:ring-blue-500"
                             />
@@ -112,9 +118,9 @@ function PartnerInfo() {
                         <label className="inline-flex items-center">
                             <input
                                 type="radio"
-                                name="situationMatrimoniale"
+                                name="situationMatrimonialeRecherche"
                                 value="divorce"
-                                checked={formData.situationMatrimoniale === 'divorce'}
+                                checked={formData.situationMatrimonialeRecherche === 'divorce'}
                                 onChange={handleInputChange}
                                 className="text-blue-600 focus:ring-blue-500"
                             />
@@ -123,9 +129,9 @@ function PartnerInfo() {
                         <label className="inline-flex items-center">
                             <input
                                 type="radio"
-                                name="situationMatrimoniale"
+                                name="situationMatrimonialeRecherche"
                                 value="veuf"
-                                checked={formData.situationMatrimoniale === 'veuf'}
+                                checked={formData.situationMatrimonialeRecherche === 'veuf'}
                                 onChange={handleInputChange}
                                 className="text-blue-600 focus:ring-blue-500"
                             />
@@ -134,9 +140,9 @@ function PartnerInfo() {
                         <label className="inline-flex items-center">
                             <input
                                 type="radio"
-                                name="situationMatrimoniale"
+                                name="situationMatrimonialeRecherche"
                                 value="marie"
-                                checked={formData.situationMatrimoniale === 'marie'}
+                                checked={formData.situationMatrimonialeRecherche === 'marie'}
                                 onChange={handleInputChange}
                                 className="text-blue-600 focus:ring-blue-500"
                             />
@@ -147,13 +153,13 @@ function PartnerInfo() {
 
                 {/* Pays */}
                 <div>
-                    <label htmlFor="pays" className="mb-1 block text-sm font-medium text-gray-700">
+                    <label htmlFor="paysRecherche" className="mb-1 block text-sm font-medium text-gray-700">
                         Pays profil recherché *
                     </label>
                     <select
-                        id="pays"
-                        name="pays"
-                        value={formData.pays}
+                        id="paysRecherche"
+                        name="paysRecherche"
+                        value={formData.paysRecherche || 'maroc'}
                         onChange={handleInputChange}
                         className="w-full rounded-lg border border-gray-300 px-4 py-3 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
                     >
@@ -165,7 +171,7 @@ function PartnerInfo() {
                     </select>
                 </div>
 
-                {/* Villes */}
+                {/* Villes - Fixed version */}
                 <div>
                     <label className="mb-2 block text-sm font-medium text-gray-700">Villes Profil recherché</label>
                     <div className="grid max-h-48 grid-cols-2 gap-2 overflow-y-auto rounded-lg border border-gray-300 p-4 md:grid-cols-3">
@@ -186,16 +192,10 @@ function PartnerInfo() {
                             <label key={city.value} className="flex items-center">
                                 <input
                                     type="checkbox"
-                                    name="villes"
+                                    name="villesRecherche"
                                     value={city.value}
-                                    checked={formData.villes.includes(city.value)}
-                                    onChange={(e) => {
-                                        const { value, checked } = e.target;
-                                        setFormData((prev) => ({
-                                            ...prev,
-                                            villes: checked ? [...prev.villes, value] : prev.villes.filter((v) => v !== value),
-                                        }));
-                                    }}
+                                    checked={safeVilles.includes(city.value)}
+                                    onChange={handleVilleChange}
                                     className="text-blue-600 focus:ring-blue-500"
                                 />
                                 <span className="ml-2 text-sm text-gray-700">{city.label}</span>
@@ -212,7 +212,7 @@ function PartnerInfo() {
                     <select
                         id="niveauEtudesRecherche"
                         name="niveauEtudesRecherche"
-                        value={formData.niveauEtudesRecherche}
+                        value={formData.niveauEtudesRecherche || ''}
                         onChange={handleInputChange}
                         className="w-full rounded-lg border border-gray-300 px-4 py-3 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
                     >
@@ -229,13 +229,13 @@ function PartnerInfo() {
 
                 {/* Statut emploi */}
                 <div>
-                    <label htmlFor="statutEmploi" className="mb-1 block text-sm font-medium text-gray-700">
+                    <label htmlFor="statutEmploiRecherche" className="mb-1 block text-sm font-medium text-gray-700">
                         Son statut emploi *
                     </label>
                     <select
-                        id="statutEmploi"
-                        name="statutEmploi"
-                        value={formData.statutEmploi}
+                        id="statutEmploiRecherche"
+                        name="statutEmploiRecherche"
+                        value={formData.statutEmploiRecherche || ''}
                         onChange={handleInputChange}
                         className="w-full rounded-lg border border-gray-300 px-4 py-3 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
                     >
@@ -259,7 +259,7 @@ function PartnerInfo() {
                         <select
                             id="revenuMinimum"
                             name="revenuMinimum"
-                            value={formData.revenuMinimum}
+                            value={formData.revenuMinimum || ''}
                             onChange={handleInputChange}
                             className="w-full rounded-lg border border-gray-300 px-4 py-3 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
                         >
@@ -282,7 +282,7 @@ function PartnerInfo() {
                         <select
                             id="religionRecherche"
                             name="religionRecherche"
-                            value={formData.religionRecherche}
+                            value={formData.religionRecherche || ''}
                             onChange={handleInputChange}
                             className="w-full rounded-lg border border-gray-300 px-4 py-3 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
                         >
@@ -292,13 +292,6 @@ function PartnerInfo() {
                             <option value="peu-importe">Peu importe</option>
                         </select>
                     </div>
-                </div>
-
-                {/* Enregistrer Button */}
-                <div className="mt-8 flex justify-center border-t border-gray-200 pt-6">
-                    <button type="button" className="rounded-lg bg-green-600 px-8 py-3 font-medium text-white transition-colors hover:bg-green-700">
-                        Enregistrer
-                    </button>
                 </div>
             </div>
         </div>

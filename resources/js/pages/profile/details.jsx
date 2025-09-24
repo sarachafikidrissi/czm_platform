@@ -1,18 +1,18 @@
 import { useState } from 'react';
 
-function Details() {
-    const [formData, setFormData] = useState({
-      etatMatrimonial: '',
-      logement: '',
-      taille: '',
-      poids: '',
-      etatSante: '',
-      fumeur: '',
-      buveur: '',
-      sport: '',
-      motorise: '',
-      loisirs: ''
-    });
+function Details({ formData, setFormData }) {
+    // const [formData, setFormData] = useState({
+    //   etatMatrimonial: '',
+    //   logement: '',
+    //   taille: '',
+    //   poids: '',
+    //   etatSante: '',
+    //   fumeur: '',
+    //   buveur: '',
+    //   sport: '',
+    //   motorise: '',
+    //   loisirs: ''
+    // });
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;

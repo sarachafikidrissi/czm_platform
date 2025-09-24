@@ -1,16 +1,16 @@
 import { useState } from 'react';
 
-const PersonalInfo = () => {
-  const [formData, setFormData] = useState({
-    nom: '',
-    prenom: '',
-    dateNaissance: '',
-    niveauEtudes: '',
-    situationProfessionnelle: '',
-    secteur: '',
-    revenu: '',
-    religion: '',
-  });
+const PersonalInfo = ({ formData, setFormData }) => {
+//   const [formData, setFormData] = useState({
+//     nom: '',
+//     prenom: '',
+//     dateNaissance: '',
+//     niveauEtudes: '',
+//     situationProfessionnelle: '',
+//     secteur: '',
+//     revenu: '',
+//     religion: '',
+//   });
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
@@ -70,9 +70,11 @@ const PersonalInfo = () => {
                         Date de naissance *
                     </label>
                     <input
-                        type="text"
+                        type="date"
                         id="dateNaissance"
                         name="dateNaissance"
+                        max={new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().split('T')[0]}
+                        min={new Date(new Date().setFullYear(new Date().getFullYear() - 30)).toISOString().split('T')[0]}
                         value={formData.dateNaissance}
                         onChange={handleInputChange}
                         placeholder="dd / mm / yyyy"

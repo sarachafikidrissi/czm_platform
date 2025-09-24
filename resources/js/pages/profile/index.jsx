@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { router } from '@inertiajs/react';
 import Navbar from '../../components/navbar';
 import Details from './details';
 import PartnerInfo from './partnerInfo';
@@ -6,8 +7,52 @@ import PersonalInfo from './personalInfo';
 import UploadPicture from './uploadPicture';
 import Footer from '../../components/footer';
 
-export default function Profile({ auth }) {
-    const [currentStep, setCurrentStep] = useState(1);
+export default function Profile({ auth, profile }) {
+    const [currentStep, setCurrentStep] = useState(profile?.currentStep || 1);
+    const [formData, setFormData] = useState({
+        // Step 1
+        nom: profile?.nom || '',
+        prenom: profile?.prenom || '',
+        dateNaissance: profile?.dateNaissance || '',
+        niveauEtudes: profile?.niveauEtudes || '',
+        situationProfessionnelle: profile?.situationProfessionnelle || '',
+        secteur: profile?.secteur || '',
+        revenu: profile?.revenu || '',
+        religion: profile?.religion || '',
+        
+        // Step 2
+        etatMatrimonial: profile?.etatMatrimonial || '',
+        logement: profile?.logement || '',
+        taille: profile?.taille || '',
+        poids: profile?.poids || '',
+        etatSante: profile?.etatSante || '',
+        fumeur: profile?.fumeur || '',
+        buveur: profile?.buveur || '',
+        sport: profile?.sport || '',
+        motorise: profile?.motorise || '',
+        loisirs: profile?.loisirs || '',
+        
+        // Step 3
+        ageMinimum: profile?.ageMinimum || '',
+        situationMatrimonialeRecherche: profile?.situationMatrimonialeRecherche || '',
+        paysRecherche: profile?.paysRecherche || 'maroc',
+        villesRecherche: profile?.villesRecherche || [],
+        niveauEtudesRecherche: profile?.niveauEtudesRecherche || '',
+        statutEmploiRecherche: profile?.statutEmploiRecherche || '',
+        revenuMinimum: profile?.revenuMinimum || '',
+        religionRecherche: profile?.religionRecherche || '',
+        
+        // Step 4
+        profilePicture: null,
+        profilePicturePath: profile?.profilePicturePath || '',
+    });
+
+    // Update current step when profile changes
+    useEffect(() => {
+        if (profile?.currentStep) {
+            setCurrentStep(profile.currentStep);
+        }
+    }, [profile]);
 
     const steps = [
         { number: 1, label: 'Info De Base' },
@@ -15,17 +60,88 @@ export default function Profile({ auth }) {
         { number: 3, label: 'Mode de vie' },
         { number: 4, label: 'Telecharger photo de profile' },
     ];
-    const handleNext = () => {
-        if (currentStep < 4) {
-            setCurrentStep(currentStep + 1);
+
+    const validateStep = (step) => {
+        switch (step) {
+            case 1:
+                return formData.nom && formData.prenom && formData.dateNaissance && formData.niveauEtudes && formData.situationProfessionnelle;
+            case 2:
+                return formData.etatMatrimonial && formData.logement;
+            case 3:
+                return formData.ageMinimum && formData.situationMatrimonialeRecherche;
+            case 4:
+                return true; // Photo is optional for validation
+            default:
+                return false;
         }
     };
 
-    const handlePrevious = () => {
+    const saveStep = async (step) => {
+        if (!validateStep(step)) {
+            alert('Veuillez remplir tous les champs obligatoires');
+            return false;
+        }
+
+        try {
+            const formDataToSend = new FormData();
+            
+            // Add all form data for the current step and previous steps
+            Object.keys(formData).forEach(key => {
+                if (formData[key] !== null && formData[key] !== undefined) {
+                    if (key === 'profilePicture' && formData[key]?.file) {
+                        formDataToSend.append('profilePicture', formData[key].file);
+                    } else if (key === 'villesRecherche') {
+                        formDataToSend.append(key, JSON.stringify(formData[key]));
+                    } else {
+                        formDataToSend.append(key, formData[key]);
+                    }
+                }
+            });
+            
+            formDataToSend.append('currentStep', step);
+
+            await router.post('/profile', formDataToSend, {
+                forceFormData: true,
+                preserveScroll: true,
+                onSuccess: () => {
+                    return true;
+                },
+                onError: (errors) => {
+                    console.error('Error saving profile:', errors);
+                    alert('Erreur lors de la sauvegarde: ' + Object.values(errors).join(', '));
+                    return false;
+                }
+            });
+
+            return true;
+        } catch (error) {
+            console.error('Error saving step:', error);
+            return false;
+        }
+    };
+
+    const handleNext = async () => {
+        const isSaved = await saveStep(currentStep);
+        if (isSaved && currentStep < 4) {
+            setCurrentStep(currentStep + 1);
+        } else if (currentStep === 4) {
+            // Complete the profile
+            await router.post('/profile/complete');
+        }
+    };
+
+    const handlePrevious = async () => {
         if (currentStep > 1) {
             setCurrentStep(currentStep - 1);
         }
     };
+
+    // Pass formData and setFormData to each component
+    const stepProps = {
+        formData,
+        setFormData
+    };
+
     return (
         <>
             <Navbar />
@@ -36,6 +152,14 @@ export default function Profile({ auth }) {
                         <h1 className="mb-2 text-3xl font-bold text-gray-900">Construisons ensemble votre profil unique</h1>
                         <p className="text-lg text-gray-600">Complétez votre demande en 4 étapes simples</p>
                     </div>
+                    
+                    {/* Progress Indicator */}
+                    {profile?.isCompleted && (
+                        <div className="mb-4 rounded-lg bg-green-50 p-4 text-center">
+                            <p className="text-green-700">✓ Votre profil est complété</p>
+                        </div>
+                    )}
+                    
                     {/* progress bar */}
                     <div className="mb-12">
                         <div className="mb-4 flex items-center justify-between">
@@ -72,13 +196,15 @@ export default function Profile({ auth }) {
                             ))}
                         </div>
                     </div>
+                    
                     {/* form steps */}
                     <div className="rounded-lg bg-white p-6 shadow-md sm:p-8">
-                        {currentStep === 1 && <PersonalInfo />}
-                        {currentStep === 2 && <Details />}
-                        {currentStep === 3 && <PartnerInfo />}
-                        {currentStep === 4 && <UploadPicture />}
+                        {currentStep === 1 && <PersonalInfo {...stepProps} />}
+                        {currentStep === 2 && <Details {...stepProps} />}
+                        {currentStep === 3 && <PartnerInfo {...stepProps} />}
+                        {currentStep === 4 && <UploadPicture {...stepProps} />}
                     </div>
+                    
                     {/* buttons */}
                     <div className="mt-8 flex justify-between border-t border-gray-200 pt-6">
                         <button
@@ -90,15 +216,21 @@ export default function Profile({ auth }) {
                                     : 'text-button-primary hover:bg-button-primary transition-colors hover:text-white'
                             } `}
                         >
-                            Previous
+                            Précédent
                         </button>
 
                         <button
                             onClick={handleNext}
                             className="bg-button-primary hover:bg-button-secondary rounded-lg px-6 py-2 font-medium text-white transition-colors"
                         >
-                            Next
+                            {currentStep === 4 ? 'Terminer' : 'Suivant'}
                         </button>
+                    </div>
+                    
+                    {/* Progress info */}
+                    <div className="mt-4 text-center text-sm text-gray-500">
+                        Étape {currentStep} sur 4 • 
+                        {profile?.isCompleted ? ' ✓ Complété' : ' En cours'}
                     </div>
                 </div>
             </div>

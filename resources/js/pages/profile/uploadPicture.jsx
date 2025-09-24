@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 
-function UploadPicture() {
-    const [formData, setFormData] = useState({
-        profilePicture: null,
-        profilePictureError: '',
-    });
+function UploadPicture({ formData, setFormData }) {
+    // const [formData, setFormData] = useState({
+    //     profilePicture: null,
+    //     profilePictureError: '',
+    // });
 
     const handleFileChange = (e) => {
         const file = e.target.files[0];
