@@ -8,7 +8,6 @@ function UploadPicture({ formData, setFormData }) {
 
     const handleFileChange = (e) => {
         const file = e.target.files[0];
-        console.log(file);
         
 
         if (!file) {
@@ -68,6 +67,7 @@ function UploadPicture({ formData, setFormData }) {
                 },
                 profilePictureError: '',
             }));
+            
         };
         
 
@@ -81,7 +81,11 @@ function UploadPicture({ formData, setFormData }) {
         };
 
         img.src = objectUrl;
+        console.log(formData);
+        
     };
+
+   
     // Add this useEffect to clean up object URLs
     useEffect(() => {
         return () => {

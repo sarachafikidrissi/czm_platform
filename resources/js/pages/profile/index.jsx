@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
 import { router } from '@inertiajs/react';
+import { useEffect, useState } from 'react';
+import Footer from '../../components/footer';
 import Navbar from '../../components/navbar';
 import Details from './details';
 import PartnerInfo from './partnerInfo';
 import PersonalInfo from './personalInfo';
 import UploadPicture from './uploadPicture';
-import Footer from '../../components/footer';
 
 export default function Profile({ auth, profile }) {
     const [currentStep, setCurrentStep] = useState(profile?.currentStep || 1);
@@ -19,7 +19,7 @@ export default function Profile({ auth, profile }) {
         secteur: profile?.secteur || '',
         revenu: profile?.revenu || '',
         religion: profile?.religion || '',
-        
+
         // Step 2
         etatMatrimonial: profile?.etatMatrimonial || '',
         logement: profile?.logement || '',
@@ -31,7 +31,7 @@ export default function Profile({ auth, profile }) {
         sport: profile?.sport || '',
         motorise: profile?.motorise || '',
         loisirs: profile?.loisirs || '',
-        
+
         // Step 3
         ageMinimum: profile?.ageMinimum || '',
         situationMatrimonialeRecherche: profile?.situationMatrimonialeRecherche || '',
@@ -41,7 +41,7 @@ export default function Profile({ auth, profile }) {
         statutEmploiRecherche: profile?.statutEmploiRecherche || '',
         revenuMinimum: profile?.revenuMinimum || '',
         religionRecherche: profile?.religionRecherche || '',
-        
+
         // Step 4
         profilePicture: null,
         profilePicturePath: profile?.profilePicturePath || '',
@@ -84,12 +84,13 @@ export default function Profile({ auth, profile }) {
 
         try {
             const formDataToSend = new FormData();
-            
+
             // Add all form data for the current step and previous steps
-            Object.keys(formData).forEach(key => {
+            Object.keys(formData).forEach((key) => {
                 if (formData[key] !== null && formData[key] !== undefined) {
                     if (key === 'profilePicture' && formData[key]?.file) {
                         formDataToSend.append('profilePicture', formData[key].file);
+                        console.log(formData);
                     } else if (key === 'villesRecherche') {
                         formDataToSend.append(key, JSON.stringify(formData[key]));
                     } else {
@@ -97,7 +98,7 @@ export default function Profile({ auth, profile }) {
                     }
                 }
             });
-            
+
             formDataToSend.append('currentStep', step);
 
             await router.post('/profile', formDataToSend, {
@@ -110,7 +111,7 @@ export default function Profile({ auth, profile }) {
                     console.error('Error saving profile:', errors);
                     alert('Erreur lors de la sauvegarde: ' + Object.values(errors).join(', '));
                     return false;
-                }
+                },
             });
 
             return true;
@@ -121,12 +122,26 @@ export default function Profile({ auth, profile }) {
     };
 
     const handleNext = async () => {
-        const isSaved = await saveStep(currentStep);
-        if (isSaved && currentStep < 4) {
-            setCurrentStep(currentStep + 1);
+        // const isSaved = await saveStep(currentStep);
+        // if (isSaved && currentStep < 4) {
+        //     setCurrentStep(currentStep + 1);
+        // } else if (currentStep === 4) {
+        //     // Complete the profile
+        //     await router.post('/profile/complete');
+        // }
+        if (currentStep < 4) {
+            const isSaved = await saveStep(currentStep);
+            if (isSaved) {
+                setCurrentStep(currentStep + 1);
+            }
         } else if (currentStep === 4) {
-            // Complete the profile
-            await router.post('/profile/complete');
+            // For step 4: First save the picture, then complete
+            const isSaved = await saveStep(4); // This will save the profile picture
+
+            if (isSaved) {
+                // Only complete after successful save
+                await router.post('/profile/complete');
+            }
         }
     };
 
@@ -139,7 +154,7 @@ export default function Profile({ auth, profile }) {
     // Pass formData and setFormData to each component
     const stepProps = {
         formData,
-        setFormData
+        setFormData,
     };
 
     return (
@@ -152,14 +167,14 @@ export default function Profile({ auth, profile }) {
                         <h1 className="mb-2 text-3xl font-bold text-gray-900">Construisons ensemble votre profil unique</h1>
                         <p className="text-lg text-gray-600">Complétez votre demande en 4 étapes simples</p>
                     </div>
-                    
+
                     {/* Progress Indicator */}
                     {profile?.isCompleted && (
                         <div className="mb-4 rounded-lg bg-green-50 p-4 text-center">
                             <p className="text-green-700">✓ Votre profil est complété</p>
                         </div>
                     )}
-                    
+
                     {/* progress bar */}
                     <div className="mb-12">
                         <div className="mb-4 flex items-center justify-between">
@@ -196,7 +211,7 @@ export default function Profile({ auth, profile }) {
                             ))}
                         </div>
                     </div>
-                    
+
                     {/* form steps */}
                     <div className="rounded-lg bg-white p-6 shadow-md sm:p-8">
                         {currentStep === 1 && <PersonalInfo {...stepProps} />}
@@ -204,7 +219,7 @@ export default function Profile({ auth, profile }) {
                         {currentStep === 3 && <PartnerInfo {...stepProps} />}
                         {currentStep === 4 && <UploadPicture {...stepProps} />}
                     </div>
-                    
+
                     {/* buttons */}
                     <div className="mt-8 flex justify-between border-t border-gray-200 pt-6">
                         <button
@@ -226,11 +241,10 @@ export default function Profile({ auth, profile }) {
                             {currentStep === 4 ? 'Terminer' : 'Suivant'}
                         </button>
                     </div>
-                    
+
                     {/* Progress info */}
                     <div className="mt-4 text-center text-sm text-gray-500">
-                        Étape {currentStep} sur 4 • 
-                        {profile?.isCompleted ? ' ✓ Complété' : ' En cours'}
+                        Étape {currentStep} sur 4 •{profile?.isCompleted ? ' ✓ Complété' : ' En cours'}
                     </div>
                 </div>
             </div>
