@@ -27,170 +27,362 @@ export default function ProfileInfo() {
         <AppLayout breadcrumbs={[{ title: 'Mon Profil', href: '/profile' }]}>
             <Head title="Mon Profil" />
             <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
-                <div className="mb-6 text-2xl font-bold">Mon Profil</div>
-
-                {/* Profile Picture */}
-                {profile.profilePicturePath && (
-                    <div className="mb-6">
-                        <div className="mb-2 text-lg font-semibold">Photo de profil</div>
-                        <img
-                            src={`/storage/${profile.profilePicturePath}`}
-                            alt="Photo de profil"
-                            className="h-32 w-32 rounded-lg border object-cover"
-                        />
+                <div className='bg-white/10 flex sm:flex-row flex-col items-center justify-between px-2 rounded-md shadow-2xs'>
+                
+                    {/* Header */}
+                    <div className="mb-8 text-center">
+                        <h1 className="mb-2 text-3xl font-bold text-gray-900">Votre Profil</h1>
+                        <p className="text-lg text-gray-600">Consultez les informations de votre profil</p>
                     </div>
-                )}
 
-                {/* Personal Information */}
-                <div className="grid gap-6 md:grid-cols-2">
-                    <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-6">
-                        <h3 className="mb-4 text-lg font-semibold">Informations personnelles</h3>
-                        <div className="space-y-3">
-                            <div>
-                                <span className="font-medium">Nom:</span> {profile.nom || 'Non renseigné'}
-                            </div>
-                            <div>
-                                <span className="font-medium">Prénom:</span> {profile.prenom || 'Non renseigné'}
-                            </div>
-                            <div>
-                                <span className="font-medium">Date de naissance:</span> {profile.dateNaissance || 'Non renseigné'}
-                            </div>
-                            <div>
-                                <span className="font-medium">Niveau d'études:</span> {profile.niveauEtudes || 'Non renseigné'}
-                            </div>
-                            <div>
-                                <span className="font-medium">Situation professionnelle:</span> {profile.situationProfessionnelle || 'Non renseigné'}
-                            </div>
-                            <div>
-                                <span className="font-medium">Secteur:</span> {profile.secteur || 'Non renseigné'}
-                            </div>
-                            <div>
-                                <span className="font-medium">Revenu:</span> {profile.revenu || 'Non renseigné'}
-                            </div>
-                            <div>
-                                <span className="font-medium">Religion:</span> {profile.religion || 'Non renseigné'}
+                     {/* Profile Picture */}
+                     {profile.profilePicturePath && (
+                        <div className="mb-8 text-center">
+                            <div className="mb-4 text-lg font-semibold">Photo de profil</div>
+                            <img
+                                src={`/storage/${profile.profilePicturePath}`}
+                                alt="Photo de profil"
+                                className="mx-auto h-32 w-32 rounded-full border-4 border-white object-cover shadow-lg"
+                            />
+                        </div>
+                    )}
+
+                    {/* Profile Status Banner */}
+                    {profile?.isCompleted && (
+                        <div className="mb-6 rounded-lg bg-green-50 p-4 text-center">
+                            <p className="text-green-700">✓ Votre profil est complété</p>
+                        </div>
+                    )}
+                </div>
+
+                <div className="mx-auto w-full ">
+                   
+
+                    {/* Personal Information */}
+                    <div className="mb-8">
+                        <div className="mb-6 rounded-lg bg-white p-6 shadow-md">
+                            <h2 className="mb-4 text-2xl font-bold text-gray-900">Informations personnelles</h2>
+                            <div className="grid gap-6 md:grid-cols-2">
+                                <div>
+                                    <label className="mb-1 block text-sm font-medium text-gray-700">Nom</label>
+                                    <input
+                                        type="text"
+                                        value={profile.nom || 'Non renseigné'}
+                                        disabled
+                                        className="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-700"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="mb-1 block text-sm font-medium text-gray-700">Prénom</label>
+                                    <input
+                                        type="text"
+                                        value={profile.prenom || 'Non renseigné'}
+                                        disabled
+                                        className="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-700"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="mb-1 block text-sm font-medium text-gray-700">Date de naissance</label>
+                                    <input
+                                        type="text"
+                                        value={profile.dateNaissance || 'Non renseigné'}
+                                        disabled
+                                        className="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-700"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="mb-1 block text-sm font-medium text-gray-700">Niveau d'études</label>
+                                    <input
+                                        type="text"
+                                        value={profile.niveauEtudes || 'Non renseigné'}
+                                        disabled
+                                        className="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-700"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="mb-1 block text-sm font-medium text-gray-700">Situation professionnelle</label>
+                                    <input
+                                        type="text"
+                                        value={profile.situationProfessionnelle || 'Non renseigné'}
+                                        disabled
+                                        className="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-700"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="mb-1 block text-sm font-medium text-gray-700">Secteur</label>
+                                    <input
+                                        type="text"
+                                        value={profile.secteur || 'Non renseigné'}
+                                        disabled
+                                        className="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-700"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="mb-1 block text-sm font-medium text-gray-700">Revenu</label>
+                                    <input
+                                        type="text"
+                                        value={profile.revenu || 'Non renseigné'}
+                                        disabled
+                                        className="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-700"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="mb-1 block text-sm font-medium text-gray-700">Religion</label>
+                                    <input
+                                        type="text"
+                                        value={profile.religion || 'Non renseigné'}
+                                        disabled
+                                        className="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-700"
+                                    />
+                                </div>
                             </div>
                         </div>
                     </div>
 
                     {/* Lifestyle Information */}
-                    <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-6">
-                        <h3 className="mb-4 text-lg font-semibold">Mode de vie</h3>
-                        <div className="space-y-3">
-                            <div>
-                                <span className="font-medium">État matrimonial:</span> {profile.etatMatrimonial || 'Non renseigné'}
-                            </div>
-                            <div>
-                                <span className="font-medium">Logement:</span> {profile.logement || 'Non renseigné'}
-                            </div>
-                            <div>
-                                <span className="font-medium">Taille:</span> {profile.taille ? `${profile.taille} cm` : 'Non renseigné'}
-                            </div>
-                            <div>
-                                <span className="font-medium">Poids:</span> {profile.poids ? `${profile.poids} kg` : 'Non renseigné'}
-                            </div>
-                            <div>
-                                <span className="font-medium">État de santé:</span> {profile.etatSante || 'Non renseigné'}
-                            </div>
-                            <div>
-                                <span className="font-medium">Fumeur:</span> {profile.fumeur || 'Non renseigné'}
-                            </div>
-                            <div>
-                                <span className="font-medium">Buveur:</span> {profile.buveur || 'Non renseigné'}
-                            </div>
-                            <div>
-                                <span className="font-medium">Sport:</span> {profile.sport || 'Non renseigné'}
-                            </div>
-                            <div>
-                                <span className="font-medium">Motorisé:</span> {profile.motorise || 'Non renseigné'}
-                            </div>
-                            <div>
-                                <span className="font-medium">Loisirs:</span> {profile.loisirs || 'Non renseigné'}
+                    <div className="mb-8">
+                        <div className="mb-6 rounded-lg bg-white p-6 shadow-md">
+                            <h2 className="mb-4 text-2xl font-bold text-gray-900">Mode de vie</h2>
+                            <div className="grid gap-6 md:grid-cols-2">
+                                <div>
+                                    <label className="mb-1 block text-sm font-medium text-gray-700">État matrimonial</label>
+                                    <input
+                                        type="text"
+                                        value={profile.etatMatrimonial || 'Non renseigné'}
+                                        disabled
+                                        className="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-700"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="mb-1 block text-sm font-medium text-gray-700">Logement</label>
+                                    <input
+                                        type="text"
+                                        value={profile.logement || 'Non renseigné'}
+                                        disabled
+                                        className="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-700"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="mb-1 block text-sm font-medium text-gray-700">Taille</label>
+                                    <input
+                                        type="text"
+                                        value={profile.taille ? `${profile.taille} cm` : 'Non renseigné'}
+                                        disabled
+                                        className="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-700"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="mb-1 block text-sm font-medium text-gray-700">Poids</label>
+                                    <input
+                                        type="text"
+                                        value={profile.poids ? `${profile.poids} kg` : 'Non renseigné'}
+                                        disabled
+                                        className="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-700"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="mb-1 block text-sm font-medium text-gray-700">État de santé</label>
+                                    <textarea
+                                        value={profile.etatSante || 'Non renseigné'}
+                                        disabled
+                                        rows={3}
+                                        className="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-700"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="mb-1 block text-sm font-medium text-gray-700">Fumeur</label>
+                                    <input
+                                        type="text"
+                                        value={profile.fumeur || 'Non renseigné'}
+                                        disabled
+                                        className="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-700"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="mb-1 block text-sm font-medium text-gray-700">Buveur</label>
+                                    <input
+                                        type="text"
+                                        value={profile.buveur || 'Non renseigné'}
+                                        disabled
+                                        className="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-700"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="mb-1 block text-sm font-medium text-gray-700">Sport</label>
+                                    <input
+                                        type="text"
+                                        value={profile.sport || 'Non renseigné'}
+                                        disabled
+                                        className="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-700"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="mb-1 block text-sm font-medium text-gray-700">Motorisé</label>
+                                    <input
+                                        type="text"
+                                        value={profile.motorise || 'Non renseigné'}
+                                        disabled
+                                        className="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-700"
+                                    />
+                                </div>
+                                <div className="md:col-span-2">
+                                    <label className="mb-1 block text-sm font-medium text-gray-700">Loisirs</label>
+                                    <input
+                                        type="text"
+                                        value={profile.loisirs || 'Non renseigné'}
+                                        disabled
+                                        className="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-700"
+                                    />
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
 
-                {/* Partner Preferences */}
-                <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-6">
-                    <h3 className="mb-4 text-lg font-semibold">Préférences de partenaire</h3>
-                    <div className="grid gap-4 md:grid-cols-2">
-                        <div className="space-y-3">
-                            <div>
-                                <span className="font-medium">Âge minimum:</span> {profile.ageMinimum || 'Non renseigné'}
-                            </div>
-                            <div>
-                                <span className="font-medium">Situation matrimoniale recherchée:</span>{' '}
-                                {profile.situationMatrimonialeRecherche || 'Non renseigné'}
-                            </div>
-                            <div>
-                                <span className="font-medium">Pays recherché:</span> {profile.paysRecherche || 'Non renseigné'}
-                            </div>
-                            <div>
-                                <span className="font-medium">Villes recherchées:</span>{' '}
-                                {profile.villesRecherche && profile.villesRecherche.length > 0
-                                    ? (() => {
-                                          // Parse the JSON string if it's a string, otherwise use as-is
-                                          const villes =
-                                              typeof profile.villesRecherche === 'string'
-                                                  ? JSON.parse(profile.villesRecherche)
-                                                  : profile.villesRecherche;
-
-                                          return Array.isArray(villes) && villes.length > 0 ? villes.join(', ') : 'Non renseigné';
-                                      })()
-                                    : 'Non renseigné'}
-                            </div>
-                        </div>
-                        <div className="space-y-3">
-                            <div>
-                                <span className="font-medium">Niveau d'études recherché:</span> {profile.niveauEtudesRecherche || 'Non renseigné'}
-                            </div>
-                            <div>
-                                <span className="font-medium">Statut d'emploi recherché:</span> {profile.statutEmploiRecherche || 'Non renseigné'}
-                            </div>
-                            <div>
-                                <span className="font-medium">Revenu minimum:</span> {profile.revenuMinimum || 'Non renseigné'}
-                            </div>
-                            <div>
-                                <span className="font-medium">Religion recherchée:</span> {profile.religionRecherche || 'Non renseigné'}
+                    {/* Partner Preferences */}
+                    <div className="mb-8">
+                        <div className="mb-6 rounded-lg bg-white p-6 shadow-md">
+                            <h2 className="mb-4 text-2xl font-bold text-gray-900">Préférences de partenaire</h2>
+                            <div className="grid gap-6 md:grid-cols-2">
+                                <div>
+                                    <label className="mb-1 block text-sm font-medium text-gray-700">Âge minimum</label>
+                                    <input
+                                        type="text"
+                                        value={profile.ageMinimum ? `${profile.ageMinimum} ans` : 'Non renseigné'}
+                                        disabled
+                                        className="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-700"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="mb-1 block text-sm font-medium text-gray-700">Situation matrimoniale recherchée</label>
+                                    <input
+                                        type="text"
+                                        value={profile.situationMatrimonialeRecherche || 'Non renseigné'}
+                                        disabled
+                                        className="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-700"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="mb-1 block text-sm font-medium text-gray-700">Pays recherché</label>
+                                    <input
+                                        type="text"
+                                        value={profile.paysRecherche || 'Non renseigné'}
+                                        disabled
+                                        className="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-700"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="mb-1 block text-sm font-medium text-gray-700">Villes recherchées</label>
+                                    <input
+                                        type="text"
+                                        value={
+                                            profile.villesRecherche && profile.villesRecherche.length > 0
+                                                ? (() => {
+                                                      const villes =
+                                                          typeof profile.villesRecherche === 'string'
+                                                              ? JSON.parse(profile.villesRecherche)
+                                                              : profile.villesRecherche;
+                                                      return Array.isArray(villes) && villes.length > 0 ? villes.join(', ') : 'Non renseigné';
+                                                  })()
+                                                : 'Non renseigné'
+                                        }
+                                        disabled
+                                        className="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-700"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="mb-1 block text-sm font-medium text-gray-700">Niveau d'études recherché</label>
+                                    <input
+                                        type="text"
+                                        value={profile.niveauEtudesRecherche || 'Non renseigné'}
+                                        disabled
+                                        className="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-700"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="mb-1 block text-sm font-medium text-gray-700">Statut d'emploi recherché</label>
+                                    <input
+                                        type="text"
+                                        value={profile.statutEmploiRecherche || 'Non renseigné'}
+                                        disabled
+                                        className="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-700"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="mb-1 block text-sm font-medium text-gray-700">Revenu minimum</label>
+                                    <input
+                                        type="text"
+                                        value={profile.revenuMinimum || 'Non renseigné'}
+                                        disabled
+                                        className="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-700"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="mb-1 block text-sm font-medium text-gray-700">Religion recherchée</label>
+                                    <input
+                                        type="text"
+                                        value={profile.religionRecherche || 'Non renseigné'}
+                                        disabled
+                                        className="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-700"
+                                    />
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
 
-                {/* Profile Status */}
-                <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-6">
-                    <h3 className="mb-4 text-lg font-semibold">Statut du profil</h3>
-                    <div className="space-y-2">
-                        <div>
-                            <span className="font-medium">Étape actuelle:</span> {profile.currentStep || 1} sur 4
-                        </div>
-                        <div>
-                            <span className="font-medium">Profil complété:</span>
-                            <span
-                                className={`ml-2 rounded px-2 py-1 text-sm ${
-                                    profile.isCompleted ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-                                }`}
-                            >
-                                {profile.isCompleted ? 'Oui' : 'Non'}
-                            </span>
-                        </div>
-                        {profile.isCompleted && (
-                            <div>
-                                <span className="font-medium">Complété le:</span> {profile.completedAt || 'Date non disponible'}
+                    {/* Profile Status */}
+                    <div className="mb-8">
+                        <div className="rounded-lg bg-white p-6 shadow-md">
+                            <h2 className="mb-4 text-2xl font-bold text-gray-900">Statut du profil</h2>
+                            <div className="grid gap-4 md:grid-cols-2">
+                                <div>
+                                    <label className="mb-1 block text-sm font-medium text-gray-700">Étape actuelle</label>
+                                    <input
+                                        type="text"
+                                        value={`${profile.currentStep || 1} sur 4`}
+                                        disabled
+                                        className="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-700"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="mb-1 block text-sm font-medium text-gray-700">Profil complété</label>
+                                    <input
+                                        type="text"
+                                        value={profile.isCompleted ? 'Oui' : 'Non'}
+                                        disabled
+                                        className={`w-full rounded-lg border px-4 py-3 font-medium ${
+                                            profile.isCompleted
+                                                ? 'border-green-300 bg-green-50 text-green-700'
+                                                : 'border-yellow-300 bg-yellow-50 text-yellow-700'
+                                        }`}
+                                    />
+                                </div>
+                                {profile.isCompleted && profile.completedAt && (
+                                    <div className="md:col-span-2">
+                                        <label className="mb-1 block text-sm font-medium text-gray-700">Complété le</label>
+                                        <input
+                                            type="text"
+                                            value={profile.completedAt}
+                                            disabled
+                                            className="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-700"
+                                        />
+                                    </div>
+                                )}
                             </div>
-                        )}
+                        </div>
                     </div>
-                </div>
 
-                {/* Action Buttons */}
-                <div className="flex gap-4">
-                    <a href="/profile" className="rounded-lg bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700">
-                        Modifier le profil
-                    </a>
-                    <a href="/dashboard" className="rounded-lg bg-gray-600 px-4 py-2 text-white transition-colors hover:bg-gray-700">
-                        Retour au tableau de bord
-                    </a>
+                    {/* Action Buttons */}
+                    <div className="flex gap-4 pt-6">
+                        <a href="/profile" className="rounded-lg bg-blue-600 px-6 py-2 font-medium text-white transition-colors hover:bg-blue-700">
+                            Modifier le profil
+                        </a>
+                        <a
+                            href="/dashboard"
+                            className="rounded-lg border border-gray-300 bg-white px-6 py-2 font-medium text-gray-700 transition-colors hover:bg-gray-50"
+                        >
+                            Retour au tableau de bord
+                        </a>
+                    </div>
                 </div>
             </div>
         </AppLayout>
