@@ -49,7 +49,7 @@ class CheckProfileComplete
                 'profile.store',    // Profile save endpoint
                 'profile.complete', // Profile completion endpoint
                 'logout',           // Logout
-                'dashboard',        // Dashboard (if you want to allow access)
+                // 'dashboard',        // Dashboard (if you want to allow access)
             ];
 
             // Current route name

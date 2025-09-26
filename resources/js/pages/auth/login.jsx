@@ -24,13 +24,13 @@ export default function Login({ status, canResetPassword }) {
     };
 
     return (
-        <div className="flex h-[100svh] w-[100svw] place-content-center place-items-center auth-layout-bg">
-            <div className='w-full bg-red-400 absolute top-0 left-0 auth-layout-overlay '></div>
-            <div className="flex h-[90svh] w-[80svw] z-50 relative translate-x-[-50px]">
+        <div className="auth-layout-bg flex h-[100svh] w-[100svw] place-content-center place-items-center">
+            <div className="auth-layout-overlay sm:absolute top-0 left-0 w-full bg-red-400"></div>
+            <div className="sm:relative z-50 flex sm:flex-row flex-col-reverse sm:h-[90svh] h-fit sm:w-[80svw] w-[100vw] sm:translate-x-[-50px]">
                 {/* left side  */}
-                <div className="h-full w-[50%] ">
+                <div className="sm:h-full sm:w-[50%] w-[100svw]">
                     <AuthLayout
-                        className="h-full rounded-s-4xl rounded-e-[40px] absolute left-[160px] bg-[#fbf6f6]"
+                        className="sm:absolute left-[160px] h-full sm:rounded-s-4xl sm:rounded-e-[40px] bg-[#fbf6f6]"
                         title="Accès à votre compte"
                         description="Entrez votre email et votre mot de passe ci-dessous pour vous connecter"
                     >
@@ -110,8 +110,8 @@ export default function Login({ status, canResetPassword }) {
                     </AuthLayout>
                 </div>
                 {/* right side */}
-                <div className="contenr-center h-full w-[50%]">
-                    <img loading="lazy" src="./images/Wedding-photo.avif" alt="Flower Bouquet" className="h-full w-full rounded-e-4xl object-cover" />
+                <div className="contenr-center sm:h-full h-[30vh] sm:w-[50%] w-[100%]">
+                    <img loading="lazy" src="./images/Wedding-photo.avif" alt="Flower Bouquet" className="h-full w-full sm:rounded-e-4xl object-cover" />
                 </div>
             </div>
         </div>

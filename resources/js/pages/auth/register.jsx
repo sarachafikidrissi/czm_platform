@@ -100,17 +100,17 @@ export default function Register() {
 
     return (
         <div className="flex h-[100svh] w-[100svw] place-content-center place-items-center auth-layout-bg ">
-            <div className='w-full bg-red-400 absolute top-0 left-0 auth-layout-overlay '></div>
-            <div className="flex h-[90svh] w-[80svw] z-50 relative translate-x-[100px]">
+            <div className='w-full absolute top-0 left-0 auth-layout-overlay '></div>
+            <div className="flex sm:flex-row flex-col sm:h-[90svh] h-fit sm:w-[80svw] w-[100vw] z-50 sm:relative sm:translate-x-[100px]">
                 {/* left side  */}
-                <div className="contenr-center h-full w-[50%]">
-                    <img loading="lazy" src="./images/wedding-boucket.avif" alt="" className="h-full w-full rounded-s-4xl object-cover" />
+                <div className="contenr-center sm:h-full h-[30%] sm:w-[50%] w-[100%]">
+                    <img loading="lazy" src="./images/wedding-boucket.avif" alt="" className="h-full w-full sm:rounded-s-4xl  object-cover" />
                 </div>
                 {/* right side */}
-                <div className="h-full w-[50%]">
+                <div className="sm:h-full sm:w-[50%] w-[100%]">
                     <AuthLayout
                         title="Créer un compte"
-                        className="h-full rounded-e-4xl rounded-s-[40px] absolute right-[170px] bg-[#fbf6f6]"
+                        className="h-full  sm:rounded-e-4xl sm:rounded-s-[40px] sm:absolute sm:right-[170px] bg-[#fbf6f6]"
                         description="Saisissez vos coordonnées ci-dessous pour créer votre compte."
                     >
                         <Head title="Register" />
