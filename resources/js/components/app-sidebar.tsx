@@ -16,27 +16,27 @@ const mainNavItems: NavItem[] = [
     },
     {
         title: 'Mon Profil',
-        url: '',
+        url: '/profile-info',
         icon: User
     },
     {
         title: 'Mon Photos',
-        url: '',
+        url: '/photos',
         icon: Images
     },
     {
         title: 'Mon Matchmaker',
-        url: '',
+        url: '/matchmaker',
         icon: HeartHandshake
     },
     {
         title: 'Propositions',
-        url: '',
+        url: '/propositions',
         icon: Flame
     },
     {
         title: 'Mes Rendez-vous',
-        url: '',
+        url: '/appointments',
         icon: CalendarHeart
     },
 ];
