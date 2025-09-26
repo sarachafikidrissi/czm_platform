@@ -14,10 +14,9 @@
     font-weight: normal;
     font-style: normal;
 }
-*{
+* {
     font-family: Nunito-Regular;
 }
-
 
 @theme {
     --font-sans:
@@ -129,7 +128,7 @@
     --sidebar-border: oklch(0.922 0 0);
     --sidebar-ring: oklch(0.87 0 0);
     --label: oklch(67.64% 0.032 291.77);
-    --button-primary-background: oklch(39.82% 0.160 28.75);
+    --button-primary-background: oklch(39.82% 0.16 28.75);
     --button-primary-hover: #722323;
     --button-secondary-background: #076826;
 }
@@ -179,9 +178,6 @@
     }
 }
 
-
-
-
 /* In your CSS file */
 .auth-layout-bg {
     background-image: url('/images/flower-background.jpg');
@@ -195,11 +191,11 @@
 .auth-layout-overlay {
     background: rgba(0, 0, 0, 0.2); /* Dark overlay */
     min-height: 100vh;
-
 }
-.footer-layout-bg{
+.footer-layout-bg {
     background-image: url('/images/morocco-flag-banner.jpg');
     background-size: 100%;
     background-position: center;
     background-repeat: no-repeat;
 }
+

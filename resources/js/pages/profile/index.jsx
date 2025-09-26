@@ -1,7 +1,5 @@
 import { router } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
-import Footer from '../../components/footer';
-import Navbar from '../../components/navbar';
 import Details from './details';
 import PartnerInfo from './partnerInfo';
 import PersonalInfo from './personalInfo';
@@ -77,19 +75,17 @@ export default function Profile({ auth, profile }) {
         }
     };
 
-
-
     const saveStep = async (step) => {
         if (!validateStep(step)) {
             alert('Veuillez remplir tous les champs obligatoires');
             return false;
         }
-    
+
         try {
             const formDataToSend = new FormData();
-            
+
             // Add all form data
-            Object.keys(formData).forEach(key => {
+            Object.keys(formData).forEach((key) => {
                 if (formData[key] !== null && formData[key] !== undefined && formData[key] !== '') {
                     if (key === 'profilePicture' && formData[key]?.file) {
                         formDataToSend.append('profilePicture', formData[key].file);
@@ -102,9 +98,9 @@ export default function Profile({ auth, profile }) {
                     }
                 }
             });
-            
+
             formDataToSend.append('currentStep', step);
-    
+
             // Return the promise so we can await it properly
             return new Promise((resolve, reject) => {
                 router.post('/profile', formDataToSend, {
@@ -119,18 +115,15 @@ export default function Profile({ auth, profile }) {
                         console.error('Error saving step:', errors);
                         alert('Erreur lors de la sauvegarde: ' + (errors.message || Object.values(errors).join(', ')));
                         resolve(false); // Use resolve instead of reject to continue flow
-                    }
+                    },
                 });
             });
-    
         } catch (error) {
             console.error('Error in saveStep:', error);
             alert('Erreur lors de la sauvegarde');
             return false;
         }
     };
-
-
 
     const handleNext = async () => {
         if (isSubmitting) return; // Prevent multiple clicks
@@ -185,9 +178,13 @@ export default function Profile({ auth, profile }) {
     };
 
     return (
-        <>
-            <Navbar />
-            <div className="mt-10 min-h-screen bg-gray-50 px-4 py-8 sm:px-6 lg:px-8">
+        <div className="flex w-[100svw] h-[100svh] p-4">
+            {/* <Navbar /> */}
+
+            <div className="md:block hidden h-full w-[40%] ">
+                <img loading="lazy" src="./images/couple-love.jpg" alt="" className="h-full w-full  object-cover rounded-s-2xl" />
+            </div>
+            <div className="sm:h-full bg-[rgb(250,244,244)] px-4 py-8 sm:px-6 lg:px-8  overflow-y-auto scrollbar-thumb-gray-300 rounded-e-2xl">
                 <div className="mx-auto max-w-3xl">
                     {/* Header */}
                     <div className="mb-8 text-center">
@@ -240,7 +237,7 @@ export default function Profile({ auth, profile }) {
                     </div>
 
                     {/* form steps */}
-                    <div className="rounded-lg bg-white p-6 shadow-md sm:p-8">
+                    <div className="rounded-lg bg-white p-6 shadow-md sm:p-8 max-h-[600px] overflow-y-auto ">
                         {currentStep === 1 && <PersonalInfo {...stepProps} />}
                         {currentStep === 2 && <Details {...stepProps} />}
                         {currentStep === 3 && <PartnerInfo {...stepProps} />}
@@ -278,7 +275,7 @@ export default function Profile({ auth, profile }) {
                     </div>
                 </div>
             </div>
-            <Footer />
-        </>
+            {/* <Footer /> */}
+        </div>
     );
 }
