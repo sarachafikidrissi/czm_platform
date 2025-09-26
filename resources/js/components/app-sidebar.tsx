@@ -4,7 +4,7 @@ import { NavUser } from '@/components/nav-user';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/react';
-import { BookOpen, Folder, LayoutGrid } from 'lucide-react';
+import { BookOpen, Folder, LayoutGrid, User, HeartHandshake, CalendarHeart, Images, Flame } from 'lucide-react';
 import { userInfo } from 'os';
 
 const mainNavItems: NavItem[] = [
@@ -12,37 +12,66 @@ const mainNavItems: NavItem[] = [
         title: 'Dashboard',
         url: '/dashboard',
         icon: LayoutGrid,
+        
+    },
+    {
+        title: 'Mon Profil',
+        url: '',
+        icon: User
+    },
+    {
+        title: 'Mon Photos',
+        url: '',
+        icon: Images
+    },
+    {
+        title: 'Mon Matchmaker',
+        url: '',
+        icon: HeartHandshake
+    },
+    {
+        title: 'Propositions',
+        url: '',
+        icon: Flame
+    },
+    {
+        title: 'Mes Rendez-vous',
+        url: '',
+        icon: CalendarHeart
     },
 ];
 
+
 const footerNavItems: NavItem[] = [
-    {
-        title: 'Repository',
-        url: 'https://github.com/laravel/react-starter-kit',
-        icon: Folder,
-    },
-    {
-        title: 'Documentation',
-        url: 'https://laravel.com/docs/starter-kits',
-        icon: BookOpen,
-    },
+    // {
+    //     title: 'Repository',
+    //     url: 'https://github.com/laravel/react-starter-kit',
+    //     icon: Folder,
+    // },
+    // {
+    //     title: 'Documentation',
+    //     url: 'https://laravel.com/docs/starter-kits',
+    //     icon: BookOpen,
+    // },
 ];
 
 export function AppSidebar() {
     return (
-        <Sidebar collapsible="icon" variant="inset">
+        // sidebar container
+        <Sidebar collapsible="icon" variant="inset" className='bg-[#722323]' >
             <SidebarHeader>
-                <SidebarMenu>
+                <SidebarMenu className=''>
                     <SidebarMenuItem>
-                        <SidebarMenuButton size="lg" asChild>
+                        <SidebarMenuButton className='hover:bg-transparent' size="lg" asChild >
                             <Link href="/dashboard" prefetch>
                                 {/* to be changed when user upload his picture */}
-                                <div className="bg-white text-sidebar-primary-foreground flex aspect-square size-10 items-center justify-center rounded-full">
+                                <div className="flex justify-between items-center gap-x-1 w-full">
                                     <img
-                                        src="/images/red-profile.png"
+                                        src="/images/Czm-white-logo.png"
                                         alt="profile-picture"
-                                        className="size-5 fill-current text-white dark:text-black"
+                                        className="size-10 fill-current object-cover"
                                     />
+                                    <span className='text-white'>Centre Zawaj Maroc</span>
                                 </div>
                                 <div className="ml-1 grid flex-1 text-left text-sm">
                                     <span className="mb-0.5 truncate leading-none font-semibold">{}</span>
@@ -53,12 +82,12 @@ export function AppSidebar() {
                 </SidebarMenu>
             </SidebarHeader>
 
-            <SidebarContent>
-                <NavMain items={mainNavItems} />
+            <SidebarContent className=''>
+                <NavMain  items={mainNavItems} />
             </SidebarContent>
 
             <SidebarFooter>
-                <NavFooter items={footerNavItems} className="mt-auto" />
+                <NavFooter  items={footerNavItems} className="mt-auto" />
                 <NavUser />
             </SidebarFooter>
         </Sidebar>

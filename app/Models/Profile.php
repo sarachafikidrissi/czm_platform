@@ -10,4 +10,6 @@ class Profile extends Model
         'user_id',
         'current_step'
     ];
+
+    
 }
