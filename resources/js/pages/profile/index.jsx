@@ -8,6 +8,7 @@ import PersonalInfo from './personalInfo';
 import UploadPicture from './uploadPicture';
 
 export default function Profile({ auth, profile }) {
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [currentStep, setCurrentStep] = useState(profile?.currentStep || 1);
     const [formData, setFormData] = useState({
         // Step 1
@@ -56,8 +57,8 @@ export default function Profile({ auth, profile }) {
 
     const steps = [
         { number: 1, label: 'Info De Base' },
-        { number: 2, label: 'Profil recherche' },
-        { number: 3, label: 'Mode de vie' },
+        { number: 2, label: 'Mode de vie' },
+        { number: 3, label: 'Profil recherche' },
         { number: 4, label: 'Telecharger photo de profile' },
     ];
 
@@ -76,72 +77,98 @@ export default function Profile({ auth, profile }) {
         }
     };
 
+
+
     const saveStep = async (step) => {
         if (!validateStep(step)) {
             alert('Veuillez remplir tous les champs obligatoires');
             return false;
         }
-
+    
         try {
             const formDataToSend = new FormData();
-
-            // Add all form data for the current step and previous steps
-            Object.keys(formData).forEach((key) => {
-                if (formData[key] !== null && formData[key] !== undefined) {
+            
+            // Add all form data
+            Object.keys(formData).forEach(key => {
+                if (formData[key] !== null && formData[key] !== undefined && formData[key] !== '') {
                     if (key === 'profilePicture' && formData[key]?.file) {
                         formDataToSend.append('profilePicture', formData[key].file);
-                        console.log(formData);
                     } else if (key === 'villesRecherche') {
-                        formDataToSend.append(key, JSON.stringify(formData[key]));
+                        if (Array.isArray(formData[key]) && formData[key].length > 0) {
+                            formDataToSend.append(key, JSON.stringify(formData[key]));
+                        }
                     } else {
                         formDataToSend.append(key, formData[key]);
                     }
                 }
             });
-
+            
             formDataToSend.append('currentStep', step);
-
-            await router.post('/profile', formDataToSend, {
-                forceFormData: true,
-                preserveScroll: true,
-                onSuccess: () => {
-                    return true;
-                },
-                onError: (errors) => {
-                    console.error('Error saving profile:', errors);
-                    alert('Erreur lors de la sauvegarde: ' + Object.values(errors).join(', '));
-                    return false;
-                },
+    
+            // Return the promise so we can await it properly
+            return new Promise((resolve, reject) => {
+                router.post('/profile', formDataToSend, {
+                    forceFormData: true,
+                    preserveScroll: true,
+                    preserveState: true,
+                    onSuccess: () => {
+                        console.log('Step saved successfully');
+                        resolve(true);
+                    },
+                    onError: (errors) => {
+                        console.error('Error saving step:', errors);
+                        alert('Erreur lors de la sauvegarde: ' + (errors.message || Object.values(errors).join(', ')));
+                        resolve(false); // Use resolve instead of reject to continue flow
+                    }
+                });
             });
-
-            return true;
+    
         } catch (error) {
-            console.error('Error saving step:', error);
+            console.error('Error in saveStep:', error);
+            alert('Erreur lors de la sauvegarde');
             return false;
         }
     };
 
-    const handleNext = async () => {
-        // const isSaved = await saveStep(currentStep);
-        // if (isSaved && currentStep < 4) {
-        //     setCurrentStep(currentStep + 1);
-        // } else if (currentStep === 4) {
-        //     // Complete the profile
-        //     await router.post('/profile/complete');
-        // }
-        if (currentStep < 4) {
-            const isSaved = await saveStep(currentStep);
-            if (isSaved) {
-                setCurrentStep(currentStep + 1);
-            }
-        } else if (currentStep === 4) {
-            // For step 4: First save the picture, then complete
-            const isSaved = await saveStep(4); // This will save the profile picture
 
-            if (isSaved) {
-                // Only complete after successful save
-                await router.post('/profile/complete');
+
+    const handleNext = async () => {
+        if (isSubmitting) return; // Prevent multiple clicks
+
+        setIsSubmitting(true);
+
+        try {
+            if (currentStep < 4) {
+                const isSaved = await saveStep(currentStep);
+                if (isSaved) {
+                    setCurrentStep(currentStep + 1);
+                }
+            } else if (currentStep === 4) {
+                // For step 4: First save the picture, then complete
+                const isSaved = await saveStep(4);
+
+                if (isSaved) {
+                    await router.post(
+                        '/profile/complete',
+                        {},
+                        {
+                            preserveScroll: true,
+                            onSuccess: () => {
+                                window.location.href = '/dashboard';
+                            },
+                            onError: (errors) => {
+                                console.error('Error completing profile:', errors);
+                                alert('Erreur lors de la finalisation du profil');
+                            },
+                        },
+                    );
+                }
             }
+        } catch (error) {
+            console.error('Error in handleNext:', error);
+            alert('Une erreur est survenue');
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -236,9 +263,12 @@ export default function Profile({ auth, profile }) {
 
                         <button
                             onClick={handleNext}
-                            className="bg-button-primary hover:bg-button-secondary rounded-lg px-6 py-2 font-medium text-white transition-colors"
+                            disabled={isSubmitting}
+                            className={`bg-button-primary hover:bg-button-secondary rounded-lg px-6 py-2 font-medium text-white transition-colors ${
+                                isSubmitting ? 'cursor-not-allowed opacity-50' : ''
+                            }`}
                         >
-                            {currentStep === 4 ? 'Terminer' : 'Suivant'}
+                            {isSubmitting ? 'Enregistrement...' : currentStep === 4 ? 'Terminer' : 'Suivant'}
                         </button>
                     </div>
 

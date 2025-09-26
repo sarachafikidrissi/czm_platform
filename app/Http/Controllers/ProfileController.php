@@ -172,6 +172,7 @@ class ProfileController extends Controller
 
     private function validateStep4(Request $request)
     {
+       
         if ($request->hasFile('profilePicture')) {
             $request->validate([
                 'profilePicture' => 'image|mimes:jpeg,png,jpg|max:2048',

@@ -335,6 +335,23 @@ function Details({ formData, setFormData }) {
                         </div>
                     </div>
                 </div>
+
+                {/* Loisirs - Text Input */}
+                <div>
+                    <label htmlFor="loisirs" className="mb-1 block text-sm font-medium text-gray-700">
+                        Loisirs et centres d'intérêt
+                    </label>
+                    <input
+                        type="text"
+                        id="loisirs"
+                        name="loisirs"
+                        value={formData.loisirs || ''}
+                        onChange={handleInputChange}
+                        placeholder="Ex: Lecture, sport, musique, voyage, cuisine..."
+                        className="w-full rounded-lg border border-gray-300 px-4 py-3 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                    />
+                    <p className="mt-1 text-xs text-gray-500">Listez vos loisirs et passions séparés par des virgules</p>
+                </div>
             </div>
         </div>
     );
