@@ -65,7 +65,7 @@ Route::middleware(['auth'])->group(function () {
     })->name('profile.info');
 });
 
-Route::middleware(['auth', 'verified', 'isComplete'])->group(function () {
+Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', function () {
         $user = auth()->user();
         $role = method_exists($user, 'getRoleNames') ? $user->getRoleNames()->first() : null;

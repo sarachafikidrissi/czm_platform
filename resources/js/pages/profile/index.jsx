@@ -190,6 +190,9 @@ export default function Profile({ auth, profile }) {
                     <div className="mb-8 text-center">
                         <h1 className="mb-2 text-3xl font-bold text-gray-900">Construisons ensemble votre profil unique</h1>
                         <p className="text-lg text-gray-600">Complétez votre demande en 4 étapes simples</p>
+                        <a href="/dashboard" className="ml-1 text-blue-600 hover:underline">
+                               visiter votre dashboard
+                            </a>
                     </div>
 
                     {/* Progress Indicator */}

@@ -3,18 +3,31 @@ import { Head, usePage } from '@inertiajs/react';
 
 export default function ProfileInfo() {
     const { auth, profile } = usePage().props;
+    console.log(profile.currentStep);
 
-    if (!profile) {
+    if (!profile.isCompleted) {
         return (
             <AppLayout breadcrumbs={[{ title: 'Mon Profil', href: '/profile' }]}>
                 <Head title="Mon Profil" />
                 <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
                     <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-6">
-                        <div className="text-lg font-semibold">Profil non trouvé</div>
+                        <div className="text-lg font-semibold">
+                        {profile && profile.currentStep > 1 ? (
+                                <span>Profil non créé.</span>
+                            ) : (
+                                <span>Profil non complété..</span>
+                            )}
+
+                        </div>
                         <div className="mt-2 text-sm text-neutral-700 dark:text-neutral-200">
-                            Votre profil n'a pas encore été créé.
+                            {profile && profile.currentStep > 1 ? (
+                                <span>Merci de compléter votre profil</span>
+                            ) : (
+                                <span>Votre profil n'a pas encore été créé.</span>
+                            )}
+
                             <a href="/profile" className="ml-1 text-blue-600 hover:underline">
-                                Créer votre profil
+                                {profile && profile.currentStep > 1 ? <span>Compléter votre profil</span> : <span>Créer votre profil</span>}
                             </a>
                         </div>
                     </div>
@@ -27,16 +40,15 @@ export default function ProfileInfo() {
         <AppLayout breadcrumbs={[{ title: 'Mon Profil', href: '/profile' }]}>
             <Head title="Mon Profil" />
             <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
-                <div className='bg-white/10 flex sm:flex-row flex-col items-center justify-between px-2 rounded-md shadow-2xs'>
-                
+                <div className="flex flex-col items-center justify-between rounded-md bg-white/10 px-2 shadow-2xs sm:flex-row">
                     {/* Header */}
                     <div className="mb-8 text-center">
                         <h1 className="mb-2 text-3xl font-bold text-gray-900">Votre Profil</h1>
                         <p className="text-lg text-gray-600">Consultez les informations de votre profil</p>
                     </div>
 
-                     {/* Profile Picture */}
-                     {profile.profilePicturePath && (
+                    {/* Profile Picture */}
+                    {profile.profilePicturePath && (
                         <div className="mb-8 text-center">
                             <div className="mb-4 text-lg font-semibold">Photo de profil</div>
                             <img
@@ -55,9 +67,7 @@ export default function ProfileInfo() {
                     )}
                 </div>
 
-                <div className="mx-auto w-full ">
-                   
-
+                <div className="mx-auto w-full">
                     {/* Personal Information */}
                     <div className="mb-8">
                         <div className="mb-6 rounded-lg bg-white p-6 shadow-md">
