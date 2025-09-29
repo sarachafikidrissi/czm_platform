@@ -78,6 +78,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/photos', function () {
         return Inertia::render('photos');
     })->name('photos');
+    
+    Route::get('/prospects', function () {
+        return Inertia::render('prospects');
+    })->name('prospects');
+
+  
 
     Route::get('/matchmaker', function () {
         return Inertia::render('matchmaker');

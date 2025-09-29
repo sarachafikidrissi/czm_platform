@@ -63,6 +63,6 @@ class RegisteredUserController extends Controller
 
 
         // return to_route('dashboard');
-        return to_route('profile.index');
+        return to_route('dashboard');
     }
 }
