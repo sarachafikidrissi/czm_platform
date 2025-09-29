@@ -46,6 +46,18 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
             ],
+            // Expose the first role name globally for frontend role-based UI
+            'role' => function () use ($request) {
+                $user = $request->user();
+                if (! $user) {
+                    return null;
+                }
+                // If spatie/laravel-permission is installed, get the first role name
+                if (method_exists($user, 'getRoleNames')) {
+                    return $user->getRoleNames()->first();
+                }
+                return null;
+            },
             'ziggy' => fn (): array => [
                 ...(new Ziggy)->toArray(),
                 'location' => $request->url(),

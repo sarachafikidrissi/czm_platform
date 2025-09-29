@@ -11,13 +11,13 @@ const mainNavItems: NavItem[] = [
         title: 'Dashboard',
         url: '/dashboard',
         icon: LayoutGrid,
-        roles: ['user', 'admin', 'matchmaker'],
+        roles: ['user', 'admin', 'matchmaker', 'manager'],
     },
     {
         title: 'Prospects',
         url: '/prospects',
         icon: UserRoundSearch,
-        roles: ['user', 'admin', 'matchmaker'],
+        roles: ['admin', 'matchmaker', 'manager'],
     },
     {
         title: 'Mon Profil',
@@ -47,7 +47,7 @@ const mainNavItems: NavItem[] = [
         title: 'Mes Rendez-vous',
         url: '/appointments',
         icon: CalendarHeart,
-        roles: ['user'],
+        roles: ['user', 'admin'],
     },
 ];
 
