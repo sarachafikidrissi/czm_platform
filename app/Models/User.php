@@ -27,7 +27,12 @@ class User extends Authenticatable
         'country',
         'city',
         'condition',
-        'status'
+        'status',
+        'approval_status',
+        'agency',
+        'assigned_matchmaker_id',
+        'approved_at',
+        'approved_by'
     ];
 
     /**
@@ -58,5 +63,21 @@ class User extends Authenticatable
         return $this->hasOne(Profile::class)->withDefault([
             'current_step' => 1
         ]);
+    }
+
+    public function assignedMatchmaker() {
+        return $this->belongsTo(User::class, 'assigned_matchmaker_id');
+    }
+
+    public function assignedUsers() {
+        return $this->hasMany(User::class, 'assigned_matchmaker_id');
+    }
+
+    public function approvedBy() {
+        return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function approvedUsers() {
+        return $this->hasMany(User::class, 'approved_by');
     }
 }

@@ -1,11 +1,106 @@
-import React from "react";
+import { Link } from '@inertiajs/react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Users, UserCheck, Plus, Settings } from 'lucide-react';
 
 function AdminDashboardContent() {
     return (
         <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
-            <div className="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border p-6">
-                <div className="text-lg font-semibold">Tableau de bord Admin</div>
-                <div className="mt-2 text-sm text-neutral-700 dark:text-neutral-200">Statistiques et outils d'administration viendront ici.</div>
+            <div className="flex items-center justify-between">
+                <h1 className="text-2xl font-bold">Admin Dashboard</h1>
+            </div>
+
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+                        <Users className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">0</div>
+                        <p className="text-xs text-muted-foreground">
+                            All registered users
+                        </p>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Pending Approvals</CardTitle>
+                        <UserCheck className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">0</div>
+                        <p className="text-xs text-muted-foreground">
+                            Staff awaiting approval
+                        </p>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Active Matchmakers</CardTitle>
+                        <UserCheck className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">0</div>
+                        <p className="text-xs text-muted-foreground">
+                            Approved matchmakers
+                        </p>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Active Managers</CardTitle>
+                        <Settings className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">0</div>
+                        <p className="text-xs text-muted-foreground">
+                            Approved managers
+                        </p>
+                    </CardContent>
+                </Card>
+            </div>
+
+            <div className="grid gap-6 md:grid-cols-2">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Quick Actions</CardTitle>
+                        <CardDescription>
+                            Common administrative tasks
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <Link href="/admin/dashboard">
+                            <Button className="w-full justify-start">
+                                <Users className="w-4 h-4 mr-2" />
+                                Manage Staff
+                            </Button>
+                        </Link>
+                        <Link href="/admin/create-staff">
+                            <Button className="w-full justify-start" variant="outline">
+                                <Plus className="w-4 h-4 mr-2" />
+                                Create Staff Member
+                            </Button>
+                        </Link>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Recent Activity</CardTitle>
+                        <CardDescription>
+                            Latest system activities
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-sm text-muted-foreground">
+                            No recent activity to display.
+                        </p>
+                    </CardContent>
+                </Card>
             </div>
         </div>
     );
