@@ -1,7 +1,8 @@
 import { Link } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, UserCheck, Plus, Settings } from 'lucide-react';
+import { Users, UserCheck, Settings } from 'lucide-react';
+import CreateStaffButton from '@/components/admin/create-staff-button';
 
 function AdminDashboardContent() {
     return (
@@ -79,12 +80,7 @@ function AdminDashboardContent() {
                                 Manage Staff
                             </Button>
                         </Link>
-                        <Link href="/admin/create-staff">
-                            <Button className="w-full justify-start" variant="outline">
-                                <Plus className="w-4 h-4 mr-2" />
-                                Create Staff Member
-                            </Button>
-                        </Link>
+                        <CreateStaffButton buttonLabel="Create Staff Member" className="w-full justify-start" />
                     </CardContent>
                 </Card>
 

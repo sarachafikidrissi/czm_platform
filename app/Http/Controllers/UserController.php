@@ -11,15 +11,23 @@ class UserController extends Controller
 {
     public function matchmakers()
     {
-        $matchmakers = User::role('matchmaker')
-            ->where('approval_status', 'approved')
-            ->get();
-        
+        /** @var User $user */
         $user = Auth::user();
-        
+
+        $assignedId = $user?->assigned_matchmaker_id;
+
+        $query = User::role('matchmaker')
+            ->where('approval_status', 'approved');
+
+        if ($assignedId) {
+            $query->where('id', '!=', $assignedId);
+        }
+
+        $matchmakers = $query->get();
+
         return Inertia::render('user/matchmakers', [
             'matchmakers' => $matchmakers,
-            'assignedMatchmaker' => $user->assignedMatchmaker,
+            'assignedMatchmaker' => $user?->assignedMatchmaker,
         ]);
     }
 

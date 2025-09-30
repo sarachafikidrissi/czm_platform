@@ -45,15 +45,13 @@ const mainNavItems: NavItem[] = [
     },
     {
         title: 'Manage Staff',
-        url: '/admin/dashboard',
+        url: '/admin/dashboard?view=managers',
         icon: Users,
         roles: ['admin'],
-    },
-    {
-        title: 'Create Staff',
-        url: '/admin/create-staff',
-        icon: Plus,
-        roles: ['admin'],
+        children: [
+            { title: 'Manage Managers', url: '/admin/dashboard?view=managers', roles: ['admin'] },
+            { title: 'Manage Matchmakers', url: '/admin/dashboard?view=matchmakers', roles: ['admin'] },
+        ],
     },
     {
         title: 'Prospects',

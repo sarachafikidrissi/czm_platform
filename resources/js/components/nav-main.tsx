@@ -1,4 +1,4 @@
-import { SidebarGroup, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
+import { SidebarGroup, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarMenuSub, SidebarMenuSubItem, SidebarMenuSubButton } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
 
@@ -16,6 +16,19 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
                                 <span className={`text-[18px]`}>{item.title}</span>
                             </Link>
                         </SidebarMenuButton>
+                        {item.children && item.children.length > 0 && (
+                            <SidebarMenuSub>
+                                {item.children.map((sub) => (
+                                    <SidebarMenuSubItem key={sub.title}>
+                                        <SidebarMenuSubButton asChild isActive={sub.url === page.url}>
+                                            <Link href={sub.url} prefetch>
+                                                <span>{sub.title}</span>
+                                            </Link>
+                                        </SidebarMenuSubButton>
+                                    </SidebarMenuSubItem>
+                                ))}
+                            </SidebarMenuSub>
+                        )}
                     </SidebarMenuItem>
                 ))}
             </SidebarMenu>

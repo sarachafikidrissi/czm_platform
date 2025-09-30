@@ -1,4 +1,4 @@
-import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Head, router, usePage, useForm } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -7,11 +7,28 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, XCircle, Plus, Users, UserCheck } from 'lucide-react';
+import { CheckCircle, XCircle, Users, UserCheck } from 'lucide-react';
+import CreateStaffButton from '@/components/admin/create-staff-button';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import AppLayout from '@/layouts/app-layout';
 
 export default function AdminDashboard() {
     const { managers, matchmakers } = usePage().props;
+    const url = usePage().url;
+    const viewParam = (() => {
+        const qIndex = url.indexOf('?');
+        if (qIndex === -1) return 'managers';
+        const params = new URLSearchParams(url.slice(qIndex + 1));
+        return params.get('view') || 'managers';
+    })();
+
+    const { data, setData, post, processing, errors, reset } = useForm({
+        name: '',
+        email: '',
+        phone: '',
+        role: 'manager',
+        agency: '',
+    });
 
     const handleApprove = (id) => {
         router.post(`/admin/users/${id}/approve`);
@@ -41,12 +58,7 @@ export default function AdminDashboard() {
             <div className="flex flex-col gap-3">
                 <div className="flex items-center justify-between gap-3">
                     <h1 className="text-2xl font-bold">Admin Dashboard</h1>
-                    <Link href="/admin/create-staff">
-                        <Button>
-                            <Plus className="w-4 h-4 mr-2" />
-                            New staff
-                        </Button>
-                    </Link>
+                    <CreateStaffButton />
                 </div>
                 <div className="flex flex-wrap items-center gap-3 bg-white rounded-lg p-3 border">
                     <div className="flex items-center gap-2">
@@ -74,7 +86,7 @@ export default function AdminDashboard() {
                 </div>
             </div>
 
-            <div className="grid gap-6 md:grid-cols-2">
+            <div className="grid gap-6 md:grid-cols-1">
                 {/* Managers Table */}
                 <Card className="overflow-hidden">
                     <CardHeader>
@@ -86,7 +98,7 @@ export default function AdminDashboard() {
                             Manage manager accounts and approvals
                         </CardDescription>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className={viewParam !== 'managers' ? 'hidden' : ''}>
                         <Table>
                             <TableHeader>
                                 <TableRow>
@@ -146,7 +158,7 @@ export default function AdminDashboard() {
                             Manage matchmaker accounts and approvals
                         </CardDescription>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className={viewParam !== 'matchmakers' ? 'hidden' : ''}>
                         <Table>
                             <TableHeader>
                                 <TableRow>
