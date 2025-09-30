@@ -104,7 +104,7 @@ export default function Register() {
             <div className="flex sm:flex-row flex-col sm:h-[90svh] h-fit sm:w-[80svw] w-[100vw] z-50 sm:relative sm:translate-x-[100px]">
                 {/* left side  */}
                 <div className="contenr-center sm:h-full h-[30%] sm:w-[50%] w-[100%]">
-                    <img loading="lazy" src="./images/wedding-boucket.avif" alt="" className="h-full w-full sm:rounded-s-4xl  object-cover" />
+                    <img loading="lazy" src="/images/wedding-boucket.avif" alt="" className="h-full w-full sm:rounded-s-4xl  object-cover" />
                 </div>
                 {/* right side */}
                 <div className="sm:h-full sm:w-[50%] w-[100%]">

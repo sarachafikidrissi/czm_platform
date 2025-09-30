@@ -17,7 +17,7 @@ export default function AuthSimpleLayout({ children, title, description, classNa
                     <div className="flex flex-col items-center">
                         <Link href={route('home')} className="flex flex-col items-center gap-2 font-medium">
                             <div className=" flex h-20 w-20 items-center justify-center rounded-md">
-                                <img src='./images/czm_Logo.png'  className="w-full h-full fill-current text-[var(--foreground)] dark:text-white" />
+                                <img src='/images/czm_Logo.png'  className="w-full h-full fill-current text-[var(--foreground)] dark:text-white" />
                             </div>
                             <span className="sr-only">{title}</span>
                         </Link>

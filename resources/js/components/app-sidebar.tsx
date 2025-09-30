@@ -14,12 +14,6 @@ const mainNavItems: NavItem[] = [
         roles: ['user', 'admin', 'matchmaker', 'manager'],
     },
     {
-        title: 'Prospects',
-        url: '/prospects',
-        icon: UserRoundSearch,
-        roles: ['admin', 'matchmaker', 'manager'],
-    },
-    {
         title: 'Mon Profil',
         url: '/profile-info',
         icon: User,

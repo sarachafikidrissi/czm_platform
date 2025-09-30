@@ -31,18 +31,18 @@ export default function StaffRegister() {
     return (
         <div className="flex h-[100svh] w-[100svw] place-content-center place-items-center auth-layout-bg ">
             <div className='w-full absolute top-0 left-0 auth-layout-overlay '></div>
-            <div className="flex sm:flex-row flex-col sm:h-[90svh] h-fit sm:w:[80svw] w-[100vw] z-50 sm:relative sm:translate-x-[100px]">
+            <div className="flex sm:flex-row flex-col sm:h-[90svh] h-fit sm:w:[80svw] w-[100vw] z-50 sm:relative sm:translate-x-[240px]">
                 <div className="contenr-center sm:h-full h-[30%] sm:w-[50%] w-[100%]">
-                    <img loading="lazy" src="./images/wedding-boucket.avif" alt="" className="h-full w-full sm:rounded-s-4xl object-cover" />
+                    <img loading="lazy" src="/images/team.jpg" alt="" className="h-full w-full sm:rounded-s-4xl object-cover" />
                 </div>
                 <div className="sm:h-full sm:w-[50%] w-[100%]">
                     <AuthLayout
                         title="Créer un compte Staff"
-                        className="h-full sm:rounded-e-4xl sm:rounded-s-[40px] sm:absolute sm:right-[170px] bg-[#fbf6f6]"
+                        className="h-full sm:rounded-e-4xl sm:rounded-s-[40px] sm:absolute sm:right-[35%] bg-[#fbf6f6]"
                         description="Saisissez vos coordonnées ci-dessous pour créer un compte staff."
                     >
                         <Head title="Staff Registration" />
-                        <form onSubmit={submit} className="space-y-4">
+                        <form onSubmit={submit} className="space-y-2">
                             <div>
                                 <Label htmlFor="name">Full Name</Label>
                                 <Input
