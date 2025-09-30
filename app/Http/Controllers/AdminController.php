@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
+use App\Mail\StaffCredentialsMail;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 
@@ -79,16 +80,13 @@ class AdminController extends Controller
         $user->assignRole($request->role);
         $user->profile()->create([]);
 
-        // Send email with credentials
-        Mail::send('emails.staff-credentials', [
-            'name' => $user->name,
-            'email' => $user->email,
-            'password' => $password,
-            'role' => $request->role,
-        ], function ($message) use ($user) {
-            $message->to($user->email)
-                    ->subject('Your Staff Account Credentials');
-        });
+        // Send email with credentials via Mailable (uses .env mailer)
+        Mail::to($user->email)->send(new StaffCredentialsMail(
+            name: $user->name,
+            email: $user->email,
+            password: $password,
+            role: $request->role,
+        ));
 
         return redirect()->back()->with('success', 'Staff member created successfully. Credentials sent via email.');
     }
