@@ -9,9 +9,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { HeartHandshake, CheckCircle, User } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { useState } from 'react';
 
 export default function UserMatchmakers() {
     const { matchmakers, assignedMatchmaker } = usePage().props;
+    const [selected, setSelected] = useState(null);
 
     const handleSelectMatchmaker = (matchmakerId) => {
         router.post(`/user/matchmakers/${matchmakerId}/select`);
@@ -48,7 +51,7 @@ export default function UserMatchmakers() {
                 )}
             </div>
 
-            {assignedMatchmaker ? (
+            {/* {assignedMatchmaker && (
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center">
@@ -72,33 +75,68 @@ export default function UserMatchmakers() {
                         </div>
                     </CardContent>
                 </Card>
-            ) : (
-                <Card className="overflow-hidden">
-                    <CardHeader>
-                        <CardTitle>Available Matchmakers</CardTitle>
-                        <CardDescription>
-                            Choose a matchmaker to help you find your perfect match
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead className="w-10"></TableHead>
-                                    <TableHead>Name</TableHead>
-                                    <TableHead>Date</TableHead>
-                                    <TableHead>Agency</TableHead>
-                                    <TableHead className="text-right">Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {matchmakers.map((matchmaker) => (
-                                    <TableRow key={matchmaker.id}>
-                                        <TableCell><input type="checkbox" className="accent-neutral-800" /></TableCell>
-                                        <TableCell className="font-medium">{matchmaker.name}</TableCell>
-                                        <TableCell className="text-muted-foreground">{new Date(matchmaker.created_at ?? Date.now()).toLocaleDateString()}</TableCell>
-                                        <TableCell>{matchmaker.agency}</TableCell>
-                                        <TableCell className="text-right">
+            )} */}
+
+            <Card className="overflow-hidden">
+                <CardHeader>
+                    <CardTitle>Available Matchmakers</CardTitle>
+                    <CardDescription>
+                        Choose a matchmaker to help you find your perfect match
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead className="w-10"></TableHead>
+                                <TableHead>Name</TableHead>
+                                <TableHead>Date</TableHead>
+                                <TableHead>Agency</TableHead>
+                                <TableHead className="text-right">Actions</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {matchmakers.map((matchmaker) => (
+                                <TableRow key={matchmaker.id}>
+                                    <TableCell><input type="checkbox" className="accent-neutral-800" /></TableCell>
+                                    <TableCell className="font-medium">{matchmaker.name}</TableCell>
+                                    <TableCell className="text-muted-foreground">{new Date(matchmaker.created_at ?? Date.now()).toLocaleDateString()}</TableCell>
+                                    <TableCell>{matchmaker.agency}</TableCell>
+                                    <TableCell className="text-right space-x-2">
+                                        <Dialog>
+                                            <DialogTrigger asChild>
+                                                <Button size="sm" variant="outline" onClick={() => setSelected(matchmaker)}>View</Button>
+                                            </DialogTrigger>
+                                            <DialogContent className="sm:max-w-[480px]">
+                                                <DialogHeader>
+                                                    <DialogTitle>Matchmaker Details</DialogTitle>
+                                                    <DialogDescription>Information about the selected matchmaker.</DialogDescription>
+                                                </DialogHeader>
+                                                <div className="grid gap-3 py-2">
+                                                    <div>
+                                                        <div className="text-sm text-muted-foreground">Name</div>
+                                                        <div className="font-medium">{selected?.name}</div>
+                                                    </div>
+                                                    <div>
+                                                        <div className="text-sm text-muted-foreground">Email</div>
+                                                        <div className="font-medium">{selected?.email}</div>
+                                                    </div>
+                                                    <div>
+                                                        <div className="text-sm text-muted-foreground">Agency</div>
+                                                        <div className="font-medium">{selected?.agency ?? '—'}</div>
+                                                    </div>
+                                                    <div>
+                                                        <div className="text-sm text-muted-foreground">Joined</div>
+                                                        <div className="font-medium">{selected?.created_at ? new Date(selected.created_at).toLocaleDateString() : '—'}</div>
+                                                    </div>
+                                                </div>
+                                            </DialogContent>
+                                        </Dialog>
+                                        {assignedMatchmaker && assignedMatchmaker.id === matchmaker.id ? (
+                                            <Button size="sm" variant="outline" disabled>
+                                                Selected
+                                            </Button>
+                                        ) : (
                                             <Button
                                                 size="sm"
                                                 onClick={() => handleSelectMatchmaker(matchmaker.id)}
@@ -106,21 +144,21 @@ export default function UserMatchmakers() {
                                                 <HeartHandshake className="w-4 h-4 mr-2" />
                                                 Select
                                             </Button>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                        
-                        {matchmakers.length === 0 && (
-                            <div className="text-center py-8">
-                                <HeartHandshake className="w-12 h-12 mx-auto text-gray-400 mb-4" />
-                                <p className="text-gray-500">No matchmakers available at the moment.</p>
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
-            )}
+                                        )}
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                    
+                    {matchmakers.length === 0 && (
+                        <div className="text-center py-8">
+                            <HeartHandshake className="w-12 h-12 mx-auto text-gray-400 mb-4" />
+                            <p className="text-gray-500">No matchmakers available at the moment.</p>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
             </div>
         </AppLayout>
     );

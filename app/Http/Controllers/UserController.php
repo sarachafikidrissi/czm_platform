@@ -14,16 +14,9 @@ class UserController extends Controller
         /** @var User $user */
         $user = Auth::user();
 
-        $assignedId = $user?->assigned_matchmaker_id;
-
-        $query = User::role('matchmaker')
-            ->where('approval_status', 'approved');
-
-        if ($assignedId) {
-            $query->where('id', '!=', $assignedId);
-        }
-
-        $matchmakers = $query->get();
+        $matchmakers = User::role('matchmaker')
+            ->where('approval_status', 'approved')
+            ->get();
 
         return Inertia::render('user/matchmakers', [
             'matchmakers' => $matchmakers,
