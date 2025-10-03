@@ -51,6 +51,7 @@ export default function Dashboard() {
     const role = props?.role ?? null;
     const user = props?.auth?.user;
     const approvalStatus = user?.approval_status;
+    const agencies = props?.agencies || [];
     
     // Show pending approval for non-admin staff who aren't approved
     if ((role === 'manager' || role === 'matchmaker') && approvalStatus !== 'approved') {
@@ -66,7 +67,7 @@ export default function Dashboard() {
         <AppLayout >
             <Head title="Dashboard" />
             {role === 'admin' ? (
-                <AdminDashboardContent />
+                <AdminDashboardContent agencies={agencies} />
             ) : role === 'manager' ? (
                 <ManagerDashboardContent />
             ) : role === 'matchmaker' ? (

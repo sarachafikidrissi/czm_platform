@@ -3,8 +3,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users, UserCheck, Settings } from 'lucide-react';
 import CreateStaffButton from '@/components/admin/create-staff-button';
+import CreateAgencyButton from '@/components/admin/create-agency-button';
 
-function AdminDashboardContent() {
+function AdminDashboardContent({ agencies = [] }) {
     return (
         <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
             <div className="flex items-center justify-between">
@@ -80,7 +81,8 @@ function AdminDashboardContent() {
                                 Manage Staff
                             </Button>
                         </Link>
-                        <CreateStaffButton buttonLabel="Create Staff Member" className="w-full justify-start" />
+                        <CreateStaffButton buttonLabel="Create Staff Member" className="w-full justify-start" agencies={agencies} />
+                        <CreateAgencyButton buttonLabel="Create Agency" className="w-full justify-start" />
                     </CardContent>
                 </Card>
 

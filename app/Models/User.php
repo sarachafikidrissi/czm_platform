@@ -30,6 +30,11 @@ class User extends Authenticatable
         'status',
         'approval_status',
         'agency',
+        'agency_id',
+        'profile_picture',
+        'identity_card_front_hash',
+        'identity_card_back_hash',
+        'cin_hash',
         'assigned_matchmaker_id',
         'approved_at',
         'approved_by'
@@ -79,5 +84,9 @@ class User extends Authenticatable
 
     public function approvedUsers() {
         return $this->hasMany(User::class, 'approved_by');
+    }
+
+    public function agency() {
+        return $this->belongsTo(Agency::class);
     }
 }

@@ -1,4 +1,5 @@
 import { Head, router, usePage, useForm } from '@inertiajs/react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -7,13 +8,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, XCircle, Users, UserCheck } from 'lucide-react';
+import { CheckCircle, XCircle, Users, UserCheck, Edit } from 'lucide-react';
 import CreateStaffButton from '@/components/admin/create-staff-button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import AppLayout from '@/layouts/app-layout';
 
 export default function AdminDashboard() {
-    const { managers, matchmakers } = usePage().props;
+    const { managers, matchmakers, agencies } = usePage().props;
     const url = usePage().url;
     const viewParam = (() => {
         const qIndex = url.indexOf('?');
@@ -21,6 +22,9 @@ export default function AdminDashboard() {
         const params = new URLSearchParams(url.slice(qIndex + 1));
         return params.get('view') || 'managers';
     })();
+
+    const [editingUser, setEditingUser] = useState(null);
+    const [selectedAgency, setSelectedAgency] = useState('');
 
     const { data, setData, post, processing, errors, reset } = useForm({
         name: '',
@@ -36,6 +40,24 @@ export default function AdminDashboard() {
 
     const handleReject = (id) => {
         router.post(`/admin/users/${id}/reject`);
+    };
+
+    const handleEditAgency = (user) => {
+        setEditingUser(user);
+        setSelectedAgency(user.agency_id?.toString() || '');
+    };
+
+    const handleUpdateAgency = () => {
+        if (!editingUser || !selectedAgency) return;
+        
+        router.post(`/admin/users/${editingUser.id}/update-agency`, {
+            agency_id: selectedAgency
+        }, {
+            onSuccess: () => {
+                setEditingUser(null);
+                setSelectedAgency('');
+            }
+        });
     };
 
     const getStatusBadge = (status) => {
@@ -58,7 +80,7 @@ export default function AdminDashboard() {
             <div className="flex flex-col gap-3">
                 <div className="flex items-center justify-between gap-3">
                     <h1 className="text-2xl font-bold">Admin Dashboard</h1>
-                    <CreateStaffButton />
+                    <CreateStaffButton agencies={agencies} />
                 </div>
                 <div className="flex flex-wrap items-center gap-3 bg-white rounded-lg p-3 border">
                     <div className="flex items-center gap-2">
@@ -106,7 +128,7 @@ export default function AdminDashboard() {
                                     <TableHead>Name</TableHead>
                                     <TableHead>Date</TableHead>
                                     <TableHead>Agency</TableHead>
-                                    <TableHead>Status</TableHead>
+                                    <TableHead>Role</TableHead>
                                     <TableHead className="text-right">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -116,29 +138,39 @@ export default function AdminDashboard() {
                                         <TableCell><input type="checkbox" className="accent-neutral-800" /></TableCell>
                                         <TableCell className="font-medium">{manager.name}</TableCell>
                                         <TableCell className="text-muted-foreground">{new Date(manager.created_at ?? Date.now()).toLocaleDateString()}</TableCell>
-                                        <TableCell>{manager.agency}</TableCell>
-                                        <TableCell>{getStatusBadge(manager.approval_status)}</TableCell>
+                                        <TableCell>{manager.agency?.name || manager.agency || 'No Agency'}</TableCell>
+                                        <TableCell><Badge className="bg-neutral-100 text-neutral-800 capitalize">manager</Badge></TableCell>
                                         <TableCell className="text-right">
-                                            {manager.approval_status === 'pending' && (
-                                                <div className="flex space-x-2">
-                                                    <Button
-                                                        size="sm"
-                                                        variant="outline"
-                                                        onClick={() => handleApprove(manager.id)}
-                                                        className="text-green-600 hover:text-green-700"
-                                                    >
-                                                        <CheckCircle className="w-4 h-4" />
-                                                    </Button>
-                                                    <Button
-                                                        size="sm"
-                                                        variant="outline"
-                                                        onClick={() => handleReject(manager.id)}
-                                                        className="text-red-600 hover:text-red-700"
-                                                    >
-                                                        <XCircle className="w-4 h-4" />
-                                                    </Button>
-                                                </div>
-                                            )}
+                                            <div className="flex space-x-2 justify-end">
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    onClick={() => handleEditAgency(manager)}
+                                                    className="text-blue-600 hover:text-blue-700"
+                                                >
+                                                    <Edit className="w-4 h-4" />
+                                                </Button>
+                                                {manager.approval_status === 'pending' && (
+                                                    <>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            onClick={() => handleApprove(manager.id)}
+                                                            className="text-green-600 hover:text-green-700"
+                                                        >
+                                                            <CheckCircle className="w-4 h-4" />
+                                                        </Button>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            onClick={() => handleReject(manager.id)}
+                                                            className="text-red-600 hover:text-red-700"
+                                                        >
+                                                            <XCircle className="w-4 h-4" />
+                                                        </Button>
+                                                    </>
+                                                )}
+                                            </div>
                                         </TableCell>
                                     </TableRow>
                                 ))}
@@ -166,7 +198,7 @@ export default function AdminDashboard() {
                                     <TableHead>Name</TableHead>
                                     <TableHead>Date</TableHead>
                                     <TableHead>Agency</TableHead>
-                                    <TableHead>Status</TableHead>
+                                    <TableHead>Role</TableHead>
                                     <TableHead className="text-right">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -176,29 +208,39 @@ export default function AdminDashboard() {
                                         <TableCell><input type="checkbox" className="accent-neutral-800" /></TableCell>
                                         <TableCell className="font-medium">{matchmaker.name}</TableCell>
                                         <TableCell className="text-muted-foreground">{new Date(matchmaker.created_at ?? Date.now()).toLocaleDateString()}</TableCell>
-                                        <TableCell>{matchmaker.agency}</TableCell>
-                                        <TableCell>{getStatusBadge(matchmaker.approval_status)}</TableCell>
+                                        <TableCell>{matchmaker.agency?.name || matchmaker.agency || 'No Agency'}</TableCell>
+                                        <TableCell><Badge className="bg-neutral-100 text-neutral-800 capitalize">matchmaker</Badge></TableCell>
                                         <TableCell className="text-right">
-                                            {matchmaker.approval_status === 'pending' && (
-                                                <div className="flex space-x-2">
-                                                    <Button
-                                                        size="sm"
-                                                        variant="outline"
-                                                        onClick={() => handleApprove(matchmaker.id)}
-                                                        className="text-green-600 hover:text-green-700"
-                                                    >
-                                                        <CheckCircle className="w-4 h-4" />
-                                                    </Button>
-                                                    <Button
-                                                        size="sm"
-                                                        variant="outline"
-                                                        onClick={() => handleReject(matchmaker.id)}
-                                                        className="text-red-600 hover:text-red-700"
-                                                    >
-                                                        <XCircle className="w-4 h-4" />
-                                                    </Button>
-                                                </div>
-                                            )}
+                                            <div className="flex space-x-2 justify-end">
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    onClick={() => handleEditAgency(matchmaker)}
+                                                    className="text-blue-600 hover:text-blue-700"
+                                                >
+                                                    <Edit className="w-4 h-4" />
+                                                </Button>
+                                                {matchmaker.approval_status === 'pending' && (
+                                                    <>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            onClick={() => handleApprove(matchmaker.id)}
+                                                            className="text-green-600 hover:text-green-700"
+                                                        >
+                                                            <CheckCircle className="w-4 h-4" />
+                                                        </Button>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            onClick={() => handleReject(matchmaker.id)}
+                                                            className="text-red-600 hover:text-red-700"
+                                                        >
+                                                            <XCircle className="w-4 h-4" />
+                                                        </Button>
+                                                    </>
+                                                )}
+                                            </div>
                                         </TableCell>
                                     </TableRow>
                                 ))}
@@ -208,6 +250,43 @@ export default function AdminDashboard() {
                 </Card>
             </div>
             </div>
+
+            {/* Edit Agency Modal */}
+            <Dialog open={!!editingUser} onOpenChange={() => setEditingUser(null)}>
+                <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle>Edit Agency</DialogTitle>
+                        <DialogDescription>
+                            Change the agency for {editingUser?.name}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                            <Label htmlFor="agency">Select Agency</Label>
+                            <Select value={selectedAgency} onValueChange={setSelectedAgency}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select an agency" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {agencies.map((agency) => (
+                                        <SelectItem key={agency.id} value={agency.id.toString()}>
+                                            {agency.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setEditingUser(null)}>
+                            Cancel
+                        </Button>
+                        <Button onClick={handleUpdateAgency} disabled={!selectedAgency}>
+                            Update Agency
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </AppLayout>
     );
 }
