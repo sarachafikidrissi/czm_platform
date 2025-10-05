@@ -8,7 +8,12 @@ class Profile extends Model
 {
     protected $fillable = [
         'user_id',
-        'current_step'
+        'current_step',
+        'cin',
+        'identity_card_front_path',
+        'identity_card_back_path',
+        'notes',
+        'recommendations'
     ];
 
     

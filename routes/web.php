@@ -87,8 +87,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/users/{user}/reject', [\App\Http\Controllers\AdminController::class, 'rejectUser'])->name('users.reject');
     });
 
-    // Matchmaker routes
-    Route::middleware(['role:matchmaker'])->prefix('matchmaker')->name('matchmaker.')->group(function () {
+    // Staff routes (admin, manager, matchmaker) for prospects access
+    Route::middleware(['role:admin|manager|matchmaker'])->prefix('matchmaker')->name('matchmaker.')->group(function () {
         Route::get('/prospects', [\App\Http\Controllers\MatchmakerController::class, 'prospects'])->name('prospects');
         Route::post('/prospects/{user}/validate', [\App\Http\Controllers\MatchmakerController::class, 'validateProspect'])->name('prospects.validate');
     });

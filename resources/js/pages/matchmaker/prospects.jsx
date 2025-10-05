@@ -18,6 +18,10 @@ export default function MatchmakerProspects() {
     const [selectedProspect, setSelectedProspect] = useState(null);
     const [notes, setNotes] = useState('');
     const [recommendations, setRecommendations] = useState('');
+    const [cin, setCin] = useState('');
+    const [cinError, setCinError] = useState(null);
+    const [front, setFront] = useState(null);
+    const [back, setBack] = useState(null);
 
     const handleValidate = (prospect) => {
         setSelectedProspect(prospect);
@@ -26,10 +30,19 @@ export default function MatchmakerProspects() {
     };
 
     const submitValidation = () => {
-        router.post(`/matchmaker/prospects/${selectedProspect.id}/validate`, {
-            notes,
-            recommendations,
-        });
+        const re = /^[A-Za-z]{1,2}\d{4,6}$/;
+        const ok = re.test(cin.trim());
+        setCinError(ok ? null : 'CIN invalide. Ex: A123456 ou AB1234');
+        if (!ok || !front || !back) return;
+
+        const fd = new FormData();
+        fd.append('notes', notes);
+        fd.append('recommendations', recommendations);
+        fd.append('cin', cin);
+        fd.append('identity_card_front', front);
+        fd.append('identity_card_back', back);
+
+        router.post(`/matchmaker/prospects/${selectedProspect.id}/validate`, fd, { forceFormData: true });
     };
 
     return (
@@ -139,6 +152,21 @@ export default function MatchmakerProspects() {
                                                             onChange={(e) => setRecommendations(e.target.value)}
                                                             placeholder="Add your recommendations..."
                                                         />
+                                                    </div>
+                                                    <div className="grid gap-2">
+                                                        <Label htmlFor="cin">CIN</Label>
+                                                        <Input id="cin" value={cin} onChange={(e) => setCin(e.target.value)} placeholder="Ex: A123456 or AB1234" />
+                                                        {cinError && <p className="text-red-500 text-sm">{cinError}</p>}
+                                                    </div>
+                                                    <div className="grid grid-cols-2 gap-3">
+                                                        <div className="grid gap-2">
+                                                            <Label htmlFor="front">Identity Card Front</Label>
+                                                            <Input id="front" type="file" accept="image/*" onChange={(e) => e.target.files?.[0] && setFront(e.target.files[0])} />
+                                                        </div>
+                                                        <div className="grid gap-2">
+                                                            <Label htmlFor="back">Identity Card Back</Label>
+                                                            <Input id="back" type="file" accept="image/*" onChange={(e) => e.target.files?.[0] && setBack(e.target.files[0])} />
+                                                        </div>
                                                     </div>
                                                 </div>
                                                 <DialogFooter>

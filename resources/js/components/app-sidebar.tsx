@@ -58,7 +58,7 @@ const mainNavItems: NavItem[] = [
         title: 'Prospects',
         url: '/matchmaker/prospects',
         icon: UserCheck,
-        roles: ['matchmaker'],
+        roles: ['matchmaker', 'admin'],
     },
     {
         title: 'Choose Matchmaker',

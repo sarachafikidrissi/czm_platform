@@ -67,22 +67,23 @@ function AdminDashboardContent({ agencies = [] }) {
             </div>
 
             <div className="grid gap-6 md:grid-cols-2">
-                <Card>
+                <Card className=''>
                     <CardHeader>
                         <CardTitle>Quick Actions</CardTitle>
                         <CardDescription>
                             Common administrative tasks
                         </CardDescription>
                     </CardHeader>
-                    <CardContent className="space-y-4">
-                        <Link href="/admin/dashboard">
-                            <Button className="w-full justify-start">
+                    <CardContent className="grid grid-cols-2 gap-4 ">
+                        {/* <Link href="/admin/dashboard" className='m-0 p-0'>
+                            <Button className=" justify-start">
                                 <Users className="w-4 h-4 mr-2" />
                                 Manage Staff
                             </Button>
-                        </Link>
-                        <CreateStaffButton buttonLabel="Create Staff Member" className="w-full justify-start" agencies={agencies} />
-                        <CreateAgencyButton buttonLabel="Create Agency" className="w-full justify-start" />
+                        </Link> */}
+                        <CreateStaffButton buttonLabel="Create Staff Member" className="" agencies={agencies} />
+                        <CreateAgencyButton buttonLabel="Create Agency" className=" justify-start" />
+                        
                     </CardContent>
                 </Card>
 
