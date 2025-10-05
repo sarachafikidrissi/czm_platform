@@ -85,10 +85,9 @@ export default function AdminDashboard() {
                 <div className="flex flex-wrap items-center gap-3 bg-white rounded-lg p-3 border">
                     <div className="flex items-center gap-2">
                         <Label className="text-sm text-muted-foreground">View</Label>
-                        <Select defaultValue="all">
-                            <SelectTrigger className="h-9 w-[120px]"><SelectValue /></SelectTrigger>
+                        <Select value={viewParam} onValueChange={(v) => router.visit(`/admin/dashboard?view=${v}`, { preserveScroll: true, preserveState: true, replace: true })}>
+                            <SelectTrigger className="h-9 w-[140px]"><SelectValue /></SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="all">All</SelectItem>
                                 <SelectItem value="managers">Managers</SelectItem>
                                 <SelectItem value="matchmakers">Matchmakers</SelectItem>
                                 <SelectItem value="pending">Pending</SelectItem>

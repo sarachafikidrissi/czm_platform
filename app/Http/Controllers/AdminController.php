@@ -19,12 +19,22 @@ class AdminController extends Controller
     {
         $managers = User::role('manager')->with(['approvedBy', 'agency'])->get();
         $matchmakers = User::role('matchmaker')->with(['approvedBy', 'agency'])->get();
+        $totalUsers = User::count();
+        $pendingCount = User::where('approval_status', 'pending')->count();
+        $approvedManagers = User::role('manager')->where('approval_status', 'approved')->count();
+        $approvedMatchmakers = User::role('matchmaker')->where('approval_status', 'approved')->count();
         $agencies = Agency::all();
         
         return Inertia::render('admin/dashboard', [
             'managers' => $managers,
             'matchmakers' => $matchmakers,
             'agencies' => $agencies,
+            'stats' => [
+                'totalUsers' => $totalUsers,
+                'pending' => $pendingCount,
+                'approvedManagers' => $approvedManagers,
+                'approvedMatchmakers' => $approvedMatchmakers,
+            ],
         ]);
     }
 

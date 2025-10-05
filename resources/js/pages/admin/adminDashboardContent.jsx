@@ -5,7 +5,7 @@ import { Users, UserCheck, Settings } from 'lucide-react';
 import CreateStaffButton from '@/components/admin/create-staff-button';
 import CreateAgencyButton from '@/components/admin/create-agency-button';
 
-function AdminDashboardContent({ agencies = [] }) {
+function AdminDashboardContent({ agencies = [], stats = { totalUsers: 0, pending: 0, approvedManagers: 0, approvedMatchmakers: 0 } }) {
     return (
         <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
             <div className="flex items-center justify-between">
@@ -19,7 +19,7 @@ function AdminDashboardContent({ agencies = [] }) {
                         <Users className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">0</div>
+                        <div className="text-2xl font-bold">{stats.totalUsers}</div>
                         <p className="text-xs text-muted-foreground">
                             All registered users
                         </p>
@@ -32,7 +32,7 @@ function AdminDashboardContent({ agencies = [] }) {
                         <UserCheck className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">0</div>
+                        <div className="text-2xl font-bold">{stats.pending}</div>
                         <p className="text-xs text-muted-foreground">
                             Staff awaiting approval
                         </p>
@@ -45,7 +45,7 @@ function AdminDashboardContent({ agencies = [] }) {
                         <UserCheck className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">0</div>
+                        <div className="text-2xl font-bold">{stats.approvedMatchmakers}</div>
                         <p className="text-xs text-muted-foreground">
                             Approved matchmakers
                         </p>
@@ -58,7 +58,7 @@ function AdminDashboardContent({ agencies = [] }) {
                         <Settings className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">0</div>
+                        <div className="text-2xl font-bold">{stats.approvedManagers}</div>
                         <p className="text-xs text-muted-foreground">
                             Approved managers
                         </p>

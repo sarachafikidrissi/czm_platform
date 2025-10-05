@@ -9,17 +9,26 @@ use Inertia\Inertia;
 
 class MatchmakerController extends Controller
 {
-    public function prospects()
+    public function prospects(Request $request)
     {
-        $prospects = User::role('user')
+        $filter = $request->string('filter')->toString(); // all | complete | incomplete
+        $query = User::role('user')
             ->where('status', 'prospect')
             ->whereNull('assigned_matchmaker_id')
-            ->with('profile')
-            ->get();
+            ->with('profile');
+
+        if ($filter === 'complete') {
+            $query->whereHas('profile');
+        } elseif ($filter === 'incomplete') {
+            $query->whereDoesntHave('profile');
+        }
+
+        $prospects = $query->get();
         
         return Inertia::render('matchmaker/prospects', [
             'prospects' => $prospects,
-        ]);
+            'filter' => $filter ?: 'all',
+        ])->withViewData([]);
     }
 
     public function validateProspect(Request $request, $id)

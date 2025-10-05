@@ -14,7 +14,7 @@ import { useState } from 'react';
 import AppLayout from '@/layouts/app-layout';
 
 export default function MatchmakerProspects() {
-    const { prospects } = usePage().props;
+    const { prospects, filter } = usePage().props;
     const [selectedProspect, setSelectedProspect] = useState(null);
     const [notes, setNotes] = useState('');
     const [recommendations, setRecommendations] = useState('');
@@ -57,8 +57,8 @@ export default function MatchmakerProspects() {
                 <div className="flex flex-wrap items-center gap-3 bg-white rounded-lg p-3 border">
                     <div className="flex items-center gap-2">
                         <Label className="text-sm text-muted-foreground">View</Label>
-                        <Select defaultValue="all">
-                            <SelectTrigger className="h-9 w-[120px]"><SelectValue /></SelectTrigger>
+                        <Select value={filter || 'all'} onValueChange={(v) => router.visit(`/matchmaker/prospects?filter=${v}`, { preserveScroll: true, preserveState: true, replace: true })}>
+                            <SelectTrigger className="h-9 w-[160px]"><SelectValue /></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="all">All</SelectItem>
                                 <SelectItem value="complete">Profile Complete</SelectItem>

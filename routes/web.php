@@ -70,9 +70,23 @@ Route::middleware(['auth', 'verified'])->group(function () {
         $user = auth()->user();
         $role = method_exists($user, 'getRoleNames') ? $user->getRoleNames()->first() : null;
         $agencies = $role === 'admin' ? \App\Models\Agency::all() : [];
+        $stats = null;
+        if ($role === 'admin') {
+            $totalUsers = \App\Models\User::count();
+            $pendingCount = \App\Models\User::where('approval_status', 'pending')->count();
+            $approvedManagers = \App\Models\User::role('manager')->where('approval_status', 'approved')->count();
+            $approvedMatchmakers = \App\Models\User::role('matchmaker')->where('approval_status', 'approved')->count();
+            $stats = [
+                'totalUsers' => $totalUsers,
+                'pending' => $pendingCount,
+                'approvedManagers' => $approvedManagers,
+                'approvedMatchmakers' => $approvedMatchmakers,
+            ];
+        }
         return Inertia::render('dashboard', [
             'role' => $role,
             'agencies' => $agencies,
+            'stats' => $stats,
         ]);
     })->name('dashboard');
 
