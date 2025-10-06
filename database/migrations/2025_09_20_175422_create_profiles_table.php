@@ -25,6 +25,7 @@ return new class extends Migration
             $table->string('secteur')->nullable();
             $table->string('revenu')->nullable();
             $table->string('religion')->nullable();
+            $table->string('heard_about_us')->nullable();
 
             // Step 2: Additional Information
             $table->string('etat_matrimonial')->nullable();

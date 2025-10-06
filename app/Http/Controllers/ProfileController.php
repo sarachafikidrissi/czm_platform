@@ -33,6 +33,7 @@ class ProfileController extends Controller
                 'secteur' => $profile->secteur,
                 'revenu' => $profile->revenu,
                 'religion' => $profile->religion,
+                'heardAboutUs' => $profile->heard_about_us,
                 
                 // Step 2
                 'etatMatrimonial' => $profile->etat_matrimonial,
@@ -143,6 +144,7 @@ class ProfileController extends Controller
             'dateNaissance' => 'required|date',
             'niveauEtudes' => 'required|string',
             'situationProfessionnelle' => 'required|string',
+            'heardAboutUs' => 'nullable|string|max:255',
         ]);
     }
 
@@ -191,6 +193,7 @@ class ProfileController extends Controller
         $profile->secteur = $request->secteur;
         $profile->revenu = $request->revenu;
         $profile->religion = $request->religion;
+        $profile->heard_about_us = $request->heardAboutUs;
     }
 
     private function updateStep2Data(Profile $profile, Request $request)

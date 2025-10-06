@@ -9,7 +9,7 @@ import AuthLayout from '@/layouts/auth-layout';
 import { Eye, EyeOff } from 'lucide-react';
 import { useState } from 'react';
 
-export default function StaffRegister() {
+export default function StaffRegister({ agencies = [] }) {
     const [showPassword, setShowPassword] = useState(false);
     const [showPasswordConfirmation, setShowPasswordConfirmation] = useState(false);
     const { data, setData, post, processing, errors } = useForm({
@@ -97,14 +97,16 @@ export default function StaffRegister() {
                             {(data.role === 'manager' || data.role === 'matchmaker') && (
                                 <div>
                                     <Label htmlFor="agency">Agency</Label>
-                                    <Input
-                                        id="agency"
-                                        type="text"
-                                        value={data.agency}
-                                        onChange={(e) => setData('agency', e.target.value)}
-                                        placeholder="Enter your agency name"
-                                        required
-                                    />
+                                    <Select value={data.agency} onValueChange={(v) => setData('agency', v)}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select your agency" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {agencies.map((agency) => (
+                                                <SelectItem key={agency.id} value={agency.name}>{agency.name}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
                                     {errors.agency && <p className="text-red-500 text-sm">{errors.agency}</p>}
                                 </div>
                             )}

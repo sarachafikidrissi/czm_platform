@@ -22,6 +22,8 @@ export default function MatchmakerProspects() {
     const [cinError, setCinError] = useState(null);
     const [front, setFront] = useState(null);
     const [back, setBack] = useState(null);
+    console.log(prospects);
+    
 
     const handleValidate = (prospect) => {
         setSelectedProspect(prospect);
@@ -42,7 +44,7 @@ export default function MatchmakerProspects() {
         fd.append('identity_card_front', front);
         fd.append('identity_card_back', back);
 
-        router.post(`/matchmaker/prospects/${selectedProspect.id}/validate`, fd, { forceFormData: true });
+        router.post(`/staff/prospects/${selectedProspect.id}/validate`, fd, { forceFormData: true });
     };
 
     return (
@@ -57,7 +59,7 @@ export default function MatchmakerProspects() {
                 <div className="flex flex-wrap items-center gap-3 bg-white rounded-lg p-3 border">
                     <div className="flex items-center gap-2">
                         <Label className="text-sm text-muted-foreground">View</Label>
-                        <Select value={filter || 'all'} onValueChange={(v) => router.visit(`/matchmaker/prospects?filter=${v}`, { preserveScroll: true, preserveState: true, replace: true })}>
+                        <Select value={filter || 'all'} onValueChange={(v) => router.visit(`/staff/prospects?filter=${v}`, { preserveScroll: true, preserveState: true, replace: true })}>
                             <SelectTrigger className="h-9 w-[160px]"><SelectValue /></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="all">All</SelectItem>
@@ -66,8 +68,9 @@ export default function MatchmakerProspects() {
                             </SelectContent>
                         </Select>
                     </div>
+                    {/* removed status filter per requirements */}
                     <Separator orientation="vertical" className="h-6" />
-                    <Input placeholder="Search" className="h-9 w-[220px]" />
+                    {/* removed search per requirements */}
                     <div className="ml-auto flex items-center gap-2">
                         <Button variant="outline" className="h-9">
                             Date Range
@@ -106,7 +109,7 @@ export default function MatchmakerProspects() {
                                     <TableCell className="text-muted-foreground">{new Date(prospect.created_at ?? Date.now()).toLocaleDateString()}</TableCell>
                                     <TableCell>{prospect.phone}</TableCell>
                                     <TableCell>
-                                        {prospect.profile ? (
+                                        {prospect.profile.is_completed == 1 ? (
                                             <Badge className="bg-green-100 text-green-800">
                                                 Profile Complete
                                             </Badge>

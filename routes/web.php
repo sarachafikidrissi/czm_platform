@@ -15,10 +15,11 @@ Route::middleware(['auth'])->group(function () {
     
     // Profile information display page
     Route::get('/profile-info', function () {
-        $profile = \App\Models\Profile::where('user_id', auth()->id())->first();
+        $user = \Illuminate\Support\Facades\Auth::user();
+        $profile = $user ? \App\Models\Profile::where('user_id', $user->id)->first() : null;
         return \Inertia\Inertia::render('profile-info', [
             'auth' => [
-                'user' => auth()->user(),
+                'user' => $user,
             ],
             'profile' => $profile ? [
                 // Step 1
@@ -67,8 +68,14 @@ Route::middleware(['auth'])->group(function () {
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', function () {
-        $user = auth()->user();
-        $role = method_exists($user, 'getRoleNames') ? $user->getRoleNames()->first() : null;
+        $user = \Illuminate\Support\Facades\Auth::user();
+        $role = null;
+        if ($user) {
+            $role = \Illuminate\Support\Facades\DB::table('model_has_roles')
+                ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+                ->where('model_has_roles.model_id', $user->id)
+                ->value('roles.name');
+        }
         $agencies = $role === 'admin' ? \App\Models\Agency::all() : [];
         $stats = null;
         if ($role === 'admin') {
@@ -102,7 +109,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
 
     // Staff routes (admin, manager, matchmaker) for prospects access
-    Route::middleware(['role:admin|manager|matchmaker'])->prefix('matchmaker')->name('matchmaker.')->group(function () {
+    Route::middleware(['role:admin|manager|matchmaker'])->prefix('staff')->name('staff.')->group(function () {
         Route::get('/prospects', [\App\Http\Controllers\MatchmakerController::class, 'prospects'])->name('prospects');
         Route::post('/prospects/{user}/validate', [\App\Http\Controllers\MatchmakerController::class, 'validateProspect'])->name('prospects.validate');
     });

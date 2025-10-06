@@ -154,7 +154,8 @@ class AdminController extends Controller
             role: $request->role,
         ));
 
-        return to_route('admin.dashboard')->with('success', 'Staff member created successfully. Credentials sent via email.');
+        // Redirect back to previous page to avoid 500 and maintain context
+        return redirect()->back()->with('success', 'Staff member created successfully. Credentials sent via email.');
     }
 
     public function createAgency(Request $request)

@@ -20,7 +20,9 @@ class StaffRegistrationController extends Controller
      */
     public function create(): Response
     {
-        return Inertia::render('auth/staff-register');
+        return Inertia::render('auth/staff-register', [
+            'agencies' => \App\Models\Agency::all(['id','name'])
+        ]);
     }
 
     /**

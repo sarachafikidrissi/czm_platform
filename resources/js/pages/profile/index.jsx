@@ -18,6 +18,7 @@ export default function Profile({ auth, profile }) {
         secteur: profile?.secteur || '',
         revenu: profile?.revenu || '',
         religion: profile?.religion || '',
+        heardAboutUs: profile?.heardAboutUs || '',
 
         // Step 2
         etatMatrimonial: profile?.etatMatrimonial || '',

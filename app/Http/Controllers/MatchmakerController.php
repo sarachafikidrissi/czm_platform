@@ -11,6 +11,21 @@ class MatchmakerController extends Controller
 {
     public function prospects(Request $request)
     {
+        // Restrict access for unvalidated staff
+        $me = Auth::user();
+        $roleName = null;
+        if ($me) {
+            $roleName = \Illuminate\Support\Facades\DB::table('model_has_roles')
+                ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+                ->where('model_has_roles.model_id', $me->id)
+                ->value('roles.name');
+        }
+        if (in_array($roleName, ['manager','matchmaker'], true)) {
+            if ($me->approval_status !== 'approved') {
+                abort(403, 'Your account is not validated yet.');
+            }
+        }
+
         $filter = $request->string('filter')->toString(); // all | complete | incomplete
         $query = User::role('user')
             ->where('status', 'prospect')
