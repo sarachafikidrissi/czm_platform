@@ -22,6 +22,8 @@ export default function MatchmakerProspects() {
     const [cinError, setCinError] = useState(null);
     const [front, setFront] = useState(null);
     const [back, setBack] = useState(null);
+    const [submitting, setSubmitting] = useState(false);
+    const [errors, setErrors] = useState({ notes: null, recommendations: null, cin: null, identity_card_front: null, identity_card_back: null, general: null });
     console.log(prospects);
     
 
@@ -35,6 +37,7 @@ export default function MatchmakerProspects() {
         const re = /^[A-Za-z]{1,2}\d{4,6}$/;
         const ok = re.test(cin.trim());
         setCinError(ok ? null : 'CIN invalide. Ex: A123456 ou AB1234');
+        setErrors({ notes: null, recommendations: null, cin: ok ? null : 'CIN invalide. Ex: A123456 ou AB1234', identity_card_front: front ? null : 'Front image is required', identity_card_back: back ? null : 'Back image is required', general: null });
         if (!ok || !front || !back) return;
 
         const fd = new FormData();
@@ -44,7 +47,32 @@ export default function MatchmakerProspects() {
         fd.append('identity_card_front', front);
         fd.append('identity_card_back', back);
 
-        router.post(`/staff/prospects/${selectedProspect.id}/validate`, fd, { forceFormData: true });
+        setSubmitting(true);
+        router.post(`/staff/prospects/${selectedProspect.id}/validate`, fd, {
+            forceFormData: true,
+            onError: (err) => {
+                setSubmitting(false);
+                setErrors((prev) => ({
+                    ...prev,
+                    notes: err?.notes || null,
+                    recommendations: err?.recommendations || null,
+                    cin: err?.cin || prev.cin,
+                    identity_card_front: err?.identity_card_front || null,
+                    identity_card_back: err?.identity_card_back || null,
+                    general: err?.message || 'Une erreur est survenue. Veuillez réessayer.'
+                }));
+            },
+            onSuccess: () => {
+                setSubmitting(false);
+                setSelectedProspect(null);
+                setNotes('');
+                setRecommendations('');
+                setCin('');
+                setFront(null);
+                setBack(null);
+                setErrors({ notes: null, recommendations: null, cin: null, identity_card_front: null, identity_card_back: null, general: null });
+            }
+        });
     };
 
     return (
@@ -160,20 +188,26 @@ export default function MatchmakerProspects() {
                                                         <Label htmlFor="cin">CIN</Label>
                                                         <Input id="cin" value={cin} onChange={(e) => setCin(e.target.value)} placeholder="Ex: A123456 or AB1234" />
                                                         {cinError && <p className="text-red-500 text-sm">{cinError}</p>}
+                                                        {errors.cin && <p className="text-red-500 text-sm">{errors.cin}</p>}
                                                     </div>
                                                     <div className="grid grid-cols-2 gap-3">
                                                         <div className="grid gap-2">
                                                             <Label htmlFor="front">Identity Card Front</Label>
                                                             <Input id="front" type="file" accept="image/*" onChange={(e) => e.target.files?.[0] && setFront(e.target.files[0])} />
+                                                            {errors.identity_card_front && <p className="text-red-500 text-sm">{errors.identity_card_front}</p>}
                                                         </div>
                                                         <div className="grid gap-2">
                                                             <Label htmlFor="back">Identity Card Back</Label>
                                                             <Input id="back" type="file" accept="image/*" onChange={(e) => e.target.files?.[0] && setBack(e.target.files[0])} />
+                                                            {errors.identity_card_back && <p className="text-red-500 text-sm">{errors.identity_card_back}</p>}
                                                         </div>
                                                     </div>
+                                                    {errors.general && (
+                                                        <div className="text-red-600 text-sm">{errors.general}</div>
+                                                    )}
                                                 </div>
                                                 <DialogFooter>
-                                                    <Button onClick={submitValidation}>
+                                                    <Button onClick={submitValidation} disabled={submitting}>
                                                         Validate & Assign
                                                     </Button>
                                                 </DialogFooter>

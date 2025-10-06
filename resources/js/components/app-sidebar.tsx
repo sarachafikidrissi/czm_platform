@@ -66,6 +66,12 @@ const mainNavItems: NavItem[] = [
         icon: HeartHandshake,
         roles: ['user'],
     },
+    {
+        title: 'Members/Client',
+        url: '/staff/validated-prospects',
+        icon: HeartHandshake,
+        roles: ['admin', 'matchmaker', 'manager'],
+    },
 ];
 
 const footerNavItems: NavItem[] = [

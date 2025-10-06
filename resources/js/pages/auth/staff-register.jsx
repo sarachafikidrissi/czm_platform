@@ -7,7 +7,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import AuthLayout from '@/layouts/auth-layout';
 import { Eye, EyeOff } from 'lucide-react';
-import { useState } from 'react';
+import { memo, useMemo, useState } from 'react';
+
+const ImagePane = memo(function ImagePane() {
+    return (
+        <img loading="lazy" src="/images/team.jpg" alt="" className="h-full w-full sm:rounded-s-4xl object-cover" />
+    );
+});
 
 export default function StaffRegister({ agencies = [] }) {
     const [showPassword, setShowPassword] = useState(false);
@@ -23,6 +29,10 @@ export default function StaffRegister({ agencies = [] }) {
         condition: false,
     });
 
+    const agencyItems = useMemo(() => agencies.map((agency) => (
+        <SelectItem key={agency.id} value={agency.name}>{agency.name}</SelectItem>
+    )), [agencies]);
+
     const submit = (e) => {
         e.preventDefault();
         post(route('staff.register'));
@@ -32,9 +42,7 @@ export default function StaffRegister({ agencies = [] }) {
         <div className="flex h-[100svh] w-[100svw] place-content-center place-items-center auth-layout-bg ">
             <div className='w-full absolute top-0 left-0 auth-layout-overlay '></div>
             <div className="flex sm:flex-row flex-col sm:h-[90svh] h-fit sm:w:[80svw] w-[100vw] z-50 sm:relative sm:translate-x-[240px]">
-                <div className="contenr-center sm:h-full h-[30%] sm:w-[50%] w-[100%]">
-                    <img loading="lazy" src="/images/team.jpg" alt="" className="h-full w-full sm:rounded-s-4xl object-cover" />
-                </div>
+                <div className="contenr-center sm:h-full h-[30%] sm:w-[50%] w-[100%]"><ImagePane /></div>
                 <div className="sm:h-full sm:w-[50%] w-[100%]">
                     <AuthLayout
                         title="Créer un compte Staff"
@@ -101,11 +109,7 @@ export default function StaffRegister({ agencies = [] }) {
                                         <SelectTrigger>
                                             <SelectValue placeholder="Select your agency" />
                                         </SelectTrigger>
-                                        <SelectContent>
-                                            {agencies.map((agency) => (
-                                                <SelectItem key={agency.id} value={agency.name}>{agency.name}</SelectItem>
-                                            ))}
-                                        </SelectContent>
+                                        <SelectContent>{agencyItems}</SelectContent>
                                     </Select>
                                     {errors.agency && <p className="text-red-500 text-sm">{errors.agency}</p>}
                                 </div>

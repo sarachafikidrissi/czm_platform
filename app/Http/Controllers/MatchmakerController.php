@@ -33,9 +33,13 @@ class MatchmakerController extends Controller
             ->with('profile');
 
         if ($filter === 'complete') {
-            $query->whereHas('profile');
-        } elseif ($filter === 'incomplete') {
-            $query->whereDoesntHave('profile');
+            $query->whereHas('profile', function($q) {
+                $q->where('is_completed', true);
+            });
+        } else if ($filter === 'incomplete') {
+            $query->whereHas('profile', function($q) {
+                $q->where('is_completed', false);
+            });
         }
 
         $prospects = $query->get();
@@ -73,12 +77,46 @@ class MatchmakerController extends Controller
             ]
         );
 
-        // Assign the prospect to the current matchmaker and set status to member
+        // Assign the prospect to the current matchmaker only if validator has matchmaker role
+        $assignedId = null;
+        $actor = Auth::user();
+        if ($actor) {
+            $actorRole = \Illuminate\Support\Facades\DB::table('model_has_roles')
+                ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+                ->where('model_has_roles.model_id', $actor->id)
+                ->value('roles.name');
+            if ($actorRole === 'matchmaker') {
+                $assignedId = $actor->id;
+            }
+        }
+
         $prospect->update([
-            'assigned_matchmaker_id' => Auth::id(),
-            'status' => 'member', // Change status from prospect to member
+            'assigned_matchmaker_id' => $assignedId,
+            'status' => 'member',
         ]);
 
         return redirect()->back()->with('success', 'Prospect validated and assigned successfully.');
+    }
+
+    public function validatedProspects(Request $request)
+    {
+        // Allow roles: admin, manager, matchmaker (middleware handles role)
+        $status = $request->string('status')->toString(); // all|member|client
+        $query = User::role('user')
+            ->whereIn('status', ['member','client'])
+            ->with('profile');
+
+        if ($status === 'member') {
+            $query->where('status', 'member');
+        } elseif ($status === 'client') {
+            $query->where('status', 'client');
+        }
+
+        $prospects = $query->get();
+
+        return Inertia::render('matchmaker/validated-prospects', [
+            'prospects' => $prospects,
+            'status' => $status ?: 'all',
+        ]);
     }
 }
