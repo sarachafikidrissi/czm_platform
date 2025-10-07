@@ -34,6 +34,7 @@ class ProfileController extends Controller
                 'revenu' => $profile->revenu,
                 'religion' => $profile->religion,
                 'heardAboutUs' => $profile->heard_about_us,
+                'heardAboutReference' => $profile->heard_about_reference,
                 
                 // Step 2
                 'etatMatrimonial' => $profile->etat_matrimonial,
@@ -46,6 +47,10 @@ class ProfileController extends Controller
                 'sport' => $profile->sport,
                 'motorise' => $profile->motorise,
                 'loisirs' => $profile->loisirs,
+                'hasChildren' => $profile->has_children,
+                'childrenCount' => $profile->children_count,
+                'childrenGuardian' => $profile->children_guardian,
+                'hijabChoice' => $profile->hijab_choice,
                 
                 // Step 3
                 'ageMinimum' => $profile->age_minimum,
@@ -63,6 +68,7 @@ class ProfileController extends Controller
                 // Progress
                 'currentStep' => $profile->current_step,
                 'isCompleted' => $profile->is_completed,
+                'completedAt' => $profile->completed_at,
             ] : null
         ]);
     }
@@ -144,13 +150,14 @@ class ProfileController extends Controller
             'dateNaissance' => 'required|date',
             'niveauEtudes' => 'required|string',
             'situationProfessionnelle' => 'required|string',
-            'heardAboutUs' => 'nullable|string|max:255',
+            'heardAboutUs' => 'nullable|string|in:recommande,passage,pub',
+            'heardAboutReference' => 'nullable|string|max:255',
         ]);
     }
 
     private function validateStep2(Request $request)
     {
-        $request->validate([
+        $rules = [
             'etatMatrimonial' => 'required|string',
             'logement' => 'required|string',
             'taille' => 'nullable|integer|min:100|max:250',
@@ -161,7 +168,28 @@ class ProfileController extends Controller
             'sport' => 'nullable|string',
             'motorise' => 'nullable|string',
             'loisirs' => 'nullable|string|max:1000',
-        ]);
+            // accept true/false, 1/0, "true"/"false"
+            'hasChildren' => 'nullable|in:true,false,1,0',
+            'childrenCount' => 'nullable|integer|min:0|max:20',
+            'childrenGuardian' => 'nullable|in:mother,father',
+            'hijabChoice' => 'nullable|in:voile,non_voile,niqab,idea_niqab,idea_hijab',
+            'heardAboutUs' => 'required|string|in:recommande,passage,pub',
+            'heardAboutReference' => 'nullable|string|max:255',
+        ];
+
+        // If divorced, require children details if hasChildren = true
+        if ($request->etatMatrimonial === 'divorce') {
+            if ($request->boolean('hasChildren')) {
+                $rules['childrenCount'] = 'required|integer|min:1|max:20';
+                $rules['childrenGuardian'] = 'required|in:mother,father';
+            }
+        }
+
+        // If pub is selected, require reference
+        if ($request->string('heardAboutUs')->toString() === 'pub') {
+            $rules['heardAboutReference'] = 'required|string|max:255';
+        }
+        $request->validate($rules);
     }
 
     private function validateStep3(Request $request)
@@ -208,6 +236,12 @@ class ProfileController extends Controller
         $profile->sport = $request->sport;
         $profile->motorise = $request->motorise;
         $profile->loisirs = $request->loisirs;
+        $profile->has_children = $request->boolean('hasChildren');
+        $profile->children_count = $request->childrenCount;
+        $profile->children_guardian = $request->childrenGuardian;
+        $profile->hijab_choice = $request->hijabChoice;
+        $profile->heard_about_us = $request->heardAboutUs;
+        $profile->heard_about_reference = $request->heardAboutReference;
     }
 
     private function updateStep3Data(Profile $profile, Request $request)

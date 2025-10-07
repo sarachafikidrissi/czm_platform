@@ -19,6 +19,7 @@ export default function Profile({ auth, profile }) {
         revenu: profile?.revenu || '',
         religion: profile?.religion || '',
         heardAboutUs: profile?.heardAboutUs || '',
+        heardAboutReference: profile?.heardAboutReference || '',
 
         // Step 2
         etatMatrimonial: profile?.etatMatrimonial || '',
@@ -31,6 +32,10 @@ export default function Profile({ auth, profile }) {
         sport: profile?.sport || '',
         motorise: profile?.motorise || '',
         loisirs: profile?.loisirs || '',
+        hasChildren: profile?.hasChildren ?? null,
+        childrenCount: profile?.childrenCount ?? '',
+        childrenGuardian: profile?.childrenGuardian || '',
+        hijabChoice: profile?.hijabChoice || '',
 
         // Step 3
         ageMinimum: profile?.ageMinimum || '',
@@ -66,7 +71,13 @@ export default function Profile({ auth, profile }) {
             case 1:
                 return formData.nom && formData.prenom && formData.dateNaissance && formData.niveauEtudes && formData.situationProfessionnelle;
             case 2:
-                return formData.etatMatrimonial && formData.logement;
+                if (!formData.etatMatrimonial || !formData.logement) return false;
+                if (!formData.heardAboutUs) return false;
+                if (formData.heardAboutUs === 'pub' && !formData.heardAboutReference) return false;
+                if (formData.etatMatrimonial === 'divorce' && formData.hasChildren === true) {
+                    if (!formData.childrenCount || !formData.childrenGuardian) return false;
+                }
+                return true;
             case 3:
                 return formData.ageMinimum && formData.situationMatrimonialeRecherche;
             case 4:
@@ -93,6 +104,12 @@ export default function Profile({ auth, profile }) {
                     } else if (key === 'villesRecherche') {
                         if (Array.isArray(formData[key]) && formData[key].length > 0) {
                             formDataToSend.append(key, JSON.stringify(formData[key]));
+                        }
+                    } else if (key === 'hasChildren') {
+                        // Normalize boolean to 1/0 for backend boolean validation
+                        const boolVal = formData[key] === true ? '1' : formData[key] === false ? '0' : '';
+                        if (boolVal !== '') {
+                            formDataToSend.append(key, boolVal);
                         }
                     } else {
                         formDataToSend.append(key, formData[key]);
@@ -243,7 +260,7 @@ export default function Profile({ auth, profile }) {
                     {/* form steps */}
                     <div className="rounded-lg bg-white p-6 shadow-md sm:p-8 max-h-[600px] overflow-y-auto ">
                         {currentStep === 1 && <PersonalInfo {...stepProps} />}
-                        {currentStep === 2 && <Details {...stepProps} />}
+                        {currentStep === 2 && <Details {...stepProps} gender={auth?.user?.gender} />}
                         {currentStep === 3 && <PartnerInfo {...stepProps} />}
                         {currentStep === 4 && <UploadPicture {...stepProps} />}
                     </div>

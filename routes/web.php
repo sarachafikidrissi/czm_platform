@@ -31,6 +31,8 @@ Route::middleware(['auth'])->group(function () {
                 'secteur' => $profile->secteur,
                 'revenu' => $profile->revenu,
                 'religion' => $profile->religion,
+                'heardAboutUs' => $profile->heard_about_us,
+                'heardAboutReference' => $profile->heard_about_reference,
                 
                 // Step 2
                 'etatMatrimonial' => $profile->etat_matrimonial,
@@ -43,6 +45,10 @@ Route::middleware(['auth'])->group(function () {
                 'sport' => $profile->sport,
                 'motorise' => $profile->motorise,
                 'loisirs' => $profile->loisirs,
+                'hasChildren' => $profile->has_children,
+                'childrenCount' => $profile->children_count,
+                'childrenGuardian' => $profile->children_guardian,
+                'hijabChoice' => $profile->hijab_choice,
                 
                 // Step 3
                 'ageMinimum' => $profile->age_minimum,

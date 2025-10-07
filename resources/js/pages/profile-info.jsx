@@ -3,7 +3,7 @@ import { Head, usePage } from '@inertiajs/react';
 
 export default function ProfileInfo() {
     const { auth, profile } = usePage().props;
-    console.log(profile.currentStep);
+    console.log(profile);
 
     if (!profile.isCompleted) {
         return (
@@ -145,6 +145,24 @@ export default function ProfileInfo() {
                                         className="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-700"
                                     />
                                 </div>
+                                <div>
+                                    <label className="mb-1 block text-sm font-medium text-gray-700">Comment nous avez-vous connu</label>
+                                    <input
+                                        type="text"
+                                        value={profile.heardAboutUs || 'Non renseigné'}
+                                        disabled
+                                        className="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-700"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="mb-1 block text-sm font-medium text-gray-700">Référence de l'inscription</label>
+                                    <input
+                                        type="text"
+                                        value={profile.heardAboutReference || 'Non renseigné'}
+                                        disabled
+                                        className="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-700"
+                                    />
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -231,6 +249,39 @@ export default function ProfileInfo() {
                                     <input
                                         type="text"
                                         value={profile.motorise || 'Non renseigné'}
+                                        disabled
+                                        className="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-700"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="mb-1 block text-sm font-medium text-gray-700">Enfants</label>
+                                    <input
+                                        type="text"
+                                        value={profile.hasChildren === true ? `Oui${profile.childrenCount ? `, ${profile.childrenCount}` : ''}` : (profile.hasChildren === false ? 'Non' : 'Non renseigné')}
+                                        disabled
+                                        className="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-700"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="mb-1 block text-sm font-medium text-gray-700">Tuteur des enfants</label>
+                                    <input
+                                        type="text"
+                                        value={profile.childrenGuardian === 'mother' ? 'La mère' : profile.childrenGuardian === 'father' ? 'Le père' : 'Non renseigné'}
+                                        disabled
+                                        className="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-700"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="mb-1 block text-sm font-medium text-gray-700">Voile / Niqab</label>
+                                    <input
+                                        type="text"
+                                        value={{
+                                            voile: 'Voile',
+                                            non_voile: 'Non voile',
+                                            niqab: 'Niqab',
+                                            idea_niqab: 'Idée niqab',
+                                            idea_hijab: 'Idée hijab',
+                                        }[profile.hijabChoice] || 'Non renseigné'}
                                         disabled
                                         className="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-700"
                                     />

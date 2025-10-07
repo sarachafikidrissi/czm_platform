@@ -189,24 +189,7 @@ const PersonalInfo = ({ formData, setFormData }) => {
                     </select>
                 </div>
 
-                {/* Heard about us */}
-                <div>
-                    <label htmlFor="heardAboutUs" className="mb-1 block text-sm font-medium text-gray-700">
-                        Comment nous avez-vous connu ?
-                    </label>
-                    <select
-                        id="heardAboutUs"
-                        name="heardAboutUs"
-                        value={formData.heardAboutUs || ''}
-                        onChange={handleInputChange}
-                        className="w-full rounded-lg border border-gray-300 px-4 py-3 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
-                    >
-                        <option value="">Sélectionnez</option>
-                        <option value="recommande">Recommandé / Passage</option>
-                        <option value="pub">Publicité</option>
-                        <option value="reference-inscription">Référence de l'inscription</option>
-                    </select>
-                </div>
+                {/* Heard about us moved to Step 2 */}
 
                 {/* Religion */}
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">

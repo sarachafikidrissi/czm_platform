@@ -10,12 +10,18 @@ class Profile extends Model
         'user_id',
         'current_step',
         'heard_about_us',
+        'heard_about_reference',
         'cin',
         'identity_card_front_path',
         'identity_card_back_path',
         'notes',
         'recommendations',
-        'service_id'
+        'service_id',
+        // Step2 extensions
+        'has_children',
+        'children_count',
+        'children_guardian',
+        'hijab_choice'
     ];
 
     

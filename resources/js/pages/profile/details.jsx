@@ -1,4 +1,4 @@
-function Details({ formData, setFormData }) {
+function Details({ formData, setFormData, gender }) {
     // const [formData, setFormData] = useState({
     //   etatMatrimonial: '',
     //   logement: '',
@@ -21,6 +21,13 @@ function Details({ formData, setFormData }) {
     };
     const handleTextareaChange = (e) => {
         const { name, value } = e.target;
+        setFormData((prev) => ({
+            ...prev,
+            [name]: value,
+        }));
+    };
+
+    const setValue = (name, value) => {
         setFormData((prev) => ({
             ...prev,
             [name]: value,
@@ -131,6 +138,78 @@ function Details({ formData, setFormData }) {
                     </div>
                 </div>
 
+                {/* Divorce: children details */}
+                {formData.etatMatrimonial === 'divorce' && (
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                        <div>
+                            <label className="mb-2 block text-sm font-medium text-gray-700">Avez-vous des enfants ?</label>
+                            <div className="flex gap-6">
+                                <label className="inline-flex items-center">
+                                    <input
+                                        type="radio"
+                                        name="hasChildren"
+                                        value="yes"
+                                        checked={formData.hasChildren === true}
+                                        onChange={() => setValue('hasChildren', true)}
+                                        className="text-blue-600 focus:ring-blue-500"
+                                    />
+                                    <span className="ml-2 text-sm text-gray-700">Oui</span>
+                                </label>
+                                <label className="inline-flex items-center">
+                                    <input
+                                        type="radio"
+                                        name="hasChildren"
+                                        value="no"
+                                        checked={formData.hasChildren === false}
+                                        onChange={() => setValue('hasChildren', false)}
+                                        className="text-blue-600 focus:ring-blue-500"
+                                    />
+                                    <span className="ml-2 text-sm text-gray-700">Non</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        {formData.hasChildren === true && (
+                            <>
+                                <div>
+                                    <label htmlFor="childrenCount" className="mb-1 block text-sm font-medium text-gray-700">Combien ?</label>
+                                    <input
+                                        type="number"
+                                        id="childrenCount"
+                                        name="childrenCount"
+                                        min="1"
+                                        max="20"
+                                        value={formData.childrenCount || ''}
+                                        onChange={handleInputChange}
+                                        className="w-full rounded-lg border border-gray-300 px-4 py-3 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="mb-2 block text-sm font-medium text-gray-700">Tuteur des enfants</label>
+                                    <select
+                                        name="childrenGuardian"
+                                        value={formData.childrenGuardian || ''}
+                                        onChange={handleInputChange}
+                                        className="w-full rounded-lg border border-gray-300 px-4 py-3 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                                    >
+                                        <option value="">Sélectionnez</option>
+                                        <option value="mother">La mère</option>
+                                        <option value="father">Le père</option>
+                                    </select>
+                                    {/* Auto-suggestion note based on gender */}
+                                    {gender === 'male' && formData.childrenGuardian !== 'mother' && (
+                                        <p className="mt-1 text-xs text-gray-500">Suggestion: pour un homme, tuteur souvent la mère.</p>
+                                    )}
+                                    {gender === 'female' && formData.childrenGuardian !== 'father' && (
+                                        <p className="mt-1 text-xs text-gray-500">Suggestion: pour une femme, tuteur souvent le père.</p>
+                                    )}
+                                </div>
+                            </>
+                        )}
+                    </div>
+                )}
+
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div>
                         <label htmlFor="taille" className="mb-1 block text-sm font-medium text-gray-700">
@@ -165,6 +244,68 @@ function Details({ formData, setFormData }) {
                             className="w-full rounded-lg border border-gray-300 px-4 py-3 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
                         />
                     </div>
+                </div>
+
+                {/* Female-only hijab/niqab choice */}
+                {gender === 'female' && (
+                    <div>
+                        <label className="mb-2 block text-sm font-medium text-gray-700">Voile / Niqab</label>
+                        <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
+                            <label className="inline-flex items-center">
+                                <input type="radio" name="hijabChoice" value="voile" checked={formData.hijabChoice === 'voile'} onChange={handleInputChange} className="text-blue-600 focus:ring-blue-500" />
+                                <span className="ml-2 text-sm text-gray-700">Voile</span>
+                            </label>
+                            <label className="inline-flex items-center">
+                                <input type="radio" name="hijabChoice" value="non_voile" checked={formData.hijabChoice === 'non_voile'} onChange={handleInputChange} className="text-blue-600 focus:ring-blue-500" />
+                                <span className="ml-2 text-sm text-gray-700">Non voile</span>
+                            </label>
+                            <label className="inline-flex items-center">
+                                <input type="radio" name="hijabChoice" value="niqab" checked={formData.hijabChoice === 'niqab'} onChange={handleInputChange} className="text-blue-600 focus:ring-blue-500" />
+                                <span className="ml-2 text-sm text-gray-700">Niqab</span>
+                            </label>
+                            <label className="inline-flex items-center">
+                                <input type="radio" name="hijabChoice" value="idea_niqab" checked={formData.hijabChoice === 'idea_niqab'} onChange={handleInputChange} className="text-blue-600 focus:ring-blue-500" />
+                                <span className="ml-2 text-sm text-gray-700">Idée de porter niqab</span>
+                            </label>
+                            <label className="inline-flex items-center">
+                                <input type="radio" name="hijabChoice" value="idea_hijab" checked={formData.hijabChoice === 'idea_hijab'} onChange={handleInputChange} className="text-blue-600 focus:ring-blue-500" />
+                                <span className="ml-2 text-sm text-gray-700">Idée de porter hijab</span>
+                            </label>
+                        </div>
+                    </div>
+                )}
+
+                {/* Heard about us (moved to step 2) */}
+                <div>
+                    <label className="mb-2 block text-sm font-medium text-gray-700">Comment nous avez-vous connu ? *</label>
+                    <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
+                        <label className="inline-flex items-center">
+                            <input type="radio" name="heardAboutUs" value="recommande" checked={formData.heardAboutUs === 'recommande'} onChange={handleInputChange} className="text-blue-600 focus:ring-blue-500" />
+                            <span className="ml-2 text-sm text-gray-700">Recommandé</span>
+                        </label>
+                        <label className="inline-flex items-center">
+                            <input type="radio" name="heardAboutUs" value="passage" checked={formData.heardAboutUs === 'passage'} onChange={handleInputChange} className="text-blue-600 focus:ring-blue-500" />
+                            <span className="ml-2 text-sm text-gray-700">Passage</span>
+                        </label>
+                        <label className="inline-flex items-center">
+                            <input type="radio" name="heardAboutUs" value="pub" checked={formData.heardAboutUs === 'pub'} onChange={handleInputChange} className="text-blue-600 focus:ring-blue-500" />
+                            <span className="ml-2 text-sm text-gray-700">Pub</span>
+                        </label>
+                    </div>
+                    {formData.heardAboutUs === 'pub' && (
+                        <div className="mt-3">
+                            <label htmlFor="heardAboutReference" className="mb-1 block text-sm font-medium text-gray-700">Référence de l'inscription</label>
+                            <input
+                                type="text"
+                                id="heardAboutReference"
+                                name="heardAboutReference"
+                                value={formData.heardAboutReference || ''}
+                                onChange={handleInputChange}
+                                placeholder="Code indiqué dans la publicité"
+                                className="w-full rounded-lg border border-gray-300 px-4 py-3 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                            />
+                        </div>
+                    )}
                 </div>
 
                 {/* État de santé */}
