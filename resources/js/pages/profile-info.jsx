@@ -1,5 +1,6 @@
 import AppLayout from '@/layouts/app-layout';
 import { Head, usePage } from '@inertiajs/react';
+import ReadOnlyField from '@/components/ReadOnlyField';
 
 export default function ProfileInfo() {
     const { auth, profile } = usePage().props;
@@ -73,96 +74,16 @@ export default function ProfileInfo() {
                         <div className="mb-6 rounded-lg bg-white p-6 shadow-md">
                             <h2 className="mb-4 text-2xl font-bold text-gray-900">Informations personnelles</h2>
                             <div className="grid gap-6 md:grid-cols-2">
-                                <div>
-                                    <label className="mb-1 block text-sm font-medium text-gray-700">Nom</label>
-                                    <input
-                                        type="text"
-                                        value={profile.nom || 'Non renseigné'}
-                                        disabled
-                                        className="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-700"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="mb-1 block text-sm font-medium text-gray-700">Prénom</label>
-                                    <input
-                                        type="text"
-                                        value={profile.prenom || 'Non renseigné'}
-                                        disabled
-                                        className="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-700"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="mb-1 block text-sm font-medium text-gray-700">Date de naissance</label>
-                                    <input
-                                        type="text"
-                                        value={profile.dateNaissance || 'Non renseigné'}
-                                        disabled
-                                        className="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-700"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="mb-1 block text-sm font-medium text-gray-700">Niveau d'études</label>
-                                    <input
-                                        type="text"
-                                        value={profile.niveauEtudes || 'Non renseigné'}
-                                        disabled
-                                        className="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-700"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="mb-1 block text-sm font-medium text-gray-700">Situation professionnelle</label>
-                                    <input
-                                        type="text"
-                                        value={profile.situationProfessionnelle || 'Non renseigné'}
-                                        disabled
-                                        className="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-700"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="mb-1 block text-sm font-medium text-gray-700">Secteur</label>
-                                    <input
-                                        type="text"
-                                        value={profile.secteur || 'Non renseigné'}
-                                        disabled
-                                        className="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-700"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="mb-1 block text-sm font-medium text-gray-700">Revenu</label>
-                                    <input
-                                        type="text"
-                                        value={profile.revenu || 'Non renseigné'}
-                                        disabled
-                                        className="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-700"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="mb-1 block text-sm font-medium text-gray-700">Religion</label>
-                                    <input
-                                        type="text"
-                                        value={profile.religion || 'Non renseigné'}
-                                        disabled
-                                        className="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-700"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="mb-1 block text-sm font-medium text-gray-700">Comment nous avez-vous connu</label>
-                                    <input
-                                        type="text"
-                                        value={profile.heardAboutUs || 'Non renseigné'}
-                                        disabled
-                                        className="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-700"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="mb-1 block text-sm font-medium text-gray-700">Référence de l'inscription</label>
-                                    <input
-                                        type="text"
-                                        value={profile.heardAboutReference || 'Non renseigné'}
-                                        disabled
-                                        className="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-700"
-                                    />
-                                </div>
+                                <ReadOnlyField label="Nom" value={profile.nom} />
+                                <ReadOnlyField label="Prénom" value={profile.prenom} />
+                                <ReadOnlyField label="Date de naissance" value={profile.dateNaissance} />
+                                <ReadOnlyField label="Niveau d'études" value={profile.niveauEtudes} />
+                                <ReadOnlyField label="Situation professionnelle" value={profile.situationProfessionnelle} />
+                                <ReadOnlyField label="Secteur" value={profile.secteur} />
+                                <ReadOnlyField label="Revenu" value={profile.revenu} />
+                                <ReadOnlyField label="Religion" value={profile.religion} />
+                                <ReadOnlyField label="Comment nous avez-vous connu" value={profile.heardAboutUs} />
+                                <ReadOnlyField label="Référence de l'inscription" value={profile.heardAboutReference} />
                             </div>
                         </div>
                     </div>

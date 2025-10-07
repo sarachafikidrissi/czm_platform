@@ -3,10 +3,16 @@
 use App\Http\Controllers\ProfileController as MainProfileController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+use App\Http\Controllers\HomeController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\ProfileInfoController;
+use App\Http\Controllers\PhotosController;
+use App\Http\Controllers\ProspectsPageController;
+use App\Http\Controllers\MatchmakerPageController;
+use App\Http\Controllers\PropositionsController;
+use App\Http\Controllers\AppointmentsController;
 
-Route::get('/', function () {
-    return Inertia::render('welcome');
-})->name('home');
+Route::get('/', [HomeController::class, 'index'])->name('home');
 
 Route::middleware(['auth'])->group(function () {
     Route::get('/profile', [MainProfileController::class, 'index'])->name('profile.index');
@@ -14,94 +20,11 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/profile/complete', [MainProfileController::class, 'complete'])->name('profile.complete');
     
     // Profile information display page
-    Route::get('/profile-info', function () {
-        $user = \Illuminate\Support\Facades\Auth::user();
-        $profile = $user ? \App\Models\Profile::where('user_id', $user->id)->first() : null;
-        return \Inertia\Inertia::render('profile-info', [
-            'auth' => [
-                'user' => $user,
-            ],
-            'profile' => $profile ? [
-                // Step 1
-                'nom' => $profile->nom,
-                'prenom' => $profile->prenom,
-                'dateNaissance' => $profile->date_naissance,
-                'niveauEtudes' => $profile->niveau_etudes,
-                'situationProfessionnelle' => $profile->situation_professionnelle,
-                'secteur' => $profile->secteur,
-                'revenu' => $profile->revenu,
-                'religion' => $profile->religion,
-                'heardAboutUs' => $profile->heard_about_us,
-                'heardAboutReference' => $profile->heard_about_reference,
-                
-                // Step 2
-                'etatMatrimonial' => $profile->etat_matrimonial,
-                'logement' => $profile->logement,
-                'taille' => $profile->taille,
-                'poids' => $profile->poids,
-                'etatSante' => $profile->etat_sante,
-                'fumeur' => $profile->fumeur,
-                'buveur' => $profile->buveur,
-                'sport' => $profile->sport,
-                'motorise' => $profile->motorise,
-                'loisirs' => $profile->loisirs,
-                'hasChildren' => $profile->has_children,
-                'childrenCount' => $profile->children_count,
-                'childrenGuardian' => $profile->children_guardian,
-                'hijabChoice' => $profile->hijab_choice,
-                
-                // Step 3
-                'ageMinimum' => $profile->age_minimum,
-                'situationMatrimonialeRecherche' => $profile->situation_matrimoniale_recherche,
-                'paysRecherche' => $profile->pays_recherche,
-                'villesRecherche' => $profile->villes_recherche ?? [],
-                'niveauEtudesRecherche' => $profile->niveau_etudes_recherche,
-                'statutEmploiRecherche' => $profile->statut_emploi_recherche,
-                'revenuMinimum' => $profile->revenu_minimum,
-                'religionRecherche' => $profile->religion_recherche,
-                
-                // Step 4
-                'profilePicturePath' => $profile->profile_picture_path,
-                
-                // Progress
-                'currentStep' => $profile->current_step,
-                'isCompleted' => $profile->is_completed,
-                'completedAt' => $profile->completed_at,
-            ] : null
-        ]);
-    })->name('profile.info');
+    Route::get('/profile-info', [ProfileInfoController::class, 'index'])->name('profile.info');
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {
-    Route::get('dashboard', function () {
-        $user = \Illuminate\Support\Facades\Auth::user();
-        $role = null;
-        if ($user) {
-            $role = \Illuminate\Support\Facades\DB::table('model_has_roles')
-                ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
-                ->where('model_has_roles.model_id', $user->id)
-                ->value('roles.name');
-        }
-        $agencies = $role === 'admin' ? \App\Models\Agency::all() : [];
-        $stats = null;
-        if ($role === 'admin') {
-            $totalUsers = \App\Models\User::count();
-            $pendingCount = \App\Models\User::where('approval_status', 'pending')->count();
-            $approvedManagers = \App\Models\User::role('manager')->where('approval_status', 'approved')->count();
-            $approvedMatchmakers = \App\Models\User::role('matchmaker')->where('approval_status', 'approved')->count();
-            $stats = [
-                'totalUsers' => $totalUsers,
-                'pending' => $pendingCount,
-                'approvedManagers' => $approvedManagers,
-                'approvedMatchmakers' => $approvedMatchmakers,
-            ];
-        }
-        return Inertia::render('dashboard', [
-            'role' => $role,
-            'agencies' => $agencies,
-            'stats' => $stats,
-        ]);
-    })->name('dashboard');
+    Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     // Admin routes
     Route::middleware(['role:admin'])->prefix('admin')->name('admin.')->group(function () {
@@ -129,27 +52,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
 
     // Sidebar pages
-    Route::get('/photos', function () {
-        return Inertia::render('photos');
-    })->name('photos');
+    Route::get('/photos', [PhotosController::class, 'index'])->name('photos');
     
-    Route::get('/prospects', function () {
-        return Inertia::render('prospects');
-    })->name('prospects');
+    Route::get('/prospects', [ProspectsPageController::class, 'index'])->name('prospects');
 
   
 
-    Route::get('/matchmaker', function () {
-        return Inertia::render('matchmaker');
-    })->name('matchmaker');
+    Route::get('/matchmaker', [MatchmakerPageController::class, 'index'])->name('matchmaker');
 
-    Route::get('/propositions', function () {
-        return Inertia::render('propositions');
-    })->name('propositions');
+    Route::get('/propositions', [PropositionsController::class, 'index'])->name('propositions');
 
-    Route::get('/appointments', function () {
-        return Inertia::render('appointments');
-    })->name('appointments');
+    Route::get('/appointments', [AppointmentsController::class, 'index'])->name('appointments');
 });
 
 
