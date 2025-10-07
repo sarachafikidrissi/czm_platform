@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Users, UserCheck, Settings } from 'lucide-react';
 import CreateStaffButton from '@/components/admin/create-staff-button';
 import CreateAgencyButton from '@/components/admin/create-agency-button';
+import CreateServiceButton from '@/components/admin/create-service-button';
 
 function AdminDashboardContent({ agencies = [], stats = { totalUsers: 0, pending: 0, approvedManagers: 0, approvedMatchmakers: 0 } }) {
     return (
@@ -83,6 +84,7 @@ function AdminDashboardContent({ agencies = [], stats = { totalUsers: 0, pending
                         </Link> */}
                         <CreateStaffButton buttonLabel="Create Staff Member" className="" agencies={agencies} />
                         <CreateAgencyButton buttonLabel="Create Agency" className=" justify-start" />
+                        <CreateServiceButton buttonLabel="Create Service" className=" justify-start" />
                         
                     </CardContent>
                 </Card>

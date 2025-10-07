@@ -6,6 +6,8 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
+use App\Models\Service;
+use Illuminate\Support\Facades\Schema;
 
 class MatchmakerController extends Controller
 {
@@ -44,9 +46,15 @@ class MatchmakerController extends Controller
 
         $prospects = $query->get();
         
+        $services = [];
+        if (Schema::hasTable('services')) {
+            $services = Service::all(['id','name']);
+        }
+
         return Inertia::render('matchmaker/prospects', [
             'prospects' => $prospects,
             'filter' => $filter ?: 'all',
+            'services' => $services,
         ])->withViewData([]);
     }
 
@@ -54,10 +62,10 @@ class MatchmakerController extends Controller
     {
         $request->validate([
             'notes' => 'nullable|string|max:1000',
-            'recommendations' => 'nullable|string|max:1000',
             'cin' => ['required','string','max:20','regex:/^[A-Za-z]{1,2}\d{4,6}$/','unique:profiles,cin'],
             'identity_card_front' => 'required|image|mimes:jpeg,png,jpg,gif|max:4096',
             'identity_card_back' => 'required|image|mimes:jpeg,png,jpg,gif|max:4096',
+            'service_id' => 'required|exists:services,id',
         ]);
 
         $prospect = User::findOrFail($id);
@@ -73,7 +81,7 @@ class MatchmakerController extends Controller
                 'identity_card_front_path' => $frontPath,
                 'identity_card_back_path' => $backPath,
                 'notes' => $request->notes,
-                'recommendations' => $request->recommendations,
+                'service_id' => $request->service_id,
             ]
         );
 

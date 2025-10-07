@@ -34,6 +34,16 @@ export default function AdminDashboard() {
         agency: '',
     });
 
+    // Quick action: Add Service
+    const { data: svcData, setData: setSvcData, post: postSvc, processing: svcProcessing, errors: svcErrors, reset: resetSvc } = useForm({
+        name: '',
+    });
+    const submitService = () => {
+        postSvc('/admin/services', {
+            onSuccess: () => resetSvc(),
+        });
+    };
+
     const handleApprove = (id) => {
         router.post(`/admin/users/${id}/approve`);
     };
@@ -80,7 +90,33 @@ export default function AdminDashboard() {
             <div className="flex flex-col gap-3">
                 <div className="flex items-center justify-between gap-3">
                     <h1 className="text-2xl font-bold">Admin Dashboard</h1>
-                    <CreateStaffButton agencies={agencies} />
+                    <div className="flex items-center gap-2">
+                        <Dialog>
+                            <DialogTrigger asChild>
+                                <Button variant="outline">Add Service</Button>
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-[425px]">
+                                <DialogHeader>
+                                    <DialogTitle>Add Service</DialogTitle>
+                                    <DialogDescription>
+                                        Create a service that can be selected during prospect validation.
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <div className="grid gap-4 py-4">
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="service-name">Service Name</Label>
+                                        <Input id="service-name" value={svcData.name} onChange={(e) => setSvcData('name', e.target.value)} placeholder="Ex: Consultation" />
+                                        {svcErrors.name && <p className="text-red-500 text-sm">{svcErrors.name}</p>}
+                                    </div>
+                                </div>
+                                <DialogFooter>
+                                    <Button variant="outline" onClick={() => resetSvc()}>Cancel</Button>
+                                    <Button onClick={submitService} disabled={svcProcessing || !svcData.name.trim()}>Add</Button>
+                                </DialogFooter>
+                            </DialogContent>
+                        </Dialog>
+                        <CreateStaffButton agencies={agencies} />
+                    </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-3 bg-white rounded-lg p-3 border">
                     <div className="flex items-center gap-2">

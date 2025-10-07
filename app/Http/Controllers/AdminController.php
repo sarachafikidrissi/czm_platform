@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Storage;
 use App\Mail\StaffCredentialsMail;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
+use App\Models\Service;
 
 class AdminController extends Controller
 {
@@ -25,10 +26,17 @@ class AdminController extends Controller
         $approvedMatchmakers = User::role('matchmaker')->where('approval_status', 'approved')->count();
         $agencies = Agency::all();
         
+        // Guard: services table might not exist during early setup
+        $services = [];
+        if (\Illuminate\Support\Facades\Schema::hasTable('services')) {
+            $services = Service::all();
+        }
+
         return Inertia::render('admin/dashboard', [
             'managers' => $managers,
             'matchmakers' => $matchmakers,
             'agencies' => $agencies,
+            'services' => $services,
             'stats' => [
                 'totalUsers' => $totalUsers,
                 'pending' => $pendingCount,
@@ -36,6 +44,17 @@ class AdminController extends Controller
                 'approvedMatchmakers' => $approvedMatchmakers,
             ],
         ]);
+    }
+
+    public function createService(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255|unique:services,name',
+        ]);
+
+        Service::create(['name' => $request->name]);
+
+        return redirect()->back()->with('success', 'Service created successfully.');
     }
 
     public function approveUser(Request $request, $id)

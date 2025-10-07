@@ -14,7 +14,8 @@ class Profile extends Model
         'identity_card_front_path',
         'identity_card_back_path',
         'notes',
-        'recommendations'
+        'recommendations',
+        'service_id'
     ];
 
     

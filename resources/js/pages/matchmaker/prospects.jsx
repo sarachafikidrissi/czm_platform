@@ -14,10 +14,10 @@ import { useState } from 'react';
 import AppLayout from '@/layouts/app-layout';
 
 export default function MatchmakerProspects() {
-    const { prospects, filter } = usePage().props;
+    const { prospects, filter, services = [] } = usePage().props;
     const [selectedProspect, setSelectedProspect] = useState(null);
     const [notes, setNotes] = useState('');
-    const [recommendations, setRecommendations] = useState('');
+    const [serviceId, setServiceId] = useState('');
     const [cin, setCin] = useState('');
     const [cinError, setCinError] = useState(null);
     const [front, setFront] = useState(null);
@@ -30,7 +30,7 @@ export default function MatchmakerProspects() {
     const handleValidate = (prospect) => {
         setSelectedProspect(prospect);
         setNotes('');
-        setRecommendations('');
+        setServiceId('');
     };
 
     const submitValidation = () => {
@@ -42,7 +42,7 @@ export default function MatchmakerProspects() {
 
         const fd = new FormData();
         fd.append('notes', notes);
-        fd.append('recommendations', recommendations);
+        fd.append('service_id', serviceId);
         fd.append('cin', cin);
         fd.append('identity_card_front', front);
         fd.append('identity_card_back', back);
@@ -161,9 +161,9 @@ export default function MatchmakerProspects() {
                                             <DialogContent className="sm:max-w-[425px]">
                                                 <DialogHeader>
                                                     <DialogTitle>Validate Prospect</DialogTitle>
-                                                    <DialogDescription>
-                                                        Add notes and recommendations for {prospect.name}
-                                                    </DialogDescription>
+                                                <DialogDescription>
+                                                    Add notes and select a service for {prospect.name}
+                                                </DialogDescription>
                                                 </DialogHeader>
                                                 <div className="grid gap-4 py-4">
                                                     <div className="grid gap-2">
@@ -176,13 +176,16 @@ export default function MatchmakerProspects() {
                                                         />
                                                     </div>
                                                     <div className="grid gap-2">
-                                                        <Label htmlFor="recommendations">Recommendations</Label>
-                                                        <Textarea
-                                                            id="recommendations"
-                                                            value={recommendations}
-                                                            onChange={(e) => setRecommendations(e.target.value)}
-                                                            placeholder="Add your recommendations..."
-                                                        />
+                                                        <Label htmlFor="service">Service</Label>
+                                                        <Select value={serviceId} onValueChange={setServiceId}>
+                                                            <SelectTrigger className="h-9 w-full"><SelectValue placeholder="Choose a service" /></SelectTrigger>
+                                                            <SelectContent>
+                                                                {services.map((s) => (
+                                                                    <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>
+                                                                ))}
+                                                            </SelectContent>
+                                                        </Select>
+                                                        {errors.service_id && <p className="text-red-500 text-sm">{errors.service_id}</p>}
                                                     </div>
                                                     <div className="grid gap-2">
                                                         <Label htmlFor="cin">CIN</Label>
