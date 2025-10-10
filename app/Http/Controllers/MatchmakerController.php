@@ -51,10 +51,16 @@ class MatchmakerController extends Controller
             $services = Service::all(['id','name']);
         }
 
+        $matrimonialPacks = [];
+        if (Schema::hasTable('matrimonial_packs')) {
+            $matrimonialPacks = \App\Models\MatrimonialPack::all(['id','name','duration']);
+        }
+
         return Inertia::render('matchmaker/prospects', [
             'prospects' => $prospects,
             'filter' => $filter ?: 'all',
             'services' => $services,
+            'matrimonialPacks' => $matrimonialPacks,
         ])->withViewData([]);
     }
 
@@ -66,6 +72,10 @@ class MatchmakerController extends Controller
             'identity_card_front' => 'required|image|mimes:jpeg,png,jpg,gif|max:4096',
             'identity_card_back' => 'required|image|mimes:jpeg,png,jpg,gif|max:4096',
             'service_id' => 'required|exists:services,id',
+            'matrimonial_pack_id' => 'required|exists:matrimonial_packs,id',
+            'pack_price' => 'required|numeric|min:0',
+            'pack_advantages' => 'required|array|min:1',
+            'pack_advantages.*' => 'string|in:Suivi et accompagnement personnalisé,Suivi et accompagnement approfondi,Suivi et accompagnement premium,Suivi et accompagnement exclusif avec assistance personnalisée,Rendez-vous avec des profils compatibles,Rendez-vous avec des profils correspondant à vos attentes,Rendez-vous avec des profils soigneusement sélectionnés,Rendez-vous illimités avec des profils rigoureusement sélectionnés,Formations pré-mariage avec le profil choisi,Formations pré-mariage avancées avec le profil choisi,Accès prioritaire aux nouveaux profils,Accès prioritaire aux profils VIP,Réduction à vie sur les séances de conseil conjugal et coaching familial (-10% à -25%)',
         ]);
 
         $prospect = User::findOrFail($id);
@@ -82,6 +92,9 @@ class MatchmakerController extends Controller
                 'identity_card_back_path' => $backPath,
                 'notes' => $request->notes,
                 'service_id' => $request->service_id,
+                'matrimonial_pack_id' => $request->matrimonial_pack_id,
+                'pack_price' => $request->pack_price,
+                'pack_advantages' => $request->pack_advantages,
             ]
         );
 
@@ -155,10 +168,16 @@ class MatchmakerController extends Controller
             $services = \App\Models\Service::all(['id','name']);
         }
 
+        $matrimonialPacks = [];
+        if (\Illuminate\Support\Facades\Schema::hasTable('matrimonial_packs')) {
+            $matrimonialPacks = \App\Models\MatrimonialPack::all(['id','name','duration']);
+        }
+
         return Inertia::render('matchmaker/agency-prospects', [
             'prospects' => $prospects,
             'agencyId' => $agencyId,
             'services' => $services,
+            'matrimonialPacks' => $matrimonialPacks,
         ]);
     }
 }

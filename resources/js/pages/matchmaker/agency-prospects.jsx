@@ -13,16 +13,20 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Textarea } from '@/components/ui/textarea';
 
 export default function AgencyProspects() {
-    const { prospects = [], services = [] } = usePage().props;
+    const { prospects = [], services = [], matrimonialPacks = [] } = usePage().props;
     const { data, setData, post, processing, errors, reset } = useForm({
         notes: '',
         cin: '',
         identity_card_front: null,
         identity_card_back: null,
         service_id: '',
+        matrimonial_pack_id: '',
+        pack_price: '',
+        pack_advantages: [],
     });
     const [validatingProspect, setValidatingProspect] = useState(null);
-
+    console.log(matrimonialPacks);
+    
     return (
         <AppLayout>
             <Head title="Agency Prospects" />
@@ -93,7 +97,7 @@ export default function AgencyProspects() {
                 </Card>
             </div>
             <Dialog open={!!validatingProspect} onOpenChange={(open) => { if (!open) { setValidatingProspect(null); reset(); } }}>
-                <DialogContent className="sm:max-w-[500px]">
+                <DialogContent className="sm:w-[500px]   sm:max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle>Validate Prospect</DialogTitle>
                         <DialogDescription>
@@ -128,7 +132,61 @@ export default function AgencyProspects() {
                                     ))}
                                 </SelectContent>
                             </Select>
+                            
                             {errors.service_id && <p className="text-red-500 text-sm">{errors.service_id}</p>}
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="matrimonial_pack">Matrimonial Pack</Label>
+                            <Select value={data.matrimonial_pack_id} onValueChange={(v) => setData('matrimonial_pack_id', v)}>
+                                <SelectTrigger className="h-9 w-full"><SelectValue placeholder="Choose a pack" /></SelectTrigger>
+                                <SelectContent>
+                                    {matrimonialPacks.map((pack) => (
+                                        <SelectItem key={pack.id} value={String(pack.id)}>{pack.name} - {pack.duration}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            {errors.matrimonial_pack_id && <p className="text-red-500 text-sm">{errors.matrimonial_pack_id}</p>}
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="pack_price">Pack Price (MAD)</Label>
+                            <Input id="pack_price" type="number" value={data.pack_price} onChange={(e) => setData('pack_price', e.target.value)} placeholder="Enter price" />
+                            {errors.pack_price && <p className="text-red-500 text-sm">{errors.pack_price}</p>}
+                        </div>
+                        <div className="grid gap-2">
+                            <Label>Pack Advantages</Label>
+                            <div className="grid gap-2 max-h-40 overflow-y-auto border rounded p-2">
+                                {[
+                                    'Suivi et accompagnement personnalisé',
+                                    'Suivi et accompagnement approfondi',
+                                    'Suivi et accompagnement premium',
+                                    'Suivi et accompagnement exclusif avec assistance personnalisée',
+                                    'Rendez-vous avec des profils compatibles',
+                                    'Rendez-vous avec des profils correspondant à vos attentes',
+                                    'Rendez-vous avec des profils soigneusement sélectionnés',
+                                    'Rendez-vous illimités avec des profils rigoureusement sélectionnés',
+                                    'Formations pré-mariage avec le profil choisi',
+                                    'Formations pré-mariage avancées avec le profil choisi',
+                                    'Accès prioritaire aux nouveaux profils',
+                                    'Accès prioritaire aux profils VIP',
+                                    'Réduction à vie sur les séances de conseil conjugal et coaching familial (-10% à -25%)'
+                                ].map((advantage) => (
+                                    <label key={advantage} className="flex items-center gap-2">
+                                        <input
+                                            type="checkbox"
+                                            checked={data.pack_advantages.includes(advantage)}
+                                            onChange={(e) => {
+                                                if (e.target.checked) {
+                                                    setData('pack_advantages', [...data.pack_advantages, advantage]);
+                                                } else {
+                                                    setData('pack_advantages', data.pack_advantages.filter(a => a !== advantage));
+                                                }
+                                            }}
+                                        />
+                                        <span className="text-sm">{advantage}</span>
+                                    </label>
+                                ))}
+                            </div>
+                            {errors.pack_advantages && <p className="text-red-500 text-sm">{errors.pack_advantages}</p>}
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="notes">Notes</Label>
@@ -139,18 +197,21 @@ export default function AgencyProspects() {
                     <DialogFooter>
                         <Button variant="outline" onClick={() => { setValidatingProspect(null); reset(); }}>Cancel</Button>
                         <Button
-                            onClick={() => {
-                                const fd = new FormData();
-                                fd.append('notes', data.notes || '');
-                                fd.append('cin', data.cin || '');
-                                if (data.identity_card_front) fd.append('identity_card_front', data.identity_card_front);
-                                if (data.identity_card_back) fd.append('identity_card_back', data.identity_card_back);
-                                fd.append('service_id', data.service_id);
-                                router.post(`/staff/prospects/${validatingProspect?.id}/validate`, fd, {
-                                    forceFormData: true,
-                                    onSuccess: () => { setValidatingProspect(null); reset(); },
-                                });
-                            }}
+                                onClick={() => {
+                                    const fd = new FormData();
+                                    fd.append('notes', data.notes || '');
+                                    fd.append('cin', data.cin || '');
+                                    if (data.identity_card_front) fd.append('identity_card_front', data.identity_card_front);
+                                    if (data.identity_card_back) fd.append('identity_card_back', data.identity_card_back);
+                                    fd.append('service_id', data.service_id);
+                                    fd.append('matrimonial_pack_id', data.matrimonial_pack_id);
+                                    fd.append('pack_price', data.pack_price);
+                                    fd.append('pack_advantages', JSON.stringify(data.pack_advantages));
+                                    router.post(`/staff/prospects/${validatingProspect?.id}/validate`, fd, {
+                                        forceFormData: true,
+                                        onSuccess: () => { setValidatingProspect(null); reset(); },
+                                    });
+                                }}
                             disabled={processing}
                         >
                             Validate & Assign

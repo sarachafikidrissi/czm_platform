@@ -17,12 +17,24 @@ class Profile extends Model
         'notes',
         'recommendations',
         'service_id',
+        'matrimonial_pack_id',
+        'pack_price',
+        'pack_advantages',
         // Step2 extensions
         'has_children',
         'children_count',
         'children_guardian',
         'hijab_choice'
     ];
+
+    protected $casts = [
+        'pack_advantages' => 'array',
+    ];
+
+    public function matrimonialPack()
+    {
+        return $this->belongsTo(MatrimonialPack::class);
+    }
 
     
 }

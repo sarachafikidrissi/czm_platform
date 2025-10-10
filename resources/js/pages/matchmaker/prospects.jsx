@@ -14,10 +14,13 @@ import { useState } from 'react';
 import AppLayout from '@/layouts/app-layout';
 
 export default function MatchmakerProspects() {
-    const { prospects, filter, services = [] } = usePage().props;
+    const { prospects, filter, services = [], matrimonialPacks = [] } = usePage().props;
     const [selectedProspect, setSelectedProspect] = useState(null);
     const [notes, setNotes] = useState('');
     const [serviceId, setServiceId] = useState('');
+    const [matrimonialPackId, setMatrimonialPackId] = useState('');
+    const [packPrice, setPackPrice] = useState('');
+    const [packAdvantages, setPackAdvantages] = useState([]);
     const [cin, setCin] = useState('');
     const [cinError, setCinError] = useState(null);
     const [front, setFront] = useState(null);
@@ -31,6 +34,9 @@ export default function MatchmakerProspects() {
         setSelectedProspect(prospect);
         setNotes('');
         setServiceId('');
+        setMatrimonialPackId('');
+        setPackPrice('');
+        setPackAdvantages([]);
     };
 
     const submitValidation = () => {
@@ -43,6 +49,9 @@ export default function MatchmakerProspects() {
         const fd = new FormData();
         fd.append('notes', notes);
         fd.append('service_id', serviceId);
+        fd.append('matrimonial_pack_id', matrimonialPackId);
+        fd.append('pack_price', packPrice);
+        fd.append('pack_advantages', JSON.stringify(packAdvantages));
         fd.append('cin', cin);
         fd.append('identity_card_front', front);
         fd.append('identity_card_back', back);
@@ -66,7 +75,10 @@ export default function MatchmakerProspects() {
                 setSubmitting(false);
                 setSelectedProspect(null);
                 setNotes('');
-                setRecommendations('');
+                setServiceId('');
+                setMatrimonialPackId('');
+                setPackPrice('');
+                setPackAdvantages([]);
                 setCin('');
                 setFront(null);
                 setBack(null);
@@ -186,6 +198,59 @@ export default function MatchmakerProspects() {
                                                             </SelectContent>
                                                         </Select>
                                                         {errors.service_id && <p className="text-red-500 text-sm">{errors.service_id}</p>}
+                                                    </div>
+                                                    <div className="grid gap-2">
+                                                        <Label htmlFor="matrimonial_pack">Matrimonial Pack</Label>
+                                                        <Select value={matrimonialPackId} onValueChange={setMatrimonialPackId}>
+                                                            <SelectTrigger className="h-9 w-full"><SelectValue placeholder="Choose a pack" /></SelectTrigger>
+                                                            <SelectContent>
+                                                                {matrimonialPacks.map((pack) => (
+                                                                    <SelectItem key={pack.id} value={String(pack.id)}>{pack.name} - {pack.duration}</SelectItem>
+                                                                ))}
+                                                            </SelectContent>
+                                                        </Select>
+                                                        {errors.matrimonial_pack_id && <p className="text-red-500 text-sm">{errors.matrimonial_pack_id}</p>}
+                                                    </div>
+                                                    <div className="grid gap-2">
+                                                        <Label htmlFor="pack_price">Pack Price (MAD)</Label>
+                                                        <Input id="pack_price" type="number" value={packPrice} onChange={(e) => setPackPrice(e.target.value)} placeholder="Enter price" />
+                                                        {errors.pack_price && <p className="text-red-500 text-sm">{errors.pack_price}</p>}
+                                                    </div>
+                                                    <div className="grid gap-2">
+                                                        <Label>Pack Advantages</Label>
+                                                        <div className="grid gap-2 max-h-40 overflow-y-auto border rounded p-2">
+                                                            {[
+                                                                'Suivi et accompagnement personnalisé',
+                                                                'Suivi et accompagnement approfondi',
+                                                                'Suivi et accompagnement premium',
+                                                                'Suivi et accompagnement exclusif avec assistance personnalisée',
+                                                                'Rendez-vous avec des profils compatibles',
+                                                                'Rendez-vous avec des profils correspondant à vos attentes',
+                                                                'Rendez-vous avec des profils soigneusement sélectionnés',
+                                                                'Rendez-vous illimités avec des profils rigoureusement sélectionnés',
+                                                                'Formations pré-mariage avec le profil choisi',
+                                                                'Formations pré-mariage avancées avec le profil choisi',
+                                                                'Accès prioritaire aux nouveaux profils',
+                                                                'Accès prioritaire aux profils VIP',
+                                                                'Réduction à vie sur les séances de conseil conjugal et coaching familial (-10% à -25%)'
+                                                            ].map((advantage) => (
+                                                                <label key={advantage} className="flex items-center gap-2">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={packAdvantages.includes(advantage)}
+                                                                        onChange={(e) => {
+                                                                            if (e.target.checked) {
+                                                                                setPackAdvantages([...packAdvantages, advantage]);
+                                                                            } else {
+                                                                                setPackAdvantages(packAdvantages.filter(a => a !== advantage));
+                                                                            }
+                                                                        }}
+                                                                    />
+                                                                    <span className="text-sm">{advantage}</span>
+                                                                </label>
+                                                            ))}
+                                                        </div>
+                                                        {errors.pack_advantages && <p className="text-red-500 text-sm">{errors.pack_advantages}</p>}
                                                     </div>
                                                     <div className="grid gap-2">
                                                         <Label htmlFor="cin">CIN</Label>
