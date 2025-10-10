@@ -115,11 +115,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/users/{user}/reject', [\App\Http\Controllers\AdminController::class, 'rejectUser'])->name('users.reject');
     });
 
-    // Staff routes (admin, manager, matchmaker) for prospects access
+    // Admin-only: manage newly registered prospects and dispatch
+    Route::middleware(['role:admin'])->prefix('admin')->name('admin.')->group(function () {
+        Route::get('/prospects', [\App\Http\Controllers\AdminController::class, 'prospects'])->name('prospects');
+        Route::post('/prospects/dispatch', [\App\Http\Controllers\AdminController::class, 'dispatchProspects'])->name('prospects.dispatch');
+    });
+
+    // Staff routes (manager, matchmaker) for viewing dispatched prospects and validated lists
     Route::middleware(['role:admin|manager|matchmaker'])->prefix('staff')->name('staff.')->group(function () {
-        Route::get('/prospects', [\App\Http\Controllers\MatchmakerController::class, 'prospects'])->name('prospects');
         Route::post('/prospects/{user}/validate', [\App\Http\Controllers\MatchmakerController::class, 'validateProspect'])->name('prospects.validate');
         Route::get('/validated-prospects', [\App\Http\Controllers\MatchmakerController::class, 'validatedProspects'])->name('prospects.validated');
+        Route::get('/agency-prospects', [\App\Http\Controllers\MatchmakerController::class, 'agencyProspects'])->name('agency-prospects');
     });
 
     // User routes

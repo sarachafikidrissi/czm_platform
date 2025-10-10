@@ -127,4 +127,32 @@ class MatchmakerController extends Controller
             'status' => $status ?: 'all',
         ]);
     }
+
+    public function agencyProspects(Request $request)
+    {
+        $me = Auth::user();
+        $agencyId = $me?->agency_id;
+        // Admin may filter by agency_id
+        if ($me && $agencyId === null) {
+            $roleName = \Illuminate\Support\Facades\DB::table('model_has_roles')
+                ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+                ->where('model_has_roles.model_id', $me->id)
+                ->value('roles.name');
+            if ($roleName === 'admin') {
+                $agencyId = (int) $request->integer('agency_id');
+            }
+        }
+
+        $query = User::role('user')
+            ->where('status', 'prospect')
+            ->when($agencyId, fn($q) => $q->where('agency_id', $agencyId))
+            ->with('profile');
+
+        $prospects = $query->get(['id','name','email','phone','country','city','agency_id','created_at']);
+
+        return Inertia::render('matchmaker/agency-prospects', [
+            'prospects' => $prospects,
+            'agencyId' => $agencyId,
+        ]);
+    }
 }

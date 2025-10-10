@@ -13,6 +13,7 @@ use App\Mail\StaffCredentialsMail;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use App\Models\Service;
+use Illuminate\Validation\Rule;
 
 class AdminController extends Controller
 {
@@ -44,6 +45,47 @@ class AdminController extends Controller
                 'approvedMatchmakers' => $approvedMatchmakers,
             ],
         ]);
+    }
+
+    public function prospects(Request $request)
+    {
+        $country = $request->string('country')->toString();
+        $city = $request->string('city')->toString();
+        $query = User::role('user')->where('status', 'prospect')->with('profile');
+        if ($country) {
+            $query->where('country', $country);
+        }
+        if ($city) {
+            $query->where('city', $city);
+        }
+        $prospects = $query->get(['id','name','email','phone','country','city','created_at']);
+        $agencies = Agency::query()
+            ->when($country, fn($q) => $q->where('country', $country))
+            ->when($city, fn($q) => $q->where('city', $city))
+            ->get(['id','name','country','city']);
+
+        return Inertia::render('admin/prospects-dispatch', [
+            'prospects' => $prospects,
+            'agencies' => $agencies,
+            'filters' => [ 'country' => $country ?: null, 'city' => $city ?: null ],
+        ]);
+    }
+
+    public function dispatchProspects(Request $request)
+    {
+        $validated = $request->validate([
+            'prospect_ids' => ['required','array','min:1'],
+            'prospect_ids.*' => ['integer', 'exists:users,id'],
+            'agency_id' => ['required','integer', Rule::exists('agencies','id')],
+        ]);
+
+        $agency = Agency::findOrFail($validated['agency_id']);
+        // Assign all selected prospects to the chosen agency; keep status as prospect
+        User::whereIn('id', $validated['prospect_ids'])
+            ->where('status', 'prospect')
+            ->update(['agency_id' => $agency->id]);
+
+        return redirect()->back()->with('success', 'Prospects dispatched successfully.');
     }
 
     public function createService(Request $request)
@@ -181,6 +223,8 @@ class AdminController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255',
+            'country' => 'required|string|max:120',
+            'city' => 'required|string|max:120',
             'address' => 'required|string',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'map' => 'nullable|string',
@@ -193,6 +237,8 @@ class AdminController extends Controller
 
         Agency::create([
             'name' => $request->name,
+            'country' => $request->country,
+            'city' => $request->city,
             'address' => $request->address,
             'image' => $imagePath,
             'map' => $request->map,

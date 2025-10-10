@@ -11,6 +11,8 @@ class Agency extends Model
 
     protected $fillable = [
         'name',
+        'country',
+        'city',
         'address',
         'image',
         'map',
