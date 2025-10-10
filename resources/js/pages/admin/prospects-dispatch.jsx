@@ -19,9 +19,8 @@ export default function ProspectsDispatch() {
     const [selectedProspectIds, setSelectedProspectIds] = useState([]);
     const [selectAll, setSelectAll] = useState(false);
     const [dispatchOpen, setDispatchOpen] = useState(false);
-    const [agencyCountryCode, setAgencyCountryCode] = useState('');
-    const [agencyCity, setAgencyCity] = useState('');
     const [selectedAgencyId, setSelectedAgencyId] = useState('');
+    const [dispatchStatus, setDispatchStatus] = useState(filters?.dispatch || 'all');
 
     useEffect(() => {
         let isMounted = true;
@@ -65,25 +64,23 @@ export default function ProspectsDispatch() {
         return countryCodeToCities[selectedCountryCode] || [];
     }, [selectedCountryCode, countryCodeToCities]);
 
-    const availableAgencyCities = useMemo(() => {
-        if (!agencyCountryCode) return [];
-        return countryCodeToCities[agencyCountryCode] || [];
-    }, [agencyCountryCode, countryCodeToCities]);
+    // no agency country/city filters anymore
 
     const prospectsCountry = filters?.country || '';
     const prospectsCity = filters?.city || '';
 
-    const handleFilterProspects = (countryName, cityName) => {
+    const handleFilterProspects = (countryName, cityName, dispatchVal = dispatchStatus) => {
         const params = new URLSearchParams();
         if (countryName) params.set('country', countryName);
         if (cityName) params.set('city', cityName);
+        if (dispatchVal && dispatchVal !== 'all') params.set('dispatch', dispatchVal);
         router.visit(`/admin/prospects?${params.toString()}`, { preserveScroll: true, preserveState: true, replace: true });
     };
 
     const handleToggleAll = (checked) => {
         setSelectAll(checked);
         if (checked) {
-            setSelectedProspectIds(prospects.map((p) => p.id));
+            setSelectedProspectIds(prospects.filter((p) => !p.agency_id).map((p) => p.id));
         } else {
             setSelectedProspectIds([]);
         }
@@ -93,14 +90,7 @@ export default function ProspectsDispatch() {
         setSelectedProspectIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
     };
 
-    const filteredAgencies = useMemo(() => {
-        const selectedCountryName = agencyCountryCode ? (countries.find((c) => c.iso2 === agencyCountryCode)?.frenchName || '') : '';
-        return agencies.filter((a) => {
-            const byCountry = selectedCountryName ? a.country === selectedCountryName : true;
-            const byCity = agencyCity ? a.city === agencyCity : true;
-            return byCountry && byCity;
-        });
-    }, [agencies, agencyCountryCode, agencyCity, countries]);
+    const agencyOptions = agencies;
 
     const submitDispatch = () => {
         if (!selectedAgencyId || selectedProspectIds.length === 0) return;
@@ -146,7 +136,7 @@ export default function ProspectsDispatch() {
                                 <Label>Ville</Label>
                                 <Select
                                     value={prospectsCity}
-                                    onValueChange={(v) => handleFilterProspects(selectedCountryCode ? (countries.find((c) => c.iso2 === selectedCountryCode)?.frenchName || '') : prospectsCountry, v)}
+                                    onValueChange={(v) => handleFilterProspects(selectedCountryCode ? (countries.find((c) => c.iso2 === selectedCountryCode)?.frenchName || '') : prospectsCountry, v, dispatchStatus)}
                                     disabled={!selectedCountryCode || availableCities.length === 0}
                                 >
                                     <SelectTrigger className="h-9"><SelectValue placeholder={!selectedCountryCode ? 'Choisir pays d’abord' : (availableCities.length ? 'Sélectionner ville' : 'Aucune ville')} /></SelectTrigger>
@@ -154,6 +144,20 @@ export default function ProspectsDispatch() {
                                         {availableCities.map((city) => (
                                             <SelectItem key={city} value={city}>{city}</SelectItem>
                                         ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="grid gap-2 w-[220px]">
+                                <Label>Dispatch</Label>
+                                <Select
+                                    value={dispatchStatus}
+                                    onValueChange={(v) => { setDispatchStatus(v); handleFilterProspects(selectedCountryCode ? (countries.find((c) => c.iso2 === selectedCountryCode)?.frenchName || '') : prospectsCountry, prospectsCity, v); }}
+                                >
+                                    <SelectTrigger className="h-9"><SelectValue placeholder="All" /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All</SelectItem>
+                                        <SelectItem value="not_dispatched">Not Dispatched</SelectItem>
+                                        <SelectItem value="dispatched">Dispatched</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -177,7 +181,7 @@ export default function ProspectsDispatch() {
                             <TableBody>
                                 {prospects.map((p) => (
                                     <TableRow key={p.id}>
-                                        <TableCell><input type="checkbox" checked={selectedProspectIds.includes(p.id)} onChange={() => toggleProspect(p.id)} /></TableCell>
+                                        <TableCell><input type="checkbox" disabled={!!p.agency_id} checked={selectedProspectIds.includes(p.id)} onChange={() => toggleProspect(p.id)} /></TableCell>
                                         <TableCell className="font-medium">{p.name}</TableCell>
                                         <TableCell>{p.country}</TableCell>
                                         <TableCell>{p.city}</TableCell>
@@ -195,38 +199,16 @@ export default function ProspectsDispatch() {
                 <DialogContent className="sm:max-w-[520px]">
                     <DialogHeader>
                         <DialogTitle>Dispatch to Agency</DialogTitle>
-                        <DialogDescription>Select an agency. You can filter by country and city.</DialogDescription>
+                        <DialogDescription>Select an agency by name.</DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-2">
-                        <div className="grid gap-2">
-                            <Label>Agency Country</Label>
-                            <Select value={agencyCountryCode} onValueChange={(v) => { setAgencyCountryCode(v); setAgencyCity(''); }}>
-                                <SelectTrigger className="h-9"><SelectValue placeholder="Select country" /></SelectTrigger>
-                                <SelectContent>
-                                    {countries.map((c) => (
-                                        <SelectItem key={c.iso2} value={c.iso2}>{c.frenchName}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="grid gap-2">
-                            <Label>Agency City</Label>
-                            <Select value={agencyCity} onValueChange={(v) => setAgencyCity(v)} disabled={!agencyCountryCode || availableAgencyCities.length === 0}>
-                                <SelectTrigger className="h-9"><SelectValue placeholder={!agencyCountryCode ? 'Select country first' : (availableAgencyCities.length ? 'Select city' : 'No cities')} /></SelectTrigger>
-                                <SelectContent>
-                                    {availableAgencyCities.map((city) => (
-                                        <SelectItem key={city} value={city}>{city}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
                         <div className="grid gap-2">
                             <Label>Agency</Label>
                             <Select value={selectedAgencyId} onValueChange={setSelectedAgencyId}>
                                 <SelectTrigger className="h-9"><SelectValue placeholder="Select agency" /></SelectTrigger>
                                 <SelectContent>
-                                    {filteredAgencies.map((a) => (
-                                        <SelectItem key={a.id} value={a.id.toString()}>{a.name} {a.city ? `- ${a.city}` : ''}</SelectItem>
+                                    {agencyOptions.map((a) => (
+                                        <SelectItem key={a.id} value={a.id.toString()}>{a.name}</SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>

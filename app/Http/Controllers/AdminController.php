@@ -19,8 +19,8 @@ class AdminController extends Controller
 {
     public function index()
     {
-        $managers = User::role('manager')->with(['approvedBy', 'agency'])->get();
-        $matchmakers = User::role('matchmaker')->with(['approvedBy', 'agency'])->get();
+        $managers = User::role('manager')->with(['approvedBy', 'agency', 'roles'])->get();
+        $matchmakers = User::role('matchmaker')->with(['approvedBy', 'agency', 'roles'])->get();
         $totalUsers = User::count();
         $pendingCount = User::where('approval_status', 'pending')->count();
         $approvedManagers = User::role('manager')->where('approval_status', 'approved')->count();
@@ -51,6 +51,7 @@ class AdminController extends Controller
     {
         $country = $request->string('country')->toString();
         $city = $request->string('city')->toString();
+        $dispatch = $request->string('dispatch')->toString(); // all|dispatched|not_dispatched
         $query = User::role('user')->where('status', 'prospect')->with('profile');
         if ($country) {
             $query->where('country', $country);
@@ -58,16 +59,18 @@ class AdminController extends Controller
         if ($city) {
             $query->where('city', $city);
         }
-        $prospects = $query->get(['id','name','email','phone','country','city','created_at']);
-        $agencies = Agency::query()
-            ->when($country, fn($q) => $q->where('country', $country))
-            ->when($city, fn($q) => $q->where('city', $city))
-            ->get(['id','name','country','city']);
+        if ($dispatch === 'dispatched') {
+            $query->whereNotNull('agency_id');
+        } elseif ($dispatch === 'not_dispatched') {
+            $query->whereNull('agency_id');
+        }
+        $prospects = $query->get(['id','name','email','phone','country','city','agency_id','created_at']);
+        $agencies = Agency::query()->get(['id','name','country','city']);
 
         return Inertia::render('admin/prospects-dispatch', [
             'prospects' => $prospects,
             'agencies' => $agencies,
-            'filters' => [ 'country' => $country ?: null, 'city' => $city ?: null ],
+            'filters' => [ 'country' => $country ?: null, 'city' => $city ?: null, 'dispatch' => $dispatch ?: 'all' ],
         ]);
     }
 
@@ -80,12 +83,39 @@ class AdminController extends Controller
         ]);
 
         $agency = Agency::findOrFail($validated['agency_id']);
-        // Assign all selected prospects to the chosen agency; keep status as prospect
-        User::whereIn('id', $validated['prospect_ids'])
+        // Assign only prospects not yet dispatched (agency_id is null)
+        $updated = User::whereIn('id', $validated['prospect_ids'])
             ->where('status', 'prospect')
+            ->whereNull('agency_id')
             ->update(['agency_id' => $agency->id]);
 
-        return redirect()->back()->with('success', 'Prospects dispatched successfully.');
+        if ($updated === 0) {
+            return redirect()->back()->with('warning', 'No prospects were dispatched. They might already be assigned.');
+        }
+
+        return redirect()->back()->with('success', "{$updated} prospects dispatched successfully.");
+    }
+
+    public function updateUserRole(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'roles' => ['required','array','min:1'],
+            'roles.*' => [Rule::in(['admin','manager','matchmaker'])],
+        ]);
+
+        $user = User::findOrFail($id);
+
+        // Allow toggling admin, manager, matchmaker; require at least one
+        $newRoles = array_values(array_unique(array_filter($validated['roles'])));
+        // Only allow manager/matchmaker/admin in final set
+        $finalRoles = array_values(array_intersect($newRoles, ['admin','manager','matchmaker']));
+        if (empty($finalRoles)) {
+            return redirect()->back()->with('error', 'At least one valid role must be selected.');
+        }
+
+        $user->syncRoles($finalRoles);
+
+        return redirect()->back()->with('success', 'User roles updated successfully.');
     }
 
     public function createService(Request $request)

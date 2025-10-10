@@ -150,9 +150,15 @@ class MatchmakerController extends Controller
 
         $prospects = $query->get(['id','name','email','phone','country','city','agency_id','created_at']);
 
+        $services = [];
+        if (\Illuminate\Support\Facades\Schema::hasTable('services')) {
+            $services = \App\Models\Service::all(['id','name']);
+        }
+
         return Inertia::render('matchmaker/agency-prospects', [
             'prospects' => $prospects,
             'agencyId' => $agencyId,
+            'services' => $services,
         ]);
     }
 }

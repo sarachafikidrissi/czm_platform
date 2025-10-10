@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, XCircle, Users, UserCheck, Edit } from 'lucide-react';
+import { CheckCircle, XCircle, Users, UserCheck, Edit, Shield } from 'lucide-react';
 import CreateStaffButton from '@/components/admin/create-staff-button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import AppLayout from '@/layouts/app-layout';
@@ -25,6 +25,8 @@ export default function AdminDashboard() {
 
     const [editingUser, setEditingUser] = useState(null);
     const [selectedAgency, setSelectedAgency] = useState('');
+    const [roleEditingUser, setRoleEditingUser] = useState(null);
+    const [selectedRoles, setSelectedRoles] = useState([]);
 
     const { data, setData, post, processing, errors, reset } = useForm({
         name: '',
@@ -66,6 +68,23 @@ export default function AdminDashboard() {
             onSuccess: () => {
                 setEditingUser(null);
                 setSelectedAgency('');
+            }
+        });
+    };
+
+    const handleEditRole = (user) => {
+        setRoleEditingUser(user);
+        const roles = Array.isArray(user.roles) ? user.roles.map((r) => r.name) : [];
+        // Allow toggling manager, matchmaker, and admin in UI
+        setSelectedRoles(roles.filter((r) => r === 'manager' || r === 'matchmaker' || r === 'admin'));
+    };
+
+    const handleUpdateRole = () => {
+        if (!roleEditingUser || selectedRoles.length === 0) return;
+        router.post(`/admin/users/${roleEditingUser.id}/update-role`, { roles: selectedRoles }, {
+            onSuccess: () => {
+                setRoleEditingUser(null);
+                setSelectedRoles([]);
             }
         });
     };
@@ -185,6 +204,14 @@ export default function AdminDashboard() {
                                                 >
                                                     <Edit className="w-4 h-4" />
                                                 </Button>
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    onClick={() => handleEditRole(manager)}
+                                                    className="text-purple-600 hover:text-purple-700"
+                                                >
+                                                    <Shield className="w-4 h-4" />
+                                                </Button>
                                                 {manager.approval_status === 'pending' && (
                                                     <>
                                                         <Button
@@ -255,6 +282,14 @@ export default function AdminDashboard() {
                                                 >
                                                     <Edit className="w-4 h-4" />
                                                 </Button>
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    onClick={() => handleEditRole(matchmaker)}
+                                                    className="text-purple-600 hover:text-purple-700"
+                                                >
+                                                    <Shield className="w-4 h-4" />
+                                                </Button>
                                                 {matchmaker.approval_status === 'pending' && (
                                                     <>
                                                         <Button
@@ -318,6 +353,61 @@ export default function AdminDashboard() {
                         </Button>
                         <Button onClick={handleUpdateAgency} disabled={!selectedAgency}>
                             Update Agency
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Edit Role Modal */}
+            <Dialog open={!!roleEditingUser} onOpenChange={() => setRoleEditingUser(null)}>
+                <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle>Change Role</DialogTitle>
+                        <DialogDescription>
+                            Update role for {roleEditingUser?.name}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                            <Label>Select Roles</Label>
+                            <label className="flex items-center gap-2">
+                                <input
+                                    type="checkbox"
+                                    checked={selectedRoles.includes('manager')}
+                                    onChange={(e) => {
+                                        setSelectedRoles((prev) => e.target.checked ? Array.from(new Set([...prev, 'manager'])) : prev.filter(r => r !== 'manager'));
+                                    }}
+                                />
+                                <span>Manager</span>
+                            </label>
+                            <label className="flex items-center gap-2">
+                                <input
+                                    type="checkbox"
+                                    checked={selectedRoles.includes('matchmaker')}
+                                    onChange={(e) => {
+                                        setSelectedRoles((prev) => e.target.checked ? Array.from(new Set([...prev, 'matchmaker'])) : prev.filter(r => r !== 'matchmaker'));
+                                    }}
+                                />
+                                <span>Matchmaker</span>
+                            </label>
+                            <label className="flex items-center gap-2">
+                                <input
+                                    type="checkbox"
+                                    checked={selectedRoles.includes('admin')}
+                                    onChange={(e) => {
+                                        setSelectedRoles((prev) => e.target.checked ? Array.from(new Set([...prev, 'admin'])) : prev.filter(r => r !== 'admin'));
+                                    }}
+                                />
+                                <span>Admin</span>
+                            </label>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setRoleEditingUser(null)}>
+                            Cancel
+                        </Button>
+                        <Button onClick={handleUpdateRole} disabled={selectedRoles.length === 0}>
+                            Update Role
                         </Button>
                     </DialogFooter>
                 </DialogContent>
