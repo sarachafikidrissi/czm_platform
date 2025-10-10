@@ -23,6 +23,7 @@ export default function AgencyProspects() {
         matrimonial_pack_id: '',
         pack_price: '',
         pack_advantages: [],
+        payment_mode: '',
     });
     const [validatingProspect, setValidatingProspect] = useState(null);
     console.log(matrimonialPacks);
@@ -189,6 +190,22 @@ export default function AgencyProspects() {
                             {errors.pack_advantages && <p className="text-red-500 text-sm">{errors.pack_advantages}</p>}
                         </div>
                         <div className="grid gap-2">
+                            <Label htmlFor="payment_mode">Mode de Paiement</Label>
+                            <Select value={data.payment_mode} onValueChange={(v) => setData('payment_mode', v)}>
+                                <SelectTrigger className="h-9 w-full"><SelectValue placeholder="Choisir un mode de paiement" /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Virement">Virement</SelectItem>
+                                    <SelectItem value="Caisse agence">Caisse agence</SelectItem>
+                                    <SelectItem value="Chèque">Chèque</SelectItem>
+                                    <SelectItem value="CMI">CMI</SelectItem>
+                                    <SelectItem value="Avance">Avance</SelectItem>
+                                    <SelectItem value="Reliquat">Reliquat</SelectItem>
+                                    <SelectItem value="RDV">RDV</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            {errors.payment_mode && <p className="text-red-500 text-sm">{errors.payment_mode}</p>}
+                        </div>
+                        <div className="grid gap-2">
                             <Label htmlFor="notes">Notes</Label>
                             <Textarea id="notes" value={data.notes} onChange={(e) => setData('notes', e.target.value)} placeholder="Add your notes about this prospect..." />
                             {errors.notes && <p className="text-red-500 text-sm">{errors.notes}</p>}
@@ -198,18 +215,23 @@ export default function AgencyProspects() {
                         <Button variant="outline" onClick={() => { setValidatingProspect(null); reset(); }}>Cancel</Button>
                         <Button
                                 onClick={() => {
-                                    const fd = new FormData();
-                                    fd.append('notes', data.notes || '');
-                                    fd.append('cin', data.cin || '');
-                                    if (data.identity_card_front) fd.append('identity_card_front', data.identity_card_front);
-                                    if (data.identity_card_back) fd.append('identity_card_back', data.identity_card_back);
-                                    fd.append('service_id', data.service_id);
-                                    fd.append('matrimonial_pack_id', data.matrimonial_pack_id);
-                                    fd.append('pack_price', data.pack_price);
-                                    fd.append('pack_advantages', JSON.stringify(data.pack_advantages));
-                                    router.post(`/staff/prospects/${validatingProspect?.id}/validate`, fd, {
+                                    // Basic validation
+                                    if (!data.cin || !data.identity_card_front || !data.identity_card_back || !data.service_id || !data.matrimonial_pack_id || !data.pack_price || !data.payment_mode || data.pack_advantages.length === 0) {
+                                        alert('Please fill in all required fields');
+                                        return;
+                                    }
+
+                                    // Use useForm's post method instead of manual FormData
+                                    post(`/staff/prospects/${validatingProspect?.id}/validate`, {
                                         forceFormData: true,
-                                        onSuccess: () => { setValidatingProspect(null); reset(); },
+                                        onError: (err) => {
+                                            console.error('Validation error:', err);
+                                            alert('Validation failed: ' + (err.message || 'Please check all fields'));
+                                        },
+                                        onSuccess: () => { 
+                                            setValidatingProspect(null); 
+                                            reset(); 
+                                        },
                                     });
                                 }}
                             disabled={processing}

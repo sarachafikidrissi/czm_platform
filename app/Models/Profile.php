@@ -20,6 +20,7 @@ class Profile extends Model
         'matrimonial_pack_id',
         'pack_price',
         'pack_advantages',
+        'payment_mode',
         // Step2 extensions
         'has_children',
         'children_count',

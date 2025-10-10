@@ -21,12 +21,13 @@ export default function MatchmakerProspects() {
     const [matrimonialPackId, setMatrimonialPackId] = useState('');
     const [packPrice, setPackPrice] = useState('');
     const [packAdvantages, setPackAdvantages] = useState([]);
+    const [paymentMode, setPaymentMode] = useState('');
     const [cin, setCin] = useState('');
     const [cinError, setCinError] = useState(null);
     const [front, setFront] = useState(null);
     const [back, setBack] = useState(null);
     const [submitting, setSubmitting] = useState(false);
-    const [errors, setErrors] = useState({ notes: null, recommendations: null, cin: null, identity_card_front: null, identity_card_back: null, general: null });
+    const [errors, setErrors] = useState({ notes: null, recommendations: null, cin: null, identity_card_front: null, identity_card_back: null, payment_mode: null, general: null });
     console.log(prospects);
     
 
@@ -37,13 +38,14 @@ export default function MatchmakerProspects() {
         setMatrimonialPackId('');
         setPackPrice('');
         setPackAdvantages([]);
+        setPaymentMode('');
     };
 
     const submitValidation = () => {
         const re = /^[A-Za-z]{1,2}\d{4,6}$/;
         const ok = re.test(cin.trim());
         setCinError(ok ? null : 'CIN invalide. Ex: A123456 ou AB1234');
-        setErrors({ notes: null, recommendations: null, cin: ok ? null : 'CIN invalide. Ex: A123456 ou AB1234', identity_card_front: front ? null : 'Front image is required', identity_card_back: back ? null : 'Back image is required', general: null });
+        setErrors({ notes: null, recommendations: null, cin: ok ? null : 'CIN invalide. Ex: A123456 ou AB1234', identity_card_front: front ? null : 'Front image is required', identity_card_back: back ? null : 'Back image is required', payment_mode: null, general: null });
         if (!ok || !front || !back) return;
 
         const fd = new FormData();
@@ -52,6 +54,7 @@ export default function MatchmakerProspects() {
         fd.append('matrimonial_pack_id', matrimonialPackId);
         fd.append('pack_price', packPrice);
         fd.append('pack_advantages', JSON.stringify(packAdvantages));
+        fd.append('payment_mode', paymentMode);
         fd.append('cin', cin);
         fd.append('identity_card_front', front);
         fd.append('identity_card_back', back);
@@ -68,6 +71,7 @@ export default function MatchmakerProspects() {
                     cin: err?.cin || prev.cin,
                     identity_card_front: err?.identity_card_front || null,
                     identity_card_back: err?.identity_card_back || null,
+                    payment_mode: err?.payment_mode || null,
                     general: err?.message || 'Une erreur est survenue. Veuillez réessayer.'
                 }));
             },
@@ -79,10 +83,11 @@ export default function MatchmakerProspects() {
                 setMatrimonialPackId('');
                 setPackPrice('');
                 setPackAdvantages([]);
+                setPaymentMode('');
                 setCin('');
                 setFront(null);
                 setBack(null);
-                setErrors({ notes: null, recommendations: null, cin: null, identity_card_front: null, identity_card_back: null, general: null });
+                setErrors({ notes: null, recommendations: null, cin: null, identity_card_front: null, identity_card_back: null, payment_mode: null, general: null });
             }
         });
     };
@@ -251,6 +256,22 @@ export default function MatchmakerProspects() {
                                                             ))}
                                                         </div>
                                                         {errors.pack_advantages && <p className="text-red-500 text-sm">{errors.pack_advantages}</p>}
+                                                    </div>
+                                                    <div className="grid gap-2">
+                                                        <Label htmlFor="payment_mode">Mode de Paiement</Label>
+                                                        <Select value={paymentMode} onValueChange={setPaymentMode}>
+                                                            <SelectTrigger className="h-9 w-full"><SelectValue placeholder="Choisir un mode de paiement" /></SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="Virement">Virement</SelectItem>
+                                                                <SelectItem value="Caisse agence">Caisse agence</SelectItem>
+                                                                <SelectItem value="Chèque">Chèque</SelectItem>
+                                                                <SelectItem value="CMI">CMI</SelectItem>
+                                                                <SelectItem value="Avance">Avance</SelectItem>
+                                                                <SelectItem value="Reliquat">Reliquat</SelectItem>
+                                                                <SelectItem value="RDV">RDV</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                        {errors.payment_mode && <p className="text-red-500 text-sm">{errors.payment_mode}</p>}
                                                     </div>
                                                     <div className="grid gap-2">
                                                         <Label htmlFor="cin">CIN</Label>
