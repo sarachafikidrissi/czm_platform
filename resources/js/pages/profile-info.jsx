@@ -10,6 +10,7 @@ export default function ProfileInfo() {
     const { auth, profile } = usePage().props;
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [currentStep, setCurrentStep] = useState(profile?.currentStep || 1);
+    const [isEditing, setIsEditing] = useState(false);
     const [formData, setFormData] = useState({
         // Step 1
         nom: profile?.nom || '',
@@ -161,20 +162,28 @@ export default function ProfileInfo() {
                 const isSaved = await saveStep(4);
 
                 if (isSaved) {
-                    await router.post(
-                        '/profile/complete',
-                        {},
-                        {
-                            preserveScroll: true,
-                            onSuccess: () => {
-                                window.location.href = '/dashboard';
+                    if (isEditing) {
+                        // If editing, just save and exit edit mode
+                        setIsEditing(false);
+                        // Refresh the page to get updated profile data
+                        window.location.reload();
+                    } else {
+                        // If creating new profile, complete it
+                        await router.post(
+                            '/profile/complete',
+                            {},
+                            {
+                                preserveScroll: true,
+                                onSuccess: () => {
+                                    window.location.href = '/dashboard';
+                                },
+                                onError: (errors) => {
+                                    console.error('Error completing profile:', errors);
+                                    alert('Erreur lors de la finalisation du profil');
+                                },
                             },
-                            onError: (errors) => {
-                                console.error('Error completing profile:', errors);
-                                alert('Erreur lors de la finalisation du profil');
-                            },
-                        },
-                    );
+                        );
+                    }
                 }
             }
         } catch (error) {
@@ -191,14 +200,68 @@ export default function ProfileInfo() {
         }
     };
 
+    const handleEditProfile = () => {
+        setIsEditing(true);
+        // Set current step to the first incomplete step or step 1
+        setCurrentStep(profile?.currentStep || 1);
+    };
+
+    const handleCancelEdit = () => {
+        setIsEditing(false);
+        // Reset form data to original profile data
+        setFormData({
+            // Step 1
+            nom: profile?.nom || '',
+            prenom: profile?.prenom || '',
+            dateNaissance: profile?.dateNaissance || '',
+            niveauEtudes: profile?.niveauEtudes || '',
+            situationProfessionnelle: profile?.situationProfessionnelle || '',
+            secteur: profile?.secteur || '',
+            revenu: profile?.revenu || '',
+            religion: profile?.religion || '',
+            heardAboutUs: profile?.heardAboutUs || '',
+            heardAboutReference: profile?.heardAboutReference || '',
+
+            // Step 2
+            etatMatrimonial: profile?.etatMatrimonial || '',
+            logement: profile?.logement || '',
+            taille: profile?.taille || '',
+            poids: profile?.poids || '',
+            etatSante: profile?.etatSante || '',
+            fumeur: profile?.fumeur || '',
+            buveur: profile?.buveur || '',
+            sport: profile?.sport || '',
+            motorise: profile?.motorise || '',
+            loisirs: profile?.loisirs || '',
+            hasChildren: profile?.hasChildren ?? null,
+            childrenCount: profile?.childrenCount ?? '',
+            childrenGuardian: profile?.childrenGuardian || '',
+            hijabChoice: profile?.hijabChoice || '',
+
+            // Step 3
+            ageMinimum: profile?.ageMinimum || '',
+            situationMatrimonialeRecherche: profile?.situationMatrimonialeRecherche || '',
+            paysRecherche: profile?.paysRecherche || 'maroc',
+            villesRecherche: profile?.villesRecherche || [],
+            niveauEtudesRecherche: profile?.niveauEtudesRecherche || '',
+            statutEmploiRecherche: profile?.statutEmploiRecherche || '',
+            revenuMinimum: profile?.revenuMinimum || '',
+            religionRecherche: profile?.religionRecherche || '',
+
+            // Step 4
+            profilePicture: null,
+            profilePicturePath: profile?.profilePicturePath || '',
+        });
+    };
+
     // Pass formData and setFormData to each component
     const stepProps = {
         formData,
         setFormData,
     };
 
-    // If profile is not completed, show the multistep form
-    if (!profile?.isCompleted) {
+    // If profile is not completed OR user is editing, show the multistep form
+    if (!profile?.isCompleted || isEditing) {
         return (
             <AppLayout breadcrumbs={[{ title: 'Mon Profil', href: '/profile-info' }]}>
                 <Head title="Mon Profil" />
@@ -206,8 +269,20 @@ export default function ProfileInfo() {
                     {/* Header */}
                     <div className="flex flex-col items-center justify-center rounded-md bg-white/10 px-2 shadow-2xs sm:flex-row">
                         <div className="mb-8 text-center">
-                            <h1 className="mb-2 text-3xl font-bold text-gray-900">Construisons ensemble votre profil unique</h1>
-                            <p className="text-lg text-gray-600">Complétez votre demande en 4 étapes simples</p>
+                            <h1 className="mb-2 text-3xl font-bold text-gray-900">
+                                {isEditing ? 'Modifier votre profil' : 'Construisons ensemble votre profil unique'}
+                            </h1>
+                            <p className="text-lg text-gray-600">
+                                {isEditing ? 'Modifiez les informations de votre profil' : 'Complétez votre demande en 4 étapes simples'}
+                            </p>
+                            {isEditing && (
+                                <button
+                                    onClick={handleCancelEdit}
+                                    className="mt-2 text-sm text-blue-600 hover:underline"
+                                >
+                                    Annuler la modification
+                                </button>
+                            )}
                         </div>
                     </div>
 
@@ -289,7 +364,7 @@ export default function ProfileInfo() {
                                 isSubmitting ? 'cursor-not-allowed opacity-50' : ''
                             }`}
                         >
-                            {isSubmitting ? 'Enregistrement...' : currentStep === 4 ? 'Terminer' : 'Suivant'}
+                            {isSubmitting ? 'Enregistrement...' : currentStep === 4 ? (isEditing ? 'Sauvegarder' : 'Terminer') : 'Suivant'}
                         </button>
                     </div>
                 </div>
@@ -696,9 +771,12 @@ export default function ProfileInfo() {
 
                     {/* Action Buttons */}
                     <div className="flex gap-4 pt-6">
-                        <a href="/profile-info" className="rounded-lg bg-blue-600 px-6 py-2 font-medium text-white transition-colors hover:bg-blue-700">
+                        <button 
+                            onClick={handleEditProfile}
+                            className="rounded-lg bg-blue-600 px-6 py-2 font-medium text-white transition-colors hover:bg-blue-700"
+                        >
                             Modifier le profil
-                        </a>
+                        </button>
                         <a
                             href="/dashboard"
                             className="rounded-lg border border-gray-300 bg-white px-6 py-2 font-medium text-gray-700 transition-colors hover:bg-gray-50"
