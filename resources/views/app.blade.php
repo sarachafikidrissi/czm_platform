@@ -3,6 +3,10 @@
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
+         <!-- Favicon -->
+         
+         {{-- Or if you're using a different image type and path: --}}
+         <link rel="icon" type="image/png" href="/images/czm_Logo.png">
 
         {{-- Inline script to detect system dark mode preference and apply it immediately --}}
         <script>
