@@ -5,7 +5,7 @@ import { NavUser } from '@/components/nav-user';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { CalendarHeart, Flame, HeartHandshake, Images, LayoutGrid, User, UserRoundSearch, Users, UserCheck, Plus } from 'lucide-react';
+import { CalendarHeart, Flame, HeartHandshake, Images, LayoutGrid, User, UserRoundSearch, Users, UserCheck, Plus, ShoppingCart } from 'lucide-react';
 
 const mainNavItems: NavItem[] = [
     {
@@ -43,6 +43,12 @@ const mainNavItems: NavItem[] = [
         url: '/appointments',
         icon: CalendarHeart,
         roles: ['user', 'admin'],
+    },
+    {
+        title: 'Mes Commandes',
+        url: '/mes-commandes',
+        icon: ShoppingCart,
+        roles: ['user'],
     },
     {
         title: 'Manage Staff',

@@ -96,10 +96,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 'approvedMatchmakers' => $approvedMatchmakers,
             ];
         }
+        
+        // For user role, load profile data
+        $profile = null;
+        if ($role === 'user' && $user) {
+            $profile = $user->profile;
+        }
+        
         return Inertia::render('dashboard', [
             'role' => $role,
             'agencies' => $agencies,
             'stats' => $stats,
+            'profile' => $profile,
         ]);
     })->name('dashboard');
 
@@ -157,6 +165,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/appointments', function () {
         return Inertia::render('appointments');
     })->name('appointments');
+    
+    Route::get('/mes-commandes', function () {
+        return Inertia::render('mes-commandes');
+    })->name('mes-commandes');
 });
 
 

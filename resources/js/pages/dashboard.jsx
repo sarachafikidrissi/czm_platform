@@ -1,29 +1,185 @@
 import { PlaceholderPattern } from '@/components/ui/placeholder-pattern';
 import AppLayout from '@/layouts/app-layout';
-import { Head, usePage } from '@inertiajs/react';
+import { Head, usePage, Link } from '@inertiajs/react';
 import AdminDashboardContent from './admin/adminDashboardContent'
 import MatchMakerDashboardContent from './matchmaker/matchmakerDashboardContent'
 import ManagerDashboardContent from './manager/managerDashboardContent'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { User, HeartHandshake, ShoppingCart, CheckCircle, Clock, AlertCircle } from 'lucide-react';
 
 
 
-function UserDashboardContent() {
+function UserDashboardContent({ user, profile }) {
+    const isProfileComplete = profile?.is_completed;
+    const userStatus = user?.status;
+    const approvalStatus = user?.approval_status;
+    const hasAssignedMatchmaker = user?.assigned_matchmaker_id;
+
     return (
         <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
-            <div className="grid auto-rows-min gap-4 md:grid-cols-3">
-                <div className="border-sidebar-border/70 dark:border-sidebar-border relative aspect-video overflow-hidden rounded-xl border">
-                    <PlaceholderPattern className="absolute inset-0 size-full stroke-neutral-900/20 dark:stroke-neutral-100/20" />
-                </div>
-                <div className="border-sidebar-border/70 dark:border-sidebar-border relative aspect-video overflow-hidden rounded-xl border">
-                    <PlaceholderPattern className="absolute inset-0 size-full stroke-neutral-900/20 dark:stroke-neutral-100/20" />
-                </div>
-                <div className="border-sidebar-border/70 dark:border-sidebar-border relative aspect-video overflow-hidden rounded-xl border">
-                    <PlaceholderPattern className="absolute inset-0 size-full stroke-neutral-900/20 dark:stroke-neutral-100/20" />
+            {/* Welcome Section */}
+            <div className="flex items-center justify-between">
+                <div>
+                    <h1 className="text-2xl font-bold">Bienvenue, {user?.name}</h1>
+                    <p className="text-muted-foreground">Gérez votre profil et découvrez nos services</p>
                 </div>
             </div>
-            <div className="border-sidebar-border/70 dark:border-sidebar-border relative min-h-[100vh] flex-1 overflow-hidden rounded-xl border md:min-h-min">
-                <PlaceholderPattern className="absolute inset-0 size-full stroke-neutral-900/20 dark:stroke-neutral-100/20" />
+
+            {/* Status Messages and CTAs */}
+            <div className="grid gap-4">
+                {/* Profile Completion CTA */}
+                {!isProfileComplete && (
+                    <Alert>
+                        <User className="h-4 w-4" />
+                        <AlertDescription>
+                            <div className="flex items-center justify-between">
+                                <span>Votre profil n'est pas encore complet. Complétez-le pour accéder à tous nos services.</span>
+                                <Link href="/profile-info">
+                                    <Button size="sm">
+                                        Compléter mon profil
+                                    </Button>
+                                </Link>
+                            </div>
+                        </AlertDescription>
+                    </Alert>
+                )}
+
+                {/* Validation Status */}
+                {approvalStatus !== 'approved' && userStatus === 'prospect' && (
+                    <Alert>
+                        <Clock className="h-4 w-4" />
+                        <AlertDescription>
+                            <div className="flex items-center justify-between">
+                                <span>Prospect : en attente de validation</span>
+                                <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
+                                    En attente
+                                </Badge>
+                            </div>
+                        </AlertDescription>
+                    </Alert>
+                )}
+
+                {/* Member Status */}
+                {approvalStatus === 'approved' && userStatus === 'member' && (
+                    <Alert>
+                        <CheckCircle className="h-4 w-4" />
+                        <AlertDescription>
+                            <div className="flex items-center justify-between">
+                                <span>Adhésion Gratuite : membre passif</span>
+                                <Link href="/mes-commandes">
+                                    <Button size="sm" variant="outline">
+                                        Devenir Client
+                                    </Button>
+                                </Link>
+                            </div>
+                        </AlertDescription>
+                    </Alert>
+                )}
+
+                {/* Matchmaker Selection CTA */}
+                {approvalStatus === 'approved' && !hasAssignedMatchmaker && (
+                    <Alert>
+                        <HeartHandshake className="h-4 w-4" />
+                        <AlertDescription>
+                            <div className="flex items-center justify-between">
+                                <span>Choisissez votre matchmaker pour commencer votre parcours matrimonial.</span>
+                                <Link href="/user/matchmakers">
+                                    <Button size="sm">
+                                        Choisir mon matchmaker
+                                    </Button>
+                                </Link>
+                            </div>
+                        </AlertDescription>
+                    </Alert>
+                )}
             </div>
+
+            {/* Quick Actions */}
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Mon Profil</CardTitle>
+                        <User className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">
+                            {isProfileComplete ? '100%' : `${profile?.current_step || 1}/4`}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                            {isProfileComplete ? 'Profil complet' : 'Étapes complétées'}
+                        </p>
+                        <Link href="/profile-info">
+                            <Button variant="outline" size="sm" className="mt-2 w-full">
+                                {isProfileComplete ? 'Voir mon profil' : 'Compléter mon profil'}
+                            </Button>
+                        </Link>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Mon Matchmaker</CardTitle>
+                        <HeartHandshake className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">
+                            {hasAssignedMatchmaker ? 'Assigné' : 'Non assigné'}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                            {hasAssignedMatchmaker ? 'Vous avez un matchmaker' : 'Choisissez votre matchmaker'}
+                        </p>
+                        <Link href={hasAssignedMatchmaker ? "/matchmaker" : "/user/matchmakers"}>
+                            <Button variant="outline" size="sm" className="mt-2 w-full">
+                                {hasAssignedMatchmaker ? 'Voir mon matchmaker' : 'Choisir un matchmaker'}
+                            </Button>
+                        </Link>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Mes Commandes</CardTitle>
+                        <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">
+                            {userStatus === 'client' ? 'Client' : 'Membre'}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                            {userStatus === 'client' ? 'Statut client actif' : 'Membre passif'}
+                        </p>
+                        <Link href="/mes-commandes">
+                            <Button variant="outline" size="sm" className="mt-2 w-full">
+                                {userStatus === 'client' ? 'Voir mes commandes' : 'Devenir client'}
+                            </Button>
+                        </Link>
+                    </CardContent>
+                </Card>
+            </div>
+
+            {/* Recent Activity */}
+            <Card>
+                <CardHeader>
+                    <CardTitle>Activité Récente</CardTitle>
+                    <CardDescription>
+                        Suivez vos dernières activités sur la plateforme
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="text-center py-8">
+                        <AlertCircle className="w-12 h-12 mx-auto text-gray-400 mb-4" />
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                            Aucune activité récente
+                        </h3>
+                        <p className="text-gray-600">
+                            Vos activités apparaîtront ici une fois que vous commencerez à utiliser nos services.
+                        </p>
+                    </div>
+                </CardContent>
+            </Card>
         </div>
     );
 }
@@ -53,6 +209,7 @@ export default function Dashboard() {
     const approvalStatus = user?.approval_status;
     const agencies = props?.agencies || [];
     const stats = props?.stats || null;
+    const profile = props?.profile || null;
     
     // Show pending approval for non-admin staff who aren't approved
     if ((role === 'manager' || role === 'matchmaker') && approvalStatus !== 'approved') {
@@ -74,7 +231,7 @@ export default function Dashboard() {
             ) : role === 'matchmaker' ? (
                 <MatchMakerDashboardContent />
             ) : (
-                <UserDashboardContent />
+                <UserDashboardContent user={user} profile={profile} />
             )}
         </AppLayout>
     );
