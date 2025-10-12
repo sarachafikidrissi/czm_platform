@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('profiles', function (Blueprint $table) {
-            $table->foreignId('matrimonial_pack_id')->nullable()->after('service_id')->constrained('matrimonial_packs')->onDelete('set null');
+            $table->foreignId('matrimonial_pack_id')->nullable()->after('completed_at')->constrained('matrimonial_packs')->onDelete('set null');
             $table->decimal('pack_price', 10, 2)->nullable()->after('matrimonial_pack_id');
             $table->json('pack_advantages')->nullable()->after('pack_price');
         });
