@@ -50,9 +50,9 @@ class MatchmakerController extends Controller
         
         $services = [];
         if (Schema::hasTable('services')) {
-            $services = Service::all(['id','name']);
+            $services = \App\Models\Service::all(['id','name']);
         }
-
+        
         $matrimonialPacks = [];
         if (Schema::hasTable('matrimonial_packs')) {
             $matrimonialPacks = \App\Models\MatrimonialPack::all(['id','name','duration']);
@@ -63,7 +63,7 @@ class MatchmakerController extends Controller
             'filter' => $filter ?: 'all',
             'services' => $services,
             'matrimonialPacks' => $matrimonialPacks,
-        ])->withViewData([]);
+        ]);
     }
 
     public function validateProspect(Request $request, $id)
@@ -102,8 +102,6 @@ class MatchmakerController extends Controller
             ]
         );
 
-        // Assign the prospect to the current matchmaker only if validator has matchmaker role
-        $assignedId = null;
         $actor = Auth::user();
         if ($actor) {
             $actorRole = \Illuminate\Support\Facades\DB::table('model_has_roles')
@@ -122,7 +120,7 @@ class MatchmakerController extends Controller
             'approved_at' => now(),
         ]);
 
-        // Generate bill for the validated prospect
+        // Generate bill after validation
         $this->generateBill($prospect, $request);
 
         return redirect()->back()->with('success', 'Prospect validated and assigned successfully.');
@@ -132,38 +130,35 @@ class MatchmakerController extends Controller
     {
         // Allow roles: admin, manager, matchmaker (middleware handles role)
         $me = Auth::user();
-        $roleName = null;
+        $status = $request->string('status')->toString(); // all|member|client
+        $query = User::role('user')
+            ->whereIn('status', ['member','client'])
+            ->with('profile');
+
+        // Role-based filtering
         if ($me) {
             $roleName = \Illuminate\Support\Facades\DB::table('model_has_roles')
                 ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
                 ->where('model_has_roles.model_id', $me->id)
                 ->value('roles.name');
+            
+            if ($roleName === 'matchmaker') {
+                // Matchmaker: only see users they validated
+                $query->where('approved_by', $me->id);
+            } elseif ($roleName === 'manager') {
+                // Manager: see users validated by matchmakers in their agency
+                $query->whereHas('approvedBy', function($q) use ($me) {
+                    $q->where('agency_id', $me->agency_id)
+                      ->whereHas('roles', function($roleQuery) {
+                          $roleQuery->where('name', 'matchmaker');
+                      });
+                });
+            }
+            // Admin: no additional filtering (sees all)
         }
 
-        $status = $request->string('status')->toString(); // all|member|client
-        $query = User::role('user')
-            ->whereIn('status', ['member','client'])
-            ->with(['profile', 'assignedMatchmaker', 'approvedBy']);
-
-        // Apply role-based filtering
-        if ($roleName === 'matchmaker') {
-            // Matchmaker: only see users they validated
-            $query->where('approved_by', $me->id);
-        } elseif ($roleName === 'manager') {
-            // Manager: see users validated by matchmakers in the same agency
-            $query->whereHas('approvedBy', function($q) use ($me) {
-                $q->where('agency_id', $me->agency_id)
-                  ->whereHas('roles', function($roleQuery) {
-                      $roleQuery->where('name', 'matchmaker');
-                  });
-            });
-        }
-        // Admin: no additional filtering needed - sees all
-
-        if ($status === 'member') {
-            $query->where('status', 'member');
-        } elseif ($status === 'client') {
-            $query->where('status', 'client');
+        if ($status !== 'all') {
+            $query->where('status', $status);
         }
 
         $prospects = $query->get();
@@ -224,10 +219,10 @@ class MatchmakerController extends Controller
         $billDate = now()->toDateString();
         $dueDate = now()->addDays(30)->toDateString(); // 30 days from now
         
-        $amount = $request->pack_price;
+        $totalAmount = $request->pack_price; // Total amount includes tax
         $taxRate = 15.00; // 15% tax
-        $taxAmount = $amount * ($taxRate / 100);
-        $totalAmount = $amount + $taxAmount;
+        $amount = $totalAmount / (1 + ($taxRate / 100)); // Calculate amount without tax
+        $taxAmount = $totalAmount - $amount; // Calculate tax amount
 
         Bill::create([
             'bill_number' => $billNumber,

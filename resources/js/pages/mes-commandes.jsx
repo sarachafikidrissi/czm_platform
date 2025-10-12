@@ -18,16 +18,16 @@ export default function MesCommandes({ bills = [] }) {
     };
 
     const handleDownloadPDF = (bill) => {
-        router.get(`/user/bills/${bill.id}/download`, {}, {
-            onSuccess: (response) => {
-                // Handle PDF download
-                console.log('PDF download initiated for bill:', bill.bill_number);
-            },
-            onError: (errors) => {
-                console.error('Error downloading PDF:', errors);
-                alert('Erreur lors du téléchargement du PDF');
-            }
-        });
+        // Create a direct download link
+        const downloadUrl = `/user/bills/${bill.id}/download`;
+        
+        // Create a temporary link element and trigger download
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = `${bill.bill_number}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     };
 
     const handleSendEmail = (bill) => {
@@ -65,6 +65,49 @@ export default function MesCommandes({ bills = [] }) {
                 </div>
 
                 <div className="grid gap-4">
+                    {/* Pack Advantages Overview */}
+                    {bills.length > 0 && bills.some(bill => bill.pack_advantages && bill.pack_advantages.length > 0) && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <span className="text-2xl">🎁</span>
+                                    Avantages inclus dans vos packs
+                                </CardTitle>
+                                <CardDescription>
+                                    Découvrez tous les avantages inclus dans vos packs matrimoniaux
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {bills.map((bill) => (
+                                        bill.pack_advantages && bill.pack_advantages.length > 0 && (
+                                            <div key={bill.id} className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4">
+                                                <div className="flex items-center gap-2 mb-3">
+                                                    <Package className="w-5 h-5 text-blue-600" />
+                                                    <h4 className="font-semibold text-blue-800">{bill.pack_name}</h4>
+                                                </div>
+                                                <div className="space-y-2">
+                                                    {bill.pack_advantages.map((advantage, index) => (
+                                                        <div key={index} className="flex items-start gap-2">
+                                                            <CheckCircle className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
+                                                            <span className="text-sm text-gray-700">{advantage}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                                <div className="mt-3 pt-3 border-t border-blue-200">
+                                                    <div className="flex justify-between items-center">
+                                                        <span className="text-xs text-gray-500">Commande:</span>
+                                                        <span className="text-xs font-medium text-blue-600">{bill.order_number}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )
+                                    ))}
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
+
                     {/* Orders Table */}
                     <Card>
                         <CardHeader>
@@ -83,6 +126,7 @@ export default function MesCommandes({ bills = [] }) {
                                         <TableRow>
                                             <TableHead className="w-[120px]">Numéro de Commande</TableHead>
                                             <TableHead>Date</TableHead>
+                                            <TableHead>Pack</TableHead>
                                             <TableHead>Statut</TableHead>
                                             <TableHead>Date d'échéance</TableHead>
                                             <TableHead className="text-right">Montant</TableHead>
@@ -97,6 +141,16 @@ export default function MesCommandes({ bills = [] }) {
                                                 </TableCell>
                                                 <TableCell>
                                                     {formatDate(bill.bill_date)}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <div className="flex flex-col">
+                                                        <span className="font-medium text-blue-600">{bill.pack_name}</span>
+                                                        {bill.pack_advantages && bill.pack_advantages.length > 0 && (
+                                                            <span className="text-xs text-gray-500">
+                                                                {bill.pack_advantages.length} avantage{bill.pack_advantages.length > 1 ? 's' : ''}
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </TableCell>
                                                 <TableCell>
                                                     <Badge 
@@ -230,6 +284,50 @@ export default function MesCommandes({ bills = [] }) {
                                             <p><strong>Date d'échéance:</strong> {formatDate(selectedInvoice.due_date)}</p>
                                             <p><strong>Mode de paiement:</strong> {selectedInvoice.payment_method}</p>
                                             <p><strong>Pack choisi:</strong> {selectedInvoice.pack_name}</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Pack Advantages */}
+                                {selectedInvoice.pack_advantages && selectedInvoice.pack_advantages.length > 0 && (
+                                    <div className="mb-8">
+                                        <div className="bg-gradient-to-r from-purple-600 via-pink-600 to-red-600 text-white p-6 rounded-xl mb-6 shadow-lg">
+                                            <div className="text-center">
+                                                <div className="text-4xl mb-2">🎁</div>
+                                                <h3 className="text-xl font-bold mb-2">Avantages inclus dans votre pack</h3>
+                                                <p className="text-purple-100 text-sm">Profitez de tous ces avantages exclusifs</p>
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            {selectedInvoice.pack_advantages.map((advantage, index) => (
+                                                <div key={index} className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl p-4 flex items-start shadow-sm hover:shadow-md transition-shadow">
+                                                    <div className="bg-green-500 rounded-full p-1 mr-4 flex-shrink-0">
+                                                        <CheckCircle className="w-4 h-4 text-white" />
+                                                    </div>
+                                                    <span className="text-green-800 font-medium">{advantage}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <div className="mt-6 bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-lg p-4">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-2xl">💡</span>
+                                                <p className="text-yellow-800 font-medium">
+                                                    Ces avantages vous aideront à trouver votre âme sœur plus rapidement et efficacement !
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Payment Reminder */}
+                                <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-lg p-4 mb-6">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-2xl">⏰</span>
+                                        <div>
+                                            <h3 className="font-semibold text-yellow-800">Paiement en attente</h3>
+                                            <p className="text-yellow-700 text-sm">
+                                                Veuillez effectuer le paiement avant le {formatDate(selectedInvoice.due_date)} pour activer votre pack matrimonial.
+                                            </p>
                                         </div>
                                     </div>
                                 </div>

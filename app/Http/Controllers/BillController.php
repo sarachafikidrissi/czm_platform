@@ -4,10 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Models\Bill;
 use App\Models\User;
+use App\Mail\BillEmail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class BillController extends Controller
 {
@@ -42,10 +44,15 @@ class BillController extends Controller
 
         $bill->load(['user', 'profile', 'matchmaker']);
         
-        // For now, return a simple response. In production, you'd generate a real PDF
-        return response()->json([
-            'message' => 'PDF generation not implemented yet',
-            'bill' => $bill
+        $pdf = Pdf::loadView('pdf.invoice', ['bill' => $bill]);
+        $pdf->setPaper('A4', 'portrait');
+        
+        return response($pdf->output(), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="' . $bill->bill_number . '.pdf"',
+            'Cache-Control' => 'no-cache, no-store, must-revalidate',
+            'Pragma' => 'no-cache',
+            'Expires' => '0'
         ]);
     }
 
@@ -58,18 +65,24 @@ class BillController extends Controller
 
         $bill->load(['user', 'profile', 'matchmaker']);
         
-        // Mark email as sent
-        $bill->update([
-            'email_sent' => true,
-            'email_sent_at' => now(),
-        ]);
-
-        // In production, you would send the actual email here
-        // Mail::to($bill->user->email)->send(new BillEmail($bill));
-        
-        return response()->json([
-            'message' => 'Bill sent to email successfully',
-            'email_sent_at' => $bill->email_sent_at
-        ]);
+        try {
+            // Send the email with PDF attachment
+            Mail::to($bill->user->email)->send(new BillEmail($bill));
+            
+            // Mark email as sent
+            $bill->update([
+                'email_sent' => true,
+                'email_sent_at' => now(),
+            ]);
+            
+            return response()->json([
+                'message' => 'Facture envoyée par email avec succès',
+                'email_sent_at' => $bill->email_sent_at
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Erreur lors de l\'envoi de l\'email: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }
