@@ -116,6 +116,8 @@ class MatchmakerController extends Controller
         $prospect->update([
             'assigned_matchmaker_id' => $assignedId,
             'status' => 'member',
+            'approved_by' => Auth::id(),
+            'approved_at' => now(),
         ]);
 
         return redirect()->back()->with('success', 'Prospect validated and assigned successfully.');
@@ -124,10 +126,34 @@ class MatchmakerController extends Controller
     public function validatedProspects(Request $request)
     {
         // Allow roles: admin, manager, matchmaker (middleware handles role)
+        $me = Auth::user();
+        $roleName = null;
+        if ($me) {
+            $roleName = \Illuminate\Support\Facades\DB::table('model_has_roles')
+                ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+                ->where('model_has_roles.model_id', $me->id)
+                ->value('roles.name');
+        }
+
         $status = $request->string('status')->toString(); // all|member|client
         $query = User::role('user')
             ->whereIn('status', ['member','client'])
-            ->with('profile');
+            ->with(['profile', 'assignedMatchmaker', 'approvedBy']);
+
+        // Apply role-based filtering
+        if ($roleName === 'matchmaker') {
+            // Matchmaker: only see users they validated
+            $query->where('approved_by', $me->id);
+        } elseif ($roleName === 'manager') {
+            // Manager: see users validated by matchmakers in the same agency
+            $query->whereHas('approvedBy', function($q) use ($me) {
+                $q->where('agency_id', $me->agency_id)
+                  ->whereHas('roles', function($roleQuery) {
+                      $roleQuery->where('name', 'matchmaker');
+                  });
+            });
+        }
+        // Admin: no additional filtering needed - sees all
 
         if ($status === 'member') {
             $query->where('status', 'member');

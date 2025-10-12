@@ -40,7 +40,12 @@ export default function ValidatedProspects() {
                 <Card className="overflow-hidden">
                     <CardHeader>
                         <CardTitle>Validated Users</CardTitle>
-                        <CardDescription>All users who were validated (member or client).</CardDescription>
+                        <CardDescription>
+                            {prospects.length > 0 
+                                ? `Showing ${prospects.length} validated users based on your role permissions.`
+                                : 'No validated users found based on your role permissions.'
+                            }
+                        </CardDescription>
                     </CardHeader>
                     <CardContent>
                         <Table>
@@ -48,9 +53,10 @@ export default function ValidatedProspects() {
                                 <TableRow>
                                     <TableHead className="w-10"></TableHead>
                                     <TableHead>Name</TableHead>
-                                    <TableHead>Date</TableHead>
                                     <TableHead>Phone</TableHead>
                                     <TableHead>Status</TableHead>
+                                    <TableHead>Validated By</TableHead>
+                                    <TableHead>Validated Date</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -58,10 +64,21 @@ export default function ValidatedProspects() {
                                     <TableRow key={u.id}>
                                         <TableCell><input type="checkbox" className="accent-neutral-800" /></TableCell>
                                         <TableCell className="font-medium">{u.name}</TableCell>
-                                        <TableCell className="text-muted-foreground">{new Date(u.created_at ?? Date.now()).toLocaleDateString()}</TableCell>
                                         <TableCell>{u.phone}</TableCell>
                                         <TableCell>
-                                            <Badge className="bg-neutral-100 text-neutral-800 capitalize">{u.status}</Badge>
+                                            <Badge className={`capitalize ${
+                                                u.status === 'member' 
+                                                    ? 'bg-green-100 text-green-800' 
+                                                    : 'bg-blue-100 text-blue-800'
+                                            }`}>
+                                                {u.status}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell className="text-muted-foreground">
+                                            {u.approved_by ? u.approved_by.name : 'N/A'}
+                                        </TableCell>
+                                        <TableCell className="text-muted-foreground">
+                                            {u.approved_at ? new Date(u.approved_at).toLocaleDateString() : 'N/A'}
                                         </TableCell>
                                     </TableRow>
                                 ))}
