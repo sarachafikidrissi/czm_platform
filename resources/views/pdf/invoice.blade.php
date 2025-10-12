@@ -107,7 +107,7 @@
             padding-left: 30px;
         }
         .advantage-item::before {
-            content: "✓";
+            content: "•";
             position: absolute;
             left: 10px;
             color: #10b981;
@@ -183,10 +183,7 @@
             align-items: center;
         }
         .footer .generated-date::before {
-            content: "[PDF]";
-            margin-right: 5px;
-            font-size: 10px;
-            color: #6b7280;
+            content: "";
         }
         .payment-reminder {
             background: linear-gradient(135deg, #fef3c7, #fde68a);
@@ -202,8 +199,7 @@
             font-size: 16px;
         }
         .payment-reminder h3::before {
-            content: "💳 ";
-            font-family: Arial, sans-serif;
+            content: "";
         }
         .payment-reminder p {
             color: #78350f;
@@ -303,7 +299,7 @@
         <tbody>
             <tr>
                 <td>
-                    <span style="color: #3b82f6; font-weight: bold;">[PACK]</span> {{ $bill->pack_name }}
+                    <span style="color: #3b82f6; font-weight: bold;">{{ $bill->pack_name }}</span>
                 </td>
                 <td class="text-center">1</td>
                 <td class="text-right">{{ number_format($bill->amount, 2) }} {{ $bill->currency }}</td>

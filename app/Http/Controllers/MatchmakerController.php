@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Models\Bill;
 use App\Models\MatrimonialPack;
+use App\Mail\BillEmail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
 use App\Models\Service;
 use Illuminate\Support\Facades\Schema;
@@ -121,7 +123,23 @@ class MatchmakerController extends Controller
         ]);
 
         // Generate bill after validation
-        $this->generateBill($prospect, $request);
+        $bill = $this->generateBill($prospect, $request);
+
+        // Send bill email automatically
+        try {
+            Mail::to($prospect->email)->send(new BillEmail($bill));
+            
+            // Mark email as sent
+            $bill->update([
+                'email_sent' => true,
+                'email_sent_at' => now(),
+            ]);
+            
+            \Illuminate\Support\Facades\Log::info("Bill email sent successfully to {$prospect->email} for bill {$bill->bill_number}");
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error("Failed to send bill email to {$prospect->email}: " . $e->getMessage());
+            // Don't fail the validation process if email fails
+        }
 
         return redirect()->back()->with('success', 'Prospect validated and assigned successfully.');
     }
@@ -224,7 +242,7 @@ class MatchmakerController extends Controller
         $amount = $totalAmount / (1 + ($taxRate / 100)); // Calculate amount without tax
         $taxAmount = $totalAmount - $amount; // Calculate tax amount
 
-        Bill::create([
+        $bill = Bill::create([
             'bill_number' => $billNumber,
             'user_id' => $prospect->id,
             'profile_id' => $profile->id,
@@ -244,5 +262,7 @@ class MatchmakerController extends Controller
             'pack_advantages' => $request->pack_advantages,
             'notes' => $request->notes,
         ]);
+
+        return $bill;
     }
 }
