@@ -1,63 +1,45 @@
-import { Head } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { ShoppingCart, Package, CreditCard, CheckCircle, MoreHorizontal, Eye, Download, FileText } from 'lucide-react';
+import { ShoppingCart, Package, CreditCard, CheckCircle, MoreHorizontal, Eye, Download, FileText, Mail } from 'lucide-react';
 import { useState } from 'react';
 
-export default function MesCommandes() {
+export default function MesCommandes({ bills = [] }) {
     const [selectedInvoice, setSelectedInvoice] = useState(null);
     const [showInvoice, setShowInvoice] = useState(false);
-
-    // Sample orders data - in real app this would come from props/API
-    const orders = [
-        {
-            id: 1,
-            orderNumber: 'CMD-2024-001',
-            date: '2024-01-15',
-            status: 'paid',
-            dueDate: '2024-02-15',
-            amount: 2500,
-            currency: 'MAD',
-            paymentMethod: 'Virement',
-            packName: 'Pack Premium',
-            customerName: 'John Doe',
-            city: 'Casablanca',
-            country: 'Maroc',
-            phone: '+212 6 12 34 56 78',
-            email: 'john.doe@email.com'
-        },
-        {
-            id: 2,
-            orderNumber: 'CMD-2024-002',
-            date: '2024-01-20',
-            status: 'unpaid',
-            dueDate: '2024-01-30',
-            amount: 1800,
-            currency: 'MAD',
-            paymentMethod: 'Chèque',
-            packName: 'Pack Standard',
-            customerName: 'Jane Smith',
-            city: 'Rabat',
-            country: 'Maroc',
-            phone: '+212 6 87 65 43 21',
-            email: 'jane.smith@email.com'
-        }
-    ];
 
     const handleViewInvoice = (order) => {
         setSelectedInvoice(order);
         setShowInvoice(true);
     };
 
-    const handleDownloadPDF = (order) => {
-        // In real app, this would generate and download PDF
-        console.log('Downloading PDF for order:', order.orderNumber);
-        // For now, just show an alert
-        alert(`Téléchargement du PDF pour la commande ${order.orderNumber}`);
+    const handleDownloadPDF = (bill) => {
+        router.get(`/user/bills/${bill.id}/download`, {}, {
+            onSuccess: (response) => {
+                // Handle PDF download
+                console.log('PDF download initiated for bill:', bill.bill_number);
+            },
+            onError: (errors) => {
+                console.error('Error downloading PDF:', errors);
+                alert('Erreur lors du téléchargement du PDF');
+            }
+        });
+    };
+
+    const handleSendEmail = (bill) => {
+        router.post(`/user/bills/${bill.id}/send-email`, {}, {
+            onSuccess: (response) => {
+                alert('Facture envoyée par email avec succès');
+            },
+            onError: (errors) => {
+                console.error('Error sending email:', errors);
+                alert('Erreur lors de l\'envoi de l\'email');
+            }
+        });
     };
 
     const isOverdue = (dueDate) => {
@@ -95,7 +77,7 @@ export default function MesCommandes() {
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
-                            {orders.length > 0 ? (
+                            {bills.length > 0 ? (
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
@@ -108,29 +90,29 @@ export default function MesCommandes() {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {orders.map((order) => (
-                                            <TableRow key={order.id}>
+                                        {bills.map((bill) => (
+                                            <TableRow key={bill.id}>
                                                 <TableCell className="font-medium">
-                                                    {order.orderNumber}
+                                                    {bill.order_number}
                                                 </TableCell>
                                                 <TableCell>
-                                                    {formatDate(order.date)}
+                                                    {formatDate(bill.bill_date)}
                                                 </TableCell>
                                                 <TableCell>
                                                     <Badge 
                                                         className={`capitalize ${
-                                                            order.status === 'paid' 
+                                                            bill.status === 'paid' 
                                                                 ? 'bg-green-100 text-green-800' 
                                                                 : 'bg-orange-100 text-orange-800'
                                                         }`}
                                                     >
-                                                        {order.status === 'paid' ? 'Payé' : 'Impayé'}
+                                                        {bill.status === 'paid' ? 'Payé' : 'Impayé'}
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell>
                                                     <div className="flex flex-col">
-                                                        <span>{formatDate(order.dueDate)}</span>
-                                                        {isOverdue(order.dueDate) && order.status === 'unpaid' && (
+                                                        <span>{formatDate(bill.due_date)}</span>
+                                                        {isOverdue(bill.due_date) && bill.status === 'unpaid' && (
                                                             <Badge variant="destructive" className="text-xs mt-1">
                                                                 Expirée
                                                             </Badge>
@@ -138,7 +120,7 @@ export default function MesCommandes() {
                                                     </div>
                                                 </TableCell>
                                                 <TableCell className="text-right font-medium">
-                                                    {order.amount.toLocaleString()} {order.currency}
+                                                    {parseFloat(bill.total_amount).toLocaleString()} {bill.currency}
                                                 </TableCell>
                                                 <TableCell>
                                                     <DropdownMenu>
@@ -148,13 +130,17 @@ export default function MesCommandes() {
                                                             </Button>
                                                         </DropdownMenuTrigger>
                                                         <DropdownMenuContent align="end">
-                                                            <DropdownMenuItem onClick={() => handleViewInvoice(order)}>
+                                                            <DropdownMenuItem onClick={() => handleViewInvoice(bill)}>
                                                                 <Eye className="mr-2 h-4 w-4" />
                                                                 Voir facture
                                                             </DropdownMenuItem>
-                                                            <DropdownMenuItem onClick={() => handleDownloadPDF(order)}>
+                                                            <DropdownMenuItem onClick={() => handleDownloadPDF(bill)}>
                                                                 <Download className="mr-2 h-4 w-4" />
                                                                 Télécharger PDF
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem onClick={() => handleSendEmail(bill)}>
+                                                                <Mail className="mr-2 h-4 w-4" />
+                                                                Envoyer par email
                                                             </DropdownMenuItem>
                                                         </DropdownMenuContent>
                                                     </DropdownMenu>
@@ -220,7 +206,7 @@ export default function MesCommandes() {
                                     </div>
                                     <div className="text-right">
                                         <h2 className="text-xl font-bold text-gray-900">FACTURE</h2>
-                                        <p className="text-sm text-gray-600">N° {selectedInvoice.orderNumber}</p>
+                                        <p className="text-sm text-gray-600">N° {selectedInvoice.bill_number}</p>
                                     </div>
                                 </div>
 
@@ -229,21 +215,21 @@ export default function MesCommandes() {
                                     <div>
                                         <h3 className="font-semibold text-gray-900 mb-2">Détails de facturation</h3>
                                         <div className="space-y-1 text-sm">
-                                            <p><strong>Nom:</strong> {selectedInvoice.customerName}</p>
-                                            <p><strong>Email:</strong> {selectedInvoice.email}</p>
-                                            <p><strong>Téléphone:</strong> {selectedInvoice.phone}</p>
-                                            <p><strong>Ville:</strong> {selectedInvoice.city}</p>
-                                            <p><strong>Pays:</strong> {selectedInvoice.country}</p>
+                                            <p><strong>Nom:</strong> {selectedInvoice.user?.name}</p>
+                                            <p><strong>Email:</strong> {selectedInvoice.user?.email}</p>
+                                            <p><strong>Téléphone:</strong> {selectedInvoice.user?.phone}</p>
+                                            <p><strong>Ville:</strong> {selectedInvoice.user?.city}</p>
+                                            <p><strong>Pays:</strong> {selectedInvoice.user?.country}</p>
                                         </div>
                                     </div>
                                     <div>
                                         <h3 className="font-semibold text-gray-900 mb-2">Informations de la commande</h3>
                                         <div className="space-y-1 text-sm">
-                                            <p><strong>Numéro de commande:</strong> {selectedInvoice.orderNumber}</p>
-                                            <p><strong>Date:</strong> {formatDate(selectedInvoice.date)}</p>
-                                            <p><strong>Date d'échéance:</strong> {formatDate(selectedInvoice.dueDate)}</p>
-                                            <p><strong>Mode de paiement:</strong> {selectedInvoice.paymentMethod}</p>
-                                            <p><strong>Pack choisi:</strong> {selectedInvoice.packName}</p>
+                                            <p><strong>Numéro de commande:</strong> {selectedInvoice.order_number}</p>
+                                            <p><strong>Date:</strong> {formatDate(selectedInvoice.bill_date)}</p>
+                                            <p><strong>Date d'échéance:</strong> {formatDate(selectedInvoice.due_date)}</p>
+                                            <p><strong>Mode de paiement:</strong> {selectedInvoice.payment_method}</p>
+                                            <p><strong>Pack choisi:</strong> {selectedInvoice.pack_name}</p>
                                         </div>
                                     </div>
                                 </div>
@@ -264,15 +250,15 @@ export default function MesCommandes() {
                                                 <td className="border border-gray-200 px-4 py-3">
                                                     <div className="flex items-center gap-2">
                                                         <Package className="w-4 h-4 text-blue-600" />
-                                                        {selectedInvoice.packName}
+                                                        {selectedInvoice.pack_name}
                                                     </div>
                                                 </td>
                                                 <td className="border border-gray-200 px-4 py-3 text-center">1</td>
                                                 <td className="border border-gray-200 px-4 py-3 text-right">
-                                                    {selectedInvoice.amount.toLocaleString()} {selectedInvoice.currency}
+                                                    {parseFloat(selectedInvoice.amount).toLocaleString()} {selectedInvoice.currency}
                                                 </td>
                                                 <td className="border border-gray-200 px-4 py-3 text-right">
-                                                    {selectedInvoice.amount.toLocaleString()} {selectedInvoice.currency}
+                                                    {parseFloat(selectedInvoice.amount).toLocaleString()} {selectedInvoice.currency}
                                                 </td>
                                             </tr>
                                         </tbody>
@@ -284,21 +270,21 @@ export default function MesCommandes() {
                                     <div className="w-64 space-y-2">
                                         <div className="flex justify-between">
                                             <span>Sous-total:</span>
-                                            <span>{selectedInvoice.amount.toLocaleString()} {selectedInvoice.currency}</span>
+                                            <span>{parseFloat(selectedInvoice.amount).toLocaleString()} {selectedInvoice.currency}</span>
                                         </div>
                                         <div className="flex justify-between">
-                                            <span>TVA (15%):</span>
-                                            <span>{(selectedInvoice.amount * 0.15).toLocaleString()} {selectedInvoice.currency}</span>
+                                            <span>TVA ({selectedInvoice.tax_rate}%):</span>
+                                            <span>{parseFloat(selectedInvoice.tax_amount).toLocaleString()} {selectedInvoice.currency}</span>
                                         </div>
                                         <div className="border-t pt-2">
                                             <div className="flex justify-between font-bold text-lg">
                                                 <span>Total TTC:</span>
-                                                <span>{(selectedInvoice.amount * 1.15).toLocaleString()} {selectedInvoice.currency}</span>
+                                                <span>{parseFloat(selectedInvoice.total_amount).toLocaleString()} {selectedInvoice.currency}</span>
                                             </div>
                                         </div>
                                         <div className="flex justify-between font-bold text-lg text-blue-600">
                                             <span>Montant dû:</span>
-                                            <span>{(selectedInvoice.amount * 1.15).toLocaleString()} {selectedInvoice.currency}</span>
+                                            <span>{parseFloat(selectedInvoice.total_amount).toLocaleString()} {selectedInvoice.currency}</span>
                                         </div>
                                     </div>
                                 </div>

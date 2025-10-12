@@ -89,4 +89,12 @@ class User extends Authenticatable
     public function agency() {
         return $this->belongsTo(Agency::class);
     }
+
+    public function bills() {
+        return $this->hasMany(Bill::class);
+    }
+
+    public function createdBills() {
+        return $this->hasMany(Bill::class, 'matchmaker_id');
+    }
 }

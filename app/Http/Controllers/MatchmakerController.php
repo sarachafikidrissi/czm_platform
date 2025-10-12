@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Models\Bill;
+use App\Models\MatrimonialPack;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
@@ -120,6 +122,9 @@ class MatchmakerController extends Controller
             'approved_at' => now(),
         ]);
 
+        // Generate bill for the validated prospect
+        $this->generateBill($prospect, $request);
+
         return redirect()->back()->with('success', 'Prospect validated and assigned successfully.');
     }
 
@@ -206,6 +211,43 @@ class MatchmakerController extends Controller
             'agencyId' => $agencyId,
             'services' => $services,
             'matrimonialPacks' => $matrimonialPacks,
+        ]);
+    }
+
+    private function generateBill($prospect, $request)
+    {
+        $profile = $prospect->profile;
+        $matrimonialPack = MatrimonialPack::find($request->matrimonial_pack_id);
+        
+        $billNumber = Bill::generateBillNumber();
+        $orderNumber = Bill::generateOrderNumber();
+        $billDate = now()->toDateString();
+        $dueDate = now()->addDays(30)->toDateString(); // 30 days from now
+        
+        $amount = $request->pack_price;
+        $taxRate = 15.00; // 15% tax
+        $taxAmount = $amount * ($taxRate / 100);
+        $totalAmount = $amount + $taxAmount;
+
+        Bill::create([
+            'bill_number' => $billNumber,
+            'user_id' => $prospect->id,
+            'profile_id' => $profile->id,
+            'matchmaker_id' => Auth::id(),
+            'order_number' => $orderNumber,
+            'bill_date' => $billDate,
+            'due_date' => $dueDate,
+            'status' => 'unpaid',
+            'amount' => $amount,
+            'tax_rate' => $taxRate,
+            'tax_amount' => $taxAmount,
+            'total_amount' => $totalAmount,
+            'currency' => 'MAD',
+            'payment_method' => $request->payment_mode,
+            'pack_name' => $matrimonialPack->name ?? 'Pack Standard',
+            'pack_price' => $amount,
+            'pack_advantages' => $request->pack_advantages,
+            'notes' => $request->notes,
         ]);
     }
 }

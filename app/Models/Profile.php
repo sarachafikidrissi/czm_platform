@@ -37,5 +37,8 @@ class Profile extends Model
         return $this->belongsTo(MatrimonialPack::class);
     }
 
-    
+    public function bills()
+    {
+        return $this->hasMany(Bill::class);
+    }
 }

@@ -141,6 +141,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::middleware(['role:user'])->prefix('user')->name('user.')->group(function () {
         Route::get('/matchmakers', [\App\Http\Controllers\UserController::class, 'matchmakers'])->name('matchmakers');
         Route::post('/matchmakers/{matchmaker}/select', [\App\Http\Controllers\UserController::class, 'selectMatchmaker'])->name('matchmakers.select');
+        
+        // Bill routes
+        Route::get('/bills', [\App\Http\Controllers\BillController::class, 'index'])->name('bills');
+        Route::get('/bills/{bill}', [\App\Http\Controllers\BillController::class, 'show'])->name('bills.show');
+        Route::get('/bills/{bill}/download', [\App\Http\Controllers\BillController::class, 'downloadPdf'])->name('bills.download');
+        Route::post('/bills/{bill}/send-email', [\App\Http\Controllers\BillController::class, 'sendEmail'])->name('bills.send-email');
     });
 
     // Sidebar pages
@@ -166,9 +172,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         return Inertia::render('appointments');
     })->name('appointments');
     
-    Route::get('/mes-commandes', function () {
-        return Inertia::render('mes-commandes');
-    })->name('mes-commandes');
+    Route::get('/mes-commandes', [\App\Http\Controllers\BillController::class, 'index'])->name('mes-commandes');
 });
 
 
