@@ -16,6 +16,7 @@ class UserController extends Controller
 
         $matchmakers = User::role('matchmaker')
             ->where('approval_status', 'approved')
+            ->with('agency')
             ->get();
 
         return Inertia::render('user/matchmakers', [

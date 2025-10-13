@@ -15,6 +15,7 @@ import { useState } from 'react';
 export default function UserMatchmakers() {
     const { matchmakers, assignedMatchmaker } = usePage().props;
     const [selected, setSelected] = useState(null);
+    
 
     const handleSelectMatchmaker = (matchmakerId) => {
         router.post(`/user/matchmakers/${matchmakerId}/select`);
@@ -101,7 +102,7 @@ export default function UserMatchmakers() {
                                     <TableCell><input type="checkbox" className="accent-neutral-800" /></TableCell>
                                     <TableCell className="font-medium">{matchmaker.name}</TableCell>
                                     <TableCell className="text-muted-foreground">{new Date(matchmaker.created_at ?? Date.now()).toLocaleDateString()}</TableCell>
-                                    <TableCell>{matchmaker.agency}</TableCell>
+                                    <TableCell>{matchmaker.agency?.name ?? '—'}</TableCell>
                                     <TableCell className="text-right space-x-2">
                                         <Dialog>
                                             <DialogTrigger asChild>
@@ -123,7 +124,7 @@ export default function UserMatchmakers() {
                                                     </div>
                                                     <div>
                                                         <div className="text-sm text-muted-foreground">Agency</div>
-                                                        <div className="font-medium">{selected?.agency ?? '—'}</div>
+                                                        <div className="font-medium">{selected?.agency?.name ?? '—'}</div>
                                                     </div>
                                                     <div>
                                                         <div className="text-sm text-muted-foreground">Joined</div>
