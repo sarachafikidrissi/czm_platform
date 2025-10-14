@@ -150,6 +150,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/bills/{bill}/send-email', [\App\Http\Controllers\BillController::class, 'sendEmail'])->name('bills.send-email');
     });
 
+    // Public user profile routes (accessible by all authenticated users)
+    Route::get('/profile/{username}', [\App\Http\Controllers\UserController::class, 'profile'])->name('profile.show');
+
     // Sidebar pages
     Route::get('/photos', function () {
         return Inertia::render('photos');

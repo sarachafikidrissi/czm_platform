@@ -49,4 +49,20 @@ class UserController extends Controller
 
         return redirect()->back()->with('success', 'Matchmaker selected successfully.');
     }
+
+    public function profile($username)
+    {
+        $user = User::with(['profile', 'agency', 'roles'])
+            ->where('username', $username)
+            ->firstOrFail();
+        
+        // Get user role
+        $userRole = $user->roles->first()?->name ?? 'user';
+        
+        return Inertia::render('user/profile', [
+            'user' => $user,
+            'profile' => $user->profile,
+            'agency' => $user->agency,
+        ]);
+    }
 }

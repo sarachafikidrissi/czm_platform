@@ -1,4 +1,4 @@
-import { Head, router, usePage } from '@inertiajs/react';
+import { Head, router, usePage, Link } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -130,6 +130,13 @@ export default function UserMatchmakers() {
                                                         <div className="text-sm text-muted-foreground">Joined</div>
                                                         <div className="font-medium">{selected?.created_at ? new Date(selected.created_at).toLocaleDateString() : '—'}</div>
                                                     </div>
+                                                </div>
+                                                <div className="flex justify-end pt-4">
+                                                    <Link href={`/profile/${selected?.username || selected?.id}`}>
+                                                        <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
+                                                            View Full Profile
+                                                        </Button>
+                                                    </Link>
                                                 </div>
                                             </DialogContent>
                                         </Dialog>

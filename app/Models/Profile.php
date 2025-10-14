@@ -30,6 +30,7 @@ class Profile extends Model
 
     protected $casts = [
         'pack_advantages' => 'array',
+        'villes_recherche' => 'array',
     ];
 
     public function matrimonialPack()

@@ -215,8 +215,19 @@ class AdminController extends Controller
 
         $cinHash = hash_hmac('sha256', (string) $request->cin, $appKey);
         
+        // Generate unique username
+        $baseUsername = \Illuminate\Support\Str::slug($request->name);
+        $username = $baseUsername;
+        $counter = 1;
+        
+        while (User::where('username', $username)->exists()) {
+            $username = $baseUsername . $counter;
+            $counter++;
+        }
+        
         $user = User::create([
             'name' => $request->name,
+            'username' => $username,
             'email' => $request->email,
             'phone' => $request->phone,
             'city' => $request->city,
