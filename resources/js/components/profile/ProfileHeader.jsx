@@ -8,13 +8,19 @@ export default function ProfileHeader({ user, profile, isOwnProfile, age }) {
         <div className="relative">
             {/* Cover Image */}
             <div className="h-64 md:h-80 bg-gradient-to-r from-blue-600 to-purple-600 relative overflow-hidden">
-                <div className="absolute inset-0 bg-black bg-opacity-20"></div>
-                <div className="absolute bottom-4 left-4 text-white">
+                <div className="absolute inset-0 bg-black bg-opacity-20">
+                <img 
+                                    src={`/images/morocco-flag-banner.jpg`}
+                                    alt={user?.name}
+                                    className="w-full h-full object-cover"
+                                />
+                </div>
+                {/* <div className="absolute bottom-4 left-4 text-white">
                     <h1 className="text-2xl md:text-3xl font-bold">{user?.name}</h1>
                     <p className="text-lg opacity-90">
                         {user?.city}, {user?.country}
                     </p>
-                </div>
+                </div> */}
             </div>
 
             {/* Profile Picture and Info */}
@@ -23,22 +29,33 @@ export default function ProfileHeader({ user, profile, isOwnProfile, age }) {
                     {/* Profile Picture */}
                     <div className="relative">
                         <div className="w-32 h-32 md:w-40 md:h-40 rounded-full border-4 border-white bg-gray-200 overflow-hidden shadow-lg">
-                            {profile?.profile_picture_path ? (
-                                <img 
-                                    src={`/storage/${profile.profile_picture_path}`}
-                                    alt={user?.name}
-                                    className="w-full h-full object-cover"
-                                />
-                            ) : (
-                                <div className="w-full h-full bg-gray-300 flex items-center justify-center">
-                                    <span className="text-4xl font-bold text-gray-600">
-                                        {user?.name?.charAt(0)}
-                                    </span>
-                                </div>
-                            )}
+                            {(() => {
+                                const userRole = user?.roles?.[0]?.name || 'user';
+                                let profilePictureSrc = null;
+                                
+                                if (userRole === 'user' && user?.profile?.profile_picture_path) {
+                                    profilePictureSrc = `/storage/${user.profile.profile_picture_path}`;
+                                } else if (userRole !== 'user' && user?.profile_picture) {
+                                    profilePictureSrc = `/storage/${user.profile_picture}`;
+                                }
+                                
+                                return profilePictureSrc ? (
+                                    <img 
+                                        src={profilePictureSrc}
+                                        alt={user?.name}
+                                        className="w-full h-full object-cover"
+                                    />
+                                ) : (
+                                    <div className="w-full h-full bg-gray-300 flex items-center justify-center">
+                                        <span className="text-4xl font-bold text-gray-600">
+                                            {user?.name?.charAt(0)}
+                                        </span>
+                                    </div>
+                                );
+                            })()}
                         </div>
                         {isOwnProfile && (
-                            <Link href="/profile-info">
+                            <Link href="/settings/profile">
                                 <Button 
                                     size="sm" 
                                     className="absolute -bottom-2 -right-2 rounded-full w-8 h-8 p-0"
