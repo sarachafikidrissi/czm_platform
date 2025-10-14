@@ -132,6 +132,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Staff routes (manager, matchmaker) for viewing dispatched prospects and validated lists
     Route::middleware(['role:admin|manager|matchmaker'])->prefix('staff')->name('staff.')->group(function () {
+        Route::get('/prospects', [\App\Http\Controllers\MatchmakerController::class, 'prospects'])->name('prospects');
         Route::post('/prospects/{user}/validate', [\App\Http\Controllers\MatchmakerController::class, 'validateProspect'])->name('prospects.validate');
         Route::get('/validated-prospects', [\App\Http\Controllers\MatchmakerController::class, 'validatedProspects'])->name('prospects.validated');
         Route::get('/agency-prospects', [\App\Http\Controllers\MatchmakerController::class, 'agencyProspects'])->name('agency-prospects');
@@ -155,7 +156,24 @@ Route::middleware(['auth', 'verified'])->group(function () {
     })->name('photos');
     
     Route::get('/prospects', function () {
-        return Inertia::render('prospects');
+        $user = \Illuminate\Support\Facades\Auth::user();
+        $role = null;
+        if ($user) {
+            $role = \Illuminate\Support\Facades\DB::table('model_has_roles')
+                ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+                ->where('model_has_roles.model_id', $user->id)
+                ->value('roles.name');
+        }
+        
+        // Redirect based on role
+        if ($role === 'admin') {
+            return redirect()->route('admin.prospects');
+        } elseif (in_array($role, ['manager', 'matchmaker'])) {
+            return redirect()->route('staff.agency-prospects');
+        } else {
+            // For regular users, redirect to dashboard
+            return redirect()->route('dashboard');
+        }
     })->name('prospects');
 
   

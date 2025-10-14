@@ -26,6 +26,8 @@ class MatchmakerController extends Controller
                 ->where('model_has_roles.model_id', $me->id)
                 ->value('roles.name');
         }
+        
+        // Check approval status for matchmaker and manager
         if (in_array($roleName, ['manager','matchmaker'], true)) {
             if ($me->approval_status !== 'approved') {
                 abort(403, 'Your account is not validated yet.');
@@ -37,6 +39,11 @@ class MatchmakerController extends Controller
             ->where('status', 'prospect')
             ->whereNull('assigned_matchmaker_id')
             ->with('profile');
+
+        // Only show prospects dispatched to the user's agency
+        if (in_array($roleName, ['manager','matchmaker'], true)) {
+            $query->where('agency_id', $me->agency_id);
+        }
 
         if ($filter === 'complete') {
             $query->whereHas('profile', function($q) {
@@ -148,6 +155,21 @@ class MatchmakerController extends Controller
     {
         // Allow roles: admin, manager, matchmaker (middleware handles role)
         $me = Auth::user();
+        $roleName = null;
+        if ($me) {
+            $roleName = \Illuminate\Support\Facades\DB::table('model_has_roles')
+                ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+                ->where('model_has_roles.model_id', $me->id)
+                ->value('roles.name');
+        }
+        
+        // Check approval status for matchmaker and manager
+        if (in_array($roleName, ['manager','matchmaker'], true)) {
+            if ($me->approval_status !== 'approved') {
+                abort(403, 'Your account is not validated yet.');
+            }
+        }
+
         $status = $request->string('status')->toString(); // all|member|client
         $query = User::role('user')
             ->whereIn('status', ['member','client'])
@@ -155,11 +177,6 @@ class MatchmakerController extends Controller
 
         // Role-based filtering
         if ($me) {
-            $roleName = \Illuminate\Support\Facades\DB::table('model_has_roles')
-                ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
-                ->where('model_has_roles.model_id', $me->id)
-                ->value('roles.name');
-            
             if ($roleName === 'matchmaker') {
                 // Matchmaker: only see users they validated
                 $query->where('approved_by', $me->id);
@@ -190,13 +207,24 @@ class MatchmakerController extends Controller
     public function agencyProspects(Request $request)
     {
         $me = Auth::user();
-        $agencyId = $me?->agency_id;
-        // Admin may filter by agency_id
-        if ($me && $agencyId === null) {
+        $roleName = null;
+        if ($me) {
             $roleName = \Illuminate\Support\Facades\DB::table('model_has_roles')
                 ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
                 ->where('model_has_roles.model_id', $me->id)
                 ->value('roles.name');
+        }
+        
+        // Check approval status for matchmaker and manager
+        if (in_array($roleName, ['manager','matchmaker'], true)) {
+            if ($me->approval_status !== 'approved') {
+                abort(403, 'Your account is not validated yet.');
+            }
+        }
+
+        $agencyId = $me?->agency_id;
+        // Admin may filter by agency_id
+        if ($me && $agencyId === null) {
             if ($roleName === 'admin') {
                 $agencyId = (int) $request->integer('agency_id');
             }
