@@ -21,7 +21,7 @@ const breadcrumbs = [
 ];
 
 export default function Profile({ mustVerifyEmail, status }) {
-    const { auth } = usePage().props;
+    const { auth, user } = usePage().props;
     const fileInputRef = useRef(null);
     const [profilePicture, setProfilePicture] = useState(null);
     const [profilePicturePreview, setProfilePicturePreview] = useState(null);
@@ -34,17 +34,19 @@ export default function Profile({ mustVerifyEmail, status }) {
         instagram_url: auth.user.instagram_url || '',
         linkedin_url: auth.user.linkedin_url || '',
         youtube_url: auth.user.youtube_url || '',
-        profile_picture: null,
+        profile_picture: user?.profile?.profile_picture || auth.user.profile_picture || '',
     });
+
+    
 
     // Initialize profile picture preview with current user's picture
     useEffect(() => {
         const userRole = auth.user.roles?.[0]?.name || 'user';
         let currentProfilePicture = null;
         
-        if (userRole === 'user' && auth.user.profile?.profile_picture_path) {
+        if (userRole === 'user' && user.profile.profile_picture_path) {
             // For regular users, use profile->profile_picture_path
-            currentProfilePicture = `/storage/${auth.user.profile.profile_picture_path}`;
+            currentProfilePicture = `/storage/${user.profile.profile_picture_path}`;
         } else if (userRole !== 'user' && auth.user.profile_picture) {
             // For staff (admin, manager, matchmaker), use user->profile_picture
             currentProfilePicture = `/storage/${auth.user.profile_picture}`;
@@ -95,7 +97,8 @@ export default function Profile({ mustVerifyEmail, status }) {
 
     const submit = (e) => {
         e.preventDefault();
-
+        console.log(data);
+        
         // Create FormData manually when there's a file to ensure all data is included
         if (data.profile_picture) {
             const formData = new FormData();
@@ -108,7 +111,7 @@ export default function Profile({ mustVerifyEmail, status }) {
             formData.append('instagram_url', data.instagram_url || '');
             formData.append('linkedin_url', data.linkedin_url || '');
             formData.append('youtube_url', data.youtube_url || '');
-            formData.append('profile_picture', data.profile_picture);
+            formData.append('profile_picture', data.profile_picture || '');
             
             patch(route('profile.update'), {
                 data: formData,
@@ -116,7 +119,7 @@ export default function Profile({ mustVerifyEmail, status }) {
                 forceFormData: true,
             });
         } else {
-            // No file, use regular form submission
+        //     // No file, use regular form submission
             patch(route('profile.update'), {
                 preserveScroll: true,
             });

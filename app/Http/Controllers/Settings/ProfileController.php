@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\ProfileUpdateRequest;
+use App\Models\User;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -19,9 +20,12 @@ class ProfileController extends Controller
      */
     public function edit(Request $request): Response
     {
+        $user = User::where('id', auth()->user()->id)->with('profile')->first();
+
         return Inertia::render('settings/profile', [
             'mustVerifyEmail' => $request->user() instanceof MustVerifyEmail,
             'status' => $request->session()->get('status'),
+            'user' => $user,
         ]);
     }
 
@@ -32,6 +36,7 @@ class ProfileController extends Controller
     {
         $user = $request->user();
         $validated = $request->validated();
+        // dd($validated);
         $userRole = $user->roles->first()?->name ?? 'user';
 
         // Handle profile picture upload
