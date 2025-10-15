@@ -24,6 +24,7 @@ class StaffSeeder extends Seeder
                 'gender' => 'male',
                 'country' => 'Morocco',
                 'city' => 'Casablanca',
+                'username' => 'admin',
                 'condition' => true,
                 'email_verified_at' => now(),
             ]
@@ -40,6 +41,7 @@ class StaffSeeder extends Seeder
                 'gender' => 'female',
                 'country' => 'Morocco',
                 'city' => 'Rabat',
+                'username' => 'manager',
                 'condition' => true,
                 'email_verified_at' => now(),
             ]
@@ -56,6 +58,7 @@ class StaffSeeder extends Seeder
                 'gender' => 'female',
                 'country' => 'Morocco',
                 'city' => 'Marrakech',
+                'username' => 'matchmaker',
                 'condition' => true,
                 'email_verified_at' => now(),
             ]
