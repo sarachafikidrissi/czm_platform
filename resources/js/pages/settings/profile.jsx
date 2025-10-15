@@ -1,5 +1,5 @@
 import { Transition } from '@headlessui/react';
-import { Head, Link, useForm, usePage } from '@inertiajs/react';
+import { Head, Link, useForm, usePage, router } from '@inertiajs/react';
 import { useState, useRef, useEffect } from 'react';
 
 import DeleteUser from '@/components/delete-user';
@@ -34,7 +34,7 @@ export default function Profile({ mustVerifyEmail, status }) {
         instagram_url: auth.user.instagram_url || '',
         linkedin_url: auth.user.linkedin_url || '',
         youtube_url: auth.user.youtube_url || '',
-        profile_picture: user?.profile?.profile_picture || auth.user.profile_picture || '',
+        profile_picture: null, // Initialize as null, will be set to File object when selected
     });
 
     
@@ -97,29 +97,41 @@ export default function Profile({ mustVerifyEmail, status }) {
 
     const submit = (e) => {
         e.preventDefault();
-        console.log(data);
         
-        // Create FormData manually when there's a file to ensure all data is included
-        if (data.profile_picture) {
-            const formData = new FormData();
+        console.log('Form data before submission:', data);
+        console.log('Profile picture type:', typeof data.profile_picture);
+        console.log('Profile picture instanceof File:', data.profile_picture instanceof File);
+        
+        // For file uploads, we need to use a different approach with Inertia
+        if (data.profile_picture && data.profile_picture instanceof File) {
+            // Create a new form data object with all fields including the file
+            const submitData = {
+                name: data.name || '',
+                email: data.email || '',
+                phone: data.phone || '',
+                facebook_url: data.facebook_url || '',
+                instagram_url: data.instagram_url || '',
+                linkedin_url: data.linkedin_url || '',
+                youtube_url: data.youtube_url || '',
+                profile_picture: data.profile_picture,
+            };
             
-            // Add all form fields to FormData
-            formData.append('name', data.name);
-            formData.append('email', data.email);
-            formData.append('phone', data.phone || '');
-            formData.append('facebook_url', data.facebook_url || '');
-            formData.append('instagram_url', data.instagram_url || '');
-            formData.append('linkedin_url', data.linkedin_url || '');
-            formData.append('youtube_url', data.youtube_url || '');
-            formData.append('profile_picture', data.profile_picture || '');
+            console.log('Submitting with file using router:', submitData);
             
-            patch(route('profile.update'), {
-                data: formData,
+            // Use router.post directly for file uploads
+            router.post(route('profile.update.post'), submitData, {
                 preserveScroll: true,
                 forceFormData: true,
+                onSuccess: () => {
+                    console.log('Upload successful');
+                },
+                onError: (errors) => {
+                    console.log('Upload errors:', errors);
+                }
             });
         } else {
-        //     // No file, use regular form submission
+            console.log('Submitting without file');
+            // No file, use regular form submission
             patch(route('profile.update'), {
                 preserveScroll: true,
             });

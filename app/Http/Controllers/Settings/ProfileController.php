@@ -9,6 +9,7 @@ use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -20,7 +21,7 @@ class ProfileController extends Controller
      */
     public function edit(Request $request): Response
     {
-        $user = User::where('id', auth()->user()->id)->with('profile')->first();
+        $user = User::where('id', Auth::user()->id)->with('profile')->first();
 
         return Inertia::render('settings/profile', [
             'mustVerifyEmail' => $request->user() instanceof MustVerifyEmail,
@@ -35,8 +36,28 @@ class ProfileController extends Controller
     public function update(ProfileUpdateRequest $request): RedirectResponse
     {
         $user = $request->user();
+        
+        // Debug: Log all request data BEFORE validation
+        Log::info('=== BEFORE VALIDATION ===');
+        Log::info('Raw request data:', $request->all());
+        Log::info('Request method:', ['method' => $request->method()]);
+        Log::info('Content type:', ['content_type' => $request->header('Content-Type')]);
+        Log::info('Has file profile_picture:', ['has_file' => $request->hasFile('profile_picture')]);
+        Log::info('All files:', $request->allFiles());
+        Log::info('Request input:', $request->input());
+        
+        if ($request->hasFile('profile_picture')) {
+            Log::info('Profile picture file details:', [
+                'name' => $request->file('profile_picture')->getClientOriginalName(),
+                'size' => $request->file('profile_picture')->getSize(),
+                'mime' => $request->file('profile_picture')->getMimeType(),
+            ]);
+        }
+        
         $validated = $request->validated();
-        // dd($validated);
+        Log::info('=== AFTER VALIDATION ===');
+        Log::info('Validated data:', $validated);
+        
         $userRole = $user->roles->first()?->name ?? 'user';
 
         // Handle profile picture upload
