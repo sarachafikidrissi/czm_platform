@@ -22,6 +22,7 @@ const breadcrumbs = [
 
 export default function Profile({ mustVerifyEmail, status }) {
     const { auth, user } = usePage().props;
+    
     const fileInputRef = useRef(null);
     const [profilePicture, setProfilePicture] = useState(null);
     const [profilePicturePreview, setProfilePicturePreview] = useState(null);
@@ -289,8 +290,10 @@ export default function Profile({ mustVerifyEmail, status }) {
                             </CardContent>
                         </Card>
 
-                        {/* Social Networks */}
-                        {/* {auth.user.roles?.[0]?.name === 'matchmaker' || auth.user.roles?.[0]?.name === 'admin' && ( */}
+                        {/* Social Networks - Only for matchmaker, admin, or manager */}
+                        {(auth.user?.roles?.[0]?.name === 'matchmaker' || 
+                          auth.user?.roles?.[0]?.name === 'admin' || 
+                          auth.user?.roles?.[0]?.name === 'manager') && (
                             <Card>
                                 <CardHeader>
                                     <CardTitle>Réseaux sociaux</CardTitle>
@@ -360,7 +363,7 @@ export default function Profile({ mustVerifyEmail, status }) {
                                     </div>
                                 </CardContent>
                             </Card>
-                        {/* )} */}
+                        )}
 
                         <div className="flex items-center gap-4">
                             <Button type="submit" disabled={processing}>
