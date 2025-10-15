@@ -71,12 +71,23 @@ class ProfileController extends Controller
                     $profile = $user->profile()->create([]);
                 }
                 
+                Log::info('Before profile update:', [
+                    'user_id' => $user->id,
+                    'profile_id' => $profile->id,
+                    'current_path' => $profile->profile_picture_path,
+                    'new_path' => $profilePicturePath
+                ]);
+                
                 // Delete old profile picture if exists
                 if ($profile->profile_picture_path) {
                     Storage::disk('public')->delete($profile->profile_picture_path);
                 }
                 
-                $profile->update(['profile_picture_path' => $profilePicturePath]);
+                $updateResult = $profile->update(['profile_picture_path' => $profilePicturePath]);
+                Log::info('Profile update result:', [
+                    'update_result' => $updateResult,
+                    'profile_after_update' => $profile->fresh()->toArray()
+                ]);
             } else {
                 // For staff (admin, manager, matchmaker), store in users table
                 if ($user->profile_picture) {

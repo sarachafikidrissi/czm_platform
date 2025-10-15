@@ -14,6 +14,7 @@ class Profile extends Model
         'cin',
         'identity_card_front_path',
         'identity_card_back_path',
+        'profile_picture_path',
         'notes',
         'recommendations',
         'service_id',

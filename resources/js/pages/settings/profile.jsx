@@ -1,17 +1,17 @@
 import { Transition } from '@headlessui/react';
-import { Head, Link, useForm, usePage, router } from '@inertiajs/react';
-import { useState, useRef, useEffect } from 'react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
+import { useEffect, useRef, useState } from 'react';
 
 import DeleteUser from '@/components/delete-user';
 import HeadingSmall from '@/components/heading-small';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Facebook, Instagram, Linkedin, Youtube, Upload, X, User } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import SettingsLayout from '@/layouts/settings/layout';
+import { Facebook, Instagram, Linkedin, Upload, User, X, Youtube } from 'lucide-react';
 
 const breadcrumbs = [
     {
@@ -37,13 +37,11 @@ export default function Profile({ mustVerifyEmail, status }) {
         profile_picture: null, // Initialize as null, will be set to File object when selected
     });
 
-    
-
     // Initialize profile picture preview with current user's picture
     useEffect(() => {
         const userRole = auth.user.roles?.[0]?.name || 'user';
         let currentProfilePicture = null;
-        
+
         if (userRole === 'user' && user.profile.profile_picture_path) {
             // For regular users, use profile->profile_picture_path
             currentProfilePicture = `/storage/${user.profile.profile_picture_path}`;
@@ -51,7 +49,7 @@ export default function Profile({ mustVerifyEmail, status }) {
             // For staff (admin, manager, matchmaker), use user->profile_picture
             currentProfilePicture = `/storage/${auth.user.profile_picture}`;
         }
-        
+
         if (currentProfilePicture && !profilePicturePreview) {
             setProfilePicturePreview(currentProfilePicture);
         }
@@ -76,7 +74,7 @@ export default function Profile({ mustVerifyEmail, status }) {
 
             setProfilePicture(file);
             setData('profile_picture', file);
-            
+
             // Create preview
             const reader = new FileReader();
             reader.onload = (e) => {
@@ -97,11 +95,11 @@ export default function Profile({ mustVerifyEmail, status }) {
 
     const submit = (e) => {
         e.preventDefault();
-        
+
         console.log('Form data before submission:', data);
         console.log('Profile picture type:', typeof data.profile_picture);
         console.log('Profile picture instanceof File:', data.profile_picture instanceof File);
-        
+
         // For file uploads, we need to use a different approach with Inertia
         if (data.profile_picture && data.profile_picture instanceof File) {
             // Create a new form data object with all fields including the file
@@ -115,9 +113,9 @@ export default function Profile({ mustVerifyEmail, status }) {
                 youtube_url: data.youtube_url || '',
                 profile_picture: data.profile_picture,
             };
-            
+
             console.log('Submitting with file using router:', submitData);
-            
+
             // Use router.post directly for file uploads
             router.post(route('profile.update.post'), submitData, {
                 preserveScroll: true,
@@ -127,7 +125,7 @@ export default function Profile({ mustVerifyEmail, status }) {
                 },
                 onError: (errors) => {
                     console.log('Upload errors:', errors);
-                }
+                },
             });
         } else {
             console.log('Submitting without file');
@@ -151,52 +149,48 @@ export default function Profile({ mustVerifyEmail, status }) {
                         <Card>
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2">
-                                    <User className="w-5 h-5" />
+                                    <User className="h-5 w-5" />
                                     Photo de profil
                                 </CardTitle>
-                                <CardDescription>
-                                    Ajoutez une photo de profil pour personnaliser votre compte
-                                </CardDescription>
+                                <CardDescription>Ajoutez une photo de profil pour personnaliser votre compte</CardDescription>
                             </CardHeader>
                             <CardContent>
                                 <div className="flex items-center gap-6">
                                     {/* Current Profile Picture */}
                                     <div className="relative">
-                                        <div className="w-24 h-24 rounded-full border-4 border-gray-200 bg-gray-100 flex items-center justify-center overflow-hidden">
+                                        <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border-4 border-gray-200 bg-gray-100">
                                             {profilePicturePreview ? (
-                                                <img 
-                                                    src={profilePicturePreview} 
-                                                    alt="Profile preview" 
-                                                    className="w-full h-full object-cover"
-                                                />
-                                            ) : (() => {
-                                                const userRole = auth.user.roles?.[0]?.name || 'user';
-                                                let currentProfilePicture = null;
-                                                
-                                                if (userRole === 'user' && auth.user.profile?.profile_picture_path) {
-                                                    currentProfilePicture = `/storage/${auth.user.profile.profile_picture_path}`;
-                                                } else if (userRole !== 'user' && auth.user.profile_picture) {
-                                                    currentProfilePicture = `/storage/${auth.user.profile_picture}`;
-                                                }
-                                                
-                                                return currentProfilePicture ? (
-                                                    <img 
-                                                        src={currentProfilePicture} 
-                                                        alt="Current profile" 
-                                                        className="w-full h-full object-cover"
-                                                    />
-                                                ) : (
-                                                    <User className="w-8 h-8 text-gray-400" />
-                                                );
-                                            })()}
+                                                <img src={profilePicturePreview} alt="Profile preview" className="h-full w-full object-cover" />
+                                            ) : (
+                                                (() => {
+                                                    const userRole = auth.user.roles?.[0]?.name || 'user';
+                                                    let currentProfilePicture = null;
+
+                                                    if (userRole === 'user' && auth.user.profile?.profile_picture_path) {
+                                                        currentProfilePicture = `/storage/${auth.user.profile.profile_picture_path}`;
+                                                    } else if (userRole !== 'user' && auth.user.profile_picture) {
+                                                        currentProfilePicture = `/storage/${auth.user.profile_picture}`;
+                                                    }
+
+                                                    return currentProfilePicture ? (
+                                                        <img
+                                                            src={currentProfilePicture}
+                                                            alt="Current profile"
+                                                            className="h-full w-full object-cover"
+                                                        />
+                                                    ) : (
+                                                        <User className="h-8 w-8 text-gray-400" />
+                                                    );
+                                                })()
+                                            )}
                                         </div>
                                         {profilePicture && (
                                             <button
                                                 type="button"
                                                 onClick={removeProfilePicture}
-                                                className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
+                                                className="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-white transition-colors hover:bg-red-600"
                                             >
-                                                <X className="w-4 h-4" />
+                                                <X className="h-4 w-4" />
                                             </button>
                                         )}
                                     </div>
@@ -217,12 +211,10 @@ export default function Profile({ mustVerifyEmail, status }) {
                                             onClick={() => fileInputRef.current?.click()}
                                             className="flex items-center gap-2"
                                         >
-                                            <Upload className="w-4 h-4" />
+                                            <Upload className="h-4 w-4" />
                                             {profilePicture ? 'Changer la photo' : 'Ajouter une photo'}
                                         </Button>
-                                        <p className="text-sm text-gray-500 mt-2">
-                                            PNG, JPG, JPEG jusqu'à 2MB
-                                        </p>
+                                        <p className="mt-2 text-sm text-gray-500">PNG, JPG, JPEG jusqu'à 2MB</p>
                                         <InputError className="mt-2" message={errors.profile_picture} />
                                     </div>
                                 </div>
@@ -233,9 +225,7 @@ export default function Profile({ mustVerifyEmail, status }) {
                         <Card>
                             <CardHeader>
                                 <CardTitle>Informations de base</CardTitle>
-                                <CardDescription>
-                                    Mettez à jour vos informations personnelles
-                                </CardDescription>
+                                <CardDescription>Mettez à jour vos informations personnelles</CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 <div className="grid gap-2">
@@ -300,75 +290,77 @@ export default function Profile({ mustVerifyEmail, status }) {
                         </Card>
 
                         {/* Social Networks */}
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Réseaux sociaux</CardTitle>
-                                <CardDescription>
-                                    Ajoutez vos liens de réseaux sociaux pour améliorer votre profil (tous les champs sont optionnels)
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                <div className="grid gap-2">
-                                    <Label htmlFor="facebook_url" className="flex items-center gap-2">
-                                        <Facebook className="w-4 h-4 text-blue-600" />
-                                        Facebook (optionnel)
-                                    </Label>
-                                    <Input
-                                        id="facebook_url"
-                                        type="url"
-                                        value={data.facebook_url}
-                                        onChange={(e) => setData('facebook_url', e.target.value)}
-                                        placeholder="https://facebook.com/votre-profil"
-                                    />
-                                    <InputError className="mt-2" message={errors.facebook_url} />
-                                </div>
+                        {/* {auth.user.roles?.[0]?.name === 'matchmaker' || auth.user.roles?.[0]?.name === 'admin' && ( */}
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Réseaux sociaux</CardTitle>
+                                    <CardDescription>
+                                        Ajoutez vos liens de réseaux sociaux pour améliorer votre profil (tous les champs sont optionnels)
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="facebook_url" className="flex items-center gap-2">
+                                            <Facebook className="h-4 w-4 text-blue-600" />
+                                            Facebook (optionnel)
+                                        </Label>
+                                        <Input
+                                            id="facebook_url"
+                                            type="url"
+                                            value={data.facebook_url}
+                                            onChange={(e) => setData('facebook_url', e.target.value)}
+                                            placeholder="https://facebook.com/votre-profil"
+                                        />
+                                        <InputError className="mt-2" message={errors.facebook_url} />
+                                    </div>
 
-                                <div className="grid gap-2">
-                                    <Label htmlFor="instagram_url" className="flex items-center gap-2">
-                                        <Instagram className="w-4 h-4 text-pink-600" />
-                                        Instagram (optionnel)
-                                    </Label>
-                                    <Input
-                                        id="instagram_url"
-                                        type="url"
-                                        value={data.instagram_url}
-                                        onChange={(e) => setData('instagram_url', e.target.value)}
-                                        placeholder="https://instagram.com/votre-profil"
-                                    />
-                                    <InputError className="mt-2" message={errors.instagram_url} />
-                                </div>
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="instagram_url" className="flex items-center gap-2">
+                                            <Instagram className="h-4 w-4 text-pink-600" />
+                                            Instagram (optionnel)
+                                        </Label>
+                                        <Input
+                                            id="instagram_url"
+                                            type="url"
+                                            value={data.instagram_url}
+                                            onChange={(e) => setData('instagram_url', e.target.value)}
+                                            placeholder="https://instagram.com/votre-profil"
+                                        />
+                                        <InputError className="mt-2" message={errors.instagram_url} />
+                                    </div>
 
-                                <div className="grid gap-2">
-                                    <Label htmlFor="linkedin_url" className="flex items-center gap-2">
-                                        <Linkedin className="w-4 h-4 text-blue-700" />
-                                        LinkedIn (optionnel)
-                                    </Label>
-                                    <Input
-                                        id="linkedin_url"
-                                        type="url"
-                                        value={data.linkedin_url}
-                                        onChange={(e) => setData('linkedin_url', e.target.value)}
-                                        placeholder="https://linkedin.com/in/votre-profil"
-                                    />
-                                    <InputError className="mt-2" message={errors.linkedin_url} />
-                                </div>
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="linkedin_url" className="flex items-center gap-2">
+                                            <Linkedin className="h-4 w-4 text-blue-700" />
+                                            LinkedIn (optionnel)
+                                        </Label>
+                                        <Input
+                                            id="linkedin_url"
+                                            type="url"
+                                            value={data.linkedin_url}
+                                            onChange={(e) => setData('linkedin_url', e.target.value)}
+                                            placeholder="https://linkedin.com/in/votre-profil"
+                                        />
+                                        <InputError className="mt-2" message={errors.linkedin_url} />
+                                    </div>
 
-                                <div className="grid gap-2">
-                                    <Label htmlFor="youtube_url" className="flex items-center gap-2">
-                                        <Youtube className="w-4 h-4 text-red-600" />
-                                        YouTube (optionnel)
-                                    </Label>
-                                    <Input
-                                        id="youtube_url"
-                                        type="url"
-                                        value={data.youtube_url}
-                                        onChange={(e) => setData('youtube_url', e.target.value)}
-                                        placeholder="https://youtube.com/@votre-chaine"
-                                    />
-                                    <InputError className="mt-2" message={errors.youtube_url} />
-                                </div>
-                            </CardContent>
-                        </Card>
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="youtube_url" className="flex items-center gap-2">
+                                            <Youtube className="h-4 w-4 text-red-600" />
+                                            YouTube (optionnel)
+                                        </Label>
+                                        <Input
+                                            id="youtube_url"
+                                            type="url"
+                                            value={data.youtube_url}
+                                            onChange={(e) => setData('youtube_url', e.target.value)}
+                                            placeholder="https://youtube.com/@votre-chaine"
+                                        />
+                                        <InputError className="mt-2" message={errors.youtube_url} />
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        {/* )} */}
 
                         <div className="flex items-center gap-4">
                             <Button type="submit" disabled={processing}>
