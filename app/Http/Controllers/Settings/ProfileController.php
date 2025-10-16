@@ -97,8 +97,12 @@ class ProfileController extends Controller
             }
         }
 
+        // Debug: Log what's in validated data before processing
+        Log::info('Validated data before processing:', $validated);
+        
         // Remove profile_picture from validated data if it's null (no file uploaded)
-        if (!isset($validated['profile_picture'])) {
+        // But only if no file was actually uploaded
+        if (!isset($validated['profile_picture']) || $validated['profile_picture'] === null) {
             unset($validated['profile_picture']);
         }
 
@@ -116,6 +120,7 @@ class ProfileController extends Controller
         });
 
         if (!empty($fieldsToUpdate)) {
+            Log::info('Fields to update for user:', $fieldsToUpdate);
             $user->fill($fieldsToUpdate);
 
             if ($user->isDirty('email')) {
@@ -123,6 +128,9 @@ class ProfileController extends Controller
             }
 
             $user->save();
+            Log::info('User updated successfully:', $user->fresh()->toArray());
+        } else {
+            Log::info('No fields to update for user');
         }
 
         return to_route('profile.edit');

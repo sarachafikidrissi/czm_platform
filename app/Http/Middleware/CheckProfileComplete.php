@@ -72,7 +72,9 @@ class CheckProfileComplete
                 
                 Log::info('Profile not complete, redirecting to profile step:', [
                     'step' => $step,
-                    'target_route' => $currentRoute
+                    'target_route' => $currentRoute,
+                    'profile_exists' => $profile ? true : false,
+                    'is_completed' => $profile ? $profile->is_completed : 'no profile'
                 ]);
 
                 // Store the intended URL so we can redirect back after profile completion
@@ -86,7 +88,11 @@ class CheckProfileComplete
 
             // Profile is completed, check if user is trying to access profile page
             if ($currentRoute === 'profile.index') {
-                Log::info('Profile completed, redirecting from profile to intended URL');
+                Log::info('Profile completed, redirecting from profile to intended URL', [
+                    'user_id' => $user->id,
+                    'profile_completed' => $profile->is_completed,
+                    'completed_at' => $profile->completed_at
+                ]);
                 
                 // Redirect to intended URL or dashboard
                 $intendedUrl = session()->get('url.intended', route('dashboard'));
