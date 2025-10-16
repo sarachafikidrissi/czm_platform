@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('users', function (Blueprint $table) {
-            $table->enum('approval_status', ['pending', 'approved', 'rejected'])->default('pending')->after('status');
+            $table->enum('approval_status', ['pending', 'approved', 'rejected'])->default('pending');
             $table->string('agency')->nullable()->after('approval_status');
             $table->foreignId('assigned_matchmaker_id')->nullable()->after('agency');
             $table->timestamp('approved_at')->nullable()->after('assigned_matchmaker_id');

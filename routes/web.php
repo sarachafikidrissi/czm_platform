@@ -7,6 +7,17 @@ use Inertia\Inertia;
 Route::get('/', function () {
     return Inertia::render('welcome');
 })->name('home');
+// Route::get('/run-migrations', function () {
+//     // Run migrations
+//     Artisan::call('migrate', ['--force' => true]);
+
+//     // Run DatabaseSeeder
+//     Artisan::call('db:seed', ['--force' => true]);
+
+//     // Return output for debugging
+//     return Artisan::output();
+    
+// });
 
 Route::middleware(['auth'])->group(function () {
     Route::get('/profile', [MainProfileController::class, 'index'])->name('profile.index');
