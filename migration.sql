@@ -1,3 +1,0 @@
-
-   INFO  Nothing to migrate.  
-
