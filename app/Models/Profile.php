@@ -32,6 +32,9 @@ class Profile extends Model
     protected $casts = [
         'pack_advantages' => 'array',
         'villes_recherche' => 'array',
+        'is_completed' => 'boolean',
+        'has_children' => 'boolean',
+        'current_step' => 'integer',
     ];
 
     public function matrimonialPack()

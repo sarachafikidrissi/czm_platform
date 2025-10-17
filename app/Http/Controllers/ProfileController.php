@@ -91,24 +91,24 @@ class ProfileController extends Controller
             $profile->user_id = Auth::id();
         }
 
-        // Update current step
-        $profile->current_step = $request->currentStep + 1;
-
         // Update fields based on current step
         switch ($request->currentStep) {
             case 1:
                 $this->validateStep1($request);
                 $this->updateStep1Data($profile, $request);
+                $profile->current_step = 2;
                 break;
                 
             case 2:
                 $this->validateStep2($request);
                 $this->updateStep2Data($profile, $request);
+                $profile->current_step = 3;
                 break;
                 
             case 3:
                 $this->validateStep3($request);
                 $this->updateStep3Data($profile, $request);
+                $profile->current_step = 4;
                 break;
                 
             case 4:
@@ -116,6 +116,7 @@ class ProfileController extends Controller
                 $this->updateStep4Data($profile, $request);
                 
                 // Mark as completed when reaching step 4
+                $profile->current_step = 4;
                 $profile->is_completed = true;
                 $profile->completed_at = now();
                 break;

@@ -68,7 +68,7 @@ class CheckProfileComplete
 
             // If no profile exists or profile is not completed, redirect to profile
             if (!$profile || !$profile->is_completed) {
-                $step = $profile ? $profile->current_step : 1;
+                $step = $profile ? max(1, $profile->current_step) : 1;
                 
                 Log::info('Profile not complete, redirecting to profile step:', [
                     'step' => $step,

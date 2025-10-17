@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ProfileController as MainProfileController;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -16,14 +17,14 @@ Route::get('/', function () {
 
 //     // Return output for debugging
 //     return Artisan::output();
-    
+
 // });
 
 Route::middleware(['auth'])->group(function () {
     Route::get('/profile', [MainProfileController::class, 'index'])->name('profile.index');
     Route::post('/profile', [MainProfileController::class, 'store'])->name('profile.store');
     Route::post('/profile/complete', [MainProfileController::class, 'complete'])->name('profile.complete');
-    
+
     // Profile information display page
     Route::get('/profile-info', function () {
         $user = \Illuminate\Support\Facades\Auth::user();
@@ -44,7 +45,7 @@ Route::middleware(['auth'])->group(function () {
                 'religion' => $profile->religion,
                 'heardAboutUs' => $profile->heard_about_us,
                 'heardAboutReference' => $profile->heard_about_reference,
-                
+
                 // Step 2
                 'etatMatrimonial' => $profile->etat_matrimonial,
                 'logement' => $profile->logement,
@@ -60,7 +61,7 @@ Route::middleware(['auth'])->group(function () {
                 'childrenCount' => $profile->children_count,
                 'childrenGuardian' => $profile->children_guardian,
                 'hijabChoice' => $profile->hijab_choice,
-                
+
                 // Step 3
                 'ageMinimum' => $profile->age_minimum,
                 'situationMatrimonialeRecherche' => $profile->situation_matrimoniale_recherche,
@@ -70,10 +71,10 @@ Route::middleware(['auth'])->group(function () {
                 'statutEmploiRecherche' => $profile->statut_emploi_recherche,
                 'revenuMinimum' => $profile->revenu_minimum,
                 'religionRecherche' => $profile->religion_recherche,
-                
+
                 // Step 4
                 'profilePicturePath' => $profile->profile_picture_path,
-                
+
                 // Progress
                 'currentStep' => $profile->current_step,
                 'isCompleted' => $profile->is_completed,
@@ -107,13 +108,22 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 'approvedMatchmakers' => $approvedMatchmakers,
             ];
         }
-        
+
         // For user role, load profile data
         $profile = null;
         if ($role === 'user' && $user) {
             $profile = $user->profile;
+
+            // Debug: Log the profile data
+            Log::info('Dashboard Profile Data:', [
+                'user_id' => $user->id,
+                'profile_exists' => $profile ? true : false,
+                'current_step' => $profile ? $profile->current_step : 'no profile',
+                'is_completed' => $profile ? $profile->is_completed : 'no profile',
+                'profile_data' => $profile ? $profile->toArray() : 'no profile'
+            ]);
         }
-        
+
         return Inertia::render('dashboard', [
             'role' => $role,
             'agencies' => $agencies,
@@ -153,7 +163,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::middleware(['role:user'])->prefix('user')->name('user.')->group(function () {
         Route::get('/matchmakers', [\App\Http\Controllers\UserController::class, 'matchmakers'])->name('matchmakers');
         Route::post('/matchmakers/{matchmaker}/select', [\App\Http\Controllers\UserController::class, 'selectMatchmaker'])->name('matchmakers.select');
-        
+
         // Bill routes
         Route::get('/bills', [\App\Http\Controllers\BillController::class, 'index'])->name('bills');
         Route::get('/bills/{bill}', [\App\Http\Controllers\BillController::class, 'show'])->name('bills.show');
@@ -168,7 +178,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/photos', function () {
         return Inertia::render('photos');
     })->name('photos');
-    
+
     Route::get('/prospects', function () {
         $user = \Illuminate\Support\Facades\Auth::user();
         $role = null;
@@ -178,7 +188,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 ->where('model_has_roles.model_id', $user->id)
                 ->value('roles.name');
         }
-        
+
         // Redirect based on role
         if ($role === 'admin') {
             return redirect()->route('admin.prospects');
@@ -190,7 +200,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         }
     })->name('prospects');
 
-  
+
 
     Route::get('/matchmaker', function () {
         return Inertia::render('matchmaker');
@@ -203,7 +213,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/appointments', function () {
         return Inertia::render('appointments');
     })->name('appointments');
-    
+
     Route::get('/mes-commandes', [\App\Http\Controllers\BillController::class, 'index'])->name('mes-commandes');
 });
 

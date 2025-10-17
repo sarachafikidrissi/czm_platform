@@ -13,6 +13,13 @@ import { User, HeartHandshake, ShoppingCart, CheckCircle, Clock, AlertCircle } f
 
 
 function UserDashboardContent({ user, profile }) {
+    // Debug: Log the profile data in frontend
+    console.log('Dashboard Profile Data:', {
+        profile,
+        is_completed: profile?.is_completed,
+        current_step: profile?.current_step
+    });
+    
     const isProfileComplete = profile?.is_completed;
     const userStatus = user?.status;
     const approvalStatus = user?.approval_status;

@@ -71,7 +71,8 @@ class User extends Authenticatable
 
     public function profile() {
         return $this->hasOne(Profile::class)->withDefault([
-            'current_step' => 1
+            'current_step' => 1,
+            'is_completed' => false
         ]);
     }
 
