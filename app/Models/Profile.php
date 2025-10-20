@@ -35,6 +35,7 @@ class Profile extends Model
         'is_completed' => 'boolean',
         'has_children' => 'boolean',
         'current_step' => 'integer',
+        'age_minimum' => 'integer',
     ];
 
     public function matrimonialPack()
