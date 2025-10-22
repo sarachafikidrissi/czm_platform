@@ -5,6 +5,7 @@ import AppLayout from '@/layouts/app-layout';
 import { Head, usePage } from '@inertiajs/react';
 import { Heart, MapPin, MessageCircleWarning, MessageSquareWarning, User } from 'lucide-react';
 import { useState } from 'react';
+import { FaUser } from 'react-icons/fa';
 
 export default function UserProfile({ user, profile, agency }) {
     const { auth } = usePage().props;
@@ -256,11 +257,12 @@ export default function UserProfile({ user, profile, agency }) {
                                     <Card>
                                         <CardHeader>
                                             <CardTitle className="flex items-center gap-2">
-                                                <span>Matchmaker Feed </span>
+                                                <FaUser className="h-5 w-5 text-blue-500" />
+                                                <span className="text-xl font-bold text-gray-600">Matchmaker Bio</span>
                                             </CardTitle>
                                         </CardHeader>
                                         <CardContent className="space-y-4">
-                                            <span>Matchmaker posts </span>
+                                            <span className="text-sm">{user?.matchmaker_bio}</span>
                                         </CardContent>
                                     </Card>
 

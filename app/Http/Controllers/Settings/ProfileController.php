@@ -107,7 +107,7 @@ class ProfileController extends Controller
         }
 
         // Convert empty strings to null for all optional fields
-        $optionalFields = ['name', 'email', 'phone', 'facebook_url', 'instagram_url', 'linkedin_url', 'youtube_url'];
+        $optionalFields = ['name', 'email', 'phone', 'facebook_url', 'instagram_url', 'linkedin_url', 'youtube_url', 'matchmaker_bio'];
         foreach ($optionalFields as $field) {
             if (isset($validated[$field]) && $validated[$field] === '') {
                 $validated[$field] = null;

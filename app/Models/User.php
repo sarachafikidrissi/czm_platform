@@ -28,6 +28,7 @@ class User extends Authenticatable
         'instagram_url',
         'linkedin_url',
         'youtube_url',
+        'matchmaker_bio',
         'gender',
         'country',
         'city',

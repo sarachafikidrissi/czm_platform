@@ -11,7 +11,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import SettingsLayout from '@/layouts/settings/layout';
-import { Facebook, Instagram, Linkedin, Upload, User, X, Youtube } from 'lucide-react';
+import { Facebook, Instagram, Linkedin, Upload, User, User2, X, Youtube } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
 
 const breadcrumbs = [
     {
@@ -35,6 +36,7 @@ export default function Profile({ mustVerifyEmail, status }) {
         instagram_url: auth.user.instagram_url || '',
         linkedin_url: auth.user.linkedin_url || '',
         youtube_url: auth.user.youtube_url || '',
+        matchmaker_bio: auth.user.matchmaker_bio || '',
         profile_picture: null, // Initialize as null, will be set to File object when selected
     });
 
@@ -112,6 +114,7 @@ export default function Profile({ mustVerifyEmail, status }) {
                 instagram_url: data.instagram_url || '',
                 linkedin_url: data.linkedin_url || '',
                 youtube_url: data.youtube_url || '',
+                matchmaker_bio: data.matchmaker_bio | '',
                 profile_picture: data.profile_picture,
             };
 
@@ -294,6 +297,7 @@ export default function Profile({ mustVerifyEmail, status }) {
                         {(auth.user?.roles?.[0]?.name === 'matchmaker' || 
                           auth.user?.roles?.[0]?.name === 'admin' || 
                           auth.user?.roles?.[0]?.name === 'manager') && (
+                            <>
                             <Card>
                                 <CardHeader>
                                     <CardTitle>Réseaux sociaux</CardTitle>
@@ -363,6 +367,32 @@ export default function Profile({ mustVerifyEmail, status }) {
                                     </div>
                                 </CardContent>
                             </Card>
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Bio Description</CardTitle>
+                                    <CardDescription>
+                                        Ajoutez votre bio pour améliorer votre profil (tous les champs sont optionnels)
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="matchmaker_bio" className="flex items-center gap-2">
+                                            <User2 className="h-4 w-4 text-blue-600" />
+                                            Bio (optionnel)
+                                        </Label>
+                                        <Textarea
+                                            id="matchmaker_bio"
+                                            type="url"
+                                            value={data.matchmaker_bio}
+                                            onChange={(e) => setData('matchmaker_bio', e.target.value)}
+                                            placeholder="Hello, I am Alice happy to be your matchmaker"
+                                        />
+                                        <InputError className="mt-2" message={errors.matchmaker_bio} />
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            </>
                         )}
 
                         <div className="flex items-center gap-4">

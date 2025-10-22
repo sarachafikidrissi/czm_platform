@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { Link } from '@inertiajs/react';
 import { Calendar, Edit, MapPin } from 'lucide-react';
+import { FaUser } from 'react-icons/fa';
 import SocialLinks from './SocialLinks';
 
 export default function ProfileHeader({ user, profile, isOwnProfile, age }) {
@@ -58,7 +59,7 @@ export default function ProfileHeader({ user, profile, isOwnProfile, age }) {
 
                     {/* User Info */}
                     <div className="">
-                        <h2 className="text-2xl font-bold text-gray-900 md:text-3xl">{user?.name}</h2>
+                        <h2 className="text-2xl font-bold text-gray-900 md:text-xl">{user?.name}</h2>
                         <div className="flex items-center gap-x-3">
                             {age && (
                                 <div className="flex items-center gap-2 text-gray-600">
@@ -66,25 +67,21 @@ export default function ProfileHeader({ user, profile, isOwnProfile, age }) {
                                     <span>{age} years old</span>
                                 </div>
                             )}
-                            <div className="flex md:items-center gap-2  text-gray-600 md:flex-row flex-col">
-                                <div className='flex items-center gap-x-1'>
+                            <div className="flex flex-col gap-2 text-gray-600 md:flex-row md:items-center">
+                                <div className="flex items-center gap-x-1">
                                     <MapPin className="h-4 w-4" />
                                     <span>
                                         {user?.city}, {user?.country}
                                     </span>
                                 </div>
-                                {
-                                    userRole != 'user' ? (
-                                        <SocialLinks user={user} />
-
-                                    ):
-                                    ''
-                                }
+                                {userRole != 'user' ? <SocialLinks user={user} /> : ''}
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
+
+           
         </div>
     );
 }
