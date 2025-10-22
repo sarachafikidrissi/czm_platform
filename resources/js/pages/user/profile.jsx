@@ -1,10 +1,9 @@
 import ProfileHeader from '@/components/profile/ProfileHeader';
-import SocialLinks from '@/components/profile/SocialLinks';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import AppLayout from '@/layouts/app-layout';
 import { Head, usePage } from '@inertiajs/react';
-import { Building, Heart, MapPin, MessageCircleWarning, MessageSquareWarning, Phone, User } from 'lucide-react';
+import { Heart, MapPin, MessageCircleWarning, MessageSquareWarning, User } from 'lucide-react';
 import { useState } from 'react';
 
 export default function UserProfile({ user, profile, agency }) {
@@ -44,6 +43,7 @@ export default function UserProfile({ user, profile, agency }) {
             <Head title={`${user?.name} - Profile`} />
             <div className="min-h-screen bg-gray-50">
                 {/* Profile Header */}
+
                 <ProfileHeader user={user} profile={profile} isOwnProfile={isOwnProfile} age={age} />
 
                 <div className="mx-auto max-w-6xl px-4 py-6">
@@ -57,7 +57,7 @@ export default function UserProfile({ user, profile, agency }) {
                                     <Card>
                                         <CardHeader>
                                             <CardTitle className="flex items-center gap-2">
-                                            <User className="w-5 h-5 " color='green' />
+                                                <User className="h-5 w-5" color="green" />
                                                 Infos de base
                                             </CardTitle>
                                         </CardHeader>
@@ -101,7 +101,7 @@ export default function UserProfile({ user, profile, agency }) {
                                     <Card>
                                         <CardHeader>
                                             <CardTitle className="flex items-center gap-2">
-                                                <Heart className="w-5 h-5" color='red' />
+                                                <Heart className="h-5 w-5" color="red" />
                                                 Profil recherché
                                             </CardTitle>
                                         </CardHeader>
@@ -109,7 +109,7 @@ export default function UserProfile({ user, profile, agency }) {
                                             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                                 <div>
                                                     <div className="text-sm text-gray-500">Âge minimum / maximum</div>
-                                                    <div className="font-medium">{user?.profile?.age_minimum + " ans" ?? '—'}</div>
+                                                    <div className="font-medium">{user?.profile?.age_minimum + ' ans' ?? '—'}</div>
                                                 </div>
                                                 <div>
                                                     <div className="text-sm text-gray-500">Situation matrimoniale</div>
@@ -163,8 +163,7 @@ export default function UserProfile({ user, profile, agency }) {
                                     <Card>
                                         <CardHeader>
                                             <CardTitle className="flex items-center gap-2">
-                                                <MessageCircleWarning className="w-5 h-5" color='purple' />
-                                                À propos de moi
+                                                <MessageCircleWarning className="h-5 w-5" color="purple" />À propos de moi
                                             </CardTitle>
                                         </CardHeader>
                                         <CardContent className="space-y-4">
@@ -178,7 +177,7 @@ export default function UserProfile({ user, profile, agency }) {
                                             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                                 <div>
                                                     <div className="text-sm text-gray-500">État de santé</div>
-                                                    <div className="font-medium">{user?.profile?.etat_sante|| '—'}</div>
+                                                    <div className="font-medium">{user?.profile?.etat_sante || '—'}</div>
                                                 </div>
                                                 {/* Votre travail, votre vie professionnelle A ajouter plus tard */}
                                                 <div>
@@ -193,8 +192,7 @@ export default function UserProfile({ user, profile, agency }) {
                                     <Card>
                                         <CardHeader>
                                             <CardTitle className="flex items-center gap-2">
-
-                                                <MessageSquareWarning className="w-5 h-5" color='green' />
+                                                <MessageSquareWarning className="h-5 w-5" color="green" />
                                                 Donner votre avis
                                             </CardTitle>
                                         </CardHeader>
@@ -252,27 +250,44 @@ export default function UserProfile({ user, profile, agency }) {
                             {userRole === 'matchmaker' && (
                                 <div className="space-y-6">
                                     {/* Social Links */}
-                                    <SocialLinks user={user} />
+                                    {/* <SocialLinks user={user} /> */}
 
                                     {/* Contact Information */}
                                     <Card>
                                         <CardHeader>
                                             <CardTitle className="flex items-center gap-2">
-                                                <Phone className="h-5 w-5" />
-                                                Contact Information
+                                                <span>Matchmaker Feed </span>
                                             </CardTitle>
                                         </CardHeader>
                                         <CardContent className="space-y-4">
-                                            <div className="flex items-center gap-3">
-                                                <Phone className="h-4 w-4 text-gray-500" />
-                                                <span>{user?.profile?.phone}</span>
-                                            </div>
-                                            {agency && (
-                                                <div className="flex items-center gap-3">
-                                                    <Building className="h-4 w-4 text-gray-500" />
-                                                    <span>{agency.name}</span>
+                                            <span>Matchmaker posts </span>
+                                        </CardContent>
+                                    </Card>
+
+                                    {/* Professional Stats */}
+                                    <Card>
+                                        <CardHeader>
+                                            <CardTitle>Professional Statistics</CardTitle>
+                                        </CardHeader>
+                                        <CardContent>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div className="rounded-lg bg-blue-50 p-4 text-center">
+                                                    <div className="text-2xl font-bold text-blue-600">12</div>
+                                                    <div className="text-sm text-gray-500">Successful Matches</div>
                                                 </div>
-                                            )}
+                                                <div className="rounded-lg bg-green-50 p-4 text-center">
+                                                    <div className="text-2xl font-bold text-green-600">8</div>
+                                                    <div className="text-sm text-gray-500">Happy Couples</div>
+                                                </div>
+                                                <div className="rounded-lg bg-purple-50 p-4 text-center">
+                                                    <div className="text-2xl font-bold text-purple-600">4.8</div>
+                                                    <div className="text-sm text-gray-500">Rating</div>
+                                                </div>
+                                                <div className="rounded-lg bg-orange-50 p-4 text-center">
+                                                    <div className="text-2xl font-bold text-orange-600">2</div>
+                                                    <div className="text-sm text-gray-500">Years Experience</div>
+                                                </div>
+                                            </div>
                                         </CardContent>
                                     </Card>
                                 </div>

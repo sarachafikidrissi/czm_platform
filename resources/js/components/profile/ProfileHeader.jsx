@@ -1,8 +1,11 @@
 import { Button } from '@/components/ui/button';
 import { Link } from '@inertiajs/react';
 import { Calendar, Edit, MapPin } from 'lucide-react';
+import SocialLinks from './SocialLinks';
 
 export default function ProfileHeader({ user, profile, isOwnProfile, age }) {
+    const userRole = user?.roles?.[0]?.name || 'user';
+
     console.log(user);
 
     return (
@@ -27,7 +30,6 @@ export default function ProfileHeader({ user, profile, isOwnProfile, age }) {
                     <div className="relative">
                         <div className="h-32 w-32 overflow-hidden rounded-full border-4 border-white bg-gray-200 shadow-lg md:h-40 md:w-40">
                             {(() => {
-                                const userRole = user?.roles?.[0]?.name || 'user';
                                 let profilePictureSrc = null;
 
                                 if (userRole === 'user' && user?.profile?.profile_picture_path) {
@@ -57,18 +59,27 @@ export default function ProfileHeader({ user, profile, isOwnProfile, age }) {
                     {/* User Info */}
                     <div className="">
                         <h2 className="text-2xl font-bold text-gray-900 md:text-3xl">{user?.name}</h2>
-                        <div className='flex items-center gap-x-3'>
+                        <div className="flex items-center gap-x-3">
                             {age && (
                                 <div className="flex items-center gap-2 text-gray-600">
                                     <Calendar className="h-4 w-4" />
                                     <span>{age} years old</span>
                                 </div>
                             )}
-                            <div className="flex items-center gap-2 text-gray-600">
-                                <MapPin className="h-4 w-4" />
-                                <span>
-                                    {user?.city}, {user?.country}
-                                </span>
+                            <div className="flex md:items-center gap-2  text-gray-600 md:flex-row flex-col">
+                                <div className='flex items-center gap-x-1'>
+                                    <MapPin className="h-4 w-4" />
+                                    <span>
+                                        {user?.city}, {user?.country}
+                                    </span>
+                                </div>
+                                {
+                                    userRole != 'user' ? (
+                                        <SocialLinks user={user} />
+
+                                    ):
+                                    ''
+                                }
                             </div>
                         </div>
                     </div>
