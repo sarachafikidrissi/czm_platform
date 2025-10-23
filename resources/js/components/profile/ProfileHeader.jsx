@@ -35,7 +35,11 @@ export default function ProfileHeader({ user, profile, isOwnProfile, age }) {
 
                                 if (userRole === 'user' && user?.profile?.profile_picture_path) {
                                     profilePictureSrc = `/storage/${user.profile.profile_picture_path}`;
-                                } else if (userRole !== 'user' && user?.profile_picture) {
+                                } 
+                                // else if (userRole !== 'user' && user?.profile_picture) {
+                                //     profilePictureSrc = `/storage/${user.profile_picture}`;
+                                // }
+                                else{
                                     profilePictureSrc = `/storage/${user.profile_picture}`;
                                 }
 

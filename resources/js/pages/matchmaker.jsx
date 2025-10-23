@@ -1,38 +1,60 @@
+import ProfileHeader from '@/components/profile/ProfileHeader';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import AppLayout from '@/layouts/app-layout';
 import { Head, usePage } from '@inertiajs/react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { User } from 'lucide-react';
+import { Link, User } from 'lucide-react';
 
 export default function MatchmakerPage() {
     const { auth } = usePage().props;
     const assignedMatchmaker = auth?.user?.assignedMatchmaker ?? auth?.user?.assigned_matchmaker ?? null;
+    console.log(assignedMatchmaker);
+
     return (
-        <AppLayout breadcrumbs={[{ title: 'Mon Matchmaker', href: '/matchmaker' }]}> 
+        <AppLayout breadcrumbs={[{ title: 'Mon Matchmaker', href: '/matchmaker' }]}>
             <Head title="Mon Matchmaker" />
+
+            <ProfileHeader user={assignedMatchmaker} profile={assignedMatchmaker?.profile} isOwnProfile={false} age={assignedMatchmaker?.age} />
             <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
                 <div className="text-lg font-semibold">Mon Matchmaker</div>
                 {assignedMatchmaker ? (
                     <Card>
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
-                                <User className="w-5 h-5" />
+                                <User className="h-5 w-5" color="red" />
                                 Votre Matchmaker
                             </CardTitle>
-                            <CardDescription>Les informations du matchmaker assigné</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <div className="flex items-center gap-4">
-                                <div className="w-12 h-12 bg-gray-200 rounded-full" />
-                                <div>
-                                    <div className="font-semibold">{assignedMatchmaker.name}</div>
-                                    <div className="text-sm text-muted-foreground">{assignedMatchmaker.email}</div>
-                                    <div className="text-sm text-muted-foreground">Agence: {assignedMatchmaker.agency ?? '—'}</div>
+                            <div className="flex flex-col gap-y-4">
+                                <div className="w-[50%] rounded-full border-red-800 cursor-pointer hover:border-green-800 hover:bg-red-600  hover:text-white border-2 px-4 py-1.5 font-semibold">
+                                    <div className='flex items-center gap-2'>
+                                        <Link />
+                                        <a href={`/profile/${assignedMatchmaker?.username}`} target="_blank">
+                                            Voir Profil
+                                        </a>
+                                    </div>
+                                </div>
+                                <div className="w-[50%] rounded-full border-red-800 cursor-pointer hover:border-green-800 hover:bg-red-600  hover:text-white border-2 px-4 py-1.5 font-semibold">
+                                    {/* to be added later now it's 404 not found page */}
+                                    <div className='flex items-center gap-2'>
+                                        <Link />
+                                        <a href={`/user/${assignedMatchmaker?.username}/add-review`}>Ajouter mon avis</a>
+                                    </div>
+                                    <div>
+
+                                    </div>
+                                </div>
+                                <div className="w-[50%] rounded-full border-red-800 cursor-pointer hover:border-green-800 hover:bg-red-600  hover:text-white border-2 px-4 py-1.5 font-semibold">
+                                    <div className='flex items-center gap-2'>
+                                        <Link />
+                                        <a href={`/user/matchmakers`}>Changer de matchmaker</a>
+                                    </div>
                                 </div>
                             </div>
                         </CardContent>
                     </Card>
                 ) : (
-                    <div className="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border p-6 text-sm text-neutral-700 dark:text-neutral-200">
+                    <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-6 text-sm text-neutral-700 dark:text-neutral-200">
                         Aucun matchmaker assigné pour le moment.
                     </div>
                 )}
@@ -40,5 +62,3 @@ export default function MatchmakerPage() {
         </AppLayout>
     );
 }
-
-
