@@ -60,10 +60,10 @@ export default function SocialLinks({ user }) {
                             )}
                         </div>
                     ) : (
-                        <div className="py-8 text-center text-gray-500">
-                            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100">
+                        <div className="">
+                            {/* <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100">
                                 <div className="h-8 w-8 rounded bg-gray-300"></div>
-                            </div>
+                            </div> */}
                             <p>No social networks added yet</p>
                         </div>
                     )}

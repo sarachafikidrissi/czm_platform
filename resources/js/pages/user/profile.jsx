@@ -1,7 +1,8 @@
 import ProfileHeader from '@/components/profile/ProfileHeader';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import AppLayout from '@/layouts/app-layout';
+import { Button } from '@headlessui/react';
 import { Head, usePage } from '@inertiajs/react';
 import { Heart, MapPin, MessageCircleWarning, MessageSquareWarning, User } from 'lucide-react';
 import { useState } from 'react';
@@ -10,7 +11,9 @@ import { FaUser } from 'react-icons/fa';
 export default function UserProfile({ user, profile, agency }) {
     const { auth } = usePage().props;
     const isOwnProfile = auth?.user?.id === user?.id;
-    console.log(user);
+    const assignedMatchmakerId = auth.user['assigned_matchmaker'].id;
+    console.log(user['id']);
+    
 
     // Get user role
     const userRole = user?.roles?.[0]?.name || 'user';
@@ -250,9 +253,17 @@ export default function UserProfile({ user, profile, agency }) {
 
                             {userRole === 'matchmaker' && (
                                 <div className="space-y-6">
-                                    {/* Social Links */}
-                                    {/* <SocialLinks user={user} /> */}
+                                    {/* changer matchmaker ou contacter mon matchmaker  functionality must be added later */}
+                                    
+                                    {
+                                        assignedMatchmakerId == user?.id ? (
+                                            <Button className='bg-green-500 text-white px-4 py-2 rounded-md cursor-pointer'>Conatcter mon matchmaker</Button>
+                                            // <h1>this is my matchmaker</h1>
+                                        ) : (
+                                            <Button className='bg-red-500 text-white px-4 py-2 rounded-md cursor-pointer'>Changer mon matchmaker</Button>
 
+                                        )
+                                    }
                                     {/* Contact Information */}
                                     <Card>
                                         <CardHeader>
