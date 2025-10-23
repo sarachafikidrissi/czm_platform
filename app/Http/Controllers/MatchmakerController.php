@@ -124,6 +124,7 @@ class MatchmakerController extends Controller
 
         $prospect->update([
             'assigned_matchmaker_id' => $assignedId,
+            'approval_status' => 'approved',
             'status' => 'member',
             'approved_by' => Auth::id(),
             'approved_at' => now(),

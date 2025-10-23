@@ -13,11 +13,11 @@ export default function MatchmakerPage() {
         <AppLayout breadcrumbs={[{ title: 'Mon Matchmaker', href: '/matchmaker' }]}>
             <Head title="Mon Matchmaker" />
 
-            <ProfileHeader user={assignedMatchmaker} profile={assignedMatchmaker?.profile} isOwnProfile={false} age={assignedMatchmaker?.age} />
             <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
                 <div className="text-lg font-semibold">Mon Matchmaker</div>
-                {assignedMatchmaker ? (
+                {assignedMatchmaker && assignedMatchmaker?.approval_status === 'approved' ? (
                     <Card>
+                        <ProfileHeader user={assignedMatchmaker} profile={assignedMatchmaker?.profile} isOwnProfile={false} age={assignedMatchmaker?.age} />
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
                                 <User className="h-5 w-5" color="red" />
@@ -26,7 +26,7 @@ export default function MatchmakerPage() {
                         </CardHeader>
                         <CardContent>
                             <div className="flex flex-col gap-y-4">
-                                <div className="w-[50%] rounded-full border-red-800 cursor-pointer hover:border-green-800 hover:bg-red-600  hover:text-white border-2 px-4 py-1.5 font-semibold">
+                                <div className="md:w-[50%] w-full rounded-full border-red-800 cursor-pointer hover:border-green-800 hover:bg-red-600  hover:text-white border-2 px-4 py-1.5 font-semibold">
                                     <div className='flex items-center gap-2'>
                                         <Link />
                                         <a href={`/profile/${assignedMatchmaker?.username}`} target="_blank">
@@ -34,7 +34,7 @@ export default function MatchmakerPage() {
                                         </a>
                                     </div>
                                 </div>
-                                <div className="w-[50%] rounded-full border-red-800 cursor-pointer hover:border-green-800 hover:bg-red-600  hover:text-white border-2 px-4 py-1.5 font-semibold">
+                                <div className="md:w-[50%] w-full rounded-full border-red-800 cursor-pointer hover:border-green-800 hover:bg-red-600  hover:text-white border-2 px-4 py-1.5 font-semibold">
                                     {/* to be added later now it's 404 not found page */}
                                     <div className='flex items-center gap-2'>
                                         <Link />
@@ -44,7 +44,7 @@ export default function MatchmakerPage() {
 
                                     </div>
                                 </div>
-                                <div className="w-[50%] rounded-full border-red-800 cursor-pointer hover:border-green-800 hover:bg-red-600  hover:text-white border-2 px-4 py-1.5 font-semibold">
+                                <div className="md:w-[50%] w-full rounded-full border-red-800 cursor-pointer hover:border-green-800 hover:bg-red-600  hover:text-white border-2 px-4 py-1.5 font-semibold">
                                     <div className='flex items-center gap-2'>
                                         <Link />
                                         <a href={`/user/matchmakers`}>Changer de matchmaker</a>
