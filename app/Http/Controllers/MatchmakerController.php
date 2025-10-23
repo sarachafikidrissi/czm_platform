@@ -174,7 +174,7 @@ class MatchmakerController extends Controller
         $status = $request->string('status')->toString(); // all|member|client
         $query = User::role('user')
             ->whereIn('status', ['member','client'])
-            ->with('profile');
+            ->with(['profile', 'assignedMatchmaker']);
 
         // Role-based filtering
         if ($me) {
@@ -202,6 +202,7 @@ class MatchmakerController extends Controller
         return Inertia::render('matchmaker/validated-prospects', [
             'prospects' => $prospects,
             'status' => $status ?: 'all',
+            'assignedMatchmaker' => $me,
         ]);
     }
 

@@ -10,8 +10,9 @@ import { Badge } from '@/components/ui/badge';
 import AppLayout from '@/layouts/app-layout';
 
 export default function ValidatedProspects() {
-    const { prospects, status } = usePage().props;
-
+    const { prospects, status, assignedMatchmaker } = usePage().props;
+    console.log(prospects);
+    
     return (
         <AppLayout>
             <Head title="Validated Prospects" />
@@ -75,7 +76,7 @@ export default function ValidatedProspects() {
                                             </Badge>
                                         </TableCell>
                                         <TableCell className="text-muted-foreground">
-                                            {u.approved_by ? u.approved_by.name : 'N/A'}
+                                            {u.approved_by ? u.assigned_matchmaker.name : 'N/A'}
                                         </TableCell>
                                         <TableCell className="text-muted-foreground">
                                             {u.approved_at ? new Date(u.approved_at).toLocaleDateString() : 'N/A'}
