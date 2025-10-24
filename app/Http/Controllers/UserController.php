@@ -52,12 +52,19 @@ class UserController extends Controller
 
     public function profile($username)
     {
-        $user = User::with(['profile', 'agency', 'roles'])
+        $user = User::with(['profile', 'agency', 'roles', 'posts.user', 'posts.likes', 'posts.comments.user'])
             ->where('username', $username)
             ->firstOrFail();
         
         // Get user role
         $userRole = $user->roles->first()?->name ?? 'user';
+        
+        // Add like status for current user
+        if (Auth::check()) {
+            $user->posts->each(function ($post) {
+                $post->is_liked = $post->isLikedBy(Auth::id());
+            });
+        }
         
         return Inertia::render('user/profile', [
             'user' => $user,

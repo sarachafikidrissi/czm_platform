@@ -7,11 +7,15 @@ import { Head, usePage } from '@inertiajs/react';
 import { Heart, MapPin, MessageCircleWarning, MessageSquareWarning, User } from 'lucide-react';
 import { useState } from 'react';
 import { FaUser } from 'react-icons/fa';
+import CreatePost from '@/components/posts/CreatePost';
+import PostCard from '@/components/posts/PostCard';
 
 export default function UserProfile({ user, profile, agency }) {
     const { auth } = usePage().props;
     const isOwnProfile = auth?.user?.id === user?.id;
-    const assignedMatchmakerId = auth.user['assigned_matchmaker'].id;
+    console.log(auth.user);
+    
+    const assignedMatchmakerId = auth.user['assigned_matchmaker']?.id;
     console.log(user['id']);
     
 
@@ -301,6 +305,34 @@ export default function UserProfile({ user, profile, agency }) {
                                                     <div className="text-sm text-gray-500">Years Experience</div>
                                                 </div>
                                             </div>
+                                        </CardContent>
+                                    </Card>
+
+                                    {/* Posts Section */}
+                                    <Card>
+                                        <CardHeader>
+                                            <CardTitle className="flex items-center gap-2">
+                                                <MessageSquareWarning className="h-5 w-5 text-blue-500" />
+                                                Posts
+                                            </CardTitle>
+                                        </CardHeader>
+                                        <CardContent>
+                                            {isOwnProfile && userRole === 'matchmaker' && (
+                                                <CreatePost />
+                                            )}
+                                            
+                                            {/* Display Posts */}
+                                            {user.posts && user.posts.length > 0 ? (
+                                                <div className="space-y-4">
+                                                    {user.posts.map((post) => (
+                                                        <PostCard key={post.id} post={post} />
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <div className="text-center py-8 text-gray-500">
+                                                    {isOwnProfile ? 'No posts yet. Share your first post!' : 'No posts yet.'}
+                                                </div>
+                                            )}
                                         </CardContent>
                                     </Card>
                                 </div>

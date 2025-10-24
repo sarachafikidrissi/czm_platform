@@ -175,6 +175,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Public user profile routes (accessible by all authenticated users)
     Route::get('/profile/{username}', [\App\Http\Controllers\UserController::class, 'profile'])->name('profile.show');
 
+    // Post routes (accessible by all authenticated users)
+    Route::middleware(['auth'])->group(function () {
+        Route::get('/posts', [\App\Http\Controllers\PostController::class, 'index'])->name('posts.index');
+        Route::post('/posts', [\App\Http\Controllers\PostController::class, 'store'])->name('posts.store');
+        Route::post('/posts/like', [\App\Http\Controllers\PostController::class, 'like'])->name('posts.like');
+        Route::post('/posts/comment', [\App\Http\Controllers\PostController::class, 'comment'])->name('posts.comment');
+        Route::delete('/posts/{post}', [\App\Http\Controllers\PostController::class, 'destroy'])->name('posts.destroy');
+    });
+
     // Sidebar pages
     Route::get('/photos', function () {
         return Inertia::render('photos');

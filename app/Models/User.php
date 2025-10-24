@@ -104,4 +104,8 @@ class User extends Authenticatable
     public function createdBills() {
         return $this->hasMany(Bill::class, 'matchmaker_id');
     }
+
+    public function posts() {
+        return $this->hasMany(Post::class);
+    }
 }
