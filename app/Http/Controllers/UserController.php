@@ -59,10 +59,12 @@ class UserController extends Controller
         // Get user role
         $userRole = $user->roles->first()?->name ?? 'user';
         
-        // Add like status for current user
+        // Add like status for current user and append accessor attributes
         if (Auth::check()) {
             $user->posts->each(function ($post) {
                 $post->is_liked = $post->isLikedBy(Auth::id());
+                $post->likes_count = $post->likes_count;
+                $post->comments_count = $post->comments_count;
             });
         }
         

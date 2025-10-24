@@ -14,20 +14,40 @@ export default function PostCard({ post }) {
     const [isLiking, setIsLiking] = useState(false);
     const [isCommenting, setIsCommenting] = useState(false);
     const [likesCount, setLikesCount] = useState(post.likes_count || 0);
+    const [commentsCount, setCommentsCount] = useState(post.comments_count || 0);
     const [isLiked, setIsLiked] = useState(post.is_liked || false);
+    const [comments, setComments] = useState(post.comments || []);
+
+    // Debug logging
+    console.log('Post data:', {
+        id: post.id,
+        likes_count: post.likes_count,
+        comments_count: post.comments_count,
+        is_liked: post.is_liked,
+        likes: post.likes,
+        comments: post.comments
+    });
 
     const handleLike = () => {
         setIsLiking(true);
         
+        // Optimistically update the UI
+        const newLikedState = !isLiked;
+        const newLikesCount = isLiked ? likesCount - 1 : likesCount + 1;
+        
+        setIsLiked(newLikedState);
+        setLikesCount(newLikesCount);
+        
         router.post('/posts/like', {
             post_id: post.id
         }, {
-            onSuccess: (page) => {
-                setIsLiked(!isLiked);
-                setLikesCount(isLiked ? likesCount - 1 : likesCount + 1);
+            onFinish: () => {
                 setIsLiking(false);
             },
             onError: () => {
+                // Revert on error
+                setIsLiked(!newLikedState);
+                setLikesCount(isLiked ? likesCount + 1 : likesCount - 1);
                 setIsLiking(false);
             }
         });
@@ -37,19 +57,34 @@ export default function PostCard({ post }) {
         e.preventDefault();
         if (!newComment.trim()) return;
 
+        const commentContent = newComment.trim();
         setIsCommenting(true);
+        
+        // Optimistically add comment to UI
+        const tempComment = {
+            id: Date.now(), // Temporary ID
+            content: commentContent,
+            user: auth.user,
+            created_at: new Date().toISOString()
+        };
+        
+        // Update comments count and add comment to list
+        setCommentsCount(commentsCount + 1);
+        setComments([...comments, tempComment]);
+        setNewComment('');
         
         router.post('/posts/comment', {
             post_id: post.id,
-            content: newComment
+            content: commentContent
         }, {
-            onSuccess: (page) => {
-                setNewComment('');
+            onFinish: () => {
                 setIsCommenting(false);
-                // Refresh the page to show new comment
-                router.reload();
             },
             onError: () => {
+                // Revert on error
+                setCommentsCount(commentsCount);
+                setComments(comments.filter(c => c.id !== tempComment.id));
+                setNewComment(commentContent);
                 setIsCommenting(false);
             }
         });
@@ -142,7 +177,7 @@ export default function PostCard({ post }) {
                 {/* Engagement Stats */}
                 <div className="flex items-center gap-4 mb-4 text-sm text-gray-600">
                     <span>{likesCount} j'aime</span>
-                    <span>{post.comments_count || 0} commentaires</span>
+                    <span>{commentsCount} commentaires</span>
                 </div>
 
                 {/* Action Buttons */}
@@ -184,9 +219,9 @@ export default function PostCard({ post }) {
                 {showComments && (
                     <div className="mt-4 border-t border-gray-200 pt-4">
                         {/* Existing Comments */}
-                        {post.comments && post.comments.length > 0 && (
+                        {comments && comments.length > 0 && (
                             <div className="space-y-3 mb-4">
-                                {post.comments.map((comment) => (
+                                {comments.map((comment) => (
                                     <div key={comment.id} className="flex items-start gap-3">
                                         <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
                                             <span className="text-xs font-medium text-gray-600">

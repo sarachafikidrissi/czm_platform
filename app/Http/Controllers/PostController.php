@@ -17,6 +17,15 @@ class PostController extends Controller
             ->orderBy('created_at', 'desc')
             ->paginate(10);
 
+        // Add like status for current user and append accessor attributes
+        if (Auth::check()) {
+            $posts->getCollection()->each(function ($post) {
+                $post->is_liked = $post->isLikedBy(Auth::id());
+                $post->likes_count = $post->likes_count;
+                $post->comments_count = $post->comments_count;
+            });
+        }
+
         return Inertia::render('posts/index', [
             'posts' => $posts
         ]);
@@ -69,10 +78,7 @@ class PostController extends Controller
             $liked = true;
         }
 
-        return response()->json([
-            'liked' => $liked,
-            'likes_count' => $post->likes()->count()
-        ]);
+        return redirect()->back();
     }
 
     public function comment(Request $request)
@@ -90,10 +96,7 @@ class PostController extends Controller
 
         $comment->load('user');
 
-        return response()->json([
-            'comment' => $comment,
-            'comments_count' => $comment->post->comments()->count()
-        ]);
+        return redirect()->back();
     }
 
     public function destroy(Post $post)
