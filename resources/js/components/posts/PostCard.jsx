@@ -9,7 +9,7 @@ import { usePage } from '@inertiajs/react';
 
 export default function PostCard({ post }) {
     const { auth } = usePage().props;
-    const [showComments, setShowComments] = useState(false);
+    const [showComments, setShowComments] = useState(true);
     const [newComment, setNewComment] = useState('');
     const [isLiking, setIsLiking] = useState(false);
     const [isCommenting, setIsCommenting] = useState(false);
@@ -17,16 +17,6 @@ export default function PostCard({ post }) {
     const [commentsCount, setCommentsCount] = useState(post.comments_count || 0);
     const [isLiked, setIsLiked] = useState(post.is_liked || false);
     const [comments, setComments] = useState(post.comments || []);
-
-    // Debug logging
-    console.log('Post data:', {
-        id: post.id,
-        likes_count: post.likes_count,
-        comments_count: post.comments_count,
-        is_liked: post.is_liked,
-        likes: post.likes,
-        comments: post.comments
-    });
 
     const handleLike = () => {
         setIsLiking(true);
@@ -41,6 +31,7 @@ export default function PostCard({ post }) {
         router.post('/posts/like', {
             post_id: post.id
         }, {
+            preserveScroll: true,
             onFinish: () => {
                 setIsLiking(false);
             },
@@ -77,6 +68,7 @@ export default function PostCard({ post }) {
             post_id: post.id,
             content: commentContent
         }, {
+            preserveScroll: true,
             onFinish: () => {
                 setIsCommenting(false);
             },
@@ -202,7 +194,7 @@ export default function PostCard({ post }) {
                         className="flex items-center gap-2 text-gray-600"
                     >
                         <MessageCircle className="w-4 h-4" />
-                        Commentaire
+                        {showComments ? 'Masquer les commentaires' : 'Voir les commentaires'}
                     </Button>
                     
                     <Button
