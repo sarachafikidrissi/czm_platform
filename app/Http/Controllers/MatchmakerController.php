@@ -206,6 +206,49 @@ class MatchmakerController extends Controller
         ]);
     }
 
+    /**
+     * Mark a member as client and update bill status
+     */
+    public function markAsClient(Request $request)
+    {
+        $request->validate([
+            'user_id' => 'required|exists:users,id'
+        ]);
+
+        $me = Auth::user();
+        
+        // Check if user has permission
+        $roleName = null;
+        if ($me) {
+            $roleName = \Illuminate\Support\Facades\DB::table('model_has_roles')
+                ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+                ->where('model_has_roles.model_id', $me->id)
+                ->value('roles.name');
+        }
+
+        // Only matchmakers and managers can mark as client
+        if (!in_array($roleName, ['matchmaker', 'manager', 'admin'])) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $user = User::findOrFail($request->user_id);
+        
+        // Check if user is currently a member
+        if ($user->status !== 'member') {
+            return redirect()->back()->with('error', 'User is not a member or already a client.');
+        }
+
+        // Update user status to client
+        $user->update(['status' => 'client']);
+
+        // Update bill status to paid for this user
+        Bill::where('user_id', $user->id)
+            ->where('status', '!=', 'paid')
+            ->update(['status' => 'paid']);
+
+        return redirect()->back()->with('success', 'Member marked as client successfully. Bill status updated to paid.');
+    }
+
     public function agencyProspects(Request $request)
     {
         $me = Auth::user();

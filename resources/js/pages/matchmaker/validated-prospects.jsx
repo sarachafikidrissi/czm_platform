@@ -8,10 +8,27 @@ import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import AppLayout from '@/layouts/app-layout';
+import { useState } from 'react';
 
 export default function ValidatedProspects() {
     const { prospects, status, assignedMatchmaker } = usePage().props;
+    const [loading, setLoading] = useState({});
     console.log(prospects);
+
+    const handleMarkAsClient = (userId) => {
+        setLoading(prev => ({ ...prev, [userId]: true }));
+        
+        router.post('/staff/mark-as-client', {
+            user_id: userId
+        }, {
+            onSuccess: () => {
+                setLoading(prev => ({ ...prev, [userId]: false }));
+            },
+            onError: () => {
+                setLoading(prev => ({ ...prev, [userId]: false }));
+            }
+        });
+    };
     
     return (
         <AppLayout>
@@ -58,6 +75,7 @@ export default function ValidatedProspects() {
                                     <TableHead>Status</TableHead>
                                     <TableHead>Validated By</TableHead>
                                     <TableHead>Validated Date</TableHead>
+                                    <TableHead>Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -80,6 +98,24 @@ export default function ValidatedProspects() {
                                         </TableCell>
                                         <TableCell className="text-muted-foreground">
                                             {u.approved_at ? new Date(u.approved_at).toLocaleDateString() : 'N/A'}
+                                        </TableCell>
+                                        <TableCell>
+                                            {u.status === 'member' && (
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    onClick={() => handleMarkAsClient(u.id)}
+                                                    disabled={loading[u.id]}
+                                                    className="bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
+                                                >
+                                                    {loading[u.id] ? 'Processing...' : 'Mark as Client'}
+                                                </Button>
+                                            )}
+                                            {u.status === 'client' && (
+                                                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                                                    Client
+                                                </Badge>
+                                            )}
                                         </TableCell>
                                     </TableRow>
                                 ))}
