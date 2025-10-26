@@ -52,7 +52,10 @@ class UserController extends Controller
 
     public function profile($username)
     {
-        $user = User::with(['profile', 'agency', 'roles', 'posts.user', 'posts.likes', 'posts.comments.user'])
+        $user = User::with(['profile', 'agency', 'roles', 'posts' => function($query) {
+                $query->with(['user', 'likes', 'comments.user'])
+                      ->orderBy('created_at', 'desc');
+            }])
             ->where('username', $username)
             ->firstOrFail();
         
