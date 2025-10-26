@@ -1,11 +1,9 @@
-import { useState } from 'react';
-import { router } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
-import { Heart, MessageCircle, Share, MoreHorizontal, Trash2 } from 'lucide-react';
-import { usePage } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
+import { Heart, MessageCircle, Share, Trash2 } from 'lucide-react';
+import { useState } from 'react';
 
 export default function PostCard({ post }) {
     const { auth } = usePage().props;
@@ -20,28 +18,32 @@ export default function PostCard({ post }) {
 
     const handleLike = () => {
         setIsLiking(true);
-        
+
         // Optimistically update the UI
         const newLikedState = !isLiked;
         const newLikesCount = isLiked ? likesCount - 1 : likesCount + 1;
-        
+
         setIsLiked(newLikedState);
         setLikesCount(newLikesCount);
-        
-        router.post('/posts/like', {
-            post_id: post.id
-        }, {
-            preserveScroll: true,
-            onFinish: () => {
-                setIsLiking(false);
+
+        router.post(
+            '/posts/like',
+            {
+                post_id: post.id,
             },
-            onError: () => {
-                // Revert on error
-                setIsLiked(!newLikedState);
-                setLikesCount(isLiked ? likesCount + 1 : likesCount - 1);
-                setIsLiking(false);
-            }
-        });
+            {
+                preserveScroll: true,
+                onFinish: () => {
+                    setIsLiking(false);
+                },
+                onError: () => {
+                    // Revert on error
+                    setIsLiked(!newLikedState);
+                    setLikesCount(isLiked ? likesCount + 1 : likesCount - 1);
+                    setIsLiking(false);
+                },
+            },
+        );
     };
 
     const handleComment = (e) => {
@@ -50,36 +52,40 @@ export default function PostCard({ post }) {
 
         const commentContent = newComment.trim();
         setIsCommenting(true);
-        
+
         // Optimistically add comment to UI
         const tempComment = {
             id: Date.now(), // Temporary ID
             content: commentContent,
             user: auth.user,
-            created_at: new Date().toISOString()
+            created_at: new Date().toISOString(),
         };
-        
+
         // Update comments count and add comment to list
         setCommentsCount(commentsCount + 1);
         setComments([...comments, tempComment]);
         setNewComment('');
-        
-        router.post('/posts/comment', {
-            post_id: post.id,
-            content: commentContent
-        }, {
-            preserveScroll: true,
-            onFinish: () => {
-                setIsCommenting(false);
+
+        router.post(
+            '/posts/comment',
+            {
+                post_id: post.id,
+                content: commentContent,
             },
-            onError: () => {
-                // Revert on error
-                setCommentsCount(commentsCount);
-                setComments(comments.filter(c => c.id !== tempComment.id));
-                setNewComment(commentContent);
-                setIsCommenting(false);
-            }
-        });
+            {
+                preserveScroll: true,
+                onFinish: () => {
+                    setIsCommenting(false);
+                },
+                onError: () => {
+                    // Revert on error
+                    setCommentsCount(commentsCount);
+                    setComments(comments.filter((c) => c.id !== tempComment.id));
+                    setNewComment(commentContent);
+                    setIsCommenting(false);
+                },
+            },
+        );
     };
 
     const handleDelete = () => {
@@ -92,7 +98,7 @@ export default function PostCard({ post }) {
         const now = new Date();
         const postDate = new Date(date);
         const diffInHours = Math.floor((now - postDate) / (1000 * 60 * 60));
-        
+
         if (diffInHours < 1) return 'Just now';
         if (diffInHours < 24) return `${diffInHours}h`;
         const diffInDays = Math.floor(diffInHours / 24);
@@ -104,18 +110,25 @@ export default function PostCard({ post }) {
         const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/);
         return match ? match[1] : null;
     };
-    console.log(post);
-    
+    console.log(post.user.profile_picture);
 
     return (
         <Card className="mb-4">
             <CardContent className="p-6">
                 {/* Post Header */}
-                <div className="flex items-start justify-between mb-4">
+                <div className="mb-4 flex items-start justify-between">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-200">
                             <span className="text-sm font-medium text-gray-600">
-                                {post.user?.name?.charAt(0)?.toUpperCase() || 'U'}
+                                {post.user?.profile_picture ? (
+                                    <img
+                                        src={`/storage/${post.user.profile_picture}`}
+                                        alt={post.user.name}
+                                        className="h-full w-full object-cover rounded-full"
+                                    />
+                                ) : (
+                                    <span className="text-sm font-medium text-gray-600">{post.user?.name?.charAt(0)?.toUpperCase() || 'U'}</span>
+                                )}
                             </span>
                         </div>
                         <div>
@@ -124,40 +137,31 @@ export default function PostCard({ post }) {
                         </div>
                     </div>
                     {auth.user.id === post.user_id && (
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={handleDelete}
-                            className="text-red-600 hover:text-red-700"
-                        >
-                            <Trash2 className="w-4 h-4" />
+                        <Button variant="ghost" size="sm" onClick={handleDelete} className="text-red-600 hover:text-red-700">
+                            <Trash2 className="h-4 w-4" />
                         </Button>
                     )}
                 </div>
 
                 {/* Post Content */}
                 <div className="mb-4">
-                    <p className="text-gray-900 whitespace-pre-wrap">{post.content}</p>
+                    <p className="whitespace-pre-wrap text-gray-900">{post.content}</p>
                 </div>
 
                 {/* Media Content */}
                 {post.type === 'image' && post.media_url && (
                     <div className="mb-4">
-                        <img 
-                            src={post.media_url} 
-                            alt="Post image" 
-                            className="w-full max-h-96 object-cover rounded-lg"
-                        />
+                        <img src={post.media_url} alt="Post image" className="max-h-96 w-full rounded-lg object-cover" />
                     </div>
                 )}
 
                 {post.type === 'youtube' && post.media_url && (
                     <div className="mb-4">
-                        <div className="relative w-full h-64 bg-gray-100 rounded-lg overflow-hidden">
+                        <div className="relative h-64 w-full overflow-hidden rounded-lg bg-gray-100">
                             <iframe
                                 src={`https://www.youtube.com/embed/${getYouTubeVideoId(post.media_url)}`}
                                 title="YouTube video"
-                                className="w-full h-full"
+                                className="h-full w-full"
                                 frameBorder="0"
                                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                 allowFullScreen
@@ -167,7 +171,7 @@ export default function PostCard({ post }) {
                 )}
 
                 {/* Engagement Stats */}
-                <div className="flex items-center gap-4 mb-4 text-sm text-gray-600">
+                <div className="mb-4 flex items-center gap-4 text-sm text-gray-600">
                     <span>{likesCount} j'aime</span>
                     <span>{commentsCount} commentaires</span>
                 </div>
@@ -179,30 +183,24 @@ export default function PostCard({ post }) {
                         size="sm"
                         onClick={handleLike}
                         disabled={isLiking}
-                        className={`flex items-center gap-2 ${
-                            isLiked ? 'text-red-600' : 'text-gray-600'
-                        }`}
+                        className={`flex items-center gap-2 ${isLiked ? 'text-red-600' : 'text-gray-600'}`}
                     >
-                        <Heart className={`w-4 h-4 ${isLiked ? 'fill-current' : ''}`} />
+                        <Heart className={`h-4 w-4 ${isLiked ? 'fill-current' : ''}`} />
                         J'aime
                     </Button>
-                    
+
                     <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => setShowComments(!showComments)}
                         className="flex items-center gap-2 text-gray-600"
                     >
-                        <MessageCircle className="w-4 h-4" />
+                        <MessageCircle className="h-4 w-4" />
                         {showComments ? 'Masquer les commentaires' : 'Voir les commentaires'}
                     </Button>
-                    
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        className="flex items-center gap-2 text-gray-600"
-                    >
-                        <Share className="w-4 h-4" />
+
+                    <Button variant="ghost" size="sm" className="flex items-center gap-2 text-gray-600">
+                        <Share className="h-4 w-4" />
                         Partager
                     </Button>
                 </div>
@@ -212,20 +210,20 @@ export default function PostCard({ post }) {
                     <div className="mt-4 border-t border-gray-200 pt-4">
                         {/* Existing Comments */}
                         {comments && comments.length > 0 && (
-                            <div className="space-y-3 mb-4">
+                            <div className="mb-4 space-y-3">
                                 {comments.map((comment) => (
                                     <div key={comment.id} className="flex items-start gap-3">
-                                        <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
+                                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200">
                                             <span className="text-xs font-medium text-gray-600">
                                                 {comment.user?.name?.charAt(0)?.toUpperCase() || 'U'}
                                             </span>
                                         </div>
                                         <div className="flex-1">
-                                            <div className="bg-gray-50 rounded-lg p-3">
-                                                <h4 className="font-medium text-sm text-gray-900">{comment.user?.name || 'Unknown User'}</h4>
-                                                <p className="text-sm text-gray-700 mt-1">{comment.content}</p>
+                                            <div className="rounded-lg bg-gray-50 p-3">
+                                                <h4 className="text-sm font-medium text-gray-900">{comment.user?.name || 'Unknown User'}</h4>
+                                                <p className="mt-1 text-sm text-gray-700">{comment.content}</p>
                                             </div>
-                                            <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+                                            <div className="mt-2 flex items-center gap-4 text-xs text-gray-500">
                                                 <span>{formatTimeAgo(comment.created_at)}</span>
                                                 <button className="hover:text-gray-700">J'aime</button>
                                                 <button className="hover:text-gray-700">Répondre</button>
@@ -238,10 +236,8 @@ export default function PostCard({ post }) {
 
                         {/* Comment Form */}
                         <form onSubmit={handleComment} className="flex gap-3">
-                            <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
-                                <span className="text-xs font-medium text-gray-600">
-                                    {auth.user.name.charAt(0).toUpperCase()}
-                                </span>
+                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200">
+                                <span className="text-xs font-medium text-gray-600">{auth.user.name.charAt(0).toUpperCase()}</span>
                             </div>
                             <div className="flex-1">
                                 <Textarea
@@ -251,11 +247,7 @@ export default function PostCard({ post }) {
                                     className="min-h-[40px] resize-none"
                                 />
                             </div>
-                            <Button
-                                type="submit"
-                                disabled={isCommenting || !newComment.trim()}
-                                className="bg-red-600 hover:bg-red-700"
-                            >
+                            <Button type="submit" disabled={isCommenting || !newComment.trim()} className="bg-red-600 hover:bg-red-700">
                                 {isCommenting ? '...' : 'Commentaire'}
                             </Button>
                         </form>
