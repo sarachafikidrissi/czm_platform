@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Models\Post;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class UserController extends Controller
@@ -14,13 +16,38 @@ class UserController extends Controller
         /** @var User $user */
         $user = Auth::user();
 
-        $matchmakers = User::role('matchmaker')
-            ->where('approval_status', 'approved')
-            ->with('agency')
-            ->get();
+        // Get the latest post per matchmaker
+        $latestPosts = Post::select('posts.*')
+            ->join(DB::raw('(
+                SELECT user_id, MAX(created_at) as latest_created_at
+                FROM posts
+                WHERE user_id IN (
+                    SELECT u.id 
+                    FROM users u
+                    JOIN model_has_roles mhr ON u.id = mhr.model_id
+                    JOIN roles r ON mhr.role_id = r.id
+                    WHERE r.name = "matchmaker" AND u.approval_status = "approved"
+                )
+                GROUP BY user_id
+            ) as latest_posts'), function($join) {
+                $join->on('posts.user_id', '=', 'latest_posts.user_id')
+                     ->on('posts.created_at', '=', 'latest_posts.latest_created_at');
+            })
+            ->with(['user.profile', 'user.agency', 'likes', 'comments.user.roles', 'comments.user.profile'])
+            ->orderBy('posts.created_at', 'desc')
+            ->paginate(10);
+
+        // Add like status for current user and append accessor attributes
+        if (Auth::check()) {
+            $latestPosts->getCollection()->each(function ($post) {
+                $post->is_liked = $post->isLikedBy(Auth::id());
+                $post->likes_count = $post->likes_count;
+                $post->comments_count = $post->comments_count;
+            });
+        }
 
         return Inertia::render('user/matchmakers', [
-            'matchmakers' => $matchmakers,
+            'posts' => $latestPosts,
             'assignedMatchmaker' => $user?->assignedMatchmaker,
         ]);
     }
@@ -53,7 +80,7 @@ class UserController extends Controller
     public function profile($username)
     {
         $user = User::with(['profile', 'agency', 'roles', 'posts' => function($query) {
-                $query->with(['user', 'likes', 'comments.user'])
+                $query->with(['user.profile','user', 'likes', 'comments.user.roles', 'comments.user.profile'])
                       ->orderBy('created_at', 'desc');
             }])
             ->where('username', $username)

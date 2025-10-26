@@ -15,6 +15,10 @@ export default function PostCard({ post }) {
     const [commentsCount, setCommentsCount] = useState(post.comments_count || 0);
     const [isLiked, setIsLiked] = useState(post.is_liked || false);
     const [comments, setComments] = useState(post.comments || []);
+    console.log("comments are ", comments);
+
+    
+
 
     const handleLike = () => {
         setIsLiking(true);
@@ -110,7 +114,6 @@ export default function PostCard({ post }) {
         const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/);
         return match ? match[1] : null;
     };
-    console.log(post.user.profile_picture);
 
     return (
         <Card className="mb-4">
@@ -215,7 +218,16 @@ export default function PostCard({ post }) {
                                     <div key={comment.id} className="flex items-start gap-3">
                                         <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200">
                                             <span className="text-xs font-medium text-gray-600">
-                                                {comment.user?.name?.charAt(0)?.toUpperCase() || 'U'}
+                                                {
+                                                    comment.user.roles[0].name !== 'user' && comment.user.profile_picture ? (
+                                                        <img src={`/storage/${comment.user.profile_picture}`} alt={comment.user.name} className="h-full w-full object-cover rounded-full" />
+                                                    ) : comment.user.roles[0].name === 'user' && comment.user.profile.profile_picture_path ? (
+                                                        <img src={`/storage/${comment.user.profile.profile_picture_path}`} alt={comment.user.name} className="h-full w-full object-cover rounded-full" />
+                                                    ) : (
+                                                       comment.user?.name?.charAt(0)?.toUpperCase() || 'U'
+                                                    )
+                                                }
+                                                {/* {comment.user?.name?.charAt(0)?.toUpperCase() || 'U'} */}
                                             </span>
                                         </div>
                                         <div className="flex-1">

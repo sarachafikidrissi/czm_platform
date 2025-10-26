@@ -5,20 +5,27 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { HeartHandshake, CheckCircle, User } from 'lucide-react';
+import { HeartHandshake, CheckCircle, User, ChevronLeft, ChevronRight } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import PostCard from '@/components/posts/PostCard';
 import { useState } from 'react';
 
 export default function UserMatchmakers() {
-    const { matchmakers, assignedMatchmaker } = usePage().props;
+    const { posts, assignedMatchmaker } = usePage().props;
     const [selected, setSelected] = useState(null);
     
 
     const handleSelectMatchmaker = (matchmakerId) => {
         router.post(`/user/matchmakers/${matchmakerId}/select`);
+    };
+
+    const handlePageChange = (page) => {
+        router.get(`/user/matchmakers?page=${page}`, {}, {
+            preserveState: true,
+            preserveScroll: true
+        });
     };
 
     return (
@@ -27,29 +34,16 @@ export default function UserMatchmakers() {
             <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
             <div className="flex flex-col gap-3">
                 <div className="flex items-center justify-between">
-                    <h1 className="text-2xl font-bold">Choose Matchmaker</h1>
+                    <h1 className="text-2xl font-bold">Matchmaker Posts</h1>
                     {assignedMatchmaker && (
                         <Badge className="bg-green-100 text-green-800">
                             Assigned to: {assignedMatchmaker.name}
                         </Badge>
                     )}
                 </div>
-                {!assignedMatchmaker && (
-                    <div className="flex flex-wrap items-center gap-3 bg-white rounded-lg p-3 border">
-                        <div className="flex items-center gap-2">
-                            <Label className="text-sm text-muted-foreground">View</Label>
-                            <Select defaultValue="all">
-                                <SelectTrigger className="h-9 w-[120px]"><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">All</SelectItem>
-                                    <SelectItem value="agency">By Agency</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <Separator orientation="vertical" className="h-6" />
-                        <Input placeholder="Search" className="h-9 w-[220px]" />
-                    </div>
-                )}
+                <p className="text-muted-foreground">
+                    Discover matchmakers through their latest posts and activities
+                </p>
             </div>
 
             {/* {assignedMatchmaker && (
@@ -78,95 +72,137 @@ export default function UserMatchmakers() {
                 </Card>
             )} */}
 
-            <Card className="overflow-hidden">
-                <CardHeader>
-                    <CardTitle>Available Matchmakers</CardTitle>
-                    <CardDescription>
-                        Choose a matchmaker to help you find your perfect match
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead className="w-10"></TableHead>
-                                <TableHead>Name</TableHead>
-                                <TableHead>Date</TableHead>
-                                <TableHead>Agency</TableHead>
-                                <TableHead className="text-right">Actions</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {matchmakers.map((matchmaker) => (
-                                <TableRow key={matchmaker.id}>
-                                    <TableCell><input type="checkbox" className="accent-neutral-800" /></TableCell>
-                                    <TableCell className="font-medium">{matchmaker.name}</TableCell>
-                                    <TableCell className="text-muted-foreground">{new Date(matchmaker.created_at ?? Date.now()).toLocaleDateString()}</TableCell>
-                                    <TableCell>{matchmaker.agency?.name ?? '—'}</TableCell>
-                                    <TableCell className="text-right space-x-2">
-                                        <Dialog>
-                                            <DialogTrigger asChild>
-                                                <Button size="sm" variant="outline" onClick={() => setSelected(matchmaker)}>View</Button>
-                                            </DialogTrigger>
-                                            <DialogContent className="sm:max-w-[480px]">
-                                                <DialogHeader>
-                                                    <DialogTitle>Matchmaker Details</DialogTitle>
-                                                    <DialogDescription>Information about the selected matchmaker.</DialogDescription>
-                                                </DialogHeader>
-                                                <div className="grid gap-3 py-2">
-                                                    <div>
-                                                        <div className="text-sm text-muted-foreground">Name</div>
-                                                        <div className="font-medium">{selected?.name}</div>
-                                                    </div>
-                                                    <div>
-                                                        <div className="text-sm text-muted-foreground">Email</div>
-                                                        <div className="font-medium">{selected?.email}</div>
-                                                    </div>
-                                                    <div>
-                                                        <div className="text-sm text-muted-foreground">Agency</div>
-                                                        <div className="font-medium">{selected?.agency?.name ?? '—'}</div>
-                                                    </div>
-                                                    <div>
-                                                        <div className="text-sm text-muted-foreground">Joined</div>
-                                                        <div className="font-medium">{selected?.created_at ? new Date(selected.created_at).toLocaleDateString() : '—'}</div>
-                                                    </div>
-                                                </div>
-                                                <div className="flex justify-end pt-4">
-                                                    <Link href={`/profile/${selected?.username || selected?.id}`}>
-                                                        <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
-                                                            View Full Profile
-                                                        </Button>
-                                                    </Link>
-                                                </div>
-                                            </DialogContent>
-                                        </Dialog>
-                                        {assignedMatchmaker && assignedMatchmaker.id === matchmaker.id ? (
-                                            <Button size="sm" variant="outline" disabled>
-                                                Selected
-                                            </Button>
-                                        ) : (
-                                            <Button
-                                                size="sm"
-                                                onClick={() => handleSelectMatchmaker(matchmaker.id)}
-                                            >
-                                                <HeartHandshake className="w-4 h-4 mr-2" />
-                                                Select
-                                            </Button>
-                                        )}
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                    
-                    {matchmakers.length === 0 && (
-                        <div className="text-center py-8">
-                            <HeartHandshake className="w-12 h-12 mx-auto text-gray-400 mb-4" />
-                            <p className="text-gray-500">No matchmakers available at the moment.</p>
+            {/* Posts Display */}
+            <div className="space-y-4">
+                {posts.data && posts.data.length > 0 ? (
+                    posts.data.map((post) => (
+                        <div key={post.id} className="relative">
+                            <PostCard post={post} />
+                            <div className="absolute top-4 right-4">
+                                <Dialog>
+                                    <DialogTrigger asChild>
+                                        <Button size="sm" variant="outline" onClick={() => setSelected(post.user)}>
+                                            View Profile
+                                        </Button>
+                                    </DialogTrigger>
+                                    <DialogContent className="sm:max-w-[480px]">
+                                        <DialogHeader>
+                                            <DialogTitle>Matchmaker Details</DialogTitle>
+                                            <DialogDescription>Information about the selected matchmaker.</DialogDescription>
+                                        </DialogHeader>
+                                        <div className="grid gap-3 py-2">
+                                            <div>
+                                                <div className="text-sm text-muted-foreground">Name</div>
+                                                <div className="font-medium">{selected?.name}</div>
+                                            </div>
+                                            <div>
+                                                <div className="text-sm text-muted-foreground">Email</div>
+                                                <div className="font-medium">{selected?.email}</div>
+                                            </div>
+                                            <div>
+                                                <div className="text-sm text-muted-foreground">Agency</div>
+                                                <div className="font-medium">{selected?.agency?.name ?? '—'}</div>
+                                            </div>
+                                            <div>
+                                                <div className="text-sm text-muted-foreground">Joined</div>
+                                                <div className="font-medium">{selected?.created_at ? new Date(selected.created_at).toLocaleDateString() : '—'}</div>
+                                            </div>
+                                        </div>
+                                        <div className="flex justify-end pt-4 space-x-2">
+                                            <Link href={`/profile/${selected?.username || selected?.id}`}>
+                                                <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
+                                                    View Full Profile
+                                                </Button>
+                                            </Link>
+                                            {assignedMatchmaker && assignedMatchmaker.id === selected?.id ? (
+                                                <Button size="sm" variant="outline" disabled>
+                                                    Selected
+                                                </Button>
+                                            ) : (
+                                                <Button
+                                                    size="sm"
+                                                    onClick={() => handleSelectMatchmaker(selected?.id)}
+                                                >
+                                                    <HeartHandshake className="w-4 h-4 mr-2" />
+                                                    Select
+                                                </Button>
+                                            )}
+                                        </div>
+                                    </DialogContent>
+                                </Dialog>
+                            </div>
                         </div>
-                    )}
-                </CardContent>
-            </Card>
+                    ))
+                ) : (
+                    <Card>
+                        <CardContent className="text-center py-8">
+                            <HeartHandshake className="w-12 h-12 mx-auto text-gray-400 mb-4" />
+                            <p className="text-gray-500">No posts from matchmakers available at the moment.</p>
+                        </CardContent>
+                    </Card>
+                )}
+            </div>
+
+            {/* Pagination */}
+            {posts.data && posts.data.length > 0 && posts.last_page > 1 && (
+                <Card>
+                    <CardContent className="py-4">
+                        <div className="flex items-center justify-between">
+                            <div className="text-sm text-muted-foreground">
+                                Showing {posts.from} to {posts.to} of {posts.total} posts
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handlePageChange(posts.current_page - 1)}
+                                    disabled={posts.current_page <= 1}
+                                >
+                                    <ChevronLeft className="w-4 h-4" />
+                                    Previous
+                                </Button>
+                                
+                                <div className="flex items-center space-x-1">
+                                    {Array.from({ length: Math.min(5, posts.last_page) }, (_, i) => {
+                                        let pageNum;
+                                        if (posts.last_page <= 5) {
+                                            pageNum = i + 1;
+                                        } else if (posts.current_page <= 3) {
+                                            pageNum = i + 1;
+                                        } else if (posts.current_page >= posts.last_page - 2) {
+                                            pageNum = posts.last_page - 4 + i;
+                                        } else {
+                                            pageNum = posts.current_page - 2 + i;
+                                        }
+                                        
+                                        return (
+                                            <Button
+                                                key={pageNum}
+                                                variant={posts.current_page === pageNum ? "default" : "outline"}
+                                                size="sm"
+                                                onClick={() => handlePageChange(pageNum)}
+                                                className="w-8 h-8 p-0"
+                                            >
+                                                {pageNum}
+                                            </Button>
+                                        );
+                                    })}
+                                </div>
+                                
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handlePageChange(posts.current_page + 1)}
+                                    disabled={posts.current_page >= posts.last_page}
+                                >
+                                    Next
+                                    <ChevronRight className="w-4 h-4" />
+                                </Button>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
             </div>
         </AppLayout>
     );

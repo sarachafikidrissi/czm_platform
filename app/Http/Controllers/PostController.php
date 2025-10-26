@@ -13,7 +13,7 @@ class PostController extends Controller
 {
     public function index()
     {
-        $posts = Post::with(['user', 'likes', 'comments.user'])
+        $posts = Post::with(['user.profile', 'likes', 'comments.user.roles', 'comments.user.profile'])
             ->orderBy('created_at', 'desc')
             ->paginate(10);
 
