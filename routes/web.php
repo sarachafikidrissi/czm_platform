@@ -170,6 +170,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/bills/{bill}', [\App\Http\Controllers\BillController::class, 'show'])->name('bills.show');
         Route::get('/bills/{bill}/download', [\App\Http\Controllers\BillController::class, 'downloadPdf'])->name('bills.download');
         Route::post('/bills/{bill}/send-email', [\App\Http\Controllers\BillController::class, 'sendEmail'])->name('bills.send-email');
+        
+        // Subscription routes
+        Route::get('/subscription', [\App\Http\Controllers\UserController::class, 'subscription'])->name('subscription');
     });
 
     // Public user profile routes (accessible by all authenticated users)

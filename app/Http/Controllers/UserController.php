@@ -104,4 +104,26 @@ class UserController extends Controller
             'agency' => $user->agency,
         ]);
     }
+
+    public function subscription()
+    {
+        /** @var User $user */
+        $user = Auth::user();
+        
+        // Get user's latest subscription
+        $latestSubscription = $user->subscriptions()
+            ->with(['matrimonialPack', 'assignedMatchmaker'])
+            ->orderBy('created_at', 'desc')
+            ->first();
+        
+        // Get user's profile with matrimonial pack info
+        $profile = $user->profile;
+        
+        return Inertia::render('user/subscription', [
+            'user' => $user,
+            'profile' => $profile,
+            'subscription' => $latestSubscription,
+            'subscriptionStatus' => $user->getSubscriptionStatus(),
+        ]);
+    }
 }
