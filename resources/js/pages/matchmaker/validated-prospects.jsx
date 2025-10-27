@@ -73,6 +73,8 @@ export default function ValidatedProspects() {
                                     <TableHead>Name</TableHead>
                                     <TableHead>Phone</TableHead>
                                     <TableHead>Status</TableHead>
+                                    <TableHead>Pack</TableHead>
+                                    <TableHead>Subscription</TableHead>
                                     <TableHead>Validated By</TableHead>
                                     <TableHead>Validated Date</TableHead>
                                     <TableHead>Actions</TableHead>
@@ -92,6 +94,31 @@ export default function ValidatedProspects() {
                                             }`}>
                                                 {u.status}
                                             </Badge>
+                                        </TableCell>
+                                        <TableCell className="text-muted-foreground">
+                                            {u.profile?.matrimonial_pack?.name || 'N/A'}
+                                        </TableCell>
+                                        <TableCell className="text-muted-foreground">
+                                            {u.subscriptions && u.subscriptions.length > 0 ? (
+                                                <div className="text-xs">
+                                                    <div className="font-medium">
+                                                        {u.subscriptions[0].subscription_start ? 
+                                                            new Date(u.subscriptions[0].subscription_start).toLocaleDateString() : 'N/A'
+                                                        } - {u.subscriptions[0].subscription_end ? 
+                                                            new Date(u.subscriptions[0].subscription_end).toLocaleDateString() : 'N/A'
+                                                        }
+                                                    </div>
+                                                    <Badge variant="outline" className={`text-xs ${
+                                                        u.subscriptions[0].status === 'active' ? 'bg-green-50 text-green-700' :
+                                                        u.subscriptions[0].status === 'expired' ? 'bg-red-50 text-red-700' :
+                                                        'bg-gray-50 text-gray-700'
+                                                    }`}>
+                                                        {u.subscriptions[0].status}
+                                                    </Badge>
+                                                </div>
+                                            ) : (
+                                                <span className="text-gray-400">No subscription</span>
+                                            )}
                                         </TableCell>
                                         <TableCell className="text-muted-foreground">
                                             {u.approved_by ? u.assigned_matchmaker.name : 'N/A'}

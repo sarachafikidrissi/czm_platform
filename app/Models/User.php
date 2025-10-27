@@ -108,4 +108,34 @@ class User extends Authenticatable
     public function posts() {
         return $this->hasMany(Post::class);
     }
+
+    public function subscriptions() {
+        return $this->hasMany(UserSubscription::class);
+    }
+
+    public function activeSubscription() {
+        return $this->hasOne(UserSubscription::class)->where('status', 'active')
+            ->where('subscription_start', '<=', now())
+            ->where('subscription_end', '>=', now());
+    }
+
+    // Helper methods for subscription status
+    public function hasActiveSubscription()
+    {
+        return $this->activeSubscription()->exists();
+    }
+
+    public function getSubscriptionStatus()
+    {
+        $subscription = $this->activeSubscription;
+        if (!$subscription) {
+            return 'no_subscription';
+        }
+        
+        if ($subscription->is_expired) {
+            return 'expired';
+        }
+        
+        return 'active';
+    }
 }

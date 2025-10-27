@@ -197,7 +197,9 @@ class MatchmakerController extends Controller
             $query->where('status', $status);
         }
 
-        $prospects = $query->get();
+        $prospects = $query->with(['profile.matrimonialPack', 'subscriptions' => function($q) {
+            $q->orderBy('created_at', 'desc');
+        }])->get();
 
         return Inertia::render('matchmaker/validated-prospects', [
             'prospects' => $prospects,
@@ -238,6 +240,24 @@ class MatchmakerController extends Controller
             return redirect()->back()->with('error', 'User is not a member or already a client.');
         }
 
+        // Get user's profile with matrimonial pack information
+        $profile = $user->profile;
+        if (!$profile || !$profile->matrimonial_pack_id) {
+            return redirect()->back()->with('error', 'User profile or matrimonial pack information not found.');
+        }
+
+        // Create subscription record
+        try {
+            \App\Models\UserSubscription::createFromProfile(
+                $profile, 
+                $user, 
+                $user->assigned_matchmaker_id
+            );
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error("Failed to create subscription for user {$user->id}: " . $e->getMessage());
+            return redirect()->back()->with('error', 'Failed to create subscription. Please try again.');
+        }
+
         // Update user status to client
         $user->update(['status' => 'client']);
 
@@ -246,7 +266,7 @@ class MatchmakerController extends Controller
             ->where('status', '!=', 'paid')
             ->update(['status' => 'paid']);
 
-        return redirect()->back()->with('success', 'Member marked as client successfully. Bill status updated to paid.');
+        return redirect()->back()->with('success', 'Member marked as client successfully. Subscription created and bill status updated to paid.');
     }
 
     public function agencyProspects(Request $request)
