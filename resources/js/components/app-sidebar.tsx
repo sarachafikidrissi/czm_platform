@@ -21,6 +21,12 @@ const mainNavItems: NavItem[] = [
         roles: ['user'],
     },
     {
+        title: 'Mon Profile',
+        url: '/user/profile/{username}',
+        icon: User,
+        roles: ['matchmaker'],
+    },
+    {
         title: 'Mon Photos',
         url: '/photos',
         icon: Images,
@@ -107,7 +113,20 @@ const filterNavItemsByRole = (navItems: NavItem[], userRole: string): NavItem[] 
 export function AppSidebar() {
     const { props } = usePage();
     const role = typeof props?.role === 'string' ? props.role : '';
-    const navitems = filterNavItemsByRole(mainNavItems, role);
+    const user = (props as any)?.auth?.user;
+    
+    // Process nav items to handle dynamic URLs
+    const processedNavItems = mainNavItems.map(item => {
+        if (item.url === '/user/profile/{username}' && user?.username) {
+            return {
+                ...item,
+                url: `/profile/${user.username}`
+            };
+        }
+        return item;
+    });
+    
+    const navitems = filterNavItemsByRole(processedNavItems, role);
 
     
     return (
