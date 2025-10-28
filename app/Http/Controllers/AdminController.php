@@ -162,15 +162,11 @@ class AdminController extends Controller
         $status = $request->string('status')->toString(); // all|prospect|member|client
         $query = User::role('user')
             ->whereIn('status', ['prospect','member','client'])
-            ->with(['profile', 'assignedMatchmaker', 'agency']);
+            ->with(['profile', 'assignedMatchmaker', 'agency', 'validatedByManager']);
 
-        // Manager: must be linked to an agency to see prospects
-        if (!$me->agency_id) {
-            abort(403, 'You must be linked to an agency to access prospects.');
-        }
-        
-        // Manager: see all prospects dispatched to their agency
-        $query->where('agency_id', $me->agency_id);
+        // Manager: see all users that were validated when they were the manager in charge
+        // This includes prospects, members, and clients from any agency where they were manager during validation
+        $query->where('validated_by_manager_id', $me->id);
 
         if ($status !== 'all') {
             $query->where('status', $status);
@@ -178,9 +174,10 @@ class AdminController extends Controller
 
         $prospects = $query->get();
 
-        // Get matchmakers in the same agency for filtering
+        // Get all matchmakers from agencies where this manager has validated users
+        $agencyIds = $prospects->pluck('agency_id')->filter()->unique()->toArray();
         $matchmakers = User::role('matchmaker')
-            ->where('agency_id', $me->agency_id)
+            ->whereIn('agency_id', $agencyIds)
             ->where('approval_status', 'approved')
             ->get(['id', 'name', 'email']);
 

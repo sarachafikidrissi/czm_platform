@@ -55,9 +55,10 @@ export default function ManagerTracking() {
             <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
                 <Card>
                     <CardHeader>
-                        <CardTitle>Assignment Tracking</CardTitle>
+                        <CardTitle>Historical Validation Tracking</CardTitle>
                         <p className="text-sm text-gray-600">
-                            Track all prospects and assignments in your agency
+                            View all prospects, members, and clients that were validated when you were the manager in charge. 
+                            This includes historical data from all agencies where you served as manager during validation.
                         </p>
                     </CardHeader>
                     <CardContent>
@@ -85,7 +86,9 @@ export default function ManagerTracking() {
                                     <TableHead>Email</TableHead>
                                     <TableHead>Phone</TableHead>
                                     <TableHead>Status</TableHead>
-                                    <TableHead>Assignment</TableHead>
+                                    <TableHead>Agency</TableHead>
+                                    <TableHead>Validated By</TableHead>
+                                    <TableHead>Validated Date</TableHead>
                                     <TableHead>Created</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -96,7 +99,9 @@ export default function ManagerTracking() {
                                         <TableCell>{prospect.email}</TableCell>
                                         <TableCell>{prospect.phone}</TableCell>
                                         <TableCell>{getStatusBadge(prospect.status)}</TableCell>
-                                        <TableCell>{getDispatchInfo(prospect)}</TableCell>
+                                        <TableCell>{prospect.agency?.name || 'N/A'}</TableCell>
+                                        <TableCell>{prospect.assigned_matchmaker?.name || 'N/A'}</TableCell>
+                                        <TableCell>{prospect.approved_at ? new Date(prospect.approved_at).toLocaleDateString() : 'N/A'}</TableCell>
                                         <TableCell>{new Date(prospect.created_at).toLocaleDateString()}</TableCell>
                                     </TableRow>
                                 ))}
@@ -105,7 +110,7 @@ export default function ManagerTracking() {
 
                         {prospects.length === 0 && (
                             <div className="text-center py-8 text-gray-500">
-                                No prospects found for the selected criteria.
+                                No users found that were validated when you were the manager in charge.
                             </div>
                         )}
                     </CardContent>
