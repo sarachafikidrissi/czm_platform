@@ -75,6 +75,8 @@ export default function ValidatedProspects() {
                                     <TableHead>Status</TableHead>
                                     <TableHead>Pack</TableHead>
                                     <TableHead>Subscription</TableHead>
+                                    <TableHead>Origin Agency</TableHead>
+                                    <TableHead>Manager at Validation</TableHead>
                                     <TableHead>Validated By</TableHead>
                                     <TableHead>Validated Date</TableHead>
                                     <TableHead>Actions</TableHead>
@@ -119,6 +121,12 @@ export default function ValidatedProspects() {
                                             ) : (
                                                 <span className="text-gray-400">No subscription</span>
                                             )}
+                                        </TableCell>
+                                        <TableCell className="text-muted-foreground">
+                                            {u.agency?.name || 'N/A'}
+                                        </TableCell>
+                                        <TableCell className="text-muted-foreground">
+                                            {u.validated_by_manager?.name || 'N/A'}
                                         </TableCell>
                                         <TableCell className="text-muted-foreground">
                                             {u.approved_by ? u.assigned_matchmaker.name : 'N/A'}

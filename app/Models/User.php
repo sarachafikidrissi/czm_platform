@@ -43,7 +43,8 @@ class User extends Authenticatable
         'cin_hash',
         'assigned_matchmaker_id',
         'approved_at',
-        'approved_by'
+        'approved_by',
+        'validated_by_manager_id'
     ];
 
     /**
@@ -91,6 +92,14 @@ class User extends Authenticatable
 
     public function approvedUsers() {
         return $this->hasMany(User::class, 'approved_by');
+    }
+
+    public function validatedByManager() {
+        return $this->belongsTo(User::class, 'validated_by_manager_id');
+    }
+
+    public function validatedUsers() {
+        return $this->hasMany(User::class, 'validated_by_manager_id');
     }
 
     public function agency() {

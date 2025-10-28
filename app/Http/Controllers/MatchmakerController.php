@@ -34,14 +34,25 @@ class MatchmakerController extends Controller
             }
         }
 
+        // Restrict matchmaker access: must be linked to an agency
+        if ($roleName === 'matchmaker' && !$me->agency_id) {
+            abort(403, 'You must be linked to an agency to access prospects.');
+        }
+
         $filter = $request->string('filter')->toString(); // all | complete | incomplete
         $query = User::role('user')
             ->where('status', 'prospect')
-            ->whereNull('assigned_matchmaker_id')
             ->with('profile');
 
-        // Only show prospects dispatched to the user's agency
-        if (in_array($roleName, ['manager','matchmaker'], true)) {
+        // Role-based filtering
+        if ($roleName === 'matchmaker') {
+            // Matchmaker: see prospects dispatched to them specifically OR to their agency
+            $query->where(function($q) use ($me) {
+                $q->where('assigned_matchmaker_id', $me->id)
+                  ->orWhere('agency_id', $me->agency_id);
+            });
+        } elseif ($roleName === 'manager') {
+            // Manager: see prospects dispatched to their agency
             $query->where('agency_id', $me->agency_id);
         }
 
@@ -92,6 +103,22 @@ class MatchmakerController extends Controller
 
         $prospect = User::findOrFail($id);
         
+        // Check if matchmaker can validate this prospect
+        $me = Auth::user();
+        if ($me) {
+            $roleName = \Illuminate\Support\Facades\DB::table('model_has_roles')
+                ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+                ->where('model_has_roles.model_id', $me->id)
+                ->value('roles.name');
+            
+            if ($roleName === 'matchmaker') {
+                // Matchmaker can only validate prospects from their agency or assigned to them
+                if ($prospect->agency_id !== $me->agency_id && $prospect->assigned_matchmaker_id !== $me->id) {
+                    return redirect()->back()->with('error', 'You can only validate prospects from your agency or assigned to you.');
+                }
+            }
+        }
+        
         // Store ID card images in profile
         $frontPath = $request->file('identity_card_front')->store('identity-cards', 'public');
         $backPath = $request->file('identity_card_back')->store('identity-cards', 'public');
@@ -112,6 +139,9 @@ class MatchmakerController extends Controller
         );
 
         $actor = Auth::user();
+        $assignedId = null;
+        $validatedByManagerId = null;
+        
         if ($actor) {
             $actorRole = \Illuminate\Support\Facades\DB::table('model_has_roles')
                 ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
@@ -119,6 +149,17 @@ class MatchmakerController extends Controller
                 ->value('roles.name');
             if ($actorRole === 'matchmaker') {
                 $assignedId = $actor->id;
+                
+                // Find the manager of the agency at the time of validation
+                if ($prospect->agency_id) {
+                    $manager = User::role('manager')
+                        ->where('agency_id', $prospect->agency_id)
+                        ->where('approval_status', 'approved')
+                        ->first();
+                    if ($manager) {
+                        $validatedByManagerId = $manager->id;
+                    }
+                }
             }
         }
 
@@ -128,6 +169,8 @@ class MatchmakerController extends Controller
             'status' => 'member',
             'approved_by' => Auth::id(),
             'approved_at' => now(),
+            'validated_by_manager_id' => $validatedByManagerId,
+            // Note: agency_id is preserved to maintain original agency tracking
         ]);
 
         // Generate bill after validation
@@ -171,6 +214,11 @@ class MatchmakerController extends Controller
             }
         }
 
+        // Restrict matchmaker access: must be linked to an agency
+        if ($roleName === 'matchmaker' && !$me->agency_id) {
+            abort(403, 'You must be linked to an agency to access prospects.');
+        }
+
         $status = $request->string('status')->toString(); // all|member|client
         $query = User::role('user')
             ->whereIn('status', ['member','client'])
@@ -179,7 +227,7 @@ class MatchmakerController extends Controller
         // Role-based filtering
         if ($me) {
             if ($roleName === 'matchmaker') {
-                // Matchmaker: only see users they validated
+                // Matchmaker: see users they validated (regardless of agency)
                 $query->where('approved_by', $me->id);
             } elseif ($roleName === 'manager') {
                 // Manager: see users validated by matchmakers in their agency
@@ -197,7 +245,7 @@ class MatchmakerController extends Controller
             $query->where('status', $status);
         }
 
-        $prospects = $query->with(['profile.matrimonialPack', 'subscriptions' => function($q) {
+        $prospects = $query->with(['profile.matrimonialPack', 'agency', 'validatedByManager', 'subscriptions' => function($q) {
             $q->orderBy('created_at', 'desc');
         }])->get();
 
@@ -258,7 +306,7 @@ class MatchmakerController extends Controller
             return redirect()->back()->with('error', 'Failed to create subscription. Please try again.');
         }
 
-        // Update user status to client
+        // Update user status to client (preserve original agency assignment)
         $user->update(['status' => 'client']);
 
         // Update bill status to paid for this user
@@ -287,18 +335,32 @@ class MatchmakerController extends Controller
             }
         }
 
-        $agencyId = $me?->agency_id;
-        // Admin may filter by agency_id
-        if ($me && $agencyId === null) {
-            if ($roleName === 'admin') {
-                $agencyId = (int) $request->integer('agency_id');
-            }
+        // Restrict matchmaker access: must be linked to an agency
+        if ($roleName === 'matchmaker' && !$me->agency_id) {
+            abort(403, 'You must be linked to an agency to access prospects.');
         }
 
         $query = User::role('user')
             ->where('status', 'prospect')
-            ->when($agencyId, fn($q) => $q->where('agency_id', $agencyId))
             ->with('profile');
+
+        // Role-based filtering
+        if ($roleName === 'matchmaker') {
+            // Matchmaker: see prospects dispatched to them specifically OR to their agency
+            $query->where(function($q) use ($me) {
+                $q->where('assigned_matchmaker_id', $me->id)
+                  ->orWhere('agency_id', $me->agency_id);
+            });
+        } elseif ($roleName === 'manager') {
+            // Manager: see prospects dispatched to their agency
+            $query->where('agency_id', $me->agency_id);
+        } elseif ($roleName === 'admin') {
+            // Admin: may filter by agency_id
+            $agencyId = (int) $request->integer('agency_id');
+            if ($agencyId) {
+                $query->where('agency_id', $agencyId);
+            }
+        }
 
         $prospects = $query->get(['id','name','email','phone','country','city','agency_id','created_at']);
 
@@ -314,7 +376,7 @@ class MatchmakerController extends Controller
 
         return Inertia::render('matchmaker/agency-prospects', [
             'prospects' => $prospects,
-            'agencyId' => $agencyId,
+            'agencyId' => $me?->agency_id,
             'services' => $services,
             'matrimonialPacks' => $matrimonialPacks,
         ]);

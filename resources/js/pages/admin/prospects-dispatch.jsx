@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 export default function ProspectsDispatch() {
-    const { prospects = [], agencies = [], filters = {} } = usePage().props;
+    const { prospects = [], agencies = [], matchmakers = [], filters = {} } = usePage().props;
     const [countries, setCountries] = useState([]);
     const [countryCodeToCities, setCountryCodeToCities] = useState({});
     const [selectedCountryCode, setSelectedCountryCode] = useState('');
@@ -19,7 +19,13 @@ export default function ProspectsDispatch() {
     const [selectedProspectIds, setSelectedProspectIds] = useState([]);
     const [selectAll, setSelectAll] = useState(false);
     const [dispatchOpen, setDispatchOpen] = useState(false);
+    const [reassignOpen, setReassignOpen] = useState(false);
+    const [dispatchType, setDispatchType] = useState('agency');
+    const [reassignType, setReassignType] = useState('agency');
     const [selectedAgencyId, setSelectedAgencyId] = useState('');
+    const [selectedMatchmakerId, setSelectedMatchmakerId] = useState('');
+    const [selectedReassignAgencyId, setSelectedReassignAgencyId] = useState('');
+    const [selectedReassignMatchmakerId, setSelectedReassignMatchmakerId] = useState('');
     const [dispatchStatus, setDispatchStatus] = useState(filters?.dispatch || 'all');
 
     useEffect(() => {
@@ -80,7 +86,7 @@ export default function ProspectsDispatch() {
     const handleToggleAll = (checked) => {
         setSelectAll(checked);
         if (checked) {
-            setSelectedProspectIds(prospects.filter((p) => !p.agency_id).map((p) => p.id));
+            setSelectedProspectIds(prospects.map((p) => p.id));
         } else {
             setSelectedProspectIds([]);
         }
@@ -93,16 +99,57 @@ export default function ProspectsDispatch() {
     const agencyOptions = agencies;
 
     const submitDispatch = () => {
-        if (!selectedAgencyId || selectedProspectIds.length === 0) return;
-        router.post('/admin/prospects/dispatch', {
-            prospect_ids: selectedProspectIds,
-            agency_id: selectedAgencyId,
-        }, {
+        if (selectedProspectIds.length === 0) return;
+        if (dispatchType === 'agency' && !selectedAgencyId) return;
+        if (dispatchType === 'matchmaker' && !selectedMatchmakerId) return;
+        
+        const payload = {
+            prospect_ids: selectedProspectIds.map(id => parseInt(id)),
+            dispatch_type: dispatchType,
+        };
+        
+        if (dispatchType === 'agency') {
+            payload.agency_id = parseInt(selectedAgencyId);
+        } else {
+            payload.matchmaker_id = parseInt(selectedMatchmakerId);
+        }
+        
+        router.post('/admin/prospects/dispatch', payload, {
             onSuccess: () => {
                 setDispatchOpen(false);
                 setSelectedAgencyId('');
+                setSelectedMatchmakerId('');
                 setSelectedProspectIds([]);
                 setSelectAll(false);
+                setDispatchType('agency');
+            }
+        });
+    };
+
+    const submitReassign = () => {
+        if (selectedProspectIds.length === 0) return;
+        if (reassignType === 'agency' && !selectedReassignAgencyId) return;
+        if (reassignType === 'matchmaker' && !selectedReassignMatchmakerId) return;
+        
+        const payload = {
+            prospect_ids: selectedProspectIds.map(id => parseInt(id)),
+            reassign_type: reassignType,
+        };
+        
+        if (reassignType === 'agency') {
+            payload.agency_id = parseInt(selectedReassignAgencyId);
+        } else {
+            payload.matchmaker_id = parseInt(selectedReassignMatchmakerId);
+        }
+        
+        router.post('/admin/prospects/reassign', payload, {
+            onSuccess: () => {
+                setReassignOpen(false);
+                setSelectedReassignAgencyId('');
+                setSelectedReassignMatchmakerId('');
+                setSelectedProspectIds([]);
+                setSelectAll(false);
+                setReassignType('agency');
             }
         });
     };
@@ -162,8 +209,9 @@ export default function ProspectsDispatch() {
                                 </Select>
                             </div>
                             <Button variant="outline" onClick={() => handleFilterProspects(selectedCountryCode ? (countries.find((c) => c.iso2 === selectedCountryCode)?.frenchName || '') : '', '')}>Réinitialiser</Button>
-                            <div className="ml-auto">
-                                <Button disabled={selectedProspectIds.length === 0} onClick={() => setDispatchOpen(true)}>Dispatch to Agency</Button>
+                            <div className="ml-auto flex gap-2">
+                                <Button disabled={selectedProspectIds.length === 0} onClick={() => setDispatchOpen(true)}>Dispatch Prospects</Button>
+                                <Button disabled={selectedProspectIds.length === 0} variant="outline" onClick={() => setReassignOpen(true)}>Reassign Prospects</Button>
                             </div>
                         </div>
 
@@ -175,17 +223,32 @@ export default function ProspectsDispatch() {
                                     <TableHead>Country</TableHead>
                                     <TableHead>City</TableHead>
                                     <TableHead>Phone</TableHead>
+                                    <TableHead>Dispatched To</TableHead>
                                     <TableHead>Date</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {prospects.map((p) => (
                                     <TableRow key={p.id}>
-                                        <TableCell><input type="checkbox" disabled={!!p.agency_id} checked={selectedProspectIds.includes(p.id)} onChange={() => toggleProspect(p.id)} /></TableCell>
+                                        <TableCell><input type="checkbox" checked={selectedProspectIds.includes(p.id)} onChange={() => toggleProspect(p.id)} /></TableCell>
                                         <TableCell className="font-medium">{p.name}</TableCell>
                                         <TableCell>{p.country}</TableCell>
                                         <TableCell>{p.city}</TableCell>
                                         <TableCell>{p.phone}</TableCell>
+                                        <TableCell>
+                                            {p.assigned_matchmaker_id ? (
+                                                <div className="text-sm">
+                                                    <div className="font-medium text-green-600">Matchmaker: {p.assigned_matchmaker?.name || 'Unknown'}</div>
+                                                    {p.agency_id && (
+                                                        <div className="text-blue-600">Agency: {p.agency?.name || 'Unknown'}</div>
+                                                    )}
+                                                </div>
+                                            ) : p.agency_id ? (
+                                                <span className="text-blue-600">Agency: {p.agency?.name || 'Unknown'}</span>
+                                            ) : (
+                                                <span className="text-gray-500">Not dispatched</span>
+                                            )}
+                                        </TableCell>
                                         <TableCell>{new Date(p.created_at ?? Date.now()).toLocaleDateString()}</TableCell>
                                     </TableRow>
                                 ))}
@@ -198,25 +261,121 @@ export default function ProspectsDispatch() {
             <Dialog open={dispatchOpen} onOpenChange={setDispatchOpen}>
                 <DialogContent className="sm:max-w-[520px]">
                     <DialogHeader>
-                        <DialogTitle>Dispatch to Agency</DialogTitle>
-                        <DialogDescription>Select an agency by name.</DialogDescription>
+                        <DialogTitle>Dispatch Prospects</DialogTitle>
+                        <DialogDescription>
+                            Select dispatch type: Agency only or Matchmaker (automatically assigns to both matchmaker and their agency).
+                        </DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-2">
                         <div className="grid gap-2">
-                            <Label>Agency</Label>
-                            <Select value={selectedAgencyId} onValueChange={setSelectedAgencyId}>
-                                <SelectTrigger className="h-9"><SelectValue placeholder="Select agency" /></SelectTrigger>
+                            <Label>Dispatch Type</Label>
+                            <Select value={dispatchType} onValueChange={(value) => {
+                                setDispatchType(value);
+                                setSelectedAgencyId('');
+                                setSelectedMatchmakerId('');
+                            }}>
+                                <SelectTrigger className="h-9"><SelectValue placeholder="Select dispatch type" /></SelectTrigger>
                                 <SelectContent>
-                                    {agencyOptions.map((a) => (
-                                        <SelectItem key={a.id} value={a.id.toString()}>{a.name}</SelectItem>
-                                    ))}
+                                    <SelectItem value="agency">Agency</SelectItem>
+                                    <SelectItem value="matchmaker">Matchmaker</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
+                        {dispatchType === 'agency' && (
+                            <div className="grid gap-2">
+                                <Label>Agency</Label>
+                                <Select value={selectedAgencyId} onValueChange={setSelectedAgencyId}>
+                                    <SelectTrigger className="h-9"><SelectValue placeholder="Select agency" /></SelectTrigger>
+                                    <SelectContent>
+                                        {agencies.map((a) => (
+                                            <SelectItem key={a.id} value={a.id.toString()}>{a.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        )}
+                        {dispatchType === 'matchmaker' && (
+                            <div className="grid gap-2">
+                                <Label>Matchmaker</Label>
+                                <Select value={selectedMatchmakerId} onValueChange={setSelectedMatchmakerId}>
+                                    <SelectTrigger className="h-9"><SelectValue placeholder="Select matchmaker" /></SelectTrigger>
+                                    <SelectContent>
+                                        {matchmakers.map((m) => (
+                                            <SelectItem key={m.id} value={m.id.toString()}>{m.name} ({m.agency?.name || 'No Agency'})</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        )}
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setDispatchOpen(false)}>Cancel</Button>
-                        <Button onClick={submitDispatch} disabled={!selectedAgencyId || selectedProspectIds.length === 0}>Submit</Button>
+                        <Button onClick={submitDispatch} disabled={
+                            selectedProspectIds.length === 0 || 
+                            (dispatchType === 'agency' && !selectedAgencyId) || 
+                            (dispatchType === 'matchmaker' && !selectedMatchmakerId)
+                        }>Submit</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={reassignOpen} onOpenChange={setReassignOpen}>
+                <DialogContent className="sm:max-w-[520px]">
+                    <DialogHeader>
+                        <DialogTitle>Reassign Prospects</DialogTitle>
+                        <DialogDescription>
+                            Reassign prospects to a different agency or matchmaker. Original agency assignment is preserved for tracking purposes.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-2">
+                        <div className="grid gap-2">
+                            <Label>Reassign Type</Label>
+                            <Select value={reassignType} onValueChange={(value) => {
+                                setReassignType(value);
+                                setSelectedReassignAgencyId('');
+                                setSelectedReassignMatchmakerId('');
+                            }}>
+                                <SelectTrigger className="h-9"><SelectValue placeholder="Select reassign type" /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="agency">Agency</SelectItem>
+                                    <SelectItem value="matchmaker">Matchmaker</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        {reassignType === 'agency' && (
+                            <div className="grid gap-2">
+                                <Label>Agency</Label>
+                                <Select value={selectedReassignAgencyId} onValueChange={setSelectedReassignAgencyId}>
+                                    <SelectTrigger className="h-9"><SelectValue placeholder="Select agency" /></SelectTrigger>
+                                    <SelectContent>
+                                        {agencies.map((a) => (
+                                            <SelectItem key={a.id} value={a.id.toString()}>{a.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        )}
+                        {reassignType === 'matchmaker' && (
+                            <div className="grid gap-2">
+                                <Label>Matchmaker</Label>
+                                <Select value={selectedReassignMatchmakerId} onValueChange={setSelectedReassignMatchmakerId}>
+                                    <SelectTrigger className="h-9"><SelectValue placeholder="Select matchmaker" /></SelectTrigger>
+                                    <SelectContent>
+                                        {matchmakers.map((m) => (
+                                            <SelectItem key={m.id} value={m.id.toString()}>{m.name} ({m.agency?.name || 'No Agency'})</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        )}
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setReassignOpen(false)}>Cancel</Button>
+                        <Button onClick={submitReassign} disabled={
+                            selectedProspectIds.length === 0 || 
+                            (reassignType === 'agency' && !selectedReassignAgencyId) || 
+                            (reassignType === 'matchmaker' && !selectedReassignMatchmakerId)
+                        }>Reassign</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

@@ -85,6 +85,12 @@ const mainNavItems: NavItem[] = [
         roles: ['matchmaker', 'manager'],
     },
     {
+        title: 'Assignment Tracking',
+        url: '/manager/tracking',
+        icon: UserRoundSearch,
+        roles: ['manager'],
+    },
+    {
         title: 'Choose Matchmaker',
         url: '/user/matchmakers',
         icon: HeartHandshake,

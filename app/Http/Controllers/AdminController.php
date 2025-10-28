@@ -13,7 +13,6 @@ use App\Mail\StaffCredentialsMail;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use App\Models\Service;
-use Illuminate\Validation\Rule;
 
 class AdminController extends Controller
 {
@@ -52,7 +51,7 @@ class AdminController extends Controller
         $country = $request->string('country')->toString();
         $city = $request->string('city')->toString();
         $dispatch = $request->string('dispatch')->toString(); // all|dispatched|not_dispatched
-        $query = User::role('user')->where('status', 'prospect')->with('profile');
+        $query = User::role('user')->where('status', 'prospect')->with(['profile', 'agency', 'assignedMatchmaker']);
         if ($country) {
             $query->where('country', $country);
         }
@@ -60,16 +59,23 @@ class AdminController extends Controller
             $query->where('city', $city);
         }
         if ($dispatch === 'dispatched') {
-            $query->whereNotNull('agency_id');
+            $query->where(function($q) {
+                $q->whereNotNull('agency_id')->orWhereNotNull('assigned_matchmaker_id');
+            });
         } elseif ($dispatch === 'not_dispatched') {
-            $query->whereNull('agency_id');
+            $query->whereNull('agency_id')->whereNull('assigned_matchmaker_id');
         }
-        $prospects = $query->get(['id','name','email','phone','country','city','agency_id','created_at']);
+        $prospects = $query->get(['id','name','email','phone','country','city','agency_id','assigned_matchmaker_id','created_at']);
         $agencies = Agency::query()->get(['id','name','country','city']);
+        $matchmakers = User::role('matchmaker')
+            ->where('approval_status', 'approved')
+            ->whereNotNull('agency_id')
+            ->get(['id','name','email','agency_id']);
 
         return Inertia::render('admin/prospects-dispatch', [
             'prospects' => $prospects,
             'agencies' => $agencies,
+            'matchmakers' => $matchmakers,
             'filters' => [ 'country' => $country ?: null, 'city' => $city ?: null, 'dispatch' => $dispatch ?: 'all' ],
         ]);
     }
@@ -78,29 +84,118 @@ class AdminController extends Controller
     {
         $validated = $request->validate([
             'prospect_ids' => ['required','array','min:1'],
-            'prospect_ids.*' => ['integer', 'exists:users,id'],
-            'agency_id' => ['required','integer', Rule::exists('agencies','id')],
+            'prospect_ids.*' => ['required', 'integer', 'exists:users,id'],
+            'dispatch_type' => ['required','string','in:agency,matchmaker'],
+            'agency_id' => ['required_if:dispatch_type,agency','nullable','integer', 'exists:agencies,id'],
+            'matchmaker_id' => ['required_if:dispatch_type,matchmaker','nullable','integer', 'exists:users,id'],
         ]);
 
-        $agency = Agency::findOrFail($validated['agency_id']);
-        // Assign only prospects not yet dispatched (agency_id is null)
-        $updated = User::whereIn('id', $validated['prospect_ids'])
-            ->where('status', 'prospect')
-            ->whereNull('agency_id')
-            ->update(['agency_id' => $agency->id]);
+        $updated = 0;
+        $message = '';
+
+        if ($validated['dispatch_type'] === 'agency') {
+            $agency = Agency::findOrFail($validated['agency_id']);
+            // Assign only prospects not yet dispatched (agency_id and assigned_matchmaker_id are null)
+            $updated = User::whereIn('id', $validated['prospect_ids'])
+                ->where('status', 'prospect')
+                ->whereNull('agency_id')
+                ->whereNull('assigned_matchmaker_id')
+                ->update(['agency_id' => $agency->id]);
+            $message = "{$updated} prospects dispatched to agency successfully.";
+        } else {
+            try {
+                $matchmaker = User::findOrFail($validated['matchmaker_id']);
+                
+                // Ensure matchmaker is approved, has a role, and is linked to an agency
+                if (!$matchmaker->hasRole('matchmaker') || $matchmaker->approval_status !== 'approved') {
+                    return redirect()->back()->with('error', 'Selected matchmaker is not valid or not approved.');
+                }
+                
+                if (!$matchmaker->agency_id) {
+                    return redirect()->back()->with('error', 'Selected matchmaker must be linked to an agency to receive prospects.');
+                }
+                
+                // Assign prospects to both matchmaker and their agency simultaneously
+                $updated = User::whereIn('id', $validated['prospect_ids'])
+                    ->where('status', 'prospect')
+                    ->whereNull('agency_id')
+                    ->whereNull('assigned_matchmaker_id')
+                    ->update([
+                        'assigned_matchmaker_id' => $matchmaker->id,
+                        'agency_id' => $matchmaker->agency_id
+                    ]);
+                $message = "{$updated} prospects dispatched to matchmaker and their agency simultaneously. Original agency assignment maintained for tracking.";
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error('Dispatch error: ' . $e->getMessage());
+                return redirect()->back()->with('error', 'An error occurred while dispatching prospects. Please try again.');
+            }
+        }
 
         if ($updated === 0) {
             return redirect()->back()->with('warning', 'No prospects were dispatched. They might already be assigned.');
         }
 
-        return redirect()->back()->with('success', "{$updated} prospects dispatched successfully.");
+        return redirect()->back()->with('success', $message);
+    }
+
+    public function managerTracking(Request $request)
+    {
+        $me = Auth::user();
+        $roleName = null;
+        if ($me) {
+            $roleName = \Illuminate\Support\Facades\DB::table('model_has_roles')
+                ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+                ->where('model_has_roles.model_id', $me->id)
+                ->value('roles.name');
+        }
+
+        // Only managers can access this
+        if ($roleName !== 'manager') {
+            abort(403, 'Only managers can access assignment tracking.');
+        }
+
+        // Check approval status
+        if ($me->approval_status !== 'approved') {
+            abort(403, 'Your account is not validated yet.');
+        }
+
+        $status = $request->string('status')->toString(); // all|prospect|member|client
+        $query = User::role('user')
+            ->whereIn('status', ['prospect','member','client'])
+            ->with(['profile', 'assignedMatchmaker', 'agency']);
+
+        // Manager: must be linked to an agency to see prospects
+        if (!$me->agency_id) {
+            abort(403, 'You must be linked to an agency to access prospects.');
+        }
+        
+        // Manager: see all prospects dispatched to their agency
+        $query->where('agency_id', $me->agency_id);
+
+        if ($status !== 'all') {
+            $query->where('status', $status);
+        }
+
+        $prospects = $query->get();
+
+        // Get matchmakers in the same agency for filtering
+        $matchmakers = User::role('matchmaker')
+            ->where('agency_id', $me->agency_id)
+            ->where('approval_status', 'approved')
+            ->get(['id', 'name', 'email']);
+
+        return Inertia::render('admin/manager-tracking', [
+            'prospects' => $prospects,
+            'matchmakers' => $matchmakers,
+            'status' => $status ?: 'all',
+        ]);
     }
 
     public function updateUserRole(Request $request, $id)
     {
         $validated = $request->validate([
             'roles' => ['required','array','min:1'],
-            'roles.*' => [Rule::in(['admin','manager','matchmaker'])],
+            'roles.*' => ['in:admin,manager,matchmaker'],
         ]);
 
         $user = User::findOrFail($id);
@@ -215,6 +310,21 @@ class AdminController extends Controller
 
         $cinHash = hash_hmac('sha256', (string) $request->cin, $appKey);
         
+        // Check one-to-one agency-manager relationship
+        if ($request->role === 'manager') {
+            // Check if the agency is already assigned to another manager
+            $existingManager = User::role('manager')
+                ->where('agency_id', $request->agency_id)
+                ->first();
+                
+            if ($existingManager) {
+                return redirect()->back()->with('error', 'This agency is already assigned to another manager: ' . $existingManager->name);
+            }
+        }
+        
+        // For matchmakers: No restriction - multiple matchmakers can be assigned to the same agency
+        // Matchmakers can be assigned to any agency (no validation needed)
+        
         // Generate unique username
         $baseUsername = \Illuminate\Support\Str::slug($request->name);
         $username = $baseUsername;
@@ -295,10 +405,83 @@ class AdminController extends Controller
         ]);
 
         $user = User::findOrFail($id);
+        
+        // Check if user is a manager
+        if ($user->hasRole('manager')) {
+            // Check if the agency is already assigned to another manager
+            $existingManager = User::role('manager')
+                ->where('agency_id', $request->agency_id)
+                ->where('id', '!=', $user->id)
+                ->first();
+                
+            if ($existingManager) {
+                return redirect()->back()->with('error', 'This agency is already assigned to another manager: ' . $existingManager->name);
+            }
+        }
+        
+        // For matchmakers: No restriction - multiple matchmakers can be assigned to the same agency
+        // Matchmakers can be assigned to any agency (no validation needed)
+
         $user->update([
             'agency_id' => $request->agency_id,
         ]);
 
         return redirect()->back()->with('success', 'User agency updated successfully.');
+    }
+
+    public function reassignProspects(Request $request)
+    {
+        $validated = $request->validate([
+            'prospect_ids' => ['required','array','min:1'],
+            'prospect_ids.*' => ['required', 'integer', 'exists:users,id'],
+            'reassign_type' => ['required','string','in:agency,matchmaker'],
+            'agency_id' => ['required_if:reassign_type,agency','nullable','integer', 'exists:agencies,id'],
+            'matchmaker_id' => ['required_if:reassign_type,matchmaker','nullable','integer', 'exists:users,id'],
+        ]);
+
+        $updated = 0;
+        $message = '';
+
+        try {
+            if ($validated['reassign_type'] === 'agency') {
+                $agency = Agency::findOrFail($validated['agency_id']);
+                // Reassign prospects to agency (clear matchmaker assignment)
+                $updated = User::whereIn('id', $validated['prospect_ids'])
+                    ->where('status', 'prospect')
+                    ->update([
+                        'agency_id' => $agency->id,
+                        'assigned_matchmaker_id' => null
+                    ]);
+                $message = "{$updated} prospects reassigned to agency successfully.";
+            } else {
+                $matchmaker = User::findOrFail($validated['matchmaker_id']);
+                // Ensure matchmaker is approved and has a role
+                if (!$matchmaker->hasRole('matchmaker') || $matchmaker->approval_status !== 'approved') {
+                    return redirect()->back()->with('error', 'Selected matchmaker is not valid or not approved.');
+                }
+                
+                if (!$matchmaker->agency_id) {
+                    return redirect()->back()->with('error', 'Selected matchmaker must be linked to an agency to receive prospects.');
+                }
+                
+                // Reassign prospects to matchmaker only (preserve original agency assignment)
+                $updated = User::whereIn('id', $validated['prospect_ids'])
+                    ->where('status', 'prospect')
+                    ->update([
+                        'assigned_matchmaker_id' => $matchmaker->id
+                        // Note: agency_id is preserved to maintain original agency tracking
+                    ]);
+                $message = "{$updated} prospects reassigned to matchmaker successfully. Original agency assignment preserved for tracking.";
+            }
+
+            if ($updated === 0) {
+                return redirect()->back()->with('warning', 'No prospects were reassigned. They might not be in prospect status.');
+            }
+
+            return redirect()->back()->with('success', $message);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Reassign error: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'An error occurred while reassigning prospects. Please try again.');
+        }
     }
 }

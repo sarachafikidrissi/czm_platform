@@ -149,6 +149,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::middleware(['role:admin'])->prefix('admin')->name('admin.')->group(function () {
         Route::get('/prospects', [\App\Http\Controllers\AdminController::class, 'prospects'])->name('prospects');
         Route::post('/prospects/dispatch', [\App\Http\Controllers\AdminController::class, 'dispatchProspects'])->name('prospects.dispatch');
+        Route::post('/prospects/reassign', [\App\Http\Controllers\AdminController::class, 'reassignProspects'])->name('prospects.reassign');
+    });
+
+    // Manager-only: track assignments
+    Route::middleware(['role:manager'])->prefix('manager')->name('manager.')->group(function () {
+        Route::get('/tracking', [\App\Http\Controllers\AdminController::class, 'managerTracking'])->name('tracking');
     });
 
     // Staff routes (manager, matchmaker) for viewing dispatched prospects and validated lists
