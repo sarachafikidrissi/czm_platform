@@ -164,6 +164,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/validated-prospects', [\App\Http\Controllers\MatchmakerController::class, 'validatedProspects'])->name('prospects.validated');
         Route::post('/mark-as-client', [\App\Http\Controllers\MatchmakerController::class, 'markAsClient'])->name('mark-as-client');
         Route::get('/agency-prospects', [\App\Http\Controllers\MatchmakerController::class, 'agencyProspects'])->name('agency-prospects');
+        Route::post('/create-bill', [\App\Http\Controllers\MatchmakerController::class, 'createBill'])->name('create-bill');
+        Route::get('/subscription-form-data/{userId}', [\App\Http\Controllers\MatchmakerController::class, 'getSubscriptionFormData'])->name('subscription-form-data');
     });
 
     // User routes

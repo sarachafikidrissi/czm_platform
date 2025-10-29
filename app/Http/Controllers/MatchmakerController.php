@@ -173,26 +173,7 @@ class MatchmakerController extends Controller
             // Note: agency_id is preserved to maintain original agency tracking
         ]);
 
-        // Generate bill after validation
-        $bill = $this->generateBill($prospect, $request);
-
-        // Send bill email automatically
-        try {
-            Mail::to($prospect->email)->send(new BillEmail($bill));
-            
-            // Mark email as sent
-            $bill->update([
-                'email_sent' => true,
-                'email_sent_at' => now(),
-            ]);
-            
-            \Illuminate\Support\Facades\Log::info("Bill email sent successfully to {$prospect->email} for bill {$bill->bill_number}");
-        } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error("Failed to send bill email to {$prospect->email}: " . $e->getMessage());
-            // Don't fail the validation process if email fails
-        }
-
-        return redirect()->back()->with('success', 'Prospect validated and assigned successfully.');
+        return redirect()->back()->with('success', 'Prospect validated and assigned successfully. You can now create a subscription using the "Abonnement" button.');
     }
 
     public function validatedProspects(Request $request)
@@ -245,9 +226,14 @@ class MatchmakerController extends Controller
             $query->where('status', $status);
         }
 
-        $prospects = $query->with(['profile.matrimonialPack', 'agency', 'validatedByManager', 'subscriptions' => function($q) {
+        $prospects = $query->with(['profile.matrimonialPack', 'agency', 'validatedByManager', 'bills', 'subscriptions' => function($q) {
             $q->orderBy('created_at', 'desc');
         }])->get();
+
+        // Add has_bill flag to each prospect
+        $prospects->each(function($prospect) {
+            $prospect->has_bill = $prospect->bills->where('status', '!=', 'paid')->isNotEmpty();
+        });
 
         return Inertia::render('matchmaker/validated-prospects', [
             'prospects' => $prospects,
@@ -419,5 +405,114 @@ class MatchmakerController extends Controller
         ]);
 
         return $bill;
+    }
+
+    /**
+     * Create bill for a member (Abonnement button)
+     */
+    public function createBill(Request $request)
+    {
+        $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'matrimonial_pack_id' => 'required|exists:matrimonial_packs,id',
+            'pack_price' => 'required|numeric|min:0',
+            'pack_advantages' => 'required|array|min:1',
+            'pack_advantages.*' => 'string',
+            'payment_mode' => 'required|string|in:Virement,Caisse agence,Chèque,CMI,Avance,Reliquat,RDV',
+        ]);
+
+        $me = Auth::user();
+        $roleName = null;
+        if ($me) {
+            $roleName = \Illuminate\Support\Facades\DB::table('model_has_roles')
+                ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+                ->where('model_has_roles.model_id', $me->id)
+                ->value('roles.name');
+        }
+
+        if (!in_array($roleName, ['matchmaker', 'manager', 'admin'])) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $user = User::findOrFail($request->user_id);
+        
+        // Check if user is currently a member
+        if ($user->status !== 'member') {
+            return redirect()->back()->with('error', 'User is not a member or already has a subscription.');
+        }
+
+        // Get user's profile
+        $profile = $user->profile;
+        if (!$profile) {
+            return redirect()->back()->with('error', 'User profile not found.');
+        }
+
+        // Update profile with bill data (but don't create subscription yet)
+        $profile->update([
+            'matrimonial_pack_id' => $request->matrimonial_pack_id,
+            'pack_price' => $request->pack_price,
+            'pack_advantages' => $request->pack_advantages,
+            'payment_mode' => $request->payment_mode,
+        ]);
+
+        // Generate bill (but don't create subscription)
+        $bill = $this->generateBill($user, $request);
+
+        // Send bill email
+        try {
+            Mail::to($user->email)->send(new BillEmail($bill));
+            
+            // Mark email as sent
+            $bill->update([
+                'email_sent' => true,
+                'email_sent_at' => now(),
+            ]);
+            
+            \Illuminate\Support\Facades\Log::info("Bill email sent successfully to {$user->email} for bill {$bill->bill_number}");
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error("Failed to send bill email to {$user->email}: " . $e->getMessage());
+            // Don't fail the bill process if email fails
+        }
+
+        return redirect()->back()->with('success', 'Bill created and sent successfully. Member can now pay the bill in "Mes Commandes".');
+    }
+
+    /**
+     * Get subscription form data for a user
+     */
+    public function getSubscriptionFormData($userId)
+    {
+        $me = Auth::user();
+        $roleName = null;
+        if ($me) {
+            $roleName = \Illuminate\Support\Facades\DB::table('model_has_roles')
+                ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+                ->where('model_has_roles.model_id', $me->id)
+                ->value('roles.name');
+        }
+
+        if (!in_array($roleName, ['matchmaker', 'manager', 'admin'])) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $user = User::findOrFail($userId);
+        
+        if ($user->status !== 'member') {
+            return response()->json(['error' => 'User is not a member'], 400);
+        }
+
+        $profile = $user->profile;
+        if (!$profile) {
+            return response()->json(['error' => 'User profile not found'], 400);
+        }
+
+        // Get matrimonial packs
+        $matrimonialPacks = \App\Models\MatrimonialPack::all();
+
+        return response()->json([
+            'user' => $user,
+            'profile' => $profile,
+            'matrimonial_packs' => $matrimonialPacks,
+        ]);
     }
 }
