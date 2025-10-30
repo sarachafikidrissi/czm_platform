@@ -98,10 +98,20 @@ class UserController extends Controller
             });
         }
         
+        // Load notes and evaluation
+        $notes = \App\Models\MatchmakerNote::where('user_id', $user->id)
+            ->with('author:id,name,username')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        $evaluation = \App\Models\MatchmakerEvaluation::where('user_id', $user->id)->first();
+
         return Inertia::render('user/profile', [
             'user' => $user,
             'profile' => $user->profile,
             'agency' => $user->agency,
+            'matchmakerNotes' => $notes,
+            'matchmakerEvaluation' => $evaluation,
         ]);
     }
 

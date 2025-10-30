@@ -3,14 +3,14 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import AppLayout from '@/layouts/app-layout';
 import { Button } from '@headlessui/react';
-import { Head, usePage } from '@inertiajs/react';
+import { Head, usePage, router } from '@inertiajs/react';
 import { Heart, MapPin, MessageCircleWarning, MessageSquareWarning, User } from 'lucide-react';
 import { useState } from 'react';
 import { FaUser } from 'react-icons/fa';
 import CreatePost from '@/components/posts/CreatePost';
 import PostCard from '@/components/posts/PostCard';
 
-export default function UserProfile({ user, profile, agency }) {
+export default function UserProfile({ user, profile, agency, matchmakerNotes = [], matchmakerEvaluation = null }) {
     const { auth } = usePage().props;
     const isOwnProfile = auth?.user?.id === user?.id;
     console.log(auth.user);
@@ -45,6 +45,45 @@ export default function UserProfile({ user, profile, agency }) {
     // Feedback local state
     const [avis, setAvis] = useState('');
     const [commentaire, setCommentaire] = useState('');
+
+    // Visibility: who can manage notes/evaluation
+    const viewerRole = auth?.user?.roles?.[0]?.name || 'user';
+    const canManage = viewerRole === 'admin'
+        || (viewerRole === 'matchmaker' && user?.assigned_matchmaker_id === auth?.user?.id)
+        || (viewerRole === 'manager' && user?.validated_by_manager_id === auth?.user?.id);
+
+    // Notes form
+    const [newNote, setNewNote] = useState('');
+    const addNote = (e) => {
+        e.preventDefault();
+        if (!newNote.trim()) return;
+        router.post(`/users/${user.id}/notes`, { content: newNote }, {
+            onSuccess: () => setNewNote('')
+        });
+    };
+
+    // Evaluation form state
+    const [evaluation, setEvaluation] = useState({
+        status: matchmakerEvaluation?.status || user?.status || '',
+        appearance: matchmakerEvaluation?.appearance || '',
+        communication: matchmakerEvaluation?.communication || '',
+        seriousness: matchmakerEvaluation?.seriousness || '',
+        emotional_psychological: matchmakerEvaluation?.emotional_psychological || '',
+        values_principles: matchmakerEvaluation?.values_principles || '',
+        social_compatibility: matchmakerEvaluation?.social_compatibility || '',
+        qualities: matchmakerEvaluation?.qualities || '',
+        defects: matchmakerEvaluation?.defects || '',
+        recommendation: matchmakerEvaluation?.recommendation || '',
+        remarks: matchmakerEvaluation?.remarks || '',
+        feedback_behavior: matchmakerEvaluation?.feedback_behavior || '',
+        feedback_partner_impression: matchmakerEvaluation?.feedback_partner_impression || '',
+        feedback_pos_neg: matchmakerEvaluation?.feedback_pos_neg || '',
+    });
+
+    const saveEvaluation = (e) => {
+        e.preventDefault();
+        router.post(`/users/${user.id}/evaluation`, evaluation);
+    };
 
     return (
         <AppLayout>
@@ -195,6 +234,136 @@ export default function UserProfile({ user, profile, agency }) {
                                             </div>
                                         </CardContent>
                                     </Card>
+
+                                    {/* Notes & Évaluation du Matchmaker */}
+                                    {canManage && (
+                                        <Card>
+                                            <CardHeader>
+                                                <CardTitle className="flex items-center justify-between">
+                                                    <span>Notes et Évaluation du Matchmaker</span>
+                                                </CardTitle>
+                                            </CardHeader>
+                                            <CardContent className="space-y-6">
+                                                {/* Notes list */}
+                                                <div>
+                                                    <div className="mb-2 text-sm text-gray-500">Notes du matchmaker assigné</div>
+                                                    <div className="space-y-3">
+                                                        {Array.isArray(matchmakerNotes) && matchmakerNotes.length > 0 ? (
+                                                            matchmakerNotes.map((n) => (
+                                                                <div key={n.id} className="rounded-md border border-gray-200 bg-gray-50 p-3">
+                                                                    <div className="mb-1 text-xs text-gray-500">
+                                                                        {n.author?.name} · {new Date(n.created_at).toLocaleString()}
+                                                                    </div>
+                                                                    <div className="text-sm">{n.content}</div>
+                                                                </div>
+                                                            ))
+                                                        ) : (
+                                                            <div className="text-sm text-gray-500">Aucune note pour le moment.</div>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                {/* Add note */}
+                                                <form onSubmit={addNote} className="space-y-2">
+                                                    <label className="text-sm text-gray-600">Ajouter une note</label>
+                                                    <textarea
+                                                        className="w-full rounded-md border border-gray-300 p-3 focus:border-red-500 focus:ring-1 focus:ring-red-500 focus:outline-none"
+                                                        rows={3}
+                                                        value={newNote}
+                                                        onChange={(e) => setNewNote(e.target.value)}
+                                                        placeholder="Saisissez votre note..."
+                                                    />
+                                                    <div>
+                                                        <button type="submit" className="inline-flex items-center rounded-md bg-gray-900 px-4 py-2 text-white hover:bg-black">
+                                                            Ajouter la note
+                                                        </button>
+                                                    </div>
+                                                </form>
+
+                                                {/* Evaluation */}
+                                                <form onSubmit={saveEvaluation} className="space-y-4">
+                                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                                        <div>
+                                                            <div className="text-sm text-gray-500">Statut</div>
+                                                            <div className="mt-2 flex gap-4 text-sm">
+                                                                {['prospect','member','client'].map((val) => (
+                                                                    <label key={val} className="inline-flex items-center gap-2">
+                                                                        <input type="radio" name="status" value={val} checked={evaluation?.status === val} onChange={(e)=>setEvaluation({...evaluation, status: e.target.value})} />
+                                                                        <span className="capitalize">{val === 'member' ? 'membre' : val}</span>
+                                                                    </label>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    {[
+                                                        ['appearance','Apparence générale'],
+                                                        ['communication','Communication'],
+                                                        ['seriousness','Sérieux dans le projet'],
+                                                        ['emotional_psychological','Aspect émotionnel et psychologique'],
+                                                        ['values_principles','Valeurs et principes'],
+                                                        ['social_compatibility','Compatibilité sociale'],
+                                                        ['qualities','Qualités'],
+                                                        ['defects','Défauts'],
+                                                    ].map(([key,label]) => (
+                                                        <div key={key}>
+                                                            <label className="mb-1 block text-sm text-gray-500">{label}</label>
+                                                            <textarea
+                                                                rows={2}
+                                                                className="w-full rounded-md border border-gray-300 p-3 focus:border-gray-900 focus:ring-1 focus:ring-gray-900 focus:outline-none"
+                                                                value={evaluation[key] || ''}
+                                                                onChange={(e)=>setEvaluation({...evaluation, [key]: e.target.value})}
+                                                            />
+                                                        </div>
+                                                    ))}
+
+                                                    <div>
+                                                        <div className="text-sm text-gray-500">Recommandation du matchmaker</div>
+                                                        <div className="mt-2 flex gap-6 text-sm">
+                                                            {[
+                                                                ['ready','Profil prêt'],
+                                                                ['accompany','À accompagner'],
+                                                                ['not_ready','Non prêt'],
+                                                            ].map(([val,label]) => (
+                                                                <label key={val} className="inline-flex items-center gap-2">
+                                                                    <input type="radio" name="recommendation" value={val} checked={evaluation.recommendation === val} onChange={(e)=>setEvaluation({...evaluation, recommendation: e.target.value})} />
+                                                                    <span>{label}</span>
+                                                                </label>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+
+                
+                                                    <div>
+                                                        <label className="mb-1 block text-sm text-gray-500">Remarques supplémentaires</label>
+                                                        <textarea rows={2} className="w-full rounded-md border border-gray-300 p-3 focus:border-gray-900 focus:ring-1 focus:ring-gray-900 focus:outline-none" value={evaluation.remarks} onChange={(e)=>setEvaluation({...evaluation, remarks: e.target.value})} />
+                                                    </div>
+
+                                                    <div>
+                                                        <div className="mb-2 text-sm font-medium text-gray-700">Feedback après rendez-vous</div>
+                                                        <div className="space-y-3">
+                                                            <div>
+                                                                <label className="mb-1 block text-sm text-gray-500">Comportement pendant le rendez-vous</label>
+                                                                <textarea rows={2} className="w-full rounded-md border border-gray-300 p-3 focus:border-gray-900 focus:ring-1 focus:ring-gray-900 focus:outline-none" value={evaluation.feedback_behavior} onChange={(e)=>setEvaluation({...evaluation, feedback_behavior: e.target.value})} />
+                                                            </div>
+                                                            <div>
+                                                                <label className="mb-1 block text-sm text-gray-500">Impression du partenaire</label>
+                                                                <textarea rows={2} className="w-full rounded-md border border-gray-300 p-3 focus:border-gray-900 focus:ring-1 focus:ring-gray-900 focus:outline-none" value={evaluation.feedback_partner_impression} onChange={(e)=>setEvaluation({...evaluation, feedback_partner_impression: e.target.value})} />
+                                                            </div>
+                                                            <div>
+                                                                <label className="mb-1 block text-sm text-gray-500">Points positifs / négatifs</label>
+                                                                <textarea rows={2} className="w-full rounded-md border border-gray-300 p-3 focus:border-gray-900 focus:ring-1 focus:ring-gray-900 focus:outline-none" value={evaluation.feedback_pos_neg} onChange={(e)=>setEvaluation({...evaluation, feedback_pos_neg: e.target.value})} />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div>
+                                                        <button type="submit" className="inline-flex items-center rounded-md bg-gray-900 px-4 py-2 text-white hover:bg-black">Enregistrer l’évaluation</button>
+                                                    </div>
+                                                </form>
+                                            </CardContent>
+                                        </Card>
+                                    )}
 
                                     {/* Donner votre avis */}
                                     <Card>

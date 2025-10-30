@@ -186,6 +186,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Public user profile routes (accessible by all authenticated users)
     Route::get('/profile/{username}', [\App\Http\Controllers\UserController::class, 'profile'])->name('profile.show');
 
+    // Notes and Evaluation actions for staff (admin/manager/matchmaker) on a user profile
+    Route::post('/users/{user}/notes', [\App\Http\Controllers\ProfileInsightsController::class, 'addNote'])->name('users.notes.add');
+    Route::post('/users/{user}/evaluation', [\App\Http\Controllers\ProfileInsightsController::class, 'saveEvaluation'])->name('users.evaluation.save');
+
     // Post routes (accessible by all authenticated users)
     Route::middleware(['auth'])->group(function () {
         Route::get('/posts', [\App\Http\Controllers\PostController::class, 'index'])->name('posts.index');
