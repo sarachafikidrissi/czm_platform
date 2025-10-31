@@ -83,6 +83,21 @@ export default function ProspectsDispatch() {
         router.visit(`/admin/prospects?${params.toString()}`, { preserveScroll: true, preserveState: true, replace: true });
     };
 
+    // Helper function to check if a prospect is dispatched
+    const isDispatched = (prospect) => {
+        return prospect.agency_id !== null || prospect.assigned_matchmaker_id !== null;
+    };
+
+    // Get dispatched and non-dispatched prospects
+    const dispatchedProspects = useMemo(() => 
+        prospects.filter(p => isDispatched(p)).map(p => p.id), 
+        [prospects]
+    );
+    const nonDispatchedProspects = useMemo(() => 
+        prospects.filter(p => !isDispatched(p)).map(p => p.id), 
+        [prospects]
+    );
+
     const handleToggleAll = (checked) => {
         setSelectAll(checked);
         if (checked) {
@@ -96,6 +111,38 @@ export default function ProspectsDispatch() {
         setSelectedProspectIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
     };
 
+    // Filter selections when opening dispatch dialog - only allow non-dispatched
+    const handleDispatchClick = () => {
+        const validIds = selectedProspectIds.filter(id => nonDispatchedProspects.includes(id));
+        if (validIds.length !== selectedProspectIds.length) {
+            setSelectedProspectIds(validIds);
+            setSelectAll(false);
+        }
+        setDispatchOpen(true);
+    };
+
+    // Filter selections when opening reassign dialog - only allow dispatched
+    const handleReassignClick = () => {
+        const validIds = selectedProspectIds.filter(id => dispatchedProspects.includes(id));
+        if (validIds.length !== selectedProspectIds.length) {
+            setSelectedProspectIds(validIds);
+            setSelectAll(false);
+        }
+        setReassignOpen(true);
+    };
+
+    // Check if selected prospects are valid for dispatch (non-dispatched)
+    const hasValidDispatchSelection = useMemo(() => {
+        return selectedProspectIds.length > 0 && 
+               selectedProspectIds.every(id => nonDispatchedProspects.includes(id));
+    }, [selectedProspectIds, nonDispatchedProspects]);
+
+    // Check if selected prospects are valid for reassign (dispatched)
+    const hasValidReassignSelection = useMemo(() => {
+        return selectedProspectIds.length > 0 && 
+               selectedProspectIds.every(id => dispatchedProspects.includes(id));
+    }, [selectedProspectIds, dispatchedProspects]);
+
     const agencyOptions = agencies;
 
     const submitDispatch = () => {
@@ -103,8 +150,12 @@ export default function ProspectsDispatch() {
         if (dispatchType === 'agency' && !selectedAgencyId) return;
         if (dispatchType === 'matchmaker' && !selectedMatchmakerId) return;
         
+        // Only send non-dispatched prospects
+        const validIds = selectedProspectIds.filter(id => nonDispatchedProspects.includes(id));
+        if (validIds.length === 0) return;
+        
         const payload = {
-            prospect_ids: selectedProspectIds.map(id => parseInt(id)),
+            prospect_ids: validIds.map(id => parseInt(id)),
             dispatch_type: dispatchType,
         };
         
@@ -131,8 +182,12 @@ export default function ProspectsDispatch() {
         if (reassignType === 'agency' && !selectedReassignAgencyId) return;
         if (reassignType === 'matchmaker' && !selectedReassignMatchmakerId) return;
         
+        // Only send dispatched prospects
+        const validIds = selectedProspectIds.filter(id => dispatchedProspects.includes(id));
+        if (validIds.length === 0) return;
+        
         const payload = {
-            prospect_ids: selectedProspectIds.map(id => parseInt(id)),
+            prospect_ids: validIds.map(id => parseInt(id)),
             reassign_type: reassignType,
         };
         
@@ -210,8 +265,8 @@ export default function ProspectsDispatch() {
                             </div>
                             <Button variant="outline" onClick={() => handleFilterProspects(selectedCountryCode ? (countries.find((c) => c.iso2 === selectedCountryCode)?.frenchName || '') : '', '')}>Réinitialiser</Button>
                             <div className="ml-auto flex gap-2">
-                                <Button disabled={selectedProspectIds.length === 0} onClick={() => setDispatchOpen(true)}>Dispatch Prospects</Button>
-                                <Button disabled={selectedProspectIds.length === 0} variant="outline" onClick={() => setReassignOpen(true)}>Reassign Prospects</Button>
+                                <Button disabled={!hasValidDispatchSelection} onClick={handleDispatchClick}>Dispatch Prospects</Button>
+                                <Button disabled={!hasValidReassignSelection} variant="outline" onClick={handleReassignClick}>Reassign Prospects</Button>
                             </div>
                         </div>
 

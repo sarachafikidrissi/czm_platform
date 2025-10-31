@@ -72,6 +72,7 @@ export default function AgencyProspects() {
                                     <TableHead>Country</TableHead>
                                     <TableHead>City</TableHead>
                                     <TableHead>Phone</TableHead>
+                                    <TableHead>Dispatched To</TableHead>
                                     <TableHead>Date</TableHead>
                                     <TableHead className="text-right">Actions</TableHead>
                                 </TableRow>
@@ -83,6 +84,20 @@ export default function AgencyProspects() {
                                         <TableCell>{p.country}</TableCell>
                                         <TableCell>{p.city}</TableCell>
                                         <TableCell>{p.phone}</TableCell>
+                                        <TableCell>
+                                            {p.assigned_matchmaker_id ? (
+                                                <div className="text-sm">
+                                                    <div className="font-medium text-green-600">Matchmaker: {p.assigned_matchmaker?.name || 'Unknown'}</div>
+                                                    {p.agency_id && (
+                                                        <div className="text-blue-600">Agency: {p.agency?.name || 'Unknown'}</div>
+                                                    )}
+                                                </div>
+                                            ) : p.agency_id ? (
+                                                <span className="text-blue-600">Agency: {p.agency?.name || 'Unknown'}</span>
+                                            ) : (
+                                                <span className="text-gray-500">Not dispatched</span>
+                                            )}
+                                        </TableCell>
                                         <TableCell>{new Date(p.created_at ?? Date.now()).toLocaleDateString()}</TableCell>
                                         <TableCell className="text-right">
                                             <Button size="sm" onClick={() => setValidatingProspect(p)}>Validate</Button>

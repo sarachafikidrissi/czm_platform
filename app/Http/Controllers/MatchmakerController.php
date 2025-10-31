@@ -328,7 +328,7 @@ class MatchmakerController extends Controller
 
         $query = User::role('user')
             ->where('status', 'prospect')
-            ->with('profile');
+            ->with(['profile', 'assignedMatchmaker', 'agency']);
 
         // Role-based filtering
         if ($roleName === 'matchmaker') {
@@ -348,7 +348,7 @@ class MatchmakerController extends Controller
             }
         }
 
-        $prospects = $query->get(['id','name','email','phone','country','city','agency_id','created_at']);
+        $prospects = $query->get(['id','name','email','phone','country','city','agency_id','assigned_matchmaker_id','created_at']);
 
         $services = [];
         if (\Illuminate\Support\Facades\Schema::hasTable('services')) {

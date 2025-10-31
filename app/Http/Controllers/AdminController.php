@@ -115,16 +115,17 @@ class AdminController extends Controller
                     return redirect()->back()->with('error', 'Selected matchmaker must be linked to an agency to receive prospects.');
                 }
                 
-                // Assign prospects to both matchmaker and their agency simultaneously
+                // Assign prospects ONLY to the specific matchmaker (not to the entire agency)
+                // Set agency_id to NULL so other matchmakers in the same agency don't see it
                 $updated = User::whereIn('id', $validated['prospect_ids'])
                     ->where('status', 'prospect')
                     ->whereNull('agency_id')
                     ->whereNull('assigned_matchmaker_id')
                     ->update([
                         'assigned_matchmaker_id' => $matchmaker->id,
-                        'agency_id' => $matchmaker->agency_id
+                        'agency_id' => null  // Set to null so only this specific matchmaker sees it
                     ]);
-                $message = "{$updated} prospects dispatched to matchmaker and their agency simultaneously. Original agency assignment maintained for tracking.";
+                $message = "{$updated} prospects dispatched to matchmaker successfully.";
             } catch (\Exception $e) {
                 \Illuminate\Support\Facades\Log::error('Dispatch error: ' . $e->getMessage());
                 return redirect()->back()->with('error', 'An error occurred while dispatching prospects. Please try again.');
@@ -442,12 +443,17 @@ class AdminController extends Controller
         try {
             if ($validated['reassign_type'] === 'agency') {
                 $agency = Agency::findOrFail($validated['agency_id']);
-                // Reassign prospects to agency (clear matchmaker assignment)
+                // Reassign only prospects that are already dispatched (have agency_id OR assigned_matchmaker_id)
+                // Clear assigned_matchmaker_id to remove from old matchmaker's list
+                // Set agency_id to new agency to remove from old agency's list
                 $updated = User::whereIn('id', $validated['prospect_ids'])
                     ->where('status', 'prospect')
+                    ->where(function($q) {
+                        $q->whereNotNull('agency_id')->orWhereNotNull('assigned_matchmaker_id');
+                    })
                     ->update([
                         'agency_id' => $agency->id,
-                        'assigned_matchmaker_id' => null
+                        'assigned_matchmaker_id' => null  // Clear to remove from old matchmaker's list
                     ]);
                 $message = "{$updated} prospects reassigned to agency successfully.";
             } else {
@@ -461,18 +467,23 @@ class AdminController extends Controller
                     return redirect()->back()->with('error', 'Selected matchmaker must be linked to an agency to receive prospects.');
                 }
                 
-                // Reassign prospects to matchmaker only (preserve original agency assignment)
+                // Reassign only prospects that are already dispatched (have agency_id OR assigned_matchmaker_id)
+                // Set assigned_matchmaker_id to new matchmaker to assign to new matchmaker
+                // Set agency_id to NULL to remove from old agency's list and ensure only new matchmaker sees it
                 $updated = User::whereIn('id', $validated['prospect_ids'])
                     ->where('status', 'prospect')
+                    ->where(function($q) {
+                        $q->whereNotNull('agency_id')->orWhereNotNull('assigned_matchmaker_id');
+                    })
                     ->update([
-                        'assigned_matchmaker_id' => $matchmaker->id
-                        // Note: agency_id is preserved to maintain original agency tracking
+                        'assigned_matchmaker_id' => $matchmaker->id,
+                        'agency_id' => null  // Clear to remove from old agency's list and ensure only this matchmaker sees it
                     ]);
-                $message = "{$updated} prospects reassigned to matchmaker successfully. Original agency assignment preserved for tracking.";
+                $message = "{$updated} prospects reassigned to matchmaker successfully.";
             }
 
             if ($updated === 0) {
-                return redirect()->back()->with('warning', 'No prospects were reassigned. They might not be in prospect status.');
+                return redirect()->back()->with('warning', 'No prospects were reassigned. They must already be dispatched (have an agency or matchmaker assigned).');
             }
 
             return redirect()->back()->with('success', $message);
