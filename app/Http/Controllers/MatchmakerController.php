@@ -42,7 +42,7 @@ class MatchmakerController extends Controller
         $filter = $request->string('filter')->toString(); // all | complete | incomplete
         $query = User::role('user')
             ->where('status', 'prospect')
-            ->with('profile');
+            ->with(['profile', 'assignedMatchmaker', 'agency']);
 
         // Role-based filtering
         if ($roleName === 'matchmaker') {
@@ -52,8 +52,20 @@ class MatchmakerController extends Controller
                   ->orWhere('agency_id', $me->agency_id);
             });
         } elseif ($roleName === 'manager') {
-            // Manager: see prospects dispatched to their agency
-            $query->where('agency_id', $me->agency_id);
+            // Manager: see prospects dispatched to their agency OR to matchmakers in their agency
+            // Get all matchmaker IDs in the manager's agency to avoid relationship caching issues
+            $matchmakerIds = User::role('matchmaker')
+                ->where('agency_id', $me->agency_id)
+                ->pluck('id')
+                ->toArray();
+            
+            $query->where(function($q) use ($me, $matchmakerIds) {
+                $q->where('agency_id', $me->agency_id);
+                // Only add the matchmaker check if there are matchmakers in the agency
+                if (!empty($matchmakerIds)) {
+                    $q->orWhereIn('assigned_matchmaker_id', $matchmakerIds);
+                }
+            });
         }
 
         if ($filter === 'complete') {
@@ -338,8 +350,20 @@ class MatchmakerController extends Controller
                   ->orWhere('agency_id', $me->agency_id);
             });
         } elseif ($roleName === 'manager') {
-            // Manager: see prospects dispatched to their agency
-            $query->where('agency_id', $me->agency_id);
+            // Manager: see prospects dispatched to their agency OR to matchmakers in their agency
+            // Get all matchmaker IDs in the manager's agency to avoid relationship caching issues
+            $matchmakerIds = User::role('matchmaker')
+                ->where('agency_id', $me->agency_id)
+                ->pluck('id')
+                ->toArray();
+            
+            $query->where(function($q) use ($me, $matchmakerIds) {
+                $q->where('agency_id', $me->agency_id);
+                // Only add the matchmaker check if there are matchmakers in the agency
+                if (!empty($matchmakerIds)) {
+                    $q->orWhereIn('assigned_matchmaker_id', $matchmakerIds);
+                }
+            });
         } elseif ($roleName === 'admin') {
             // Admin: may filter by agency_id
             $agencyId = (int) $request->integer('agency_id');
