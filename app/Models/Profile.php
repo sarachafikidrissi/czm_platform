@@ -22,16 +22,24 @@ class Profile extends Model
         'pack_price',
         'pack_advantages',
         'payment_mode',
+        // Step1 extensions
+        'origine',
+        'ville_residence',
+        'ville_origine',
+        'pays_origine',
         // Step2 extensions
         'has_children',
         'children_count',
         'children_guardian',
-        'hijab_choice'
+        'hijab_choice',
+        // Step3 extensions
+        'profil_recherche_description',
     ];
 
     protected $casts = [
         'pack_advantages' => 'array',
         'villes_recherche' => 'array',
+        'situation_matrimoniale_recherche' => 'array', // Changed to array to support multiple selections
         'is_completed' => 'boolean',
         'has_children' => 'boolean',
         'current_step' => 'integer',

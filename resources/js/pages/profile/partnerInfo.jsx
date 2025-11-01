@@ -100,58 +100,45 @@ function PartnerInfo({ formData, setFormData }) {
                     </select>
                 </div>
 
-                {/* Situation Matrimoniale */}
+                {/* Situation Matrimoniale - Multiple selection */}
                 <div>
                     <label className="mb-2 block text-sm font-medium text-gray-700">Sa situation matrimoniale *</label>
                     <div className="flex flex-wrap gap-6">
-                        <label className="inline-flex items-center">
-                            <input
-                                type="radio"
-                                name="situationMatrimonialeRecherche"
-                                value="celibataire"
-                                checked={formData.situationMatrimonialeRecherche === 'celibataire'}
-                                onChange={handleInputChange}
-                                className="text-blue-600 focus:ring-blue-500"
-                            />
-                            <span className="ml-2 text-sm text-gray-700">Célibataire</span>
-                        </label>
-                        <label className="inline-flex items-center">
-                            <input
-                                type="radio"
-                                name="situationMatrimonialeRecherche"
-                                value="divorce"
-                                checked={formData.situationMatrimonialeRecherche === 'divorce'}
-                                onChange={handleInputChange}
-                                className="text-blue-600 focus:ring-blue-500"
-                            />
-                            <span className="ml-2 text-sm text-gray-700">Divorcé(e)</span>
-                        </label>
-                        <label className="inline-flex items-center">
-                            <input
-                                type="radio"
-                                name="situationMatrimonialeRecherche"
-                                value="veuf"
-                                checked={formData.situationMatrimonialeRecherche === 'veuf'}
-                                onChange={handleInputChange}
-                                className="text-blue-600 focus:ring-blue-500"
-                            />
-                            <span className="ml-2 text-sm text-gray-700">Veuf/Veuve</span>
-                        </label>
-                        <label className="inline-flex items-center">
-                            <input
-                                type="radio"
-                                name="situationMatrimonialeRecherche"
-                                value="marie"
-                                checked={formData.situationMatrimonialeRecherche === 'marie'}
-                                onChange={handleInputChange}
-                                className="text-blue-600 focus:ring-blue-500"
-                            />
-                            <span className="ml-2 text-sm text-gray-700">Marié</span>
-                        </label>
+                        {['celibataire', 'marie', 'divorce', 'veuf'].map((option) => {
+                            const currentValue = Array.isArray(formData.situationMatrimonialeRecherche) 
+                                ? formData.situationMatrimonialeRecherche 
+                                : (formData.situationMatrimonialeRecherche ? [formData.situationMatrimonialeRecherche] : []);
+                            return (
+                                <label key={option} className="inline-flex items-center">
+                                    <input
+                                        type="checkbox"
+                                        name="situationMatrimonialeRecherche"
+                                        value={option}
+                                        checked={currentValue.includes(option)}
+                                        onChange={(e) => {
+                                            const current = Array.isArray(formData.situationMatrimonialeRecherche) 
+                                                ? formData.situationMatrimonialeRecherche 
+                                                : (formData.situationMatrimonialeRecherche ? [formData.situationMatrimonialeRecherche] : []);
+                                            const newValue = e.target.checked
+                                                ? [...current, option]
+                                                : current.filter((v) => v !== option);
+                                            setFormData((prev) => ({
+                                                ...prev,
+                                                situationMatrimonialeRecherche: newValue,
+                                            }));
+                                        }}
+                                        className="text-blue-600 focus:ring-blue-500"
+                                    />
+                                    <span className="ml-2 text-sm text-gray-700">
+                                        {option === 'celibataire' ? 'Célibataire' : option === 'marie' ? 'Marié(e)' : option === 'divorce' ? 'Divorcé(e)' : 'Veuf/Veuve'}
+                                    </span>
+                                </label>
+                            );
+                        })}
                     </div>
                 </div>
 
-                {/* Pays */}
+                {/* Pays - Select dropdown */}
                 <div>
                     <label htmlFor="paysRecherche" className="mb-1 block text-sm font-medium text-gray-700">
                         Pays profil recherché *
@@ -171,37 +158,40 @@ function PartnerInfo({ formData, setFormData }) {
                     </select>
                 </div>
 
-                {/* Villes - Fixed version */}
+                {/* Villes - Select dropdown (multiple) */}
                 <div>
-                    <label className="mb-2 block text-sm font-medium text-gray-700">Villes Profil recherché</label>
-                    <div className="grid max-h-48 grid-cols-2 gap-2 overflow-y-auto rounded-lg border border-gray-300 p-4 md:grid-cols-3">
-                        {[
-                            { value: 'casablanca', label: 'Casablanca' },
-                            { value: 'rabat', label: 'Rabat' },
-                            { value: 'marrakech', label: 'Marrakech' },
-                            { value: 'fes', label: 'Fès' },
-                            { value: 'tanger', label: 'Tanger' },
-                            { value: 'agadir', label: 'Agadir' },
-                            { value: 'meknes', label: 'Meknès' },
-                            { value: 'oujda', label: 'Oujda' },
-                            { value: 'kenitra', label: 'Kénitra' },
-                            { value: 'tetouan', label: 'Tétouan' },
-                            { value: 'safi', label: 'Safi' },
-                            { value: 'eljadida', label: 'El Jadida' },
-                        ].map((city) => (
-                            <label key={city.value} className="flex items-center">
-                                <input
-                                    type="checkbox"
-                                    name="villesRecherche"
-                                    value={city.value}
-                                    checked={safeVilles.includes(city.value)}
-                                    onChange={handleVilleChange}
-                                    className="text-blue-600 focus:ring-blue-500"
-                                />
-                                <span className="ml-2 text-sm text-gray-700">{city.label}</span>
-                            </label>
-                        ))}
-                    </div>
+                    <label htmlFor="villesRecherche" className="mb-1 block text-sm font-medium text-gray-700">
+                        Villes Profil recherché
+                    </label>
+                    <select
+                        id="villesRecherche"
+                        name="villesRecherche"
+                        multiple
+                        value={safeVilles}
+                        onChange={(e) => {
+                            const selectedOptions = Array.from(e.target.selectedOptions, (option) => option.value);
+                            setFormData((prev) => ({
+                                ...prev,
+                                villesRecherche: selectedOptions,
+                            }));
+                        }}
+                        className="w-full rounded-lg border border-gray-300 px-4 py-3 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                        size={6}
+                    >
+                        <option value="casablanca">Casablanca</option>
+                        <option value="rabat">Rabat</option>
+                        <option value="marrakech">Marrakech</option>
+                        <option value="fes">Fès</option>
+                        <option value="tanger">Tanger</option>
+                        <option value="agadir">Agadir</option>
+                        <option value="meknes">Meknès</option>
+                        <option value="oujda">Oujda</option>
+                        <option value="kenitra">Kénitra</option>
+                        <option value="tetouan">Tétouan</option>
+                        <option value="safi">Safi</option>
+                        <option value="eljadida">El Jadida</option>
+                    </select>
+                    <p className="mt-1 text-xs text-gray-500">Maintenez Ctrl (Windows) ou Cmd (Mac) pour sélectionner plusieurs villes</p>
                 </div>
 
                 {/* Niveau d'études */}
@@ -292,6 +282,23 @@ function PartnerInfo({ formData, setFormData }) {
                             <option value="peu-importe">Peu importe</option>
                         </select>
                     </div>
+                </div>
+
+                {/* Description field - Profil recherché (à propos de lui) */}
+                <div>
+                    <label htmlFor="profilRechercheDescription" className="mb-1 block text-sm font-medium text-gray-700">
+                        Profil recherché (à propos de lui)
+                    </label>
+                    <textarea
+                        id="profilRechercheDescription"
+                        name="profilRechercheDescription"
+                        value={formData.profilRechercheDescription || ''}
+                        onChange={handleInputChange}
+                        placeholder="Décrivez le profil que vous recherchez..."
+                        rows={5}
+                        className="w-full rounded-lg border border-gray-300 px-4 py-3 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                    />
+                    <p className="mt-1 text-xs text-gray-500">Optionnel - Décrivez les caractéristiques et qualités que vous recherchez chez votre futur conjoint</p>
                 </div>
             </div>
         </div>

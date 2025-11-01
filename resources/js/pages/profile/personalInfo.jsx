@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-const PersonalInfo = ({ formData, setFormData }) => {
+const PersonalInfo = ({ formData, setFormData, gender }) => {
 //   const [formData, setFormData] = useState({
 //     nom: '',
 //     prenom: '',
@@ -122,6 +122,8 @@ const PersonalInfo = ({ formData, setFormData }) => {
                             <option value="propre-patron">Propre patron</option>
                             <option value="emploi-salarie">Emploi salarié</option>
                             <option value="retraite">Retraité</option>
+                            {gender === 'female' && <option value="femme-au-foyer">Femme au foyer</option>}
+                            <option value="recherche-emploi">À la recherche d'emploi</option>
                             <option value="autre">Autre</option>
                         </select>
                     </div>
@@ -226,7 +228,56 @@ const PersonalInfo = ({ formData, setFormData }) => {
                             <option value="arabe">Arabe</option>
                             <option value="chamali">Chamali</option>
                             <option value="sahraoui">Sahraoui(e)</option>
+                            <option value="autre">Autre</option>
                         </select>
+                    </div>
+                </div>
+
+                {/* Ville de résidence, Ville d'origine, Pays d'origine */}
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                    <div>
+                        <label htmlFor="villeResidence" className="mb-1 block text-sm font-medium text-gray-700">
+                            Ville de résidence
+                        </label>
+                        <input
+                            type="text"
+                            id="villeResidence"
+                            name="villeResidence"
+                            value={formData.villeResidence || ''}
+                            onChange={handleInputChange}
+                            placeholder="Ville de résidence"
+                            className="w-full rounded-lg border border-gray-300 px-4 py-3 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                        />
+                    </div>
+
+                    <div>
+                        <label htmlFor="villeOrigine" className="mb-1 block text-sm font-medium text-gray-700">
+                            Ville d'origine
+                        </label>
+                        <input
+                            type="text"
+                            id="villeOrigine"
+                            name="villeOrigine"
+                            value={formData.villeOrigine || ''}
+                            onChange={handleInputChange}
+                            placeholder="Ville d'origine"
+                            className="w-full rounded-lg border border-gray-300 px-4 py-3 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                        />
+                    </div>
+
+                    <div>
+                        <label htmlFor="paysOrigine" className="mb-1 block text-sm font-medium text-gray-700">
+                            Pays d'origine
+                        </label>
+                        <input
+                            type="text"
+                            id="paysOrigine"
+                            name="paysOrigine"
+                            value={formData.paysOrigine || ''}
+                            onChange={handleInputChange}
+                            placeholder="Pays d'origine"
+                            className="w-full rounded-lg border border-gray-300 px-4 py-3 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                        />
                     </div>
                 </div>
             </div>

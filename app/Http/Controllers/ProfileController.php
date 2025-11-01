@@ -33,6 +33,10 @@ class ProfileController extends Controller
                 'secteur' => $profile->secteur,
                 'revenu' => $profile->revenu,
                 'religion' => $profile->religion,
+                'origine' => $profile->origine,
+                'villeResidence' => $profile->ville_residence,
+                'villeOrigine' => $profile->ville_origine,
+                'paysOrigine' => $profile->pays_origine,
                 'heardAboutUs' => $profile->heard_about_us,
                 'heardAboutReference' => $profile->heard_about_reference,
                 
@@ -54,16 +58,21 @@ class ProfileController extends Controller
                 
                 // Step 3
                 'ageMinimum' => $profile->age_minimum,
-                'situationMatrimonialeRecherche' => $profile->situation_matrimoniale_recherche,
+                'situationMatrimonialeRecherche' => is_array($profile->situation_matrimoniale_recherche) 
+                    ? $profile->situation_matrimoniale_recherche 
+                    : ($profile->situation_matrimoniale_recherche ? [$profile->situation_matrimoniale_recherche] : []),
                 'paysRecherche' => $profile->pays_recherche,
                 'villesRecherche' => $profile->villes_recherche ?? [],
                 'niveauEtudesRecherche' => $profile->niveau_etudes_recherche,
                 'statutEmploiRecherche' => $profile->statut_emploi_recherche,
                 'revenuMinimum' => $profile->revenu_minimum,
                 'religionRecherche' => $profile->religion_recherche,
+                'profilRechercheDescription' => $profile->profil_recherche_description,
                 
                 // Step 4
                 'profilePicturePath' => $profile->profile_picture_path,
+                'cin' => $profile->cin,
+                'identityCardFrontPath' => $profile->identity_card_front_path,
                 
                 // Progress
                 'currentStep' => $profile->current_step,
@@ -195,20 +204,62 @@ class ProfileController extends Controller
 
     private function validateStep3(Request $request)
     {
-        $request->validate([
+        $rules = [
             'ageMinimum' => 'required|integer|min:18|max:100',
-            'situationMatrimonialeRecherche' => 'required|string',
-        ]);
+            'situationMatrimonialeRecherche' => 'required',
+        ];
+        $request->validate($rules);
+        
+        // Validate that at least one situation is selected
+        $situationMatrimonialeRecherche = $request->situationMatrimonialeRecherche;
+        $situationArray = is_string($situationMatrimonialeRecherche) ? json_decode($situationMatrimonialeRecherche, true) : $situationMatrimonialeRecherche;
+        if (!is_array($situationArray) || count($situationArray) === 0) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'situationMatrimonialeRecherche' => ['Au moins une situation matrimoniale doit être sélectionnée.'],
+            ]);
+        }
     }
 
     private function validateStep4(Request $request)
     {
-       
-        if ($request->hasFile('profilePicture')) {
-            $request->validate([
-                'profilePicture' => 'image|mimes:jpeg,png,jpg|max:2048',
-            ]);
+        $profile = Profile::where('user_id', Auth::id())->first();
+        
+        $rules = [
+            'cin' => [
+                'required',
+                'string',
+                'regex:/^[A-Za-z]{1,2}\d{4,6}$/',
+                function ($attribute, $value, $fail) use ($profile) {
+                    $cinUpper = strtoupper($value);
+                    
+                    // If user already has this CNI, allow it
+                    if ($profile && $profile->cin === $cinUpper) {
+                        return;
+                    }
+                    
+                    // Check if this CNI is already used by another user
+                    $existingProfile = Profile::where('cin', $cinUpper)
+                        ->where('user_id', '!=', Auth::id())
+                        ->first();
+                    
+                    if ($existingProfile) {
+                        $fail('Ce numéro de CNI est déjà utilisé par un autre utilisateur.');
+                    }
+                },
+            ],
+            'identityCardFront' => 'required|file|mimes:jpeg,png,jpg,pdf|max:5120', // 5MB max
+        ];
+        
+        // If CNI already exists (editing), make it optional
+        if ($profile && $profile->identity_card_front_path) {
+            $rules['identityCardFront'] = 'nullable|file|mimes:jpeg,png,jpg,pdf|max:5120';
         }
+        
+        if ($request->hasFile('profilePicture')) {
+            $rules['profilePicture'] = 'image|mimes:jpeg,png,jpg|max:2048';
+        }
+        
+        $request->validate($rules);
     }
 
     // Data update methods for each step
@@ -222,6 +273,10 @@ class ProfileController extends Controller
         $profile->secteur = $request->secteur;
         $profile->revenu = $request->revenu;
         $profile->religion = $request->religion;
+        $profile->origine = $request->origine;
+        $profile->ville_residence = $request->villeResidence;
+        $profile->ville_origine = $request->villeOrigine;
+        $profile->pays_origine = $request->paysOrigine;
         $profile->heard_about_us = $request->heardAboutUs;
     }
 
@@ -248,13 +303,33 @@ class ProfileController extends Controller
     private function updateStep3Data(Profile $profile, Request $request)
     {
         $profile->age_minimum = $request->ageMinimum;
-        $profile->situation_matrimoniale_recherche = $request->situationMatrimonialeRecherche;
+        
+        // Handle situationMatrimonialeRecherche as array or string
+        $situationMatrimonialeRecherche = $request->situationMatrimonialeRecherche;
+        if (is_string($situationMatrimonialeRecherche)) {
+            // Try to decode JSON, if fails use as single value
+            $decoded = json_decode($situationMatrimonialeRecherche, true);
+            $profile->situation_matrimoniale_recherche = is_array($decoded) ? $decoded : [$situationMatrimonialeRecherche];
+        } else {
+            $profile->situation_matrimoniale_recherche = is_array($situationMatrimonialeRecherche) ? $situationMatrimonialeRecherche : [$situationMatrimonialeRecherche];
+        }
+        
         $profile->pays_recherche = $request->paysRecherche;
-        $profile->villes_recherche = $request->villesRecherche;
+        
+        // Handle villes_recherche - can be JSON string or array
+        $villesRecherche = $request->villesRecherche;
+        if (is_string($villesRecherche)) {
+            $decoded = json_decode($villesRecherche, true);
+            $profile->villes_recherche = is_array($decoded) ? $decoded : [];
+        } else {
+            $profile->villes_recherche = is_array($villesRecherche) ? $villesRecherche : [];
+        }
+        
         $profile->niveau_etudes_recherche = $request->niveauEtudesRecherche;
         $profile->statut_emploi_recherche = $request->statutEmploiRecherche;
         $profile->revenu_minimum = $request->revenuMinimum;
         $profile->religion_recherche = $request->religionRecherche;
+        $profile->profil_recherche_description = $request->profilRechercheDescription;
     }
 
     private function updateStep4Data(Profile $profile, Request $request)
@@ -262,11 +337,42 @@ class ProfileController extends Controller
         if ($request->hasFile('profilePicture')) {
             // Delete old picture if exists
             if ($profile->profile_picture_path) {
-                Storage::disk($profile->profile_picture_disk)->delete($profile->profile_picture_path);
+                Storage::disk('public')->delete($profile->profile_picture_path);
             }
             
             $path = $request->file('profilePicture')->store('profile-pictures', 'public');
             $profile->profile_picture_path = $path;
+        }
+        
+        // Handle CNI upload
+        if ($request->hasFile('identityCardFront')) {
+            // Delete old CNI front if exists
+            if ($profile->identity_card_front_path) {
+                Storage::disk('public')->delete($profile->identity_card_front_path);
+            }
+            
+            $path = $request->file('identityCardFront')->store('identity-cards', 'public');
+            $profile->identity_card_front_path = $path;
+        }
+        
+        // Update CNI number - only if it's different or doesn't exist yet
+        if ($request->filled('cin')) {
+            $cinUpper = strtoupper($request->cin);
+            // Only update if it's different from current value
+            if ($profile->cin !== $cinUpper) {
+                // Check if this CNI is already used by another user
+                $existingProfile = Profile::where('cin', $cinUpper)
+                    ->where('user_id', '!=', Auth::id())
+                    ->first();
+                
+                if ($existingProfile) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'cin' => ['Ce numéro de CNI est déjà utilisé par un autre utilisateur.'],
+                    ]);
+                }
+                
+                $profile->cin = $cinUpper;
+            }
         }
     }
 

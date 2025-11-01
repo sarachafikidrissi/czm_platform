@@ -21,6 +21,10 @@ export default function ProfileInfo() {
         secteur: profile?.secteur || '',
         revenu: profile?.revenu || '',
         religion: profile?.religion || '',
+        origine: profile?.origine || '',
+        villeResidence: profile?.villeResidence || '',
+        villeOrigine: profile?.villeOrigine || '',
+        paysOrigine: profile?.paysOrigine || '',
         heardAboutUs: profile?.heardAboutUs || '',
         heardAboutReference: profile?.heardAboutReference || '',
 
@@ -42,17 +46,21 @@ export default function ProfileInfo() {
 
         // Step 3
         ageMinimum: profile?.ageMinimum || '',
-        situationMatrimonialeRecherche: profile?.situationMatrimonialeRecherche || '',
+        situationMatrimonialeRecherche: profile?.situationMatrimonialeRecherche || [],
         paysRecherche: profile?.paysRecherche || 'maroc',
         villesRecherche: profile?.villesRecherche || [],
         niveauEtudesRecherche: profile?.niveauEtudesRecherche || '',
         statutEmploiRecherche: profile?.statutEmploiRecherche || '',
         revenuMinimum: profile?.revenuMinimum || '',
         religionRecherche: profile?.religionRecherche || '',
+        profilRechercheDescription: profile?.profilRechercheDescription || '',
 
         // Step 4
         profilePicture: null,
         profilePicturePath: profile?.profilePicturePath || '',
+        cin: profile?.cin || '',
+        identityCardFront: null,
+        identityCardFrontPath: profile?.identityCardFrontPath || '',
     });
 
     // Update current step when profile changes
@@ -82,9 +90,16 @@ export default function ProfileInfo() {
                 }
                 return true;
             case 3:
-                return formData.ageMinimum && formData.situationMatrimonialeRecherche;
+                const situationMatrimonialeArray = Array.isArray(formData.situationMatrimonialeRecherche) 
+                    ? formData.situationMatrimonialeRecherche 
+                    : (formData.situationMatrimonialeRecherche ? [formData.situationMatrimonialeRecherche] : []);
+                return formData.ageMinimum && situationMatrimonialeArray.length > 0;
             case 4:
-                return true; // Photo is optional for validation
+                // CNI is required, photo is optional
+                if (!formData.cin || (!formData.identityCardFront && !formData.identityCardFrontPath)) {
+                    return false;
+                }
+                return true;
             default:
                 return false;
         }
@@ -104,9 +119,18 @@ export default function ProfileInfo() {
                 if (formData[key] !== null && formData[key] !== undefined && formData[key] !== '') {
                     if (key === 'profilePicture' && formData[key]?.file) {
                         formDataToSend.append('profilePicture', formData[key].file);
+                    } else if (key === 'identityCardFront' && formData[key] instanceof File) {
+                        formDataToSend.append('identityCardFront', formData[key]);
                     } else if (key === 'villesRecherche') {
                         if (Array.isArray(formData[key]) && formData[key].length > 0) {
                             formDataToSend.append(key, JSON.stringify(formData[key]));
+                        }
+                    } else if (key === 'situationMatrimonialeRecherche') {
+                        // Handle array or string for situationMatrimonialeRecherche
+                        if (Array.isArray(formData[key]) && formData[key].length > 0) {
+                            formDataToSend.append(key, JSON.stringify(formData[key]));
+                        } else if (typeof formData[key] === 'string' && formData[key]) {
+                            formDataToSend.append(key, formData[key]);
                         }
                     } else if (key === 'hasChildren') {
                         // Normalize boolean to 1/0 for backend boolean validation
@@ -114,7 +138,8 @@ export default function ProfileInfo() {
                         if (boolVal !== '') {
                             formDataToSend.append(key, boolVal);
                         }
-                    } else {
+                    } else if (key !== 'identityCardFrontPath' && key !== 'profilePicturePath') {
+                        // Skip path fields, they're just for display
                         formDataToSend.append(key, formData[key]);
                     }
                 }
@@ -219,6 +244,10 @@ export default function ProfileInfo() {
             secteur: profile?.secteur || '',
             revenu: profile?.revenu || '',
             religion: profile?.religion || '',
+            origine: profile?.origine || '',
+            villeResidence: profile?.villeResidence || '',
+            villeOrigine: profile?.villeOrigine || '',
+            paysOrigine: profile?.paysOrigine || '',
             heardAboutUs: profile?.heardAboutUs || '',
             heardAboutReference: profile?.heardAboutReference || '',
 
@@ -240,17 +269,21 @@ export default function ProfileInfo() {
 
             // Step 3
             ageMinimum: profile?.ageMinimum || '',
-            situationMatrimonialeRecherche: profile?.situationMatrimonialeRecherche || '',
+            situationMatrimonialeRecherche: profile?.situationMatrimonialeRecherche || [],
             paysRecherche: profile?.paysRecherche || 'maroc',
             villesRecherche: profile?.villesRecherche || [],
             niveauEtudesRecherche: profile?.niveauEtudesRecherche || '',
             statutEmploiRecherche: profile?.statutEmploiRecherche || '',
             revenuMinimum: profile?.revenuMinimum || '',
             religionRecherche: profile?.religionRecherche || '',
+            profilRechercheDescription: profile?.profilRechercheDescription || '',
 
             // Step 4
             profilePicture: null,
             profilePicturePath: profile?.profilePicturePath || '',
+            cin: profile?.cin || '',
+            identityCardFront: null,
+            identityCardFrontPath: profile?.identityCardFrontPath || '',
         });
     };
 
@@ -336,7 +369,7 @@ export default function ProfileInfo() {
                             {currentStep === 4 && 'Photo de Profil'}
                         </h2> */}
                         <div className="max-h-[600px] overflow-y-auto">
-                            {currentStep === 1 && <PersonalInfo {...stepProps} />}
+                            {currentStep === 1 && <PersonalInfo {...stepProps} gender={auth?.user?.gender} />}
                             {currentStep === 2 && <Details {...stepProps} gender={auth?.user?.gender} />}
                             {currentStep === 3 && <PartnerInfo {...stepProps} />}
                             {currentStep === 4 && <UploadPicture {...stepProps} />}

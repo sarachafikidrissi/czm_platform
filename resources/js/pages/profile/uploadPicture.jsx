@@ -198,6 +198,131 @@ function UploadPicture({ formData, setFormData }) {
                     </ul>
                 </div>
             </div>
+
+            {/* CNI Upload Section */}
+            <div className="mt-8 space-y-4">
+                <div className="border-t border-gray-200 pt-6">
+                    <label className="mb-2 block text-sm font-medium text-gray-700">Carte d'Identité Nationale (CNI) *</label>
+                    <p className="mb-4 text-xs text-gray-500">Veuillez télécharger la face avant de votre CNI</p>
+
+                    {/* CIN Number */}
+                    <div className="mb-4">
+                        <label htmlFor="cin" className="mb-1 block text-sm font-medium text-gray-700">
+                            Numéro de CNI *
+                        </label>
+                        <input
+                            type="text"
+                            id="cin"
+                            name="cin"
+                            value={formData.cin || ''}
+                            onChange={(e) => setFormData((prev) => ({ ...prev, cin: e.target.value }))}
+                            placeholder="Ex: A123456 ou AB1234"
+                            className="w-full rounded-lg border border-gray-300 px-4 py-3 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                        />
+                        <p className="mt-1 text-xs text-gray-500">Format: 1-2 lettres suivies de 4-6 chiffres</p>
+                    </div>
+
+                    {/* CNI Front Upload */}
+                    <div className="rounded-lg border-2 border-dashed border-gray-300 p-6">
+                        {formData.identityCardFrontPath && !formData.identityCardFront ? (
+                            <div className="text-center">
+                                <p className="mb-2 text-sm text-gray-700">CNI déjà téléchargée</p>
+                                <div className="flex items-center justify-center gap-4">
+                                    <a
+                                        href={`/storage/${formData.identityCardFrontPath}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+                                    >
+                                        Télécharger la CNI
+                                    </a>
+                                    <button
+                                        type="button"
+                                        onClick={() => setFormData((prev) => ({ ...prev, identityCardFront: null }))}
+                                        className="rounded-lg bg-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-300"
+                                    >
+                                        Remplacer
+                                    </button>
+                                </div>
+                            </div>
+                        ) : formData.identityCardFront ? (
+                            <div className="text-center">
+                                <div className="relative inline-block">
+                                    <img
+                                        src={URL.createObjectURL(formData.identityCardFront)}
+                                        alt="Aperçu CNI"
+                                        className="h-32 w-auto rounded-lg border-4 border-white object-cover shadow-lg"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setFormData((prev) => ({ ...prev, identityCardFront: null }))}
+                                        className="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-xs text-white transition-colors hover:bg-red-600"
+                                    >
+                                        ×
+                                    </button>
+                                </div>
+                                <p className="mt-2 text-sm text-green-600">✓ CNI sélectionnée: {formData.identityCardFront.name}</p>
+                            </div>
+                        ) : (
+                            <div className="text-center">
+                                <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100">
+                                    <svg className="h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                                        />
+                                    </svg>
+                                </div>
+                                <div className="flex flex-col items-center">
+                                    <p className="mb-2 text-sm text-gray-600">Cliquez pour télécharger la face avant de votre CNI</p>
+                                    <p className="text-xs text-gray-500">PNG, JPG, JPEG (Max. 5MB)</p>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Hidden File Input */}
+                        <input
+                            type="file"
+                            id="identityCardFront"
+                            name="identityCardFront"
+                            accept=".png,.jpg,.jpeg,.pdf"
+                            onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                    const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'application/pdf'];
+                                    const maxSize = 5 * 1024 * 1024; // 5MB
+                                    
+                                    if (!allowedTypes.includes(file.type)) {
+                                        alert('Format de fichier non supporté. Utilisez PNG, JPG, JPEG ou PDF.');
+                                        return;
+                                    }
+                                    if (file.size > maxSize) {
+                                        alert('Fichier trop volumineux. Taille maximale: 5MB.');
+                                        return;
+                                    }
+                                    setFormData((prev) => ({ ...prev, identityCardFront: file }));
+                                }
+                            }}
+                            className="hidden"
+                        />
+
+                        {/* Upload Button */}
+                        <label
+                            htmlFor="identityCardFront"
+                            className="mt-4 inline-block cursor-pointer rounded-lg bg-blue-600 px-4 py-2 font-medium text-white transition-colors hover:bg-blue-700"
+                        >
+                            {formData.identityCardFront || formData.identityCardFrontPath ? 'Changer la CNI' : 'Télécharger la CNI (Face avant)'}
+                        </label>
+                    </div>
+
+                    <div className="mt-2 rounded-lg bg-blue-50 p-3">
+                        <p className="text-xs text-blue-800">• Seule la face avant de la CNI est requise</p>
+                        <p className="text-xs text-blue-800">• Assurez-vous que l'image est claire et lisible</p>
+                    </div>
+                </div>
+            </div>
         </div>
     );
 }
