@@ -24,23 +24,23 @@ export default function AgencyProspects() {
         pack_advantages: [],
         payment_mode: '',
     });
-    const [validatingProspect, setValidatingProspect] = useState(null);
-    console.log(matrimonialPacks);
-    
+    const [validatingProspect, setValidatingProspect] = useState(null);    
     // Pre-fill form when prospect is selected
     const handleValidateClick = (prospect) => {
         setValidatingProspect(prospect);
         
         // Pre-fill from profile if user already provided
         const profile = prospect.profile;
+        console.log(profile);
+        
         if (profile) {
             // Pre-fill CNI if user already provided it (show masked version)
             if (profile.cin && profile.cin_decrypted) {
                 const decryptedCin = profile.cin_decrypted;
                 const masked = decryptedCin.length > 3 
-                    ? decryptedCin.substring(0, 2) + '****' + decryptedCin.substring(decryptedCin.length - 1)
+                    ? decryptedCin.substring(0, 4) + '****' + decryptedCin.substring(decryptedCin.length - 1)
                     : '****';
-                setData('cin', masked);
+                setData('cin', decryptedCin);
             } else {
                 setData('cin', '');
             }
@@ -180,15 +180,25 @@ export default function AgencyProspects() {
                                 )}
                             </Label>
                             {validatingProspect?.profile?.identity_card_front_path ? (
-                                <div className="flex items-center gap-2 p-2 bg-gray-100 rounded border">
-                                    <span className="text-sm text-gray-600">CNI déjà téléchargée</span>
+                                <div className="space-y-2">
+                                    <div className="relative rounded-lg border-2 border-gray-200 overflow-hidden bg-gray-50">
+                                        <img 
+                                            src={`/storage/${validatingProspect.profile.identity_card_front_path}`}
+                                            alt="CNI Front Preview"
+                                            className="w-full h-auto max-h-48 object-cover"
+                                            onError={(e) => {
+                                                e.target.onerror = null;
+                                                e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="150"%3E%3Crect fill="%23e5e7eb" width="200" height="150"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dominant-baseline="middle" fill="%239ca3af" font-family="Arial" font-size="14"%3EImage non disponible%3C/text%3E%3C/svg%3E';
+                                            }}
+                                        />
+                                    </div>
                                     <a 
                                         href={`/storage/${validatingProspect.profile.identity_card_front_path}`}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="text-xs text-blue-600 hover:underline"
+                                        className="text-xs text-blue-600 hover:underline inline-block"
                                     >
-                                        Voir
+                                        Ouvrir dans un nouvel onglet
                                     </a>
                                 </div>
                             ) : (
