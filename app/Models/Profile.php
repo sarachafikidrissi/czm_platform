@@ -25,9 +25,10 @@ class Profile extends Model
         'payment_mode',
         // Step1 extensions
         'origine',
+        'pays_residence',
         'ville_residence',
-        'ville_origine',
         'pays_origine',
+        'ville_origine',
         // Step2 extensions
         'has_children',
         'children_count',

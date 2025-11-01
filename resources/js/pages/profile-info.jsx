@@ -22,9 +22,10 @@ export default function ProfileInfo() {
         revenu: profile?.revenu || '',
         religion: profile?.religion || '',
         origine: profile?.origine || '',
+        paysResidence: profile?.paysResidence || '',
         villeResidence: profile?.villeResidence || '',
-        villeOrigine: profile?.villeOrigine || '',
         paysOrigine: profile?.paysOrigine || '',
+        villeOrigine: profile?.villeOrigine || '',
         heardAboutUs: profile?.heardAboutUs || '',
         heardAboutReference: profile?.heardAboutReference || '',
 
@@ -253,9 +254,10 @@ export default function ProfileInfo() {
             revenu: profile?.revenu || '',
             religion: profile?.religion || '',
             origine: profile?.origine || '',
+            paysResidence: profile?.paysResidence || '',
             villeResidence: profile?.villeResidence || '',
-            villeOrigine: profile?.villeOrigine || '',
             paysOrigine: profile?.paysOrigine || '',
+            villeOrigine: profile?.villeOrigine || '',
             heardAboutUs: profile?.heardAboutUs || '',
             heardAboutReference: profile?.heardAboutReference || '',
 

@@ -34,10 +34,11 @@ class ProfileController extends Controller
                 'secteur' => $profile->secteur,
                 'revenu' => $profile->revenu,
                 'religion' => $profile->religion,
-                'origine' => $profile->origine,
-                'villeResidence' => $profile->ville_residence,
-                'villeOrigine' => $profile->ville_origine,
-                'paysOrigine' => $profile->pays_origine,
+                        'origine' => $profile->origine,
+                        'paysResidence' => $profile->pays_residence,
+                        'villeResidence' => $profile->ville_residence,
+                        'paysOrigine' => $profile->pays_origine,
+                        'villeOrigine' => $profile->ville_origine,
                 'heardAboutUs' => $profile->heard_about_us,
                 'heardAboutReference' => $profile->heard_about_reference,
                 
@@ -286,9 +287,10 @@ class ProfileController extends Controller
         $profile->revenu = $request->revenu;
         $profile->religion = $request->religion;
         $profile->origine = $request->origine;
+        $profile->pays_residence = $request->paysResidence;
         $profile->ville_residence = $request->villeResidence;
-        $profile->ville_origine = $request->villeOrigine;
         $profile->pays_origine = $request->paysOrigine;
+        $profile->ville_origine = $request->villeOrigine;
         $profile->heard_about_us = $request->heardAboutUs;
     }
 

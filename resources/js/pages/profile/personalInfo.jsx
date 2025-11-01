@@ -1,16 +1,152 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 
 const PersonalInfo = ({ formData, setFormData, gender }) => {
-//   const [formData, setFormData] = useState({
-//     nom: '',
-//     prenom: '',
-//     dateNaissance: '',
-//     niveauEtudes: '',
-//     situationProfessionnelle: '',
-//     secteur: '',
-//     revenu: '',
-//     religion: '',
-//   });
+    const [countries, setCountries] = useState([]);
+    const [countryCodeToCities, setCountryCodeToCities] = useState({});
+    const [selectedResidenceCountry, setSelectedResidenceCountry] = useState('');
+    const [selectedOriginCountry, setSelectedOriginCountry] = useState('');
+    const [loadingCountries, setLoadingCountries] = useState(false);
+    const [errorCountries, setErrorCountries] = useState('');
+
+    // Fetch countries and cities from API
+    useEffect(() => {
+        let isMounted = true;
+        const fetchCountries = async () => {
+            try {
+                setLoadingCountries(true);
+                setErrorCountries('');
+                const response = await fetch('https://countriesnow.space/api/v0.1/countries');
+                if (!response.ok) throw new Error('Failed to fetch countries');
+                const json = await response.json();
+                const list = Array.isArray(json?.data) ? json.data : [];
+                if (!isMounted) return;
+                
+                const regionNamesFr = new Intl.DisplayNames(['fr'], { type: 'region' });
+                const normalized = list
+                    .filter((item) => item?.iso2)
+                    .map((item) => ({
+                        iso2: item.iso2,
+                        iso3: item.iso3,
+                        englishName: item.country,
+                        frenchName: regionNamesFr.of(item.iso2) || item.country,
+                        cities: Array.isArray(item.cities) ? item.cities : [],
+                    }))
+                    .sort((a, b) => a.frenchName.localeCompare(b.frenchName, 'fr'));
+
+                const codeToCities = normalized.reduce((acc, item) => {
+                    acc[item.iso2] = item.cities;
+                    return acc;
+                }, {});
+
+                if (isMounted) {
+                    setCountries(normalized);
+                    setCountryCodeToCities(codeToCities);
+                }
+            } catch (err) {
+                if (!isMounted) return;
+                setErrorCountries('Impossible de charger la liste des pays.');
+            } finally {
+                if (isMounted) setLoadingCountries(false);
+            }
+        };
+        fetchCountries();
+        return () => {
+            isMounted = false;
+        };
+    }, []);
+
+    // Initialize selected countries from formData
+    useEffect(() => {
+        if (countries.length > 0) {
+            // Initialize residence country
+            if (formData.paysResidence && !selectedResidenceCountry) {
+                const country = countries.find(c => 
+                    c.frenchName.toLowerCase() === formData.paysResidence.toLowerCase() ||
+                    c.iso2.toLowerCase() === formData.paysResidence.toLowerCase() ||
+                    c.iso3.toLowerCase() === formData.paysResidence.toLowerCase()
+                );
+                if (country) {
+                    setSelectedResidenceCountry(country.iso2);
+                }
+            }
+
+            // Initialize origin country
+            if (formData.paysOrigine && !selectedOriginCountry) {
+                const country = countries.find(c => 
+                    c.frenchName.toLowerCase() === formData.paysOrigine.toLowerCase() ||
+                    c.iso2.toLowerCase() === formData.paysOrigine.toLowerCase() ||
+                    c.iso3.toLowerCase() === formData.paysOrigine.toLowerCase()
+                );
+                if (country) {
+                    setSelectedOriginCountry(country.iso2);
+                }
+            }
+        }
+    }, [countries, formData.paysResidence, formData.paysOrigine]);
+
+    const countryOptions = useMemo(() => {
+        return countries.map((country) => ({
+            value: country.iso2,
+            label: country.frenchName,
+        }));
+    }, [countries]);
+
+    const residenceCities = useMemo(() => {
+        if (!selectedResidenceCountry) return [];
+        const cities = countryCodeToCities[selectedResidenceCountry] || [];
+        return cities.sort().map((city) => ({
+            value: city,
+            label: city,
+        }));
+    }, [selectedResidenceCountry, countryCodeToCities]);
+
+    const originCities = useMemo(() => {
+        if (!selectedOriginCountry) return [];
+        const cities = countryCodeToCities[selectedOriginCountry] || [];
+        return cities.sort().map((city) => ({
+            value: city,
+            label: city,
+        }));
+    }, [selectedOriginCountry, countryCodeToCities]);
+
+    const handleResidenceCountryChange = (countryCode) => {
+        setSelectedResidenceCountry(countryCode);
+        const country = countries.find((c) => c.iso2 === countryCode);
+        const countryName = country ? country.frenchName : '';
+        
+        setFormData((prev) => ({
+            ...prev,
+            paysResidence: countryName,
+            villeResidence: '', // Clear city when country changes
+        }));
+    };
+
+    const handleOriginCountryChange = (countryCode) => {
+        setSelectedOriginCountry(countryCode);
+        const country = countries.find((c) => c.iso2 === countryCode);
+        const countryName = country ? country.frenchName : '';
+        
+        setFormData((prev) => ({
+            ...prev,
+            paysOrigine: countryName,
+            villeOrigine: '', // Clear city when country changes
+        }));
+    };
+
+    const handleResidenceCityChange = (city) => {
+        setFormData((prev) => ({
+            ...prev,
+            villeResidence: city,
+        }));
+    };
+
+    const handleOriginCityChange = (city) => {
+        setFormData((prev) => ({
+            ...prev,
+            villeOrigine: city,
+        }));
+    };
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
@@ -233,51 +369,99 @@ const PersonalInfo = ({ formData, setFormData, gender }) => {
                     </div>
                 </div>
 
-                {/* Ville de résidence, Ville d'origine, Pays d'origine */}
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                {/* Pays de résidence, Ville de résidence */}
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <div>
+                        <label htmlFor="paysResidence" className="mb-1 block text-sm font-medium text-gray-700">
+                            Pays de résidence
+                        </label>
+                        {loadingCountries ? (
+                            <div className="rounded-lg border border-gray-300 px-4 py-3 text-sm text-gray-500">
+                                Chargement des pays...
+                            </div>
+                        ) : (
+                            <SearchableSelect
+                                options={countryOptions}
+                                value={selectedResidenceCountry}
+                                onValueChange={handleResidenceCountryChange}
+                                placeholder="Sélectionnez le pays de résidence"
+                                searchPlaceholder="Rechercher un pays..."
+                                emptyMessage="Aucun pays trouvé"
+                            />
+                        )}
+                        {errorCountries && <p className="mt-1 text-xs text-red-500">{errorCountries}</p>}
+                    </div>
+
                     <div>
                         <label htmlFor="villeResidence" className="mb-1 block text-sm font-medium text-gray-700">
                             Ville de résidence
                         </label>
-                        <input
-                            type="text"
-                            id="villeResidence"
-                            name="villeResidence"
-                            value={formData.villeResidence || ''}
-                            onChange={handleInputChange}
-                            placeholder="Ville de résidence"
-                            className="w-full rounded-lg border border-gray-300 px-4 py-3 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
-                        />
+                        {!selectedResidenceCountry ? (
+                            <div className="rounded-lg border border-gray-300 px-4 py-3 text-sm text-gray-400">
+                                Veuillez d'abord sélectionner un pays de résidence
+                            </div>
+                        ) : residenceCities.length === 0 ? (
+                            <div className="rounded-lg border border-gray-300 px-4 py-3 text-sm text-gray-400">
+                                Aucune ville disponible pour ce pays
+                            </div>
+                        ) : (
+                            <SearchableSelect
+                                options={residenceCities}
+                                value={formData.villeResidence || ''}
+                                onValueChange={handleResidenceCityChange}
+                                placeholder="Sélectionnez la ville"
+                                searchPlaceholder="Rechercher une ville..."
+                                emptyMessage="Aucune ville trouvée"
+                            />
+                        )}
+                    </div>
+                </div>
+
+                {/* Pays d'origine, Ville d'origine */}
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <div>
+                        <label htmlFor="paysOrigine" className="mb-1 block text-sm font-medium text-gray-700">
+                            Pays d'origine
+                        </label>
+                        {loadingCountries ? (
+                            <div className="rounded-lg border border-gray-300 px-4 py-3 text-sm text-gray-500">
+                                Chargement des pays...
+                            </div>
+                        ) : (
+                            <SearchableSelect
+                                options={countryOptions}
+                                value={selectedOriginCountry}
+                                onValueChange={handleOriginCountryChange}
+                                placeholder="Sélectionnez le pays d'origine"
+                                searchPlaceholder="Rechercher un pays..."
+                                emptyMessage="Aucun pays trouvé"
+                            />
+                        )}
+                        {errorCountries && <p className="mt-1 text-xs text-red-500">{errorCountries}</p>}
                     </div>
 
                     <div>
                         <label htmlFor="villeOrigine" className="mb-1 block text-sm font-medium text-gray-700">
                             Ville d'origine
                         </label>
-                        <input
-                            type="text"
-                            id="villeOrigine"
-                            name="villeOrigine"
-                            value={formData.villeOrigine || ''}
-                            onChange={handleInputChange}
-                            placeholder="Ville d'origine"
-                            className="w-full rounded-lg border border-gray-300 px-4 py-3 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
-                        />
-                    </div>
-
-                    <div>
-                        <label htmlFor="paysOrigine" className="mb-1 block text-sm font-medium text-gray-700">
-                            Pays d'origine
-                        </label>
-                        <input
-                            type="text"
-                            id="paysOrigine"
-                            name="paysOrigine"
-                            value={formData.paysOrigine || ''}
-                            onChange={handleInputChange}
-                            placeholder="Pays d'origine"
-                            className="w-full rounded-lg border border-gray-300 px-4 py-3 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
-                        />
+                        {!selectedOriginCountry ? (
+                            <div className="rounded-lg border border-gray-300 px-4 py-3 text-sm text-gray-400">
+                                Veuillez d'abord sélectionner un pays d'origine
+                            </div>
+                        ) : originCities.length === 0 ? (
+                            <div className="rounded-lg border border-gray-300 px-4 py-3 text-sm text-gray-400">
+                                Aucune ville disponible pour ce pays
+                            </div>
+                        ) : (
+                            <SearchableSelect
+                                options={originCities}
+                                value={formData.villeOrigine || ''}
+                                onValueChange={handleOriginCityChange}
+                                placeholder="Sélectionnez la ville"
+                                searchPlaceholder="Rechercher une ville..."
+                                emptyMessage="Aucune ville trouvée"
+                            />
+                        )}
                     </div>
                 </div>
             </div>
