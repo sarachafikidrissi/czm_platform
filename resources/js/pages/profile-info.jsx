@@ -98,10 +98,8 @@ export default function ProfileInfo() {
                     : (formData.paysRecherche ? [formData.paysRecherche] : []);
                 return formData.ageMinimum && situationMatrimonialeArray.length > 0 && paysRechercheArray.length > 0;
             case 4:
-                // CNI is required, photo is optional
-                if (!formData.cin || (!formData.identityCardFront && !formData.identityCardFrontPath)) {
-                    return false;
-                }
+                // CNI and front picture are optional for prospects (will be filled by matchmaker if needed)
+                // Profile picture is also optional
                 return true;
             default:
                 return false;

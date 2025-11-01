@@ -202,13 +202,13 @@ function UploadPicture({ formData, setFormData }) {
             {/* CNI Upload Section */}
             <div className="mt-8 space-y-4">
                 <div className="border-t border-gray-200 pt-6">
-                    <label className="mb-2 block text-sm font-medium text-gray-700">Carte d'Identité Nationale (CNI) *</label>
-                    <p className="mb-4 text-xs text-gray-500">Veuillez télécharger la face avant de votre CNI</p>
+                    <label className="mb-2 block text-sm font-medium text-gray-700">Carte d'Identité Nationale (CNI)</label>
+                    <p className="mb-4 text-xs text-gray-500">Veuillez télécharger la face avant de votre CNI (optionnel - peut être rempli par votre matchmaker)</p>
 
                     {/* CIN Number */}
                     <div className="mb-4">
                         <label htmlFor="cin" className="mb-1 block text-sm font-medium text-gray-700">
-                            Numéro de CNI *
+                            Numéro de CNI
                         </label>
                         <input
                             type="text"

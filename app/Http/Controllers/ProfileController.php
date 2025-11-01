@@ -6,6 +6,7 @@ use App\Models\Profile;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Crypt;
 use Inertia\Inertia;
 use Inertia\Response;
 use Illuminate\Support\Facades\Storage;
@@ -73,7 +74,9 @@ class ProfileController extends Controller
                 
                 // Step 4
                 'profilePicturePath' => $profile->profile_picture_path,
-                'cin' => $profile->cin,
+                // Don't send encrypted CNI to frontend - it's sensitive data
+                // CNI will be shown only in matchmaker validation form when decrypted
+                'cin' => null, // Never expose encrypted CNI to user
                 'identityCardFrontPath' => $profile->identity_card_front_path,
                 
                 // Progress
@@ -234,20 +237,16 @@ class ProfileController extends Controller
 
     private function validateStep4(Request $request)
     {
-        $profile = Profile::where('user_id', Auth::id())->first();
+        // CNI and front picture are optional for prospects
+        $rules = [];
         
-        $rules = [
-            'cin' => [
-                'required',
+        // Only validate CNI if provided
+        if ($request->filled('cin')) {
+            $rules['cin'] = [
                 'string',
                 'regex:/^[A-Za-z]{1,2}\d{4,6}$/',
-                function ($attribute, $value, $fail) use ($profile) {
+                function ($attribute, $value, $fail) {
                     $cinUpper = strtoupper($value);
-                    
-                    // If user already has this CNI, allow it
-                    if ($profile && $profile->cin === $cinUpper) {
-                        return;
-                    }
                     
                     // Check if this CNI is already used by another user
                     $existingProfile = Profile::where('cin', $cinUpper)
@@ -258,20 +257,21 @@ class ProfileController extends Controller
                         $fail('Ce numéro de CNI est déjà utilisé par un autre utilisateur.');
                     }
                 },
-            ],
-            'identityCardFront' => 'required|file|mimes:jpeg,png,jpg,pdf|max:5120', // 5MB max
-        ];
+            ];
+        }
         
-        // If CNI already exists (editing), make it optional
-        if ($profile && $profile->identity_card_front_path) {
-            $rules['identityCardFront'] = 'nullable|file|mimes:jpeg,png,jpg,pdf|max:5120';
+        // Only validate identity card front if provided
+        if ($request->hasFile('identityCardFront')) {
+            $rules['identityCardFront'] = 'file|mimes:jpeg,png,jpg,pdf|max:5120'; // 5MB max
         }
         
         if ($request->hasFile('profilePicture')) {
             $rules['profilePicture'] = 'image|mimes:jpeg,png,jpg|max:2048';
         }
         
-        $request->validate($rules);
+        if (!empty($rules)) {
+            $request->validate($rules);
+        }
     }
 
     // Data update methods for each step
@@ -374,24 +374,79 @@ class ProfileController extends Controller
             $profile->identity_card_front_path = $path;
         }
         
-        // Update CNI number - only if it's different or doesn't exist yet
+        // Update CNI number and hash - only if provided
         if ($request->filled('cin')) {
             $cinUpper = strtoupper($request->cin);
+            // Decrypt current CNI to compare
+            $currentCin = null;
+            try {
+                if ($profile->cin) {
+                    $currentCin = Crypt::decryptString($profile->cin);
+                }
+            } catch (\Exception $e) {
+                // If decryption fails, treat as different
+                $currentCin = null;
+            }
+            
             // Only update if it's different from current value
-            if ($profile->cin !== $cinUpper) {
+            if ($currentCin !== $cinUpper) {
                 // Check if this CNI is already used by another user
-                $existingProfile = Profile::where('cin', $cinUpper)
-                    ->where('user_id', '!=', Auth::id())
-                    ->first();
+                $existingProfiles = Profile::where('user_id', '!=', Auth::id())
+                    ->whereNotNull('cin')
+                    ->get();
                 
-                if ($existingProfile) {
-                    throw \Illuminate\Validation\ValidationException::withMessages([
-                        'cin' => ['Ce numéro de CNI est déjà utilisé par un autre utilisateur.'],
-                    ]);
+                foreach ($existingProfiles as $existingProfile) {
+                    try {
+                        $decrypted = Crypt::decryptString($existingProfile->cin);
+                        if ($decrypted === $cinUpper) {
+                            throw \Illuminate\Validation\ValidationException::withMessages([
+                                'cin' => ['Ce numéro de CNI est déjà utilisé par un autre utilisateur.'],
+                            ]);
+                        }
+                    } catch (\Illuminate\Validation\ValidationException $e) {
+                        throw $e;
+                    } catch (\Exception $e) {
+                        // If decryption fails, skip this profile
+                        continue;
+                    }
                 }
                 
-                $profile->cin = $cinUpper;
+                // Encrypt the CNI number for security
+                $profile->cin = Crypt::encryptString($cinUpper);
+                
+                // Also store hash for verification/search purposes
+                $appKey = (string) config('app.key');
+                if (str_starts_with($appKey, 'base64:')) {
+                    $decoded = base64_decode(substr($appKey, 7));
+                    if ($decoded !== false) {
+                        $appKey = $decoded;
+                    }
+                }
+                $profile->cin_hash = hash_hmac('sha256', (string) $cinUpper, $appKey);
             }
+        }
+        
+        // Handle CNI front upload and hash
+        if ($request->hasFile('identityCardFront')) {
+            // Delete old CNI front if exists
+            if ($profile->identity_card_front_path) {
+                Storage::disk('public')->delete($profile->identity_card_front_path);
+            }
+            
+            $file = $request->file('identityCardFront');
+            $path = $file->store('identity-cards', 'public');
+            $profile->identity_card_front_path = $path;
+            
+            // Hash the file content
+            $appKey = (string) config('app.key');
+            if (str_starts_with($appKey, 'base64:')) {
+                $decoded = base64_decode(substr($appKey, 7));
+                if ($decoded !== false) {
+                    $appKey = $decoded;
+                }
+            }
+            $fileContent = file_get_contents($file->getRealPath());
+            $profile->identity_card_front_hash = hash_hmac('sha256', $fileContent, $appKey);
         }
     }
 

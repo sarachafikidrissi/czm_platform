@@ -18,7 +18,6 @@ export default function AgencyProspects() {
         notes: '',
         cin: '',
         identity_card_front: null,
-        identity_card_back: null,
         service_id: '',
         matrimonial_pack_id: '',
         pack_price: '',
@@ -27,6 +26,34 @@ export default function AgencyProspects() {
     });
     const [validatingProspect, setValidatingProspect] = useState(null);
     console.log(matrimonialPacks);
+    
+    // Pre-fill form when prospect is selected
+    const handleValidateClick = (prospect) => {
+        setValidatingProspect(prospect);
+        
+        // Pre-fill from profile if user already provided
+        const profile = prospect.profile;
+        if (profile) {
+            // Pre-fill CNI if user already provided it (show masked version)
+            if (profile.cin && profile.cin_decrypted) {
+                const decryptedCin = profile.cin_decrypted;
+                const masked = decryptedCin.length > 3 
+                    ? decryptedCin.substring(0, 2) + '****' + decryptedCin.substring(decryptedCin.length - 1)
+                    : '****';
+                setData('cin', masked);
+            } else {
+                setData('cin', '');
+            }
+            
+            // Other fields
+            setData('notes', profile.notes || '');
+            setData('service_id', profile.service_id || '');
+            setData('matrimonial_pack_id', profile.matrimonial_pack_id || '');
+            setData('pack_price', profile.pack_price || '');
+            setData('pack_advantages', profile.pack_advantages || []);
+            setData('payment_mode', profile.payment_mode || '');
+        }
+    };
     
     return (
         <AppLayout>
@@ -100,7 +127,7 @@ export default function AgencyProspects() {
                                         </TableCell>
                                         <TableCell>{new Date(p.created_at ?? Date.now()).toLocaleDateString()}</TableCell>
                                         <TableCell className="text-right">
-                                            <Button size="sm" onClick={() => setValidatingProspect(p)}>Validate</Button>
+                                            <Button size="sm" onClick={() => handleValidateClick(p)}>Validate</Button>
                                         </TableCell>
                                     </TableRow>
                                 ))}
@@ -122,21 +149,57 @@ export default function AgencyProspects() {
                     </DialogHeader>
                     <div className="grid gap-4 py-2">
                         <div className="grid gap-2">
-                            <Label htmlFor="cin">CIN</Label>
-                            <Input id="cin" value={data.cin} onChange={(e) => setData('cin', e.target.value)} placeholder="Ex: A123456 or AB1234" />
+                            <Label htmlFor="cin">
+                                CIN {!validatingProspect?.profile?.cin && '*'}
+                                {validatingProspect?.profile?.cin && (
+                                    <span className="text-xs text-gray-500 ml-2">(Déjà rempli par le prospect)</span>
+                                )}
+                            </Label>
+                            {validatingProspect?.profile?.cin ? (
+                                <Input 
+                                    id="cin" 
+                                    value={data.cin} 
+                                    disabled 
+                                    className="bg-gray-100"
+                                />
+                            ) : (
+                                <Input 
+                                    id="cin" 
+                                    value={data.cin} 
+                                    onChange={(e) => setData('cin', e.target.value)} 
+                                    placeholder="Ex: A123456 or AB1234" 
+                                />
+                            )}
                             {errors.cin && <p className="text-red-500 text-sm">{errors.cin}</p>}
                         </div>
-                        <div className="grid grid-cols-2 gap-3">
-                            <div className="grid gap-2">
-                                <Label htmlFor="front">Identity Card Front</Label>
-                                <Input id="front" type="file" accept="image/*" onChange={(e) => e.target.files?.[0] && setData('identity_card_front', e.target.files[0])} />
-                                {errors.identity_card_front && <p className="text-red-500 text-sm">{errors.identity_card_front}</p>}
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="back">Identity Card Back</Label>
-                                <Input id="back" type="file" accept="image/*" onChange={(e) => e.target.files?.[0] && setData('identity_card_back', e.target.files[0])} />
-                                {errors.identity_card_back && <p className="text-red-500 text-sm">{errors.identity_card_back}</p>}
-                            </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="front">
+                                Identity Card Front {!validatingProspect?.profile?.identity_card_front_path && '*'}
+                                {validatingProspect?.profile?.identity_card_front_path && (
+                                    <span className="text-xs text-gray-500 ml-2">(Déjà téléchargée)</span>
+                                )}
+                            </Label>
+                            {validatingProspect?.profile?.identity_card_front_path ? (
+                                <div className="flex items-center gap-2 p-2 bg-gray-100 rounded border">
+                                    <span className="text-sm text-gray-600">CNI déjà téléchargée</span>
+                                    <a 
+                                        href={`/storage/${validatingProspect.profile.identity_card_front_path}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-xs text-blue-600 hover:underline"
+                                    >
+                                        Voir
+                                    </a>
+                                </div>
+                            ) : (
+                                <Input 
+                                    id="front" 
+                                    type="file" 
+                                    accept="image/*" 
+                                    onChange={(e) => e.target.files?.[0] && setData('identity_card_front', e.target.files[0])} 
+                                />
+                            )}
+                            {errors.identity_card_front && <p className="text-red-500 text-sm">{errors.identity_card_front}</p>}
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="service">Service</Label>
@@ -230,8 +293,14 @@ export default function AgencyProspects() {
                         <Button variant="outline" onClick={() => { setValidatingProspect(null); reset(); }}>Cancel</Button>
                         <Button
                                 onClick={() => {
+                                    // Check if CNI and front are needed
+                                    const hasExistingCin = validatingProspect?.profile?.cin;
+                                    const hasExistingFront = validatingProspect?.profile?.identity_card_front_path;
+                                    const needsCin = !hasExistingCin;
+                                    const needsFront = !hasExistingFront;
+                                    
                                     // Basic validation
-                                    if (!data.cin || !data.identity_card_front || !data.identity_card_back || !data.service_id || !data.matrimonial_pack_id || !data.pack_price || !data.payment_mode || data.pack_advantages.length === 0) {
+                                    if ((needsCin && !data.cin) || (needsFront && !data.identity_card_front) || !data.service_id || !data.matrimonial_pack_id || !data.pack_price || !data.payment_mode || data.pack_advantages.length === 0) {
                                         alert('Please fill in all required fields');
                                         return;
                                     }

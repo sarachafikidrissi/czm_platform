@@ -9,6 +9,7 @@ use App\Mail\BillEmail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Crypt;
 use Inertia\Inertia;
 use App\Models\Service;
 use Illuminate\Support\Facades\Schema;
@@ -90,6 +91,18 @@ class MatchmakerController extends Controller
             $matrimonialPacks = \App\Models\MatrimonialPack::all(['id','name','duration']);
         }
 
+        // Decrypt CNI for prospects who already provided it (for validation form display)
+        $prospects->each(function ($prospect) {
+            if ($prospect->profile && $prospect->profile->cin) {
+                try {
+                    $prospect->profile->cin_decrypted = Crypt::decryptString($prospect->profile->cin);
+                } catch (\Exception $e) {
+                    // If decryption fails, mark as not provided
+                    $prospect->profile->cin_decrypted = null;
+                }
+            }
+        });
+
         return Inertia::render('matchmaker/prospects', [
             'prospects' => $prospects,
             'filter' => $filter ?: 'all',
@@ -100,20 +113,64 @@ class MatchmakerController extends Controller
 
     public function validateProspect(Request $request, $id)
     {
-        $request->validate([
+        $prospect = User::findOrFail($id);
+        $profile = $prospect->profile;
+        
+        // Check if user already provided CNI and front
+        // Note: cin is encrypted, so we check if it exists (not null/empty)
+        $hasExistingCin = $profile && $profile->cin && !empty($profile->cin);
+        $hasExistingFront = $profile && $profile->identity_card_front_path;
+        
+        // Build validation rules
+        $rules = [
             'notes' => 'nullable|string|max:1000',
-            'cin' => ['required','string','max:20','regex:/^[A-Za-z]{1,2}\d{4,6}$/','unique:profiles,cin'],
-            'identity_card_front' => 'required|image|mimes:jpeg,png,jpg,gif|max:4096',
-            'identity_card_back' => 'required|image|mimes:jpeg,png,jpg,gif|max:4096',
             'service_id' => 'required|exists:services,id',
             'matrimonial_pack_id' => 'required|exists:matrimonial_packs,id',
             'pack_price' => 'required|numeric|min:0',
             'pack_advantages' => 'required|array|min:1',
             'pack_advantages.*' => 'string|in:Suivi et accompagnement personnalisé,Suivi et accompagnement approfondi,Suivi et accompagnement premium,Suivi et accompagnement exclusif avec assistance personnalisée,Rendez-vous avec des profils compatibles,Rendez-vous avec des profils correspondant à vos attentes,Rendez-vous avec des profils soigneusement sélectionnés,Rendez-vous illimités avec des profils rigoureusement sélectionnés,Formations pré-mariage avec le profil choisi,Formations pré-mariage avancées avec le profil choisi,Accès prioritaire aux nouveaux profils,Accès prioritaire aux profils VIP,Réduction à vie sur les séances de conseil conjugal et coaching familial (-10% à -25%)',
             'payment_mode' => 'required|string|in:Virement,Caisse agence,Chèque,CMI,Avance,Reliquat,RDV',
-        ]);
-
-        $prospect = User::findOrFail($id);
+        ];
+        
+        // CNI is required only if user didn't provide it
+        // Note: We can't use 'unique:profiles,cin' because cin is encrypted
+        // We'll check uniqueness manually in validation
+        if (!$hasExistingCin) {
+            $rules['cin'] = [
+                'required',
+                'string',
+                'max:20',
+                'regex:/^[A-Za-z]{1,2}\d{4,6}$/',
+                function ($attribute, $value, $fail) use ($prospect) {
+                    $cinUpper = strtoupper($value);
+                    
+                    // Check if this CNI is already used by another user
+                    $existingProfiles = \App\Models\Profile::where('user_id', '!=', $prospect->id)
+                        ->whereNotNull('cin')
+                        ->get();
+                    
+                    foreach ($existingProfiles as $existingProfile) {
+                        try {
+                            $decrypted = Crypt::decryptString($existingProfile->cin);
+                            if ($decrypted === $cinUpper) {
+                                $fail('Ce numéro de CNI est déjà utilisé par un autre utilisateur.');
+                                return;
+                            }
+                        } catch (\Exception $e) {
+                            // If decryption fails, skip this profile
+                            continue;
+                        }
+                    }
+                },
+            ];
+        }
+        
+        // Front is required only if user didn't provide it
+        if (!$hasExistingFront) {
+            $rules['identity_card_front'] = 'required|image|mimes:jpeg,png,jpg,gif|max:4096';
+        }
+        
+        $request->validate($rules);
         
         // Check if matchmaker can validate this prospect
         $me = Auth::user();
@@ -131,16 +188,44 @@ class MatchmakerController extends Controller
             }
         }
         
-        // Store ID card images in profile
-        $frontPath = $request->file('identity_card_front')->store('identity-cards', 'public');
-        $backPath = $request->file('identity_card_back')->store('identity-cards', 'public');
-
+        // Prepare app key for hashing
+        $appKey = (string) config('app.key');
+        if (str_starts_with($appKey, 'base64:')) {
+            $decoded = base64_decode(substr($appKey, 7));
+            if ($decoded !== false) {
+                $appKey = $decoded;
+            }
+        }
+        
+        // Store ID card images and hashes
+        $frontPath = ($hasExistingFront && $profile) ? $profile->identity_card_front_path : null;
+        $frontHash = ($hasExistingFront && $profile) ? $profile->identity_card_front_hash : null;
+        $cinValue = ($hasExistingCin && $profile) ? $profile->cin : null;
+        $cinHash = ($hasExistingCin && $profile) ? $profile->cin_hash : null;
+        
+        // Handle front upload if matchmaker needs to fill it
+        if (!$hasExistingFront && $request->hasFile('identity_card_front')) {
+            $frontFile = $request->file('identity_card_front');
+            $frontPath = $frontFile->store('identity-cards', 'public');
+            $frontContent = file_get_contents($frontFile->getRealPath());
+            $frontHash = hash_hmac('sha256', $frontContent, $appKey);
+        }
+        
+        // Handle CNI if matchmaker needs to fill it
+        if (!$hasExistingCin && $request->filled('cin')) {
+            $cinPlain = strtoupper($request->cin);
+            // Encrypt the CNI number for security
+            $cinValue = Crypt::encryptString($cinPlain);
+            $cinHash = hash_hmac('sha256', (string) $cinPlain, $appKey);
+        }
+        
         $prospect->profile()->updateOrCreate(
             ['user_id' => $prospect->id],
             [
-                'cin' => strtoupper($request->cin),
+                'cin' => $cinValue,
+                'cin_hash' => $cinHash,
                 'identity_card_front_path' => $frontPath,
-                'identity_card_back_path' => $backPath,
+                'identity_card_front_hash' => $frontHash,
                 'notes' => $request->notes,
                 'service_id' => $request->service_id,
                 'matrimonial_pack_id' => $request->matrimonial_pack_id,
@@ -383,6 +468,21 @@ class MatchmakerController extends Controller
         if (\Illuminate\Support\Facades\Schema::hasTable('matrimonial_packs')) {
             $matrimonialPacks = \App\Models\MatrimonialPack::all(['id','name','duration']);
         }
+
+        // Load profiles with relationships
+        $prospects->load(['profile', 'assignedMatchmaker', 'agency']);
+        
+        // Decrypt CNI for prospects who already provided it (for validation form display)
+        $prospects->each(function ($prospect) {
+            if ($prospect->profile && $prospect->profile->cin) {
+                try {
+                    $prospect->profile->cin_decrypted = Crypt::decryptString($prospect->profile->cin);
+                } catch (\Exception $e) {
+                    // If decryption fails, mark as not provided
+                    $prospect->profile->cin_decrypted = null;
+                }
+            }
+        });
 
         return Inertia::render('matchmaker/agency-prospects', [
             'prospects' => $prospects,

@@ -25,28 +25,74 @@ export default function MatchmakerProspects() {
     const [cin, setCin] = useState('');
     const [cinError, setCinError] = useState(null);
     const [front, setFront] = useState(null);
-    const [back, setBack] = useState(null);
     const [submitting, setSubmitting] = useState(false);
-    const [errors, setErrors] = useState({ notes: null, recommendations: null, cin: null, identity_card_front: null, identity_card_back: null, payment_mode: null, general: null });
+    const [errors, setErrors] = useState({ notes: null, recommendations: null, cin: null, identity_card_front: null, payment_mode: null, general: null });
     console.log(prospects);
     
 
     const handleValidate = (prospect) => {
         setSelectedProspect(prospect);
-        setNotes('');
-        setServiceId('');
-        setMatrimonialPackId('');
-        setPackPrice('');
-        setPackAdvantages([]);
-        setPaymentMode('');
+        setNotes(prospect.profile?.notes || '');
+        setServiceId(prospect.profile?.service_id || '');
+        setMatrimonialPackId(prospect.profile?.matrimonial_pack_id || '');
+        setPackPrice(prospect.profile?.pack_price || '');
+        setPackAdvantages(prospect.profile?.pack_advantages || []);
+        setPaymentMode(prospect.profile?.payment_mode || '');
+        
+        // Pre-fill CNI if user already provided it
+        // Backend sends cin_decrypted for display (we show masked version)
+        if (prospect.profile?.cin && prospect.profile?.cin_decrypted) {
+            // Show masked CNI (e.g., A1****6)
+            const decryptedCin = prospect.profile.cin_decrypted;
+            const masked = decryptedCin.length > 3 
+                ? decryptedCin.substring(0, 2) + '****' + decryptedCin.substring(decryptedCin.length - 1)
+                : '****';
+            setCin(masked);
+        } else {
+            setCin('');
+        }
+        
+        // If user already uploaded front, we won't show it but mark that it exists
+        setFront(null);
     };
 
     const submitValidation = () => {
-        const re = /^[A-Za-z]{1,2}\d{4,6}$/;
-        const ok = re.test(cin.trim());
-        setCinError(ok ? null : 'CIN invalide. Ex: A123456 ou AB1234');
-        setErrors({ notes: null, recommendations: null, cin: ok ? null : 'CIN invalide. Ex: A123456 ou AB1234', identity_card_front: front ? null : 'Front image is required', identity_card_back: back ? null : 'Back image is required', payment_mode: null, general: null });
-        if (!ok || !front || !back) return;
+        const hasExistingCin = selectedProspect?.profile?.cin;
+        const hasExistingFront = selectedProspect?.profile?.identity_card_front_path;
+        const needsCin = !hasExistingCin;
+        const needsFront = !hasExistingFront;
+        // Validate CNI only if needed and provided
+        let cinOk = true;
+        let cinValue = null;
+        if (needsCin) {
+            if (!cin || cin.trim() === '' || cin.includes('****')) {
+                setCinError('CIN est requis');
+                cinOk = false;
+            } else {
+                const re = /^[A-Za-z]{1,2}\d{4,6}$/;
+                cinOk = re.test(cin.trim());
+                setCinError(cinOk ? null : 'CIN invalide. Ex: A123456 ou AB1234');
+                if (cinOk) {
+                    cinValue = cin.trim();
+                }
+            }
+        } else {
+            // User already provided CNI, use existing decrypted value from profile
+            // Backend sends cin_decrypted for display purposes
+            cinValue = selectedProspect?.profile?.cin_decrypted || hasExistingCin;
+            setCinError(null);
+        }
+        
+        setErrors({ 
+            notes: null, 
+            recommendations: null, 
+            cin: cinOk ? null : (needsCin ? 'CIN est requis' : 'CIN invalide. Ex: A123456 ou AB1234'), 
+            identity_card_front: (needsFront && !front) ? 'Front image is required' : null, 
+            payment_mode: null, 
+            general: null 
+        });
+        
+        if (!cinOk || (needsFront && !front)) return;
 
         const fd = new FormData();
         fd.append('notes', notes);
@@ -55,9 +101,18 @@ export default function MatchmakerProspects() {
         fd.append('pack_price', packPrice);
         fd.append('pack_advantages', JSON.stringify(packAdvantages));
         fd.append('payment_mode', paymentMode);
-        fd.append('cin', cin);
-        fd.append('identity_card_front', front);
-        fd.append('identity_card_back', back);
+        
+        // Only send CNI if matchmaker needs to fill it (user didn't provide it)
+        // Backend will use existing value if user already provided it
+        if (needsCin && cinValue) {
+            fd.append('cin', cinValue);
+        }
+        
+        // Only send front if matchmaker needs to fill it (user didn't provide it)
+        // Backend will use existing path if user already provided it
+        if (needsFront && front) {
+            fd.append('identity_card_front', front);
+        }
 
         setSubmitting(true);
         router.post(`/staff/prospects/${selectedProspect.id}/validate`, fd, {
@@ -70,7 +125,6 @@ export default function MatchmakerProspects() {
                     recommendations: err?.recommendations || null,
                     cin: err?.cin || prev.cin,
                     identity_card_front: err?.identity_card_front || null,
-                    identity_card_back: err?.identity_card_back || null,
                     payment_mode: err?.payment_mode || null,
                     general: err?.message || 'Une erreur est survenue. Veuillez réessayer.'
                 }));
@@ -86,8 +140,7 @@ export default function MatchmakerProspects() {
                 setPaymentMode('');
                 setCin('');
                 setFront(null);
-                setBack(null);
-                setErrors({ notes: null, recommendations: null, cin: null, identity_card_front: null, identity_card_back: null, payment_mode: null, general: null });
+                setErrors({ notes: null, recommendations: null, cin: null, identity_card_front: null, payment_mode: null, general: null });
             }
         });
     };
@@ -274,21 +327,54 @@ export default function MatchmakerProspects() {
                                                         {errors.payment_mode && <p className="text-red-500 text-sm">{errors.payment_mode}</p>}
                                                     </div>
                                                     <div className="grid gap-2">
-                                                        <Label htmlFor="cin">CIN</Label>
-                                                        <Input id="cin" value={cin} onChange={(e) => setCin(e.target.value)} placeholder="Ex: A123456 or AB1234" />
+                                                        <Label htmlFor="cin">
+                                                            CIN {!selectedProspect?.profile?.cin && '*'}
+                                                            {selectedProspect?.profile?.cin && (
+                                                                <span className="text-xs text-gray-500 ml-2">(Déjà rempli par le prospect)</span>
+                                                            )}
+                                                        </Label>
+                                                        {selectedProspect?.profile?.cin ? (
+                                                            <Input 
+                                                                id="cin" 
+                                                                value={cin} 
+                                                                disabled 
+                                                                className="bg-gray-100"
+                                                            />
+                                                        ) : (
+                                                            <Input 
+                                                                id="cin" 
+                                                                value={cin} 
+                                                                onChange={(e) => setCin(e.target.value)} 
+                                                                placeholder="Ex: A123456 or AB1234" 
+                                                            />
+                                                        )}
                                                         {cinError && <p className="text-red-500 text-sm">{cinError}</p>}
                                                         {errors.cin && <p className="text-red-500 text-sm">{errors.cin}</p>}
                                                     </div>
                                                     <div className="grid grid-cols-2 gap-3">
                                                         <div className="grid gap-2">
-                                                            <Label htmlFor="front">Identity Card Front</Label>
-                                                            <Input id="front" type="file" accept="image/*" onChange={(e) => e.target.files?.[0] && setFront(e.target.files[0])} />
+                                                            <Label htmlFor="front">
+                                                                Identity Card Front {!selectedProspect?.profile?.identity_card_front_path && '*'}
+                                                                {selectedProspect?.profile?.identity_card_front_path && (
+                                                                    <span className="text-xs text-gray-500 ml-2">(Déjà téléchargée)</span>
+                                                                )}
+                                                            </Label>
+                                                            {selectedProspect?.profile?.identity_card_front_path ? (
+                                                                <div className="flex items-center gap-2 p-2 bg-gray-100 rounded border">
+                                                                    <span className="text-sm text-gray-600">CNI déjà téléchargée</span>
+                                                                    <a 
+                                                                        href={`/storage/${selectedProspect.profile.identity_card_front_path}`}
+                                                                        target="_blank"
+                                                                        rel="noopener noreferrer"
+                                                                        className="text-xs text-blue-600 hover:underline"
+                                                                    >
+                                                                        Voir
+                                                                    </a>
+                                                                </div>
+                                                            ) : (
+                                                                <Input id="front" type="file" accept="image/*" onChange={(e) => e.target.files?.[0] && setFront(e.target.files[0])} />
+                                                            )}
                                                             {errors.identity_card_front && <p className="text-red-500 text-sm">{errors.identity_card_front}</p>}
-                                                        </div>
-                                                        <div className="grid gap-2">
-                                                            <Label htmlFor="back">Identity Card Back</Label>
-                                                            <Input id="back" type="file" accept="image/*" onChange={(e) => e.target.files?.[0] && setBack(e.target.files[0])} />
-                                                            {errors.identity_card_back && <p className="text-red-500 text-sm">{errors.identity_card_back}</p>}
                                                         </div>
                                                     </div>
                                                     {errors.general && (
