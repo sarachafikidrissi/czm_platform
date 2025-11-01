@@ -40,6 +40,7 @@ class Profile extends Model
         'pack_advantages' => 'array',
         'villes_recherche' => 'array',
         'situation_matrimoniale_recherche' => 'array', // Changed to array to support multiple selections
+        'pays_recherche' => 'array', // Changed to array to support multiple selections
         'is_completed' => 'boolean',
         'has_children' => 'boolean',
         'current_step' => 'integer',

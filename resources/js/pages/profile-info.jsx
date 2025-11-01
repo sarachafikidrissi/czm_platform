@@ -47,7 +47,7 @@ export default function ProfileInfo() {
         // Step 3
         ageMinimum: profile?.ageMinimum || '',
         situationMatrimonialeRecherche: profile?.situationMatrimonialeRecherche || [],
-        paysRecherche: profile?.paysRecherche || 'maroc',
+        paysRecherche: profile?.paysRecherche || [],
         villesRecherche: profile?.villesRecherche || [],
         niveauEtudesRecherche: profile?.niveauEtudesRecherche || '',
         statutEmploiRecherche: profile?.statutEmploiRecherche || '',
@@ -93,7 +93,10 @@ export default function ProfileInfo() {
                 const situationMatrimonialeArray = Array.isArray(formData.situationMatrimonialeRecherche) 
                     ? formData.situationMatrimonialeRecherche 
                     : (formData.situationMatrimonialeRecherche ? [formData.situationMatrimonialeRecherche] : []);
-                return formData.ageMinimum && situationMatrimonialeArray.length > 0;
+                const paysRechercheArray = Array.isArray(formData.paysRecherche) 
+                    ? formData.paysRecherche 
+                    : (formData.paysRecherche ? [formData.paysRecherche] : []);
+                return formData.ageMinimum && situationMatrimonialeArray.length > 0 && paysRechercheArray.length > 0;
             case 4:
                 // CNI is required, photo is optional
                 if (!formData.cin || (!formData.identityCardFront && !formData.identityCardFrontPath)) {
@@ -127,6 +130,13 @@ export default function ProfileInfo() {
                         }
                     } else if (key === 'situationMatrimonialeRecherche') {
                         // Handle array or string for situationMatrimonialeRecherche
+                        if (Array.isArray(formData[key]) && formData[key].length > 0) {
+                            formDataToSend.append(key, JSON.stringify(formData[key]));
+                        } else if (typeof formData[key] === 'string' && formData[key]) {
+                            formDataToSend.append(key, formData[key]);
+                        }
+                    } else if (key === 'paysRecherche') {
+                        // Handle array or string for paysRecherche
                         if (Array.isArray(formData[key]) && formData[key].length > 0) {
                             formDataToSend.append(key, JSON.stringify(formData[key]));
                         } else if (typeof formData[key] === 'string' && formData[key]) {
@@ -270,7 +280,7 @@ export default function ProfileInfo() {
             // Step 3
             ageMinimum: profile?.ageMinimum || '',
             situationMatrimonialeRecherche: profile?.situationMatrimonialeRecherche || [],
-            paysRecherche: profile?.paysRecherche || 'maroc',
+            paysRecherche: profile?.paysRecherche || [],
             villesRecherche: profile?.villesRecherche || [],
             niveauEtudesRecherche: profile?.niveauEtudesRecherche || '',
             statutEmploiRecherche: profile?.statutEmploiRecherche || '',

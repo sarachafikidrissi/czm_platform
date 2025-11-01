@@ -1,6 +1,166 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { SearchableMultiSelect } from '@/components/ui/searchable-multi-select';
 
 function PartnerInfo({ formData, setFormData }) {
+    const [countries, setCountries] = useState([]);
+    const [countryCodeToCities, setCountryCodeToCities] = useState({});
+    const [selectedCountryCodes, setSelectedCountryCodes] = useState([]);
+    const [loadingCountries, setLoadingCountries] = useState(false);
+    const [loadingCities, setLoadingCities] = useState(false);
+    const [errorCountries, setErrorCountries] = useState('');
+
+    // Initialize selected countries from formData
+    useEffect(() => {
+        if (countries.length > 0 && formData.paysRecherche && selectedCountryCodes.length === 0) {
+            // If paysRecherche is a string (old format), convert to array
+            const paysArray = Array.isArray(formData.paysRecherche) 
+                ? formData.paysRecherche 
+                : [formData.paysRecherche];
+            
+            // Map country names/codes to ISO codes
+            const codes = paysArray
+                .map(pays => {
+                    const country = countries.find(c => 
+                        c.frenchName.toLowerCase() === pays.toLowerCase() || 
+                        c.iso2.toLowerCase() === pays.toLowerCase() ||
+                        c.iso3.toLowerCase() === pays.toLowerCase()
+                    );
+                    return country?.iso2;
+                })
+                .filter(Boolean);
+            
+            if (codes.length > 0) {
+                setSelectedCountryCodes(codes);
+            }
+        }
+    }, [countries, formData.paysRecherche]);
+
+    // Fetch countries and cities from API
+    useEffect(() => {
+        let isMounted = true;
+        const fetchCountries = async () => {
+            try {
+                setLoadingCountries(true);
+                setErrorCountries('');
+                const response = await fetch('https://countriesnow.space/api/v0.1/countries');
+                if (!response.ok) throw new Error('Failed to fetch countries');
+                const json = await response.json();
+                const list = Array.isArray(json?.data) ? json.data : [];
+                if (!isMounted) return;
+                
+                // Map: keep iso2 and cities; localize country display to French via Intl.DisplayNames
+                const regionNamesFr = new Intl.DisplayNames(['fr'], { type: 'region' });
+                const normalized = list
+                    .filter((item) => item?.iso2)
+                    .map((item) => ({
+                        iso2: item.iso2,
+                        iso3: item.iso3,
+                        englishName: item.country,
+                        frenchName: regionNamesFr.of(item.iso2) || item.country,
+                        cities: Array.isArray(item.cities) ? item.cities : [],
+                    }))
+                    .sort((a, b) => a.frenchName.localeCompare(b.frenchName, 'fr'));
+
+                const codeToCities = normalized.reduce((acc, item) => {
+                    acc[item.iso2] = item.cities;
+                    return acc;
+                }, {});
+
+                if (isMounted) {
+                    setCountries(normalized);
+                    setCountryCodeToCities(codeToCities);
+                }
+            } catch (err) {
+                if (!isMounted) return;
+                setErrorCountries('Impossible de charger la liste des pays.');
+            } finally {
+                if (isMounted) setLoadingCountries(false);
+            }
+        };
+        fetchCountries();
+        return () => {
+            isMounted = false;
+        };
+    }, []);
+
+    // Fetch cities for selected countries
+    useEffect(() => {
+        if (selectedCountryCodes.length === 0) return;
+        
+        const fetchCitiesForCountries = async () => {
+            setLoadingCities(true);
+            try {
+                // Cities are already included in the initial API response
+                // But we can fetch additional cities if needed using the cities endpoint
+                // For now, we'll use the cities from the initial response
+                setLoadingCities(false);
+            } catch (err) {
+                setLoadingCities(false);
+            }
+        };
+
+        fetchCitiesForCountries();
+    }, [selectedCountryCodes]);
+
+    // Prepare countries options for SearchableMultiSelect
+    const countryOptions = useMemo(() => {
+        return countries.map((country) => ({
+            value: country.iso2,
+            label: country.frenchName,
+        }));
+    }, [countries]);
+
+    // Get available cities for selected countries
+    const availableCities = useMemo(() => {
+        if (selectedCountryCodes.length === 0) return [];
+        
+        const allCities = new Set();
+        selectedCountryCodes.forEach((code) => {
+            const cities = countryCodeToCities[code] || [];
+            cities.forEach((city) => allCities.add(city));
+        });
+        
+        return Array.from(allCities).sort().map((city) => ({
+            value: city,
+            label: city,
+        }));
+    }, [selectedCountryCodes, countryCodeToCities]);
+
+    // Handle country selection
+    const handleCountryChange = (selectedCodes) => {
+        setSelectedCountryCodes(selectedCodes);
+        
+        // Update formData with country names
+        const selectedCountries = selectedCodes.map((code) => {
+            const country = countries.find((c) => c.iso2 === code);
+            return country ? country.frenchName : code;
+        });
+        
+        setFormData((prev) => ({
+            ...prev,
+            paysRecherche: selectedCountries,
+        }));
+
+        // Clear cities if no countries selected or if selected countries changed significantly
+        if (selectedCodes.length === 0) {
+            setFormData((prev) => ({
+                ...prev,
+                villesRecherche: [],
+            }));
+        } else {
+            // Filter out cities that are not in the selected countries
+            const currentVilles = Array.isArray(formData.villesRecherche) ? formData.villesRecherche : [];
+            const validCities = availableCities.map((c) => c.value);
+            const filteredVilles = currentVilles.filter((ville) => validCities.includes(ville));
+            
+            if (filteredVilles.length !== currentVilles.length) {
+                setFormData((prev) => ({
+                    ...prev,
+                    villesRecherche: filteredVilles,
+                }));
+            }
+        }
+    };
     const handleInputChange = (e) => {
         const { name, value, type, checked } = e.target;
 
@@ -138,60 +298,56 @@ function PartnerInfo({ formData, setFormData }) {
                     </div>
                 </div>
 
-                {/* Pays - Select dropdown */}
+                {/* Pays - Searchable Multi-Select */}
                 <div>
                     <label htmlFor="paysRecherche" className="mb-1 block text-sm font-medium text-gray-700">
                         Pays profil recherché *
                     </label>
-                    <select
-                        id="paysRecherche"
-                        name="paysRecherche"
-                        value={formData.paysRecherche || 'maroc'}
-                        onChange={handleInputChange}
-                        className="w-full rounded-lg border border-gray-300 px-4 py-3 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
-                    >
-                        <option value="maroc">Maroc</option>
-                        <option value="france">France</option>
-                        <option value="canada">Canada</option>
-                        <option value="belgique">Belgique</option>
-                        <option value="autres">Autres</option>
-                    </select>
+                    {loadingCountries ? (
+                        <div className="rounded-lg border border-gray-300 px-4 py-3 text-sm text-gray-500">
+                            Chargement des pays...
+                        </div>
+                    ) : (
+                        <SearchableMultiSelect
+                            options={countryOptions}
+                            selectedValues={selectedCountryCodes}
+                            onSelectionChange={handleCountryChange}
+                            placeholder="Sélectionnez les pays"
+                            searchPlaceholder="Search for Location"
+                            emptyMessage="Aucun pays trouvé"
+                        />
+                    )}
+                    {errorCountries && <p className="mt-1 text-xs text-red-500">{errorCountries}</p>}
                 </div>
 
-                {/* Villes - Select dropdown (multiple) */}
+                {/* Villes - Searchable Multi-Select */}
                 <div>
                     <label htmlFor="villesRecherche" className="mb-1 block text-sm font-medium text-gray-700">
                         Villes Profil recherché
                     </label>
-                    <select
-                        id="villesRecherche"
-                        name="villesRecherche"
-                        multiple
-                        value={safeVilles}
-                        onChange={(e) => {
-                            const selectedOptions = Array.from(e.target.selectedOptions, (option) => option.value);
-                            setFormData((prev) => ({
-                                ...prev,
-                                villesRecherche: selectedOptions,
-                            }));
-                        }}
-                        className="w-full rounded-lg border border-gray-300 px-4 py-3 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
-                        size={6}
-                    >
-                        <option value="casablanca">Casablanca</option>
-                        <option value="rabat">Rabat</option>
-                        <option value="marrakech">Marrakech</option>
-                        <option value="fes">Fès</option>
-                        <option value="tanger">Tanger</option>
-                        <option value="agadir">Agadir</option>
-                        <option value="meknes">Meknès</option>
-                        <option value="oujda">Oujda</option>
-                        <option value="kenitra">Kénitra</option>
-                        <option value="tetouan">Tétouan</option>
-                        <option value="safi">Safi</option>
-                        <option value="eljadida">El Jadida</option>
-                    </select>
-                    <p className="mt-1 text-xs text-gray-500">Maintenez Ctrl (Windows) ou Cmd (Mac) pour sélectionner plusieurs villes</p>
+                    {selectedCountryCodes.length === 0 ? (
+                        <div className="rounded-lg border border-gray-300 px-4 py-3 text-sm text-gray-400">
+                            Veuillez d'abord sélectionner au moins un pays
+                        </div>
+                    ) : loadingCities ? (
+                        <div className="rounded-lg border border-gray-300 px-4 py-3 text-sm text-gray-500">
+                            Chargement des villes...
+                        </div>
+                    ) : (
+                        <SearchableMultiSelect
+                            options={availableCities}
+                            selectedValues={safeVilles}
+                            onSelectionChange={(values) => {
+                                setFormData((prev) => ({
+                                    ...prev,
+                                    villesRecherche: values,
+                                }));
+                            }}
+                            placeholder="Sélectionnez les villes"
+                            searchPlaceholder="Search for Location"
+                            emptyMessage="Aucune ville trouvée"
+                        />
+                    )}
                 </div>
 
                 {/* Niveau d'études */}

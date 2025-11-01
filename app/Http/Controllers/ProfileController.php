@@ -61,7 +61,9 @@ class ProfileController extends Controller
                 'situationMatrimonialeRecherche' => is_array($profile->situation_matrimoniale_recherche) 
                     ? $profile->situation_matrimoniale_recherche 
                     : ($profile->situation_matrimoniale_recherche ? [$profile->situation_matrimoniale_recherche] : []),
-                'paysRecherche' => $profile->pays_recherche,
+                'paysRecherche' => is_array($profile->pays_recherche) 
+                    ? $profile->pays_recherche 
+                    : ($profile->pays_recherche ? [$profile->pays_recherche] : []),
                 'villesRecherche' => $profile->villes_recherche ?? [],
                 'niveauEtudesRecherche' => $profile->niveau_etudes_recherche,
                 'statutEmploiRecherche' => $profile->statut_emploi_recherche,
@@ -207,6 +209,7 @@ class ProfileController extends Controller
         $rules = [
             'ageMinimum' => 'required|integer|min:18|max:100',
             'situationMatrimonialeRecherche' => 'required',
+            'paysRecherche' => 'required',
         ];
         $request->validate($rules);
         
@@ -216,6 +219,15 @@ class ProfileController extends Controller
         if (!is_array($situationArray) || count($situationArray) === 0) {
             throw \Illuminate\Validation\ValidationException::withMessages([
                 'situationMatrimonialeRecherche' => ['Au moins une situation matrimoniale doit être sélectionnée.'],
+            ]);
+        }
+        
+        // Validate that at least one country is selected
+        $paysRecherche = $request->paysRecherche;
+        $paysArray = is_string($paysRecherche) ? json_decode($paysRecherche, true) : $paysRecherche;
+        if (!is_array($paysArray) || count($paysArray) === 0) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'paysRecherche' => ['Au moins un pays doit être sélectionné.'],
             ]);
         }
     }
@@ -314,7 +326,14 @@ class ProfileController extends Controller
             $profile->situation_matrimoniale_recherche = is_array($situationMatrimonialeRecherche) ? $situationMatrimonialeRecherche : [$situationMatrimonialeRecherche];
         }
         
-        $profile->pays_recherche = $request->paysRecherche;
+        // Handle paysRecherche as array or string
+        $paysRecherche = $request->paysRecherche;
+        if (is_string($paysRecherche)) {
+            $decoded = json_decode($paysRecherche, true);
+            $profile->pays_recherche = is_array($decoded) ? $decoded : [$paysRecherche];
+        } else {
+            $profile->pays_recherche = is_array($paysRecherche) ? $paysRecherche : [$paysRecherche];
+        }
         
         // Handle villes_recherche - can be JSON string or array
         $villesRecherche = $request->villesRecherche;
