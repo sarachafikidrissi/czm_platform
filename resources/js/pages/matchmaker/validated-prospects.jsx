@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Checkbox } from '@/components/ui/checkbox';
 import AppLayout from '@/layouts/app-layout';
 import { useState, useEffect } from 'react';
+import { LayoutGrid, Table2, Mail, MapPin, CheckCircle, Pencil } from 'lucide-react';
 
 export default function ValidatedProspects() {
     const { prospects, status, assignedMatchmaker } = usePage().props;
@@ -24,6 +25,23 @@ export default function ValidatedProspects() {
         payment_mode: ''
     });
     const [matrimonialPacks, setMatrimonialPacks] = useState([]);
+    const [viewMode, setViewMode] = useState('cards'); // 'cards' or 'table'
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 24;
+    
+    // Reset page when prospects change (e.g., filter changes)
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [prospects.length, status]);
+    
+    // Pagination logic
+    const totalPages = Math.ceil(prospects.length / itemsPerPage);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const paginatedProspects = prospects.slice(startIndex, endIndex);
+    const showingStart = prospects.length > 0 ? startIndex + 1 : 0;
+    const showingEnd = Math.min(endIndex, prospects.length);
+    
     console.log(prospects);
 
     const handleMarkAsClient = (userId) => {
@@ -110,15 +128,76 @@ export default function ValidatedProspects() {
         }
     };
     
+    // Helper function to get profile picture URL
+    const getProfilePicture = (user) => {
+        if (user.profile?.profile_picture_path) {
+            return `/storage/${user.profile.profile_picture_path}`;
+        }
+        return `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=random`;
+    };
+
+    // Helper function to get location
+    const getLocation = (user) => {
+        const city = user.profile?.ville_residence || user.profile?.pays_residence || '';
+        const district = user.profile?.heard_about_reference || '';
+        if (city && district && district !== '-') {
+            return `${city}, ${district}`;
+        }
+        return city || 'Other, None';
+    };
+
+    // Helper function to get step/status
+    const getStep = (user) => {
+        // Use matrimonial pack name or service name as step
+        // Default to 'coding school' if none available
+        return user.profile?.matrimonial_pack?.name || 
+               (user.profile?.service_id ? 'Service' : null) || 
+               'coding school';
+    };
+
     return (
         <AppLayout>
-            <Head title="Validated Prospects" />
+            <Head title="Participants" />
             <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
+                {/* Header with View Toggle and Pagination Info */}
                 <div className="flex flex-col gap-3">
-                    <div className="flex items-center justify-between">
-                        <h1 className="text-2xl font-bold">Validated Prospects</h1>
-                        <Badge variant="outline">{prospects.length} users</Badge>
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                        {/* View Toggle */}
+                        <div className="flex items-center gap-2">
+                            <Button
+                                variant={viewMode === 'cards' ? 'default' : 'outline'}
+                                size="sm"
+                                onClick={() => setViewMode('cards')}
+                                className="flex items-center gap-2"
+                            >
+                                <LayoutGrid className="w-4 h-4" />
+                                Cards
+                            </Button>
+                            <Button
+                                variant={viewMode === 'table' ? 'default' : 'outline'}
+                                size="sm"
+                                onClick={() => setViewMode('table')}
+                                className="flex items-center gap-2"
+                            >
+                                <Table2 className="w-4 h-4" />
+                                Table
+                            </Button>
+                        </div>
+                        
+                        {/* Pagination Info */}
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 text-sm text-muted-foreground">
+                            <div>
+                                Showing {showingStart} to {showingEnd} of {prospects.length} participants
+                            </div>
+                            {totalPages > 1 && (
+                                <div>
+                                    Page {currentPage} of {totalPages}
+                                </div>
+                            )}
+                        </div>
                     </div>
+
+                    {/* Filters */}
                     <div className="flex flex-wrap items-center gap-3 bg-white rounded-lg p-3 border">
                         <div className="flex items-center gap-2">
                             <Label className="text-sm text-muted-foreground">Status</Label>
@@ -135,125 +214,172 @@ export default function ValidatedProspects() {
                     </div>
                 </div>
 
-                <Card className="overflow-hidden">
-                    <CardHeader>
-                        <CardTitle>Validated Users</CardTitle>
-                        <CardDescription>
-                            {prospects.length > 0 
-                                ? `Showing ${prospects.length} validated users based on your role permissions.`
-                                : 'No validated users found based on your role permissions.'
-                            }
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead className="w-10"></TableHead>
-                                    <TableHead>Name</TableHead>
-                                    <TableHead>Phone</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead>Pack</TableHead>
-                                    <TableHead>Subscription</TableHead>
-                                    <TableHead>Origin Agency</TableHead>
-                                    <TableHead>Manager at Validation</TableHead>
-                                    <TableHead>Validated By</TableHead>
-                                    <TableHead>Validated Date</TableHead>
-                                    <TableHead>Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {prospects.map((u) => (
-                                    <TableRow key={u.id}>
-                                        <TableCell><input type="checkbox" className="accent-neutral-800" /></TableCell>
-                                        <TableCell className="font-medium">{u.name}</TableCell>
-                                        <TableCell>{u.phone}</TableCell>
-                                        <TableCell>
-                                            <Badge className={`capitalize ${
-                                                u.status === 'member' 
-                                                    ? 'bg-green-100 text-green-800' 
-                                                    : 'bg-blue-100 text-blue-800'
-                                            }`}>
-                                                {u.status}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell className="text-muted-foreground">
-                                            {u.profile?.matrimonial_pack?.name || 'N/A'}
-                                        </TableCell>
-                                        <TableCell className="text-muted-foreground">
-                                            {u.subscriptions && u.subscriptions.length > 0 ? (
-                                                <div className="text-xs">
-                                                    <div className="font-medium">
-                                                        {u.subscriptions[0].subscription_start ? 
-                                                            new Date(u.subscriptions[0].subscription_start).toLocaleDateString() : 'N/A'
-                                                        } - {u.subscriptions[0].subscription_end ? 
-                                                            new Date(u.subscriptions[0].subscription_end).toLocaleDateString() : 'N/A'
-                                                        }
-                                                    </div>
-                                                    <Badge variant="outline" className={`text-xs ${
-                                                        u.subscriptions[0].status === 'active' ? 'bg-green-50 text-green-700' :
-                                                        u.subscriptions[0].status === 'expired' ? 'bg-red-50 text-red-700' :
-                                                        'bg-gray-50 text-gray-700'
-                                                    }`}>
-                                                        {u.subscriptions[0].status}
+                {/* Cards View */}
+                {viewMode === 'cards' && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        {paginatedProspects.map((u) => (
+                            <Card key={u.id} className="overflow-hidden hover:shadow-lg transition-shadow">
+                                <div className="relative">
+                                    <img
+                                        src={getProfilePicture(u)}
+                                        alt={u.name}
+                                        className="w-full h-48 object-cover"
+                                        onError={(e) => {
+                                            e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(u.name)}&background=random`;
+                                        }}
+                                    />
+                                    {/* Overlay Tags */}
+                                    <div className="absolute top-2 right-2 flex gap-2">
+                                        <Badge className="bg-black text-white text-xs px-2 py-1">
+                                            {getStep(u)}
+                                        </Badge>
+                                        <Badge className="bg-green-600 text-white text-xs px-2 py-1 flex items-center gap-1">
+                                            <CheckCircle className="w-3 h-3" />
+                                            Confirmed
+                                        </Badge>
+                                    </div>
+                                </div>
+                                <CardContent className="p-4 space-y-3">
+                                    <div>
+                                        <h3 className="font-semibold text-lg">{u.name}</h3>
+                                    </div>
+                                    
+                                    <div className="flex items-start gap-2 text-sm text-muted-foreground">
+                                        <Mail className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                                        <span className="truncate">{u.email || 'N/A'}</span>
+                                    </div>
+                                    
+                                    <div className="flex items-start gap-2 text-sm text-muted-foreground">
+                                        <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                                        <span className="truncate">{getLocation(u)}</span>
+                                    </div>
+                                    
+                                    <div className="flex items-start gap-2 text-sm">
+                                        <CheckCircle className="w-4 h-4 mt-0.5 flex-shrink-0 text-green-600" />
+                                        <span>Approved by {u.assigned_matchmaker?.name || 'Unknown'}</span>
+                                    </div>
+                                    
+                                    <div className="pt-2">
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="w-full"
+                                            onClick={() => router.visit(`/profile/${u.username || u.id}`)}
+                                        >
+                                            Find Story
+                                        </Button>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </div>
+                )}
+
+                {/* Table View */}
+                {viewMode === 'table' && (
+                    <Card className="overflow-hidden">
+                        <CardContent className="p-0">
+                            <div className="overflow-x-auto">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Name</TableHead>
+                                            <TableHead>Email</TableHead>
+                                            <TableHead className="hidden md:table-cell">Phone</TableHead>
+                                            <TableHead className="hidden lg:table-cell">City</TableHead>
+                                            <TableHead>Step</TableHead>
+                                            <TableHead>Status</TableHead>
+                                            <TableHead>Actions</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {paginatedProspects.map((u) => (
+                                            <TableRow key={u.id}>
+                                                <TableCell className="font-medium">{u.name}</TableCell>
+                                                <TableCell>{u.email || 'N/A'}</TableCell>
+                                                <TableCell className="hidden md:table-cell">{u.phone || 'N/A'}</TableCell>
+                                                <TableCell className="hidden lg:table-cell">{getLocation(u)}</TableCell>
+                                                <TableCell>
+                                                    <Badge className="bg-black text-white">
+                                                        {getStep(u)}
                                                     </Badge>
-                                                </div>
-                                            ) : (
-                                                <span className="text-gray-400">No subscription</span>
-                                            )}
-                                        </TableCell>
-                                        <TableCell className="text-muted-foreground">
-                                            {u.agency?.name || 'N/A'}
-                                        </TableCell>
-                                        <TableCell className="text-muted-foreground">
-                                            {u.validated_by_manager?.name || 'N/A'}
-                                        </TableCell>
-                                        <TableCell className="text-muted-foreground">
-                                            {u.approved_by ? u.assigned_matchmaker.name : 'N/A'}
-                                        </TableCell>
-                                        <TableCell className="text-muted-foreground">
-                                            {u.approved_at ? new Date(u.approved_at).toLocaleDateString() : 'N/A'}
-                                        </TableCell>
-                                        <TableCell>
-                                            <div className="flex gap-2">
-                                                {u.status === 'member' && (
-                                                    <>
-                                                        {!u.has_bill && (
-                                                            <Button
-                                                                size="sm"
-                                                                variant="outline"
-                                                                onClick={() => handleCreateSubscription(u)}
-                                                                className="bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
-                                                            >
-                                                                Abonnement
-                                                            </Button>
-                                                        )}
-                                                        {u.has_bill && (
-                                                            <Button
-                                                                size="sm"
-                                                                variant="outline"
-                                                                onClick={() => handleMarkAsClient(u.id)}
-                                                                disabled={loading[u.id]}
-                                                                className="bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
-                                                            >
-                                                                {loading[u.id] ? 'Processing...' : 'Mark as Client'}
-                                                            </Button>
-                                                        )}
-                                                    </>
-                                                )}
-                                                {u.status === 'client' && (
-                                                    <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                                                        Client
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge className="bg-green-100 text-green-800 flex items-center gap-1 w-fit">
+                                                        <CheckCircle className="w-3 h-3" />
+                                                        Approved
                                                     </Badge>
-                                                )}
-                                            </div>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </CardContent>
-                </Card>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => router.visit(`/profile/${u.username || u.id}`)}
+                                                    >
+                                                        <Pencil className="w-4 h-4" />
+                                                    </Button>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                            
+                            {paginatedProspects.length === 0 && (
+                                <div className="text-center py-8">
+                                    <p className="text-gray-500">No participants found.</p>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                )}
+
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                    <div className="flex justify-center items-center gap-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                            disabled={currentPage === 1}
+                        >
+                            Previous
+                        </Button>
+                        <div className="flex gap-1">
+                            {[...Array(totalPages)].map((_, i) => {
+                                const pageNum = i + 1;
+                                if (
+                                    pageNum === 1 ||
+                                    pageNum === totalPages ||
+                                    (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)
+                                ) {
+                                    return (
+                                        <Button
+                                            key={pageNum}
+                                            variant={currentPage === pageNum ? 'default' : 'outline'}
+                                            size="sm"
+                                            onClick={() => setCurrentPage(pageNum)}
+                                            className="w-10"
+                                        >
+                                            {pageNum}
+                                        </Button>
+                                    );
+                                } else if (pageNum === currentPage - 2 || pageNum === currentPage + 2) {
+                                    return <span key={pageNum} className="px-2">...</span>;
+                                }
+                                return null;
+                            })}
+                        </div>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                            disabled={currentPage === totalPages}
+                        >
+                            Next
+                        </Button>
+                    </div>
+                )}
             </div>
 
             {/* Subscription Form Dialog */}

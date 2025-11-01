@@ -1,5 +1,5 @@
 import { Head, router, usePage, useForm } from '@inertiajs/react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import AppLayout from '@/layouts/app-layout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
+import { LayoutGrid, Table2, Mail, MapPin, CheckCircle, Pencil } from 'lucide-react';
 
 export default function AgencyProspects() {
     const { prospects = [], services = [], matrimonialPacks = [] } = usePage().props;
@@ -24,7 +25,41 @@ export default function AgencyProspects() {
         pack_advantages: [],
         payment_mode: '',
     });
-    const [validatingProspect, setValidatingProspect] = useState(null);    
+    const [validatingProspect, setValidatingProspect] = useState(null);
+    const [viewMode, setViewMode] = useState('cards'); // 'cards' or 'table'
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 24;
+    
+    // Reset page when prospects change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [prospects.length]);
+    
+    // Pagination logic
+    const totalPages = Math.ceil(prospects.length / itemsPerPage);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const paginatedProspects = prospects.slice(startIndex, endIndex);
+    const showingStart = prospects.length > 0 ? startIndex + 1 : 0;
+    const showingEnd = Math.min(endIndex, prospects.length);
+    
+    // Helper function to get profile picture URL
+    const getProfilePicture = (prospect) => {
+        if (prospect.profile?.profile_picture_path) {
+            return `/storage/${prospect.profile.profile_picture_path}`;
+        }
+        return `https://ui-avatars.com/api/?name=${encodeURIComponent(prospect.name)}&background=random`;
+    };
+
+    // Helper function to get location
+    const getLocation = (prospect) => {
+        const city = prospect.city || prospect.profile?.ville_residence || prospect.profile?.pays_residence || '';
+        const country = prospect.country || '';
+        if (city && country) {
+            return `${city}, ${country}`;
+        }
+        return city || country || 'Other, None';
+    };    
     // Pre-fill form when prospect is selected
     const handleValidateClick = (prospect) => {
         setValidatingProspect(prospect);
@@ -57,24 +92,48 @@ export default function AgencyProspects() {
     
     return (
         <AppLayout>
-            <Head title="Agency Prospects" />
+            <Head title="Prospects" />
             <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
+                {/* Header with View Toggle and Pagination Info */}
                 <div className="flex flex-col gap-3">
-                    <div className="flex items-center justify-between">
-                        <h1 className="text-2xl font-bold">Prospects</h1>
-                        <Badge variant="outline">{prospects.length} users</Badge>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-3 bg-white rounded-lg p-3 border">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                        {/* View Toggle */}
                         <div className="flex items-center gap-2">
-                            <Label className="text-sm text-muted-foreground">View</Label>
-                            <Select value={'all'} onValueChange={() => {}}>
-                                <SelectTrigger className="h-9 w-[160px]"><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">All</SelectItem>
-                                </SelectContent>
-                            </Select>
+                            <Button
+                                variant={viewMode === 'cards' ? 'default' : 'outline'}
+                                size="sm"
+                                onClick={() => setViewMode('cards')}
+                                className="flex items-center gap-2"
+                            >
+                                <LayoutGrid className="w-4 h-4" />
+                                Cards
+                            </Button>
+                            <Button
+                                variant={viewMode === 'table' ? 'default' : 'outline'}
+                                size="sm"
+                                onClick={() => setViewMode('table')}
+                                className="flex items-center gap-2"
+                            >
+                                <Table2 className="w-4 h-4" />
+                                Table
+                            </Button>
                         </div>
-                        <Separator orientation="vertical" className="h-6" />
+                        
+                        {/* Pagination Info */}
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 text-sm text-muted-foreground">
+                            <div>
+                                Showing {showingStart} to {showingEnd} of {prospects.length} prospects
+                            </div>
+                            {totalPages > 1 && (
+                                <div>
+                                    Page {currentPage} of {totalPages}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Filters */}
+                    <div className="flex flex-wrap items-center gap-3 bg-white rounded-lg p-3 border">
                         <div className="ml-auto flex items-center gap-2">
                             <Button variant="outline" className="h-9">
                                 Date Range
@@ -86,58 +145,185 @@ export default function AgencyProspects() {
                     </div>
                 </div>
 
-                <Card className="overflow-hidden">
-                    <CardHeader>
-                        <CardTitle>Prospects for Your Agency</CardTitle>
-                        <CardDescription>Review and validate prospects assigned to your agency</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Name</TableHead>
-                                    <TableHead>Country</TableHead>
-                                    <TableHead>City</TableHead>
-                                    <TableHead>Phone</TableHead>
-                                    <TableHead>Dispatched To</TableHead>
-                                    <TableHead>Date</TableHead>
-                                    <TableHead className="text-right">Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {prospects.map((p) => (
-                                    <TableRow key={p.id}>
-                                        <TableCell className="font-medium">{p.name}</TableCell>
-                                        <TableCell>{p.country}</TableCell>
-                                        <TableCell>{p.city}</TableCell>
-                                        <TableCell>{p.phone}</TableCell>
-                                        <TableCell>
-                                            {p.assigned_matchmaker_id ? (
-                                                <div className="text-sm">
-                                                    <div className="font-medium text-green-600">Matchmaker: {p.assigned_matchmaker?.name || 'Unknown'}</div>
-                                                    {p.agency_id && (
-                                                        <div className="text-blue-600">Agency: {p.agency?.name || 'Unknown'}</div>
+                {/* Cards View */}
+                {viewMode === 'cards' && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        {paginatedProspects.map((p) => (
+                            <Card key={p.id} className="overflow-hidden hover:shadow-lg transition-shadow">
+                                <div className="relative">
+                                    <img
+                                        src={getProfilePicture(p)}
+                                        alt={p.name}
+                                        className="w-full h-48 object-cover"
+                                        onError={(e) => {
+                                            e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(p.name)}&background=random`;
+                                        }}
+                                    />
+                                    {/* Overlay Tags */}
+                                    <div className="absolute top-2 right-2 flex gap-2">
+                                        <Badge className="bg-black text-white text-xs px-2 py-1">
+                                            Prospect
+                                        </Badge>
+                                        <Badge className={`text-white text-xs px-2 py-1 flex items-center gap-1 ${
+                                            p.assigned_matchmaker_id ? 'bg-green-600' : 
+                                            p.agency_id ? 'bg-blue-600' : 
+                                            'bg-gray-600'
+                                        }`}>
+                                            <CheckCircle className="w-3 h-3" />
+                                            {p.assigned_matchmaker_id ? 'Assigned' : 
+                                             p.agency_id ? 'Dispatched' : 
+                                             'Pending'}
+                                        </Badge>
+                                    </div>
+                                </div>
+                                <CardContent className="p-4 space-y-3">
+                                    <div>
+                                        <h3 className="font-semibold text-lg">{p.name}</h3>
+                                    </div>
+                                    
+                                    <div className="flex items-start gap-2 text-sm text-muted-foreground">
+                                        <Mail className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                                        <span className="truncate">{p.email || 'N/A'}</span>
+                                    </div>
+                                    
+                                    <div className="flex items-start gap-2 text-sm text-muted-foreground">
+                                        <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                                        <span className="truncate">{getLocation(p)}</span>
+                                    </div>
+                                    
+                                    <div className="flex items-start gap-2 text-sm text-muted-foreground">
+                                        <span className="truncate">Phone: {p.phone || 'N/A'}</span>
+                                    </div>
+                                    
+                                    {p.assigned_matchmaker_id && (
+                                        <div className="text-sm">
+                                            <span className="text-green-600 font-medium">Matchmaker: {p.assigned_matchmaker?.name || 'Unknown'}</span>
+                                        </div>
+                                    )}
+                                    
+                                    <div className="pt-2">
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="w-full"
+                                            onClick={() => handleValidateClick(p)}
+                                        >
+                                            Validate
+                                        </Button>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </div>
+                )}
+
+                {/* Table View */}
+                {viewMode === 'table' && (
+                    <Card className="overflow-hidden">
+                        <CardHeader>
+                            <CardTitle>Prospects for Your Agency</CardTitle>
+                            <CardDescription>Review and validate prospects assigned to your agency</CardDescription>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                            <div className="overflow-x-auto">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Name</TableHead>
+                                            <TableHead>Email</TableHead>
+                                            <TableHead className="hidden md:table-cell">Phone</TableHead>
+                                            <TableHead className="hidden lg:table-cell">City</TableHead>
+                                            <TableHead className="hidden lg:table-cell">Country</TableHead>
+                                            <TableHead>Dispatched To</TableHead>
+                                            <TableHead>Actions</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {paginatedProspects.map((p) => (
+                                            <TableRow key={p.id}>
+                                                <TableCell className="font-medium">{p.name}</TableCell>
+                                                <TableCell>{p.email || 'N/A'}</TableCell>
+                                                <TableCell className="hidden md:table-cell">{p.phone || 'N/A'}</TableCell>
+                                                <TableCell className="hidden lg:table-cell">{p.city || 'N/A'}</TableCell>
+                                                <TableCell className="hidden lg:table-cell">{p.country || 'N/A'}</TableCell>
+                                                <TableCell>
+                                                    {p.assigned_matchmaker_id ? (
+                                                        <div className="text-sm">
+                                                            <div className="font-medium text-green-600">Matchmaker: {p.assigned_matchmaker?.name || 'Unknown'}</div>
+                                                            {p.agency_id && (
+                                                                <div className="text-blue-600">Agency: {p.agency?.name || 'Unknown'}</div>
+                                                            )}
+                                                        </div>
+                                                    ) : p.agency_id ? (
+                                                        <span className="text-blue-600">Agency: {p.agency?.name || 'Unknown'}</span>
+                                                    ) : (
+                                                        <span className="text-gray-500">Not dispatched</span>
                                                     )}
-                                                </div>
-                                            ) : p.agency_id ? (
-                                                <span className="text-blue-600">Agency: {p.agency?.name || 'Unknown'}</span>
-                                            ) : (
-                                                <span className="text-gray-500">Not dispatched</span>
-                                            )}
-                                        </TableCell>
-                                        <TableCell>{new Date(p.created_at ?? Date.now()).toLocaleDateString()}</TableCell>
-                                        <TableCell className="text-right">
-                                            <Button size="sm" onClick={() => handleValidateClick(p)}>Validate</Button>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                        {prospects.length === 0 && (
-                            <div className="text-sm text-muted-foreground mt-4">No prospects assigned to your agency yet.</div>
-                        )}
-                    </CardContent>
-                </Card>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Button size="sm" onClick={() => handleValidateClick(p)}>Validate</Button>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                            
+                            {paginatedProspects.length === 0 && (
+                                <div className="text-center py-8">
+                                    <p className="text-gray-500">No prospects assigned to your agency yet.</p>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                )}
+
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                    <div className="flex justify-center items-center gap-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                            disabled={currentPage === 1}
+                        >
+                            Previous
+                        </Button>
+                        <div className="flex gap-1">
+                            {[...Array(totalPages)].map((_, i) => {
+                                const pageNum = i + 1;
+                                if (
+                                    pageNum === 1 ||
+                                    pageNum === totalPages ||
+                                    (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)
+                                ) {
+                                    return (
+                                        <Button
+                                            key={pageNum}
+                                            variant={currentPage === pageNum ? 'default' : 'outline'}
+                                            size="sm"
+                                            onClick={() => setCurrentPage(pageNum)}
+                                            className="w-10"
+                                        >
+                                            {pageNum}
+                                        </Button>
+                                    );
+                                } else if (pageNum === currentPage - 2 || pageNum === currentPage + 2) {
+                                    return <span key={pageNum} className="px-2">...</span>;
+                                }
+                                return null;
+                            })}
+                        </div>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                            disabled={currentPage === totalPages}
+                        >
+                            Next
+                        </Button>
+                    </div>
+                )}
             </div>
             <Dialog open={!!validatingProspect} onOpenChange={(open) => { if (!open) { setValidatingProspect(null); reset(); } }}>
                 <DialogContent className="sm:w-[500px]   sm:max-h-[90vh] overflow-y-auto">
