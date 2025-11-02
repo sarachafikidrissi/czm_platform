@@ -5,293 +5,285 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Facture - {{ $bill->bill_number }}</title>
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
         body {
             font-family: Arial, Helvetica, sans-serif;
-            margin: 0;
-            padding: 20px;
-            color: #333;
-            background: white;
+            color: #000000;
+            background: #FFFFFF;
+            padding: 40px 50px;
+            font-size: 14px;
+            line-height: 1.6;
         }
-        .header {
+        .receipt-header {
             display: flex;
             justify-content: space-between;
-            align-items: flex-start;
+            align-items: center;
             margin-bottom: 30px;
-            border-bottom: 2px solid #e5e7eb;
-            padding-bottom: 20px;
         }
-        .company-info {
+        .receipt-title {
+            font-size: 32px;
+            font-weight: bold;
+            color: #000000;
+        }
+        /* .logo-container {
+            text-align: right;
+        } */
+        .logo {
+            width: 200px;
+            height: 200px;
+            object-fit: cover;
+        }
+        .invoice-details {
+            margin-bottom: 30px;
+        }
+        .invoice-detail-row {
+            margin-bottom: 8px;
+            font-size: 14px;
+            line-height: 1.8;
+        }
+        .invoice-detail-label {
+            font-weight: bold;
+            color: #000000;
+        }
+        .invoice-detail-value {
+            color: #000000;
+        }
+        .billing-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 50px;
+            margin-top: 20px;
+        }
+        .sender-info, .recipient-info {
+            flex: 1;
+            max-width: 45%;
+            display: flex;
+            flex-direction: row;
+            justify-content: space-between;
+        }
+        .info-title {
+            font-weight: bold;
+            font-size: 14px;
+            margin-bottom: 12px;
+            color: #000000;
+            flex-shrink: 0;
+        }
+        .info-content {
+            font-size: 14px;
+            color: #000000;
+            line-height: 1.8;
             flex: 1;
         }
-        .company-logo {
-            width: 120px;
-            height: auto;
-            margin-bottom: 10px;
+        .info-content p {
+            margin-bottom: 4px;
         }
-        .company-name {
-            font-size: 24px;
-            font-weight: bold;
-            color: #1f2937;
-            margin-bottom: 5px;
-        }
-        .company-description {
-            color: #6b7280;
-            font-size: 14px;
-        }
-        .invoice-info {
-            text-align: right;
-        }
-        .invoice-title {
+        .payment-summary {
+            margin: 40px 0;
             font-size: 20px;
             font-weight: bold;
-            color: #1f2937;
-            margin-bottom: 5px;
-        }
-        .invoice-number {
-            color: #6b7280;
-            font-size: 14px;
-        }
-        .details-section {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 30px;
-        }
-        .billing-details, .order-details {
-            flex: 1;
-            margin-right: 20px;
-        }
-        .section-title {
-            font-size: 16px;
-            font-weight: bold;
-            color: #1f2937;
-            margin-bottom: 10px;
-            border-bottom: 1px solid #e5e7eb;
-            padding-bottom: 5px;
-        }
-        .detail-item {
-            margin-bottom: 5px;
-            font-size: 14px;
-        }
-        .detail-label {
-            font-weight: bold;
-            color: #374151;
-        }
-        .pack-advantages {
-            margin-bottom: 30px;
-        }
-        .advantages-title {
-            font-size: 16px;
-            font-weight: bold;
-            color: #1f2937;
-            margin-bottom: 15px;
+            color: #000000;
             text-align: center;
-            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
-            color: white;
-            padding: 10px;
-            border-radius: 8px;
         }
-        .advantages-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-        .advantage-item {
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 6px;
-            padding: 12px;
-            font-size: 14px;
-            color: #475569;
-            position: relative;
-            padding-left: 30px;
-        }
-        .advantage-item::before {
-            content: "•";
-            position: absolute;
-            left: 10px;
-            color: #10b981;
-            font-weight: bold;
-            font-size: 16px;
-            font-family: Arial, sans-serif;
-        }
-        .order-table {
+        .items-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 30px;
-            background: white;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
         }
-        .order-table th {
-            background: #f8fafc;
-            color: #374151;
-            font-weight: bold;
-            padding: 12px;
+        .items-table thead th {
             text-align: left;
-            border: 1px solid #e5e7eb;
-        }
-        .order-table td {
-            padding: 12px;
-            border: 1px solid #e5e7eb;
+            font-weight: bold;
             font-size: 14px;
+            color: #000000;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #d0d0d0;
+            padding-top: 20px;
         }
-        .order-table .text-center {
-            text-align: center;
-        }
-        .order-table .text-right {
+        .items-table thead th.text-right {
             text-align: right;
         }
-        .pack-icon {
-            width: 20px;
-            height: 20px;
-            margin-right: 8px;
-            vertical-align: middle;
+        .items-table tbody td {
+            padding: 12px 0;
+            font-size: 14px;
+            color: #000000;
+            border-bottom: 1px solid #f0f0f0;
         }
-        .totals-section {
+        .items-table tbody td.text-right {
+            text-align: right;
+        }
+        .totals {
+            margin-top: 20px;
+            margin-bottom: 50px;
+            text-align: right;
+        }
+        .total-row {
+            padding: 8px 0;
+            font-size: 14px;
+            color: #000000;
+            border-bottom: 1px solid #f0f0f0;
             display: flex;
             justify-content: flex-end;
-            margin-bottom: 30px;
+            gap: 20px;
         }
-        .totals-table {
-            width: 300px;
-        }
-        .totals-table .total-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px solid #e5e7eb;
-        }
-        .totals-table .total-row.final {
+        .total-row.amount-paid {
             font-weight: bold;
             font-size: 16px;
-            border-top: 2px solid #3b82f6;
-            padding-top: 10px;
-            margin-top: 10px;
-            color: #3b82f6;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #d0d0d0;
+            border-bottom: none;
         }
-        .footer {
-            border-top: 1px solid #e5e7eb;
-            padding-top: 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 12px;
-            color: #6b7280;
+        .total-label {
+            color: #000000;
         }
-        .footer .generated-date {
-            display: flex;
-            align-items: center;
+        .total-value {
+            color: #000000;
+            font-weight: inherit;
+            min-width: 100px;
+            text-align: right;
         }
-        .footer .generated-date::before {
-            content: "";
+        .payment-history {
+            margin-top: 50px;
+            margin-bottom: 40px;
         }
-        .payment-reminder {
-            background: linear-gradient(135deg, #fef3c7, #fde68a);
-            border: 1px solid #f59e0b;
-            border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-        .payment-reminder h3 {
-            color: #92400e;
-            margin: 0 0 10px 0;
+        .payment-history-title {
+            font-weight: bold;
             font-size: 16px;
+            margin-bottom: 20px;
+            color: #000000;
         }
-        .payment-reminder h3::before {
-            content: "";
+        .payment-table {
+            width: 100%;
+            border-collapse: collapse;
         }
-        .payment-reminder p {
-            color: #78350f;
-            margin: 0;
+        .payment-table thead th {
+            text-align: left;
+            font-weight: bold;
             font-size: 14px;
+            color: #000000;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #d0d0d0;
+        }
+        .payment-table thead th.text-right {
+            text-align: right;
+        }
+        .payment-table tbody td {
+            padding: 12px 0;
+            font-size: 14px;
+            color: #000000;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .payment-table tbody td.text-right {
+            text-align: right;
+        }
+        .additional-info {
+            margin-top: 40px;
+            margin-bottom: 30px;
+            font-size: 14px;
+            color: #000000;
+        }
+        .additional-info p {
+            margin-bottom: 6px;
+        }
+        .footer-text {
+            margin-top: 40px;
+            font-size: 12px;
+            color: #666666;
+            line-height: 1.8;
+        }
+        .page-number {
+            text-align: right;
+            font-size: 12px;
+            color: #666666;
+            margin-top: 30px;
+        }
+        .pack-name {
+            font-weight: bold;
+            color: #000000;
         }
     </style>
 </head>
 <body>
-    <!-- Header -->
-    <div class="header">
-        <div class="company-info">
-            <img src="{{ public_path('images/CENTRE-ZAWAJ-PNG-LOGO.png') }}" alt="CZM Logo" class="company-logo">
-            <div class="company-name">Centre Zawaj Maroc</div>
-            <div class="company-description">Service de mariage et accompagnement matrimonial</div>
-        </div>
-        <div class="invoice-info">
-            <div class="invoice-title">FACTURE</div>
-            <div class="invoice-number">N° {{ $bill->bill_number }}</div>
+    <!-- Receipt Header: Title and Logo -->
+    <div class="receipt-header">
+        <div class="receipt-title">Facture</div>
+        <div class="logo-container">
+            @if(file_exists(public_path('images/CENTRE-ZAWAJ-PNG-LOGO.png')))
+            <img src="{{ public_path('images/CENTRE-ZAWAJ-PNG-LOGO.png') }}" alt="CZM Logo" class="logo">
+            @endif
         </div>
     </div>
 
-    <!-- Payment Reminder -->
-    <div class="payment-reminder">
-        <h3>Paiement en attente</h3>
-        <p>Veuillez effectuer le paiement avant la date d'échéance pour activer votre pack matrimonial</p>
+    <!-- Invoice Details -->
+    <div class="invoice-details">
+        <div class="invoice-detail-row">
+            <span class="invoice-detail-label">Numéro de facture:</span>
+            <span class="invoice-detail-value"> {{ $bill->bill_number }}</span>
+        </div>
+        <div class="invoice-detail-row">
+            <span class="invoice-detail-label">Date:</span>
+            <span class="invoice-detail-value"> {{ \Carbon\Carbon::parse($bill->bill_date)->format('d F Y') }}</span>
+        </div>
+        @if($bill->status === 'paid')
+        <div class="invoice-detail-row">
+            <span class="invoice-detail-label">Date de paiement:</span>
+            <span class="invoice-detail-value"> {{ \Carbon\Carbon::parse($bill->updated_at)->format('d F Y') }}</span>
+        </div>
+        @endif
     </div>
 
-    <!-- Details Section -->
-    <div class="details-section">
-        <div class="billing-details">
-            <div class="section-title">Détails de facturation</div>
-            <div class="detail-item">
-                <span class="detail-label">Nom:</span> {{ $bill->user->name }}
-            </div>
-            <div class="detail-item">
-                <span class="detail-label">Email:</span> {{ $bill->user->email }}
-            </div>
-            <div class="detail-item">
-                <span class="detail-label">Téléphone:</span> {{ $bill->user->phone }}
-            </div>
-            <div class="detail-item">
-                <span class="detail-label">Ville:</span> {{ $bill->user->city }}
-            </div>
-            <div class="detail-item">
-                <span class="detail-label">Pays:</span> {{ $bill->user->country }}
+    <!-- Billing Information -->
+    <div class="billing-info">
+        <div class="sender-info">
+            <div class="info-title">Centre Zawaj Maroc</div>
+            <div class="info-content">
+                <p>Service de mariage et accompagnement matrimonial</p>
+                @if($bill->matchmaker)
+                <p>{{ $bill->matchmaker->name }}</p>
+                <p>{{ $bill->matchmaker->email }}</p>
+                @if($bill->matchmaker->phone)
+                <p>{{ $bill->matchmaker->phone }}</p>
+                @endif
+                @endif
             </div>
         </div>
-        <div class="order-details">
-            <div class="section-title">Informations de la commande</div>
-            <div class="detail-item">
-                <span class="detail-label">Numéro de commande:</span> {{ $bill->order_number }}
-            </div>
-            <div class="detail-item">
-                <span class="detail-label">Date:</span> {{ \Carbon\Carbon::parse($bill->bill_date)->format('d/m/Y') }}
-            </div>
-            <div class="detail-item">
-                <span class="detail-label">Date d'échéance:</span> {{ \Carbon\Carbon::parse($bill->due_date)->format('d/m/Y') }}
-            </div>
-            <div class="detail-item">
-                <span class="detail-label">Mode de paiement:</span> {{ $bill->payment_method }}
-            </div>
-            <div class="detail-item">
-                <span class="detail-label">Pack choisi:</span> {{ $bill->pack_name }}
-            </div>
-            <div class="detail-item">
-                <span class="detail-label">Matchmaker:</span> {{ $bill->matchmaker->name }}
-            </div>
-            <div class="detail-item">
-                <span class="detail-label">Email matchmaker:</span> {{ $bill->matchmaker->email }}
+        <div class="recipient-info">
+            <div class="info-title">Facturer à</div>
+            <div class="info-content">
+                <p>{{ $bill->user->name }}</p>
+                @if($bill->user->email)
+                <p>{{ $bill->user->email }}</p>
+                @endif
+                @if($bill->user->phone)
+                <p>{{ $bill->user->phone }}</p>
+                @endif
+                @if($bill->user->city)
+                <p>{{ $bill->user->city }}{{ $bill->user->country ? ', ' . $bill->user->country : '' }}</p>
+                @endif
             </div>
         </div>
     </div>
 
-    <!-- Pack Advantages -->
-    @if($bill->pack_advantages && count($bill->pack_advantages) > 0)
-    <div class="pack-advantages">
-        <div class="advantages-title">AVANTAGES INCLUS DANS VOTRE PACK</div>
-        <div class="advantages-grid">
-            @foreach($bill->pack_advantages as $advantage)
-            <div class="advantage-item">{{ $advantage }}</div>
-            @endforeach
-        </div>
+    <!-- Payment Summary -->
+    @if($bill->status === 'paid')
+    <div class="payment-summary">
+        {{ number_format($bill->total_amount, 2) }} {{ $bill->currency }} payé le {{ \Carbon\Carbon::parse($bill->updated_at)->format('d F Y') }}
+    </div>
+    @else
+    <div class="payment-summary">
+        {{ number_format($bill->total_amount, 2) }} {{ $bill->currency }} à payer avant le {{ \Carbon\Carbon::parse($bill->due_date)->format('d F Y') }}
     </div>
     @endif
 
-    <!-- Order Details Table -->
-    <table class="order-table">
+    <!-- Items Table -->
+    <table class="items-table">
         <thead>
             <tr>
                 <th>Description</th>
-                <th class="text-center">Quantité</th>
+                <th class="text-right">Qté</th>
                 <th class="text-right">Prix unitaire</th>
                 <th class="text-right">Montant</th>
             </tr>
@@ -299,9 +291,9 @@
         <tbody>
             <tr>
                 <td>
-                    <span style="color: #3b82f6; font-weight: bold;">{{ $bill->pack_name }}</span>
+                    <span class="pack-name">{{ $bill->pack_name }}</span>
                 </td>
-                <td class="text-center">1</td>
+                <td class="text-right">1</td>
                 <td class="text-right">{{ number_format($bill->amount, 2) }} {{ $bill->currency }}</td>
                 <td class="text-right">{{ number_format($bill->amount, 2) }} {{ $bill->currency }}</td>
             </tr>
@@ -309,35 +301,88 @@
     </table>
 
     <!-- Totals -->
-    <div class="totals-section">
-        <div class="totals-table">
-            <div class="total-row">
-                <span>Sous-total:</span>
-                <span>{{ number_format($bill->amount, 2) }} {{ $bill->currency }}</span>
-            </div>
-            <div class="total-row">
-                <span>TVA ({{ $bill->tax_rate }}%):</span>
-                <span>{{ number_format($bill->tax_amount, 2) }} {{ $bill->currency }}</span>
-            </div>
-            <div class="total-row final">
-                <span>Total TTC:</span>
-                <span>{{ number_format($bill->total_amount, 2) }} {{ $bill->currency }}</span>
-            </div>
-            <div class="total-row final">
-                <span>Montant dû:</span>
-                <span>{{ number_format($bill->total_amount, 2) }} {{ $bill->currency }}</span>
-            </div>
+    <div class="totals">
+        <div class="total-row">
+            <span class="total-label">Sous-total</span>
+            <span class="total-value">{{ number_format($bill->amount, 2) }} {{ $bill->currency }}</span>
         </div>
+        <div class="total-row">
+            <span class="total-label">TVA ({{ number_format($bill->tax_rate, 0) }}%)</span>
+            <span class="total-value">{{ number_format($bill->tax_amount, 2) }} {{ $bill->currency }}</span>
+        </div>
+        <div class="total-row">
+            <span class="total-label">Total</span>
+            <span class="total-value">{{ number_format($bill->total_amount, 2) }} {{ $bill->currency }}</span>
+        </div>
+        @if($bill->status === 'paid')
+        <div class="total-row amount-paid">
+            <span class="total-label">Montant payé</span>
+            <span class="total-value">{{ number_format($bill->total_amount, 2) }} {{ $bill->currency }}</span>
+        </div>
+        @else
+        <div class="total-row amount-paid">
+            <span class="total-label">Montant dû</span>
+            <span class="total-value">{{ number_format($bill->total_amount, 2) }} {{ $bill->currency }}</span>
+        </div>
+        @endif
     </div>
 
-    <!-- Footer -->
-    <div class="footer">
-        <div class="generated-date">
-            Document généré le {{ \Carbon\Carbon::now()->format('d/m/Y à H:i') }}
-        </div>
-        <div>
-            Centre Zawaj Maroc - Service de mariage et accompagnement matrimonial
-        </div>
+    <!-- Payment History -->
+    <div class="payment-history">
+        <div class="payment-history-title">Historique de paiement</div>
+        <table class="payment-table">
+            <thead>
+                <tr>
+                    <th>Mode de paiement</th>
+                    <th class="text-right">Date</th>
+                    <th class="text-right">Montant payé</th>
+                    <th class="text-right">Numéro de facture</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if($bill->status === 'paid')
+                <tr>
+                    <td>{{ $bill->payment_method }}</td>
+                    <td class="text-right">{{ \Carbon\Carbon::parse($bill->updated_at)->format('d F Y') }}</td>
+                    <td class="text-right">{{ number_format($bill->total_amount, 2) }} {{ $bill->currency }}</td>
+                    <td class="text-right">{{ $bill->bill_number }}</td>
+                </tr>
+                @else
+                <tr>
+                    <td>{{ $bill->payment_method }}</td>
+                    <td class="text-right">-</td>
+                    <td class="text-right">0,00 {{ $bill->currency }}</td>
+                    <td class="text-right">{{ $bill->bill_number }}</td>
+                </tr>
+                @endif
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Additional Information -->
+    @if($bill->pack_advantages && count($bill->pack_advantages) > 0)
+    <div class="additional-info">
+        <p><strong>Avantages inclus:</strong></p>
+        @foreach($bill->pack_advantages as $advantage)
+        <p>{{ $advantage }}</p>
+        @endforeach
+    </div>
+    @endif
+
+    <!-- Footer Text -->
+    <div class="footer-text">
+        <p>Centre Zawaj Maroc - Service de mariage et accompagnement matrimonial</p>
+        @if($bill->matchmaker)
+        <p>Votre matchmaker: {{ $bill->matchmaker->name }} - {{ $bill->matchmaker->email }}</p>
+        @endif
+        @if($bill->notes)
+        <p>Notes: {{ $bill->notes }}</p>
+        @endif
+    </div>
+
+    <!-- Page Number -->
+    <div class="page-number">
+        Page 1 sur 1
     </div>
 </body>
 </html>

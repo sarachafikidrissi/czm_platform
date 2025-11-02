@@ -19,7 +19,6 @@ Route::get('/', function () {
 //     return Artisan::output();
 
 // });
-
 Route::middleware(['auth'])->group(function () {
     Route::get('/profile', [MainProfileController::class, 'index'])->name('profile.index');
     Route::post('/profile', [MainProfileController::class, 'store'])->name('profile.store');
