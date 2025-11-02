@@ -297,23 +297,33 @@ class MatchmakerController extends Controller
             abort(403, 'You must be linked to an agency to access prospects.');
         }
 
-        $status = $request->string('status')->toString(); // all|member|client
+        $status = $request->string('status')->toString(); // all|member|client|client_expire
         $query = User::role('user')
-            ->whereIn('status', ['member','client'])
+            ->whereIn('status', ['member','client','client_expire'])
             ->with(['profile', 'assignedMatchmaker']);
 
         // Role-based filtering
         if ($me) {
             if ($roleName === 'matchmaker') {
-                // Matchmaker: see users they validated (regardless of agency)
-                $query->where('approved_by', $me->id);
+                // Matchmaker: see users they validated OR assigned to them OR from their agency
+                $query->where(function($q) use ($me) {
+                    $q->where('approved_by', $me->id)
+                      ->orWhere('assigned_matchmaker_id', $me->id)
+                      ->orWhere('agency_id', $me->agency_id);
+                });
             } elseif ($roleName === 'manager') {
-                // Manager: see users validated by matchmakers in their agency
-                $query->whereHas('approvedBy', function($q) use ($me) {
-                    $q->where('agency_id', $me->agency_id)
-                      ->whereHas('roles', function($roleQuery) {
-                          $roleQuery->where('name', 'matchmaker');
-                      });
+                // Manager: see users validated by matchmakers in their agency OR assigned to matchmakers in their agency OR from their agency
+                $query->where(function($q) use ($me) {
+                    $q->whereHas('approvedBy', function($subQ) use ($me) {
+                        $subQ->where('agency_id', $me->agency_id)
+                            ->whereHas('roles', function($roleQuery) {
+                                $roleQuery->where('name', 'matchmaker');
+                            });
+                    })
+                    ->orWhereHas('assignedMatchmaker', function($subQ) use ($me) {
+                        $subQ->where('agency_id', $me->agency_id);
+                    })
+                    ->orWhere('agency_id', $me->agency_id);
                 });
             }
             // Admin: no additional filtering (sees all)
@@ -374,8 +384,8 @@ class MatchmakerController extends Controller
 
         $user = User::findOrFail($request->user_id);
         
-        // Check if user is currently a member
-        if ($user->status !== 'member') {
+        // Check if user is currently a member or client_expire (can become a client again)
+        if (!in_array($user->status, ['member', 'client_expire'])) {
             return redirect()->back()->with('error', 'User is not a member or already a client.');
         }
 
@@ -568,8 +578,8 @@ class MatchmakerController extends Controller
 
         $user = User::findOrFail($request->user_id);
         
-        // Check if user is currently a member
-        if ($user->status !== 'member') {
+        // Check if user is currently a member or client_expire (can create new subscription)
+        if (!in_array($user->status, ['member', 'client_expire'])) {
             return redirect()->back()->with('error', 'User is not a member or already has a subscription.');
         }
 
@@ -629,8 +639,8 @@ class MatchmakerController extends Controller
 
         $user = User::findOrFail($userId);
         
-        if ($user->status !== 'member') {
-            return response()->json(['error' => 'User is not a member'], 400);
+        if (!in_array($user->status, ['member', 'client_expire'])) {
+            return response()->json(['error' => 'User is not a member or client expired'], 400);
         }
 
         $profile = $user->profile;
@@ -696,7 +706,7 @@ class MatchmakerController extends Controller
         $emailError = null;
 
         if ($user->status === 'client') {
-            $user->update(['status' => 'Client expiré']);
+            $user->update(['status' => 'client_expire']);
             $statusChanged = true;
 
             // Send expiration email
@@ -713,7 +723,7 @@ class MatchmakerController extends Controller
 
         $message = "Test completed: ";
         if ($statusChanged) {
-            $message .= "Status changed to 'Client expiré'. ";
+            $message .= "Status changed to 'client_expire'. ";
         }
         if ($emailSent) {
             $message .= "Email sent successfully to {$user->email}.";

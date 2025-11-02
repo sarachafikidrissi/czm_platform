@@ -45,11 +45,11 @@ class CheckSubscriptions extends Command
                 // Update subscription status to expired
                 $subscription->update(['status' => 'expired']);
                 
-                // Update user status to "Client expiré" if user is a client
+                // Update user status: if client, change to client_expire
                 $user = $subscription->user;
                 if ($user && $user->status === 'client') {
-                    $user->update(['status' => 'Client expiré']);
-                    $this->line("- User {$user->name} (ID: {$user->id}) - Pack: {$subscription->matrimonialPack->name} - Expired: {$subscription->subscription_end->format('Y-m-d')} - Status changed to 'Client expiré'");
+                    $user->update(['status' => 'client_expire']);
+                    $this->line("- User {$user->name} (ID: {$user->id}) - Pack: {$subscription->matrimonialPack->name} - Expired: {$subscription->subscription_end->format('Y-m-d')} - Status changed to 'client_expire'");
                     
                     // Send expiration email
                     try {

@@ -240,6 +240,7 @@ export default function ValidatedProspects() {
                                     <SelectItem value="all">All</SelectItem>
                                     <SelectItem value="member">Member</SelectItem>
                                     <SelectItem value="client">Client</SelectItem>
+                                    <SelectItem value="client_expire">Client Expiré</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
@@ -293,7 +294,7 @@ export default function ValidatedProspects() {
                                     </div>
                                     
                                     <div className="pt-2 space-y-2">
-                                        {u.status === 'member' && !u.has_bill && (
+                                        {(u.status === 'member' || u.status === 'client_expire') && !u.has_bill && (
                                             <Button
                                                 variant="default"
                                                 size="sm"
@@ -303,7 +304,7 @@ export default function ValidatedProspects() {
                                                 Abonnement
                                             </Button>
                                         )}
-                                        {u.status === 'member' && u.has_bill && (
+                                        {(u.status === 'member' || u.status === 'client_expire') && u.has_bill && (
                                             <Button
                                                 variant="default"
                                                 size="sm"
@@ -366,7 +367,7 @@ export default function ValidatedProspects() {
                                                 </TableCell>
                                                 <TableCell>
                                                     <div className="flex items-center gap-2">
-                                                        {u.status === 'member' && !u.has_bill && (
+                                                        {(u.status === 'member' || u.status === 'client_expire') && !u.has_bill && (
                                                             <Button
                                                                 variant="default"
                                                                 size="sm"
@@ -376,7 +377,7 @@ export default function ValidatedProspects() {
                                                                 Abonnement
                                                             </Button>
                                                         )}
-                                                        {u.status === 'member' && u.has_bill && (
+                                                        {(u.status === 'member' || u.status === 'client_expire') && u.has_bill && (
                                                             <Button
                                                                 variant="default"
                                                                 size="sm"
@@ -586,7 +587,7 @@ export default function ValidatedProspects() {
                             Select a client to test subscription expiration. This will:
                             <ul className="list-disc list-inside mt-2 space-y-1 text-sm">
                                 <li>Set subscription end date to today</li>
-                                <li>Change user status to "Client expiré"</li>
+                                <li>Change user status to "client_expire"</li>
                                 <li>Send expiration email</li>
                             </ul>
                         </DialogDescription>
@@ -607,7 +608,7 @@ export default function ValidatedProspects() {
                                 </SelectTrigger>
                                 <SelectContent>
                                     {prospects
-                                        .filter(u => u.status === 'client' && u.subscriptions?.some(s => s.status === 'active'))
+                                        .filter(u => (u.status === 'client' || u.status === 'client_expire') && u.subscriptions?.some(s => s.status === 'active'))
                                         .map((user) => {
                                             const activeSub = user.subscriptions?.find(s => s.status === 'active');
                                             return (

@@ -72,8 +72,8 @@ class TestSubscriptionExpiration extends Command
 
             // Check if status changed
             $user->refresh();
-            if ($user->status === 'Client expiré') {
-                $this->info("✓ SUCCESS: User status changed to 'Client expiré'");
+            if ($user->status === 'client_expire') {
+                $this->info("✓ SUCCESS: User status changed to 'client_expire'");
             } else {
                 $this->warn("User status is still: {$user->status}");
             }
