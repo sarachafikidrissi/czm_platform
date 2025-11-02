@@ -168,10 +168,22 @@ class AdminController extends Controller
             abort(403, 'Your account is not validated yet.');
         }
 
-        $status = $request->string('status')->toString(); // all|prospect|member|client
+        $status = $request->string('status')->toString(); // all|prospect|member|client|client_expire
         $query = User::role('user')
-            ->whereIn('status', ['prospect','member','client'])
-            ->with(['profile', 'assignedMatchmaker', 'agency', 'validatedByManager']);
+            ->whereIn('status', ['prospect','member','client','client_expire'])
+            ->with([
+                'profile', 
+                'profile.matrimonialPack',
+                'assignedMatchmaker', 
+                'agency', 
+                'validatedByManager',
+                'bills',
+                'subscriptions' => function($q) {
+                    $q->orderBy('created_at', 'desc');
+                },
+                'subscriptions.matrimonialPack',
+                'subscriptions.assignedMatchmaker'
+            ]);
 
         // Manager: see all users that were validated when they were the manager in charge
         // This includes prospects, members, and clients from any agency where they were manager during validation
@@ -182,6 +194,11 @@ class AdminController extends Controller
         }
 
         $prospects = $query->get();
+
+        // Add has_bill flag to each prospect
+        $prospects->each(function($prospect) {
+            $prospect->has_bill = $prospect->bills->where('status', '!=', 'paid')->isNotEmpty();
+        });
 
         // Get all matchmakers from agencies where this manager has validated users
         $agencyIds = $prospects->pluck('agency_id')->filter()->unique()->toArray();

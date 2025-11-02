@@ -244,18 +244,29 @@ class MatchmakerController extends Controller
                 ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
                 ->where('model_has_roles.model_id', $actor->id)
                 ->value('roles.name');
+            
             if ($actorRole === 'matchmaker') {
                 $assignedId = $actor->id;
                 
                 // Find the manager of the agency at the time of validation
-                if ($prospect->agency_id) {
+                // Use prospect's agency_id if available, otherwise use matchmaker's agency_id
+                $agencyId = $prospect->agency_id ?? $actor->agency_id;
+                
+                if ($agencyId) {
                     $manager = User::role('manager')
-                        ->where('agency_id', $prospect->agency_id)
+                        ->where('agency_id', $agencyId)
                         ->where('approval_status', 'approved')
                         ->first();
                     if ($manager) {
                         $validatedByManagerId = $manager->id;
                     }
+                }
+            } elseif ($actorRole === 'manager') {
+                // If a manager validates directly, set validated_by_manager_id to themselves
+                $validatedByManagerId = $actor->id;
+                // If there's an assigned matchmaker, use that; otherwise, the manager is handling it
+                if ($prospect->assigned_matchmaker_id) {
+                    $assignedId = $prospect->assigned_matchmaker_id;
                 }
             }
         }
