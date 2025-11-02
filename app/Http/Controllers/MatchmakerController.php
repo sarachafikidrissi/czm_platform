@@ -323,9 +323,17 @@ class MatchmakerController extends Controller
             $query->where('status', $status);
         }
 
-        $prospects = $query->with(['profile.matrimonialPack', 'agency', 'validatedByManager', 'bills', 'subscriptions' => function($q) {
-            $q->orderBy('created_at', 'desc');
-        }])->get();
+        $prospects = $query->with([
+            'profile.matrimonialPack', 
+            'agency', 
+            'validatedByManager', 
+            'bills', 
+            'subscriptions' => function($q) {
+                $q->orderBy('created_at', 'desc');
+            },
+            'subscriptions.matrimonialPack',
+            'subscriptions.assignedMatchmaker'
+        ])->get();
 
         // Add has_bill flag to each prospect
         $prospects->each(function($prospect) {
@@ -638,5 +646,81 @@ class MatchmakerController extends Controller
             'profile' => $profile,
             'matrimonial_packs' => $matrimonialPacks,
         ]);
+    }
+
+    /**
+     * Test subscription expiration for a user (sets end date to today and processes)
+     */
+    public function testSubscriptionExpiration(Request $request)
+    {
+        $request->validate([
+            'user_id' => 'required|exists:users,id',
+        ]);
+
+        $me = Auth::user();
+        $roleName = null;
+        if ($me) {
+            $roleName = \Illuminate\Support\Facades\DB::table('model_has_roles')
+                ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+                ->where('model_has_roles.model_id', $me->id)
+                ->value('roles.name');
+        }
+
+        if (!in_array($roleName, ['matchmaker', 'manager', 'admin'])) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $user = User::findOrFail($request->user_id);
+        
+        // Find active subscription
+        $subscription = \App\Models\UserSubscription::where('user_id', $user->id)
+            ->where('status', 'active')
+            ->with(['matrimonialPack', 'assignedMatchmaker'])
+            ->latest()
+            ->first();
+
+        if (!$subscription) {
+            return redirect()->back()->with('error', 'No active subscription found for this user.');
+        }
+
+        // Set subscription to expire today
+        $subscription->update(['subscription_end' => \Carbon\Carbon::today()]);
+
+        // Run the check subscription command logic
+        $subscription->refresh();
+        $subscription->load(['matrimonialPack', 'assignedMatchmaker']);
+        $subscription->update(['status' => 'expired']);
+        
+        $statusChanged = false;
+        $emailSent = false;
+        $emailError = null;
+
+        if ($user->status === 'client') {
+            $user->update(['status' => 'Client expiré']);
+            $statusChanged = true;
+
+            // Send expiration email
+            try {
+                $daysRemaining = \Carbon\Carbon::today()->diffInDays($subscription->subscription_end, false);
+                \Illuminate\Support\Facades\Mail::to($user->email)->send(
+                    new \App\Mail\SubscriptionReminderEmail($subscription, $daysRemaining)
+                );
+                $emailSent = true;
+            } catch (\Exception $e) {
+                $emailError = $e->getMessage();
+            }
+        }
+
+        $message = "Test completed: ";
+        if ($statusChanged) {
+            $message .= "Status changed to 'Client expiré'. ";
+        }
+        if ($emailSent) {
+            $message .= "Email sent successfully to {$user->email}.";
+        } elseif ($emailError) {
+            $message .= "Email failed: {$emailError}";
+        }
+
+        return redirect()->back()->with('success', $message);
     }
 }

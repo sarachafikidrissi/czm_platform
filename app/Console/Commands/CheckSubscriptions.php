@@ -4,8 +4,10 @@ namespace App\Console\Commands;
 
 use App\Models\UserSubscription;
 use App\Models\User;
+use App\Mail\SubscriptionReminderEmail;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Mail;
 
 class CheckSubscriptions extends Command
 {
@@ -33,7 +35,7 @@ class CheckSubscriptions extends Command
         // Find expired subscriptions
         $expiredSubscriptions = UserSubscription::where('status', 'active')
             ->where('subscription_end', '<', Carbon::now())
-            ->with(['user'])
+            ->with(['user', 'matrimonialPack', 'assignedMatchmaker'])
             ->get();
 
         if ($expiredSubscriptions->count() > 0) {
@@ -48,6 +50,17 @@ class CheckSubscriptions extends Command
                 if ($user && $user->status === 'client') {
                     $user->update(['status' => 'Client expiré']);
                     $this->line("- User {$user->name} (ID: {$user->id}) - Pack: {$subscription->matrimonialPack->name} - Expired: {$subscription->subscription_end->format('Y-m-d')} - Status changed to 'Client expiré'");
+                    
+                    // Send expiration email
+                    try {
+                        $daysRemaining = Carbon::today()->diffInDays($subscription->subscription_end, false);
+                        Mail::to($user->email)->send(
+                            new SubscriptionReminderEmail($subscription, $daysRemaining)
+                        );
+                        $this->line("  ✓ Expiration email sent to {$user->email}");
+                    } catch (\Exception $e) {
+                        $this->error("  ✗ Failed to send email to {$user->email}: " . $e->getMessage());
+                    }
                 } else {
                     $this->line("- User {$subscription->user->name} (ID: {$subscription->user_id}) - Pack: {$subscription->matrimonialPack->name} - Expired: {$subscription->subscription_end->format('Y-m-d')}");
                 }

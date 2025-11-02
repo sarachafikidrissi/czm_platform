@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Checkbox } from '@/components/ui/checkbox';
 import AppLayout from '@/layouts/app-layout';
 import { useState, useEffect } from 'react';
-import { LayoutGrid, Table2, Mail, MapPin, CheckCircle, Pencil } from 'lucide-react';
+import { LayoutGrid, Table2, Mail, MapPin, CheckCircle, Pencil, TestTube } from 'lucide-react';
 
 export default function ValidatedProspects() {
     const { prospects, status, assignedMatchmaker } = usePage().props;
@@ -28,6 +28,8 @@ export default function ValidatedProspects() {
     const [viewMode, setViewMode] = useState('cards'); // 'cards' or 'table'
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 24;
+    const [testExpirationOpen, setTestExpirationOpen] = useState(false);
+    const [testUser, setTestUser] = useState(null);
     
     // Reset page when prospects change (e.g., filter changes)
     useEffect(() => {
@@ -116,6 +118,26 @@ export default function ValidatedProspects() {
         });
     };
 
+    const confirmTestExpiration = () => {
+        if (!testUser) return;
+        
+        setLoading(prev => ({ ...prev, [`test_${testUser.id}`]: true }));
+        
+        router.post('/staff/test-subscription-expiration', {
+            user_id: testUser.id
+        }, {
+            onSuccess: () => {
+                setLoading(prev => ({ ...prev, [`test_${testUser.id}`]: false }));
+                setTestExpirationOpen(false);
+                setTestUser(null);
+                router.reload({ only: ['prospects'] });
+            },
+            onError: () => {
+                setLoading(prev => ({ ...prev, [`test_${testUser.id}`]: false }));
+            }
+        });
+    };
+
     const handleAdvantageChange = (advantage, checked) => {
         if (checked) {
             setSubscriptionData(prev => ({
@@ -183,6 +205,15 @@ export default function ValidatedProspects() {
                             >
                                 <Table2 className="w-4 h-4" />
                                 Table
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setTestExpirationOpen(true)}
+                                className="flex items-center gap-2 border-orange-500 text-orange-600 hover:bg-orange-50"
+                            >
+                                <TestTube className="w-4 h-4" />
+                                Test Expiration
                             </Button>
                         </div>
                         
@@ -540,6 +571,79 @@ export default function ValidatedProspects() {
                                 className="bg-blue-600 hover:bg-blue-700"
                             >
                                 {loading.bill ? 'Création...' : 'Créer la Facture'}
+                            </Button>
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Test Subscription Expiration Dialog */}
+            <Dialog open={testExpirationOpen} onOpenChange={setTestExpirationOpen}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Test Subscription Expiration</DialogTitle>
+                        <DialogDescription>
+                            Select a client to test subscription expiration. This will:
+                            <ul className="list-disc list-inside mt-2 space-y-1 text-sm">
+                                <li>Set subscription end date to today</li>
+                                <li>Change user status to "Client expiré"</li>
+                                <li>Send expiration email</li>
+                            </ul>
+                        </DialogDescription>
+                    </DialogHeader>
+                    
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="test-user">Select Client</Label>
+                            <Select 
+                                value={testUser?.id?.toString() || ''} 
+                                onValueChange={(value) => {
+                                    const user = prospects.find(u => u.id.toString() === value);
+                                    setTestUser(user);
+                                }}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select a client to test" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {prospects
+                                        .filter(u => u.status === 'client' && u.subscriptions?.some(s => s.status === 'active'))
+                                        .map((user) => {
+                                            const activeSub = user.subscriptions?.find(s => s.status === 'active');
+                                            return (
+                                                <SelectItem key={user.id} value={user.id.toString()}>
+                                                    {user.name} - Expires: {activeSub?.subscription_end ? new Date(activeSub.subscription_end).toLocaleDateString('fr-FR') : 'N/A'}
+                                                </SelectItem>
+                                            );
+                                        })}
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        {testUser && (
+                            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                                <p className="text-sm text-yellow-800">
+                                    <strong>Warning:</strong> This will modify the subscription end date for <strong>{testUser.name}</strong> and send an email. This is a test action.
+                                </p>
+                            </div>
+                        )}
+
+                        <div className="flex justify-end space-x-2 pt-4">
+                            <Button
+                                variant="outline"
+                                onClick={() => {
+                                    setTestExpirationOpen(false);
+                                    setTestUser(null);
+                                }}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                onClick={confirmTestExpiration}
+                                disabled={!testUser || loading[`test_${testUser?.id}`]}
+                                className="bg-orange-600 hover:bg-orange-700"
+                            >
+                                {loading[`test_${testUser?.id}`] ? 'Testing...' : 'Test Expiration'}
                             </Button>
                         </div>
                     </div>

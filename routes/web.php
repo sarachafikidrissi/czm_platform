@@ -194,6 +194,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/agency-prospects', [\App\Http\Controllers\MatchmakerController::class, 'agencyProspects'])->name('agency-prospects');
         Route::post('/create-bill', [\App\Http\Controllers\MatchmakerController::class, 'createBill'])->name('create-bill');
         Route::get('/subscription-form-data/{userId}', [\App\Http\Controllers\MatchmakerController::class, 'getSubscriptionFormData'])->name('subscription-form-data');
+        Route::post('/test-subscription-expiration', [\App\Http\Controllers\MatchmakerController::class, 'testSubscriptionExpiration'])->name('test-subscription-expiration');
     });
 
     // User routes
