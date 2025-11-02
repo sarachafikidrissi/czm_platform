@@ -109,10 +109,36 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ];
         }
 
-        // For user role, load profile data
+        // For user role, load profile data and subscription reminders
         $profile = null;
+        $subscription = null;
+        $subscriptionReminder = null;
+        
         if ($role === 'user' && $user) {
             $profile = $user->profile;
+
+            // Load active subscription for reminders
+            $subscription = $user->subscriptions()
+                ->where('status', 'active')
+                ->with(['matrimonialPack', 'assignedMatchmaker'])
+                ->orderBy('created_at', 'desc')
+                ->first();
+            
+            if ($subscription) {
+                $today = \Carbon\Carbon::today();
+                $expirationDate = \Carbon\Carbon::parse($subscription->subscription_end);
+                $daysRemaining = $today->diffInDays($expirationDate, false);
+                
+                // Show reminder if subscription expires within 30 days or has expired
+                if ($daysRemaining <= 30) {
+                    $subscriptionReminder = [
+                        'daysRemaining' => $daysRemaining,
+                        'expirationDate' => $expirationDate->format('d/m/Y'),
+                        'isExpired' => $daysRemaining < 0,
+                        'packName' => $subscription->matrimonialPack->name ?? 'Pack',
+                    ];
+                }
+            }
 
             // Debug: Log the profile data
             Log::info('Dashboard Profile Data:', [
@@ -129,6 +155,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             'agencies' => $agencies,
             'stats' => $stats,
             'profile' => $profile,
+            'subscriptionReminder' => $subscriptionReminder,
         ]);
     })->name('dashboard');
 
@@ -139,6 +166,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/create-staff', [\App\Http\Controllers\AdminController::class, 'createStaff']);
         Route::post('/agencies', [\App\Http\Controllers\AdminController::class, 'createAgency'])->name('agencies.create');
         Route::post('/services', [\App\Http\Controllers\AdminController::class, 'createService'])->name('services.create');
+        Route::post('/matrimonial-packs', [\App\Http\Controllers\AdminController::class, 'createMatrimonialPack'])->name('matrimonial-packs.create');
         Route::post('/users/{user}/update-agency', [\App\Http\Controllers\AdminController::class, 'updateUserAgency'])->name('users.update-agency');
         Route::post('/users/{user}/update-role', [\App\Http\Controllers\AdminController::class, 'updateUserRole'])->name('users.update-role');
         Route::post('/users/{user}/approve', [\App\Http\Controllers\AdminController::class, 'approveUser'])->name('users.approve');

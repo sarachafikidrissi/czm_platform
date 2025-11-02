@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\UserSubscription;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 
@@ -32,14 +33,24 @@ class CheckSubscriptions extends Command
         // Find expired subscriptions
         $expiredSubscriptions = UserSubscription::where('status', 'active')
             ->where('subscription_end', '<', Carbon::now())
+            ->with(['user'])
             ->get();
 
         if ($expiredSubscriptions->count() > 0) {
             $this->warn("Found {$expiredSubscriptions->count()} expired subscriptions:");
             
             foreach ($expiredSubscriptions as $subscription) {
+                // Update subscription status to expired
                 $subscription->update(['status' => 'expired']);
-                $this->line("- User {$subscription->user->name} (ID: {$subscription->user_id}) - Pack: {$subscription->matrimonialPack->name} - Expired: {$subscription->subscription_end->format('Y-m-d')}");
+                
+                // Update user status to "Client expiré" if user is a client
+                $user = $subscription->user;
+                if ($user && $user->status === 'client') {
+                    $user->update(['status' => 'Client expiré']);
+                    $this->line("- User {$user->name} (ID: {$user->id}) - Pack: {$subscription->matrimonialPack->name} - Expired: {$subscription->subscription_end->format('Y-m-d')} - Status changed to 'Client expiré'");
+                } else {
+                    $this->line("- User {$subscription->user->name} (ID: {$subscription->user_id}) - Pack: {$subscription->matrimonialPack->name} - Expired: {$subscription->subscription_end->format('Y-m-d')}");
+                }
             }
         } else {
             $this->info('No expired subscriptions found.');

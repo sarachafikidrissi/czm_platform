@@ -107,6 +107,8 @@ export default function ValidatedProspects() {
                     pack_advantages: [],
                     payment_mode: ''
                 });
+                // Reload page to refresh prospect data and show updated buttons
+                router.reload({ only: ['prospects'] });
             },
             onError: () => {
                 setLoading(prev => ({ ...prev, bill: false }));
@@ -259,7 +261,28 @@ export default function ValidatedProspects() {
                                         <span>Approved by {u.assigned_matchmaker?.name || 'Unknown'}</span>
                                     </div>
                                     
-                                    <div className="pt-2">
+                                    <div className="pt-2 space-y-2">
+                                        {u.status === 'member' && !u.has_bill && (
+                                            <Button
+                                                variant="default"
+                                                size="sm"
+                                                className="w-full bg-blue-600 hover:bg-blue-700"
+                                                onClick={() => handleCreateSubscription(u)}
+                                            >
+                                                Abonnement
+                                            </Button>
+                                        )}
+                                        {u.status === 'member' && u.has_bill && (
+                                            <Button
+                                                variant="default"
+                                                size="sm"
+                                                className="w-full bg-green-600 hover:bg-green-700"
+                                                onClick={() => handleMarkAsClient(u.id)}
+                                                disabled={loading[u.id]}
+                                            >
+                                                {loading[u.id] ? 'Traitement...' : 'Mark as Client'}
+                                            </Button>
+                                        )}
                                         <Button
                                             variant="outline"
                                             size="sm"
@@ -311,13 +334,36 @@ export default function ValidatedProspects() {
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => router.visit(`/profile/${u.username || u.id}`)}
-                                                    >
-                                                        <Pencil className="w-4 h-4" />
-                                                    </Button>
+                                                    <div className="flex items-center gap-2">
+                                                        {u.status === 'member' && !u.has_bill && (
+                                                            <Button
+                                                                variant="default"
+                                                                size="sm"
+                                                                className="bg-blue-600 hover:bg-blue-700"
+                                                                onClick={() => handleCreateSubscription(u)}
+                                                            >
+                                                                Abonnement
+                                                            </Button>
+                                                        )}
+                                                        {u.status === 'member' && u.has_bill && (
+                                                            <Button
+                                                                variant="default"
+                                                                size="sm"
+                                                                className="bg-green-600 hover:bg-green-700"
+                                                                onClick={() => handleMarkAsClient(u.id)}
+                                                                disabled={loading[u.id]}
+                                                            >
+                                                                {loading[u.id] ? 'Traitement...' : 'Mark as Client'}
+                                                            </Button>
+                                                        )}
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={() => router.visit(`/profile/${u.username || u.id}`)}
+                                                        >
+                                                            <Pencil className="w-4 h-4" />
+                                                        </Button>
+                                                    </div>
                                                 </TableCell>
                                             </TableRow>
                                         ))}
@@ -406,7 +452,7 @@ export default function ValidatedProspects() {
                                 <SelectContent>
                                     {matrimonialPacks.map((pack) => (
                                         <SelectItem key={pack.id} value={pack.id.toString()}>
-                                            {pack.name} - {pack.price} MAD
+                                            {pack.name} - {pack.duration}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>

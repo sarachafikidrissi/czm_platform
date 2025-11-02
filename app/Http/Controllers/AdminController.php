@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Models\Agency;
+use App\Models\MatrimonialPack;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -32,11 +33,18 @@ class AdminController extends Controller
             $services = Service::all();
         }
 
+        // Load matrimonial packs
+        $matrimonialPacks = [];
+        if (\Illuminate\Support\Facades\Schema::hasTable('matrimonial_packs')) {
+            $matrimonialPacks = MatrimonialPack::all();
+        }
+
         return Inertia::render('admin/dashboard', [
             'managers' => $managers,
             'matchmakers' => $matchmakers,
             'agencies' => $agencies,
             'services' => $services,
+            'matrimonialPacks' => $matrimonialPacks,
             'stats' => [
                 'totalUsers' => $totalUsers,
                 'pending' => $pendingCount,
@@ -220,6 +228,21 @@ class AdminController extends Controller
         Service::create(['name' => $request->name]);
 
         return redirect()->back()->with('success', 'Service created successfully.');
+    }
+
+    public function createMatrimonialPack(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'duration' => 'required|string|max:255',
+        ]);
+
+        MatrimonialPack::create([
+            'name' => $request->name,
+            'duration' => $request->duration,
+        ]);
+
+        return redirect()->back()->with('success', 'Pack matrimonial créé avec succès.');
     }
 
     public function approveUser(Request $request, $id)

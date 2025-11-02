@@ -8,11 +8,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { User, HeartHandshake, ShoppingCart, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { User, HeartHandshake, ShoppingCart, CheckCircle, Clock, AlertCircle, Bell } from 'lucide-react';
 
 
 
-function UserDashboardContent({ user, profile }) {
+function UserDashboardContent({ user, profile, subscriptionReminder }) {
     // Debug: Log the profile data in frontend
     console.log('Dashboard Profile Data:', {
         profile,
@@ -96,6 +96,41 @@ function UserDashboardContent({ user, profile }) {
                                 <Link href="/user/matchmakers">
                                     <Button size="sm">
                                         Choisir mon matchmaker
+                                    </Button>
+                                </Link>
+                            </div>
+                        </AlertDescription>
+                    </Alert>
+                )}
+
+                {/* Subscription Reminder */}
+                {subscriptionReminder && (
+                    <Alert className={subscriptionReminder.isExpired ? "bg-red-50 border-red-200" : "bg-yellow-50 border-yellow-200"}>
+                        <Bell className="h-4 w-4" />
+                        <AlertDescription>
+                            <div className="flex items-center justify-between">
+                                <div className="flex-1">
+                                    {subscriptionReminder.isExpired ? (
+                                        <>
+                                            <span className="font-semibold text-red-800">⚠️ Votre abonnement a expiré</span>
+                                            <p className="text-sm text-red-700 mt-1">
+                                                Votre abonnement au pack {subscriptionReminder.packName} a expiré le {subscriptionReminder.expirationDate}.
+                                                Veuillez renouveler votre abonnement pour continuer à bénéficier de nos services.
+                                            </p>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <span className="font-semibold text-yellow-800">⏰ Rappel d'abonnement</span>
+                                            <p className="text-sm text-yellow-700 mt-1">
+                                                Votre abonnement au pack {subscriptionReminder.packName} expire dans {subscriptionReminder.daysRemaining} {subscriptionReminder.daysRemaining === 1 ? 'jour' : 'jours'} (le {subscriptionReminder.expirationDate}).
+                                                Pensez à renouveler votre abonnement pour continuer à bénéficier de nos services.
+                                            </p>
+                                        </>
+                                    )}
+                                </div>
+                                <Link href="/user/subscription">
+                                    <Button size="sm" variant={subscriptionReminder.isExpired ? "destructive" : "outline"}>
+                                        Voir mon abonnement
                                     </Button>
                                 </Link>
                             </div>
@@ -217,6 +252,7 @@ export default function Dashboard() {
     const agencies = props?.agencies || [];
     const stats = props?.stats || null;
     const profile = props?.profile || null;
+    const subscriptionReminder = props?.subscriptionReminder || null;
     
     // Show pending approval for non-admin staff who aren't approved
     if ((role === 'manager' || role === 'matchmaker') && approvalStatus !== 'approved') {
@@ -238,7 +274,7 @@ export default function Dashboard() {
             ) : role === 'matchmaker' ? (
                 <MatchMakerDashboardContent />
             ) : (
-                <UserDashboardContent user={user} profile={profile} />
+                <UserDashboardContent user={user} profile={profile} subscriptionReminder={subscriptionReminder} />
             )}
         </AppLayout>
     );

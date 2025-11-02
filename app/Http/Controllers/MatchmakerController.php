@@ -503,7 +503,7 @@ class MatchmakerController extends Controller
         $dueDate = now()->addDays(30)->toDateString(); // 30 days from now
         
         $totalAmount = $request->pack_price; // Total amount includes tax
-        $taxRate = 15.00; // 15% tax
+        $taxRate = 20.00; // 20% TVA
         $amount = $totalAmount / (1 + ($taxRate / 100)); // Calculate amount without tax
         $taxAmount = $totalAmount - $amount; // Calculate tax amount
 
