@@ -5,7 +5,7 @@ import { NavUser } from '@/components/nav-user';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { CalendarHeart, Flame, HeartHandshake, Images, LayoutGrid, User, UserRoundSearch, Users, UserCheck, Plus, ShoppingCart, CreditCard } from 'lucide-react';
+import { CalendarHeart, Flame, HeartHandshake, Images, LayoutGrid, User, UserRoundSearch, Users, UserCheck, Plus, ShoppingCart, CreditCard, RotateCcw } from 'lucide-react';
 
 const mainNavItems: NavItem[] = [
     {
@@ -101,6 +101,18 @@ const mainNavItems: NavItem[] = [
         url: '/staff/validated-prospects',
         icon: HeartHandshake,
         roles: ['admin', 'matchmaker', 'manager'],
+    },
+    {
+        title: 'Demandes de Réactivation',
+        url: '/admin/reactivation-requests',
+        icon: RotateCcw,
+        roles: ['admin'],
+    },
+    {
+        title: 'Demandes de Réactivation',
+        url: '/staff/reactivation-requests',
+        icon: RotateCcw,
+        roles: ['matchmaker'],
     },
 ];
 

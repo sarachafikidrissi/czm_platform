@@ -7,6 +7,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
 
 export default function ProspectsDispatch() {
     const { prospects = [], agencies = [], matchmakers = [], filters = {} } = usePage().props;
@@ -27,6 +29,11 @@ export default function ProspectsDispatch() {
     const [selectedReassignAgencyId, setSelectedReassignAgencyId] = useState('');
     const [selectedReassignMatchmakerId, setSelectedReassignMatchmakerId] = useState('');
     const [dispatchStatus, setDispatchStatus] = useState(filters?.dispatch || 'all');
+    const [activateDialogOpen, setActivateDialogOpen] = useState(false);
+    const [deactivateDialogOpen, setDeactivateDialogOpen] = useState(false);
+    const [selectedProspect, setSelectedProspect] = useState(null);
+    const [reason, setReason] = useState('');
+    const [submitting, setSubmitting] = useState(false);
 
     useEffect(() => {
         let isMounted = true;
@@ -279,7 +286,9 @@ export default function ProspectsDispatch() {
                                     <TableHead>City</TableHead>
                                     <TableHead>Phone</TableHead>
                                     <TableHead>Dispatched To</TableHead>
+                                    <TableHead>Account Status</TableHead>
                                     <TableHead>Date</TableHead>
+                                    <TableHead>Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -304,7 +313,41 @@ export default function ProspectsDispatch() {
                                                 <span className="text-gray-500">Not dispatched</span>
                                             )}
                                         </TableCell>
+                                        <TableCell>
+                                            <Badge variant={p.profile?.account_status === 'desactivated' ? 'destructive' : 'default'}>
+                                                {p.profile?.account_status === 'desactivated' ? 'Désactivé' : 'Actif'}
+                                            </Badge>
+                                        </TableCell>
                                         <TableCell>{new Date(p.created_at ?? Date.now()).toLocaleDateString()}</TableCell>
+                                        <TableCell>
+                                            <div className="flex gap-2">
+                                                {p.profile?.account_status === 'desactivated' ? (
+                                                    <Button
+                                                        size="sm"
+                                                        variant="default"
+                                                        onClick={() => {
+                                                            setSelectedProspect(p);
+                                                            setReason('');
+                                                            setActivateDialogOpen(true);
+                                                        }}
+                                                    >
+                                                        Activer
+                                                    </Button>
+                                                ) : (
+                                                    <Button
+                                                        size="sm"
+                                                        variant="destructive"
+                                                        onClick={() => {
+                                                            setSelectedProspect(p);
+                                                            setReason('');
+                                                            setDeactivateDialogOpen(true);
+                                                        }}
+                                                    >
+                                                        Désactiver
+                                                    </Button>
+                                                )}
+                                            </div>
+                                        </TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>
@@ -431,6 +474,109 @@ export default function ProspectsDispatch() {
                             (reassignType === 'agency' && !selectedReassignAgencyId) || 
                             (reassignType === 'matchmaker' && !selectedReassignMatchmakerId)
                         }>Reassign</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Activate Account Dialog */}
+            <Dialog open={activateDialogOpen} onOpenChange={setActivateDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Activer le compte</DialogTitle>
+                        <DialogDescription>
+                            Motif d'activation pour {selectedProspect?.name}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                            <Label htmlFor="activation-reason">Motif d'activation *</Label>
+                            <Textarea
+                                id="activation-reason"
+                                value={reason}
+                                onChange={(e) => setReason(e.target.value)}
+                                placeholder="Expliquez pourquoi vous activez ce compte..."
+                                rows={4}
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setActivateDialogOpen(false)}>
+                            Annuler
+                        </Button>
+                        <Button
+                            onClick={() => {
+                                if (!reason.trim()) return;
+                                setSubmitting(true);
+                                router.post(`/admin/users/${selectedProspect.id}/activate`, {
+                                    reason: reason
+                                }, {
+                                    onSuccess: () => {
+                                        setActivateDialogOpen(false);
+                                        setReason('');
+                                        setSelectedProspect(null);
+                                        setSubmitting(false);
+                                    },
+                                    onError: () => {
+                                        setSubmitting(false);
+                                    }
+                                });
+                            }}
+                            disabled={!reason.trim() || submitting}
+                        >
+                            {submitting ? 'Envoi...' : 'Activer'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Deactivate Account Dialog */}
+            <Dialog open={deactivateDialogOpen} onOpenChange={setDeactivateDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Désactiver le compte</DialogTitle>
+                        <DialogDescription>
+                            Motif de désactivation pour {selectedProspect?.name}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                            <Label htmlFor="deactivation-reason">Motif de désactivation *</Label>
+                            <Textarea
+                                id="deactivation-reason"
+                                value={reason}
+                                onChange={(e) => setReason(e.target.value)}
+                                placeholder="Expliquez pourquoi vous désactivez ce compte..."
+                                rows={4}
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setDeactivateDialogOpen(false)}>
+                            Annuler
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={() => {
+                                if (!reason.trim()) return;
+                                setSubmitting(true);
+                                router.post(`/admin/users/${selectedProspect.id}/deactivate`, {
+                                    reason: reason
+                                }, {
+                                    onSuccess: () => {
+                                        setDeactivateDialogOpen(false);
+                                        setReason('');
+                                        setSelectedProspect(null);
+                                        setSubmitting(false);
+                                    },
+                                    onError: () => {
+                                        setSubmitting(false);
+                                    }
+                                });
+                            }}
+                            disabled={!reason.trim() || submitting}
+                        >
+                            {submitting ? 'Envoi...' : 'Désactiver'}
+                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

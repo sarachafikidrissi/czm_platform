@@ -15,6 +15,12 @@ class UserController extends Controller
     {
         /** @var User $user */
         $user = Auth::user();
+        
+        // Check account status
+        $profile = $user->profile;
+        if ($profile && $profile->account_status === 'desactivated') {
+            return redirect()->route('dashboard');
+        }
 
         // Get the latest post per matchmaker
         $latestPosts = Post::select('posts.*')
@@ -79,12 +85,30 @@ class UserController extends Controller
 
     public function profile($username)
     {
+        $currentUser = Auth::user();
+        
+        // If current user is a regular user (not admin/manager/matchmaker), check their account status
+        if ($currentUser && $currentUser->hasRole('user')) {
+            $currentProfile = $currentUser->profile;
+            if ($currentProfile && $currentProfile->account_status === 'desactivated') {
+                return redirect()->route('dashboard');
+            }
+        }
+        
         $user = User::with(['profile', 'agency', 'roles', 'posts' => function($query) {
                 $query->with(['user.profile','user', 'likes', 'comments.user.roles', 'comments.user.profile'])
                       ->orderBy('created_at', 'desc');
             }])
             ->where('username', $username)
             ->firstOrFail();
+        
+        // Check if the profile being viewed belongs to a desactivated account (if viewer is a regular user)
+        if ($currentUser && $currentUser->hasRole('user')) {
+            $viewedProfile = $user->profile;
+            if ($viewedProfile && $viewedProfile->account_status === 'desactivated') {
+                return redirect()->route('dashboard')->with('error', 'Ce profil n\'est pas accessible.');
+            }
+        }
         
         // Get user role
         $userRole = $user->roles->first()?->name ?? 'user';
@@ -119,6 +143,12 @@ class UserController extends Controller
     {
         /** @var User $user */
         $user = Auth::user();
+        
+        // Check account status
+        $profile = $user->profile;
+        if ($profile && $profile->account_status === 'desactivated') {
+            return redirect()->route('dashboard');
+        }
         
         // Get user's latest subscription
         $latestSubscription = $user->subscriptions()

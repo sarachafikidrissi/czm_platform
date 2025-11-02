@@ -345,6 +345,7 @@ class MatchmakerController extends Controller
         }
 
         $prospects = $query->with([
+            'profile', 
             'profile.matrimonialPack', 
             'agency', 
             'validatedByManager', 

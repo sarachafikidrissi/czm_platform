@@ -7,8 +7,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import { useState, useEffect } from 'react';
 import { LayoutGrid, Table2, Mail, MapPin, CheckCircle, Pencil, TestTube } from 'lucide-react';
@@ -30,6 +31,11 @@ export default function ValidatedProspects() {
     const itemsPerPage = 24;
     const [testExpirationOpen, setTestExpirationOpen] = useState(false);
     const [testUser, setTestUser] = useState(null);
+    const [activateDialogOpen, setActivateDialogOpen] = useState(false);
+    const [deactivateDialogOpen, setDeactivateDialogOpen] = useState(false);
+    const [selectedUserForStatus, setSelectedUserForStatus] = useState(null);
+    const [statusReason, setStatusReason] = useState('');
+    const [statusSubmitting, setStatusSubmitting] = useState(false);
     
     // Reset page when prospects change (e.g., filter changes)
     useEffect(() => {
@@ -294,6 +300,33 @@ export default function ValidatedProspects() {
                                     </div>
                                     
                                     <div className="pt-2 space-y-2">
+                                        {u.profile?.account_status === 'desactivated' ? (
+                                            <Button
+                                                variant="default"
+                                                size="sm"
+                                                className="w-full"
+                                                onClick={() => {
+                                                    setSelectedUserForStatus(u);
+                                                    setStatusReason('');
+                                                    setActivateDialogOpen(true);
+                                                }}
+                                            >
+                                                Activer
+                                            </Button>
+                                        ) : (
+                                            <Button
+                                                variant="destructive"
+                                                size="sm"
+                                                className="w-full"
+                                                onClick={() => {
+                                                    setSelectedUserForStatus(u);
+                                                    setStatusReason('');
+                                                    setDeactivateDialogOpen(true);
+                                                }}
+                                            >
+                                                Désactiver
+                                            </Button>
+                                        )}
                                         {(u.status === 'member' || u.status === 'client_expire') && !u.has_bill && (
                                             <Button
                                                 variant="default"
@@ -344,6 +377,7 @@ export default function ValidatedProspects() {
                                             <TableHead className="hidden lg:table-cell">City</TableHead>
                                             <TableHead>Step</TableHead>
                                             <TableHead>Status</TableHead>
+                                            <TableHead>Account Status</TableHead>
                                             <TableHead>Actions</TableHead>
                                         </TableRow>
                                     </TableHeader>
@@ -366,7 +400,37 @@ export default function ValidatedProspects() {
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell>
+                                                    <Badge variant={u.profile?.account_status === 'desactivated' ? 'destructive' : 'default'}>
+                                                        {u.profile?.account_status === 'desactivated' ? 'Désactivé' : 'Actif'}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell>
                                                     <div className="flex items-center gap-2">
+                                                        {u.profile?.account_status === 'desactivated' ? (
+                                                            <Button
+                                                                size="sm"
+                                                                variant="default"
+                                                                onClick={() => {
+                                                                    setSelectedUserForStatus(u);
+                                                                    setStatusReason('');
+                                                                    setActivateDialogOpen(true);
+                                                                }}
+                                                            >
+                                                                Activer
+                                                            </Button>
+                                                        ) : (
+                                                            <Button
+                                                                size="sm"
+                                                                variant="destructive"
+                                                                onClick={() => {
+                                                                    setSelectedUserForStatus(u);
+                                                                    setStatusReason('');
+                                                                    setDeactivateDialogOpen(true);
+                                                                }}
+                                                            >
+                                                                Désactiver
+                                                            </Button>
+                                                        )}
                                                         {(u.status === 'member' || u.status === 'client_expire') && !u.has_bill && (
                                                             <Button
                                                                 variant="default"
@@ -648,6 +712,109 @@ export default function ValidatedProspects() {
                             </Button>
                         </div>
                     </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Activate Account Dialog */}
+            <Dialog open={activateDialogOpen} onOpenChange={setActivateDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Activer le compte</DialogTitle>
+                        <DialogDescription>
+                            Motif d'activation pour {selectedUserForStatus?.name}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                            <Label htmlFor="activation-reason">Motif d'activation *</Label>
+                            <Textarea
+                                id="activation-reason"
+                                value={statusReason}
+                                onChange={(e) => setStatusReason(e.target.value)}
+                                placeholder="Expliquez pourquoi vous activez ce compte..."
+                                rows={4}
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setActivateDialogOpen(false)}>
+                            Annuler
+                        </Button>
+                        <Button
+                            onClick={() => {
+                                if (!statusReason.trim()) return;
+                                setStatusSubmitting(true);
+                                router.post(`/staff/users/${selectedUserForStatus.id}/activate`, {
+                                    reason: statusReason
+                                }, {
+                                    onSuccess: () => {
+                                        setActivateDialogOpen(false);
+                                        setStatusReason('');
+                                        setSelectedUserForStatus(null);
+                                        setStatusSubmitting(false);
+                                    },
+                                    onError: () => {
+                                        setStatusSubmitting(false);
+                                    }
+                                });
+                            }}
+                            disabled={!statusReason.trim() || statusSubmitting}
+                        >
+                            {statusSubmitting ? 'Envoi...' : 'Activer'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Deactivate Account Dialog */}
+            <Dialog open={deactivateDialogOpen} onOpenChange={setDeactivateDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Désactiver le compte</DialogTitle>
+                        <DialogDescription>
+                            Motif de désactivation pour {selectedUserForStatus?.name}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                            <Label htmlFor="deactivation-reason">Motif de désactivation *</Label>
+                            <Textarea
+                                id="deactivation-reason"
+                                value={statusReason}
+                                onChange={(e) => setStatusReason(e.target.value)}
+                                placeholder="Expliquez pourquoi vous désactivez ce compte..."
+                                rows={4}
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setDeactivateDialogOpen(false)}>
+                            Annuler
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={() => {
+                                if (!statusReason.trim()) return;
+                                setStatusSubmitting(true);
+                                router.post(`/staff/users/${selectedUserForStatus.id}/deactivate`, {
+                                    reason: statusReason
+                                }, {
+                                    onSuccess: () => {
+                                        setDeactivateDialogOpen(false);
+                                        setStatusReason('');
+                                        setSelectedUserForStatus(null);
+                                        setStatusSubmitting(false);
+                                    },
+                                    onError: () => {
+                                        setStatusSubmitting(false);
+                                    }
+                                });
+                            }}
+                            disabled={!statusReason.trim() || statusSubmitting}
+                        >
+                            {statusSubmitting ? 'Envoi...' : 'Désactiver'}
+                        </Button>
+                    </DialogFooter>
                 </DialogContent>
             </Dialog>
         </AppLayout>

@@ -8,11 +8,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { User, HeartHandshake, ShoppingCart, CheckCircle, Clock, AlertCircle, Bell } from 'lucide-react';
+import { User, HeartHandshake, ShoppingCart, CheckCircle, Clock, AlertCircle, Bell, Mail, Phone } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { useState } from 'react';
+import { router } from '@inertiajs/react';
 
 
 
-function UserDashboardContent({ user, profile, subscriptionReminder }) {
+function UserDashboardContent({ user, profile, subscriptionReminder, accountStatus }) {
     // Debug: Log the profile data in frontend
     console.log('Dashboard Profile Data:', {
         profile,
@@ -24,6 +29,118 @@ function UserDashboardContent({ user, profile, subscriptionReminder }) {
     const userStatus = user?.status;
     const approvalStatus = user?.approval_status;
     const hasAssignedMatchmaker = user?.assigned_matchmaker_id;
+    const isDesactivated = accountStatus === 'desactivated';
+    const [reactivationOpen, setReactivationOpen] = useState(false);
+    const [reactivationReason, setReactivationReason] = useState('');
+    const [submitting, setSubmitting] = useState(false);
+    const assignedMatchmaker = user?.assigned_matchmaker;
+
+    // If account is desactivated, show restricted view
+    if (isDesactivated) {
+        return (
+            <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h1 className="text-2xl font-bold">Bienvenue, {user?.name}</h1>
+                        <p className="text-muted-foreground">Votre compte est désactivé</p>
+                    </div>
+                </div>
+
+                <Alert className="bg-red-50 border-red-200">
+                    <AlertCircle className="h-4 w-4 text-red-600" />
+                    <AlertDescription>
+                        <div className="space-y-4">
+                            <p className="font-semibold text-red-800">Votre compte a été désactivé.</p>
+                            <p className="text-red-700">
+                                Vous n'avez plus accès aux profils d'autres utilisateurs ni aux autres pages du site.
+                            </p>
+                            {assignedMatchmaker && (
+                                <div className="mt-4 p-4 bg-white rounded-lg border border-red-200">
+                                    <h3 className="font-semibold mb-2">Informations de votre matchmaker:</h3>
+                                    <div className="space-y-2 text-sm">
+                                        <p><strong>Nom:</strong> {assignedMatchmaker.name}</p>
+                                        {assignedMatchmaker.email && (
+                                            <p className="flex items-center gap-2">
+                                                <Mail className="w-4 h-4" />
+                                                <strong>Email:</strong> {assignedMatchmaker.email}
+                                            </p>
+                                        )}
+                                        {assignedMatchmaker.phone && (
+                                            <p className="flex items-center gap-2">
+                                                <Phone className="w-4 h-4" />
+                                                <strong>Téléphone:</strong> {assignedMatchmaker.phone}
+                                            </p>
+                                        )}
+                                    </div>
+                                    <p className="mt-3 text-sm text-red-700">
+                                        Si vous souhaitez réactiver votre compte, veuillez contacter votre matchmaker ou soumettre une demande de réactivation ci-dessous.
+                                    </p>
+                                </div>
+                            )}
+                            {!assignedMatchmaker && (
+                                <p className="text-sm text-red-700">
+                                    Si vous souhaitez réactiver votre compte, veuillez contacter l'administration ou soumettre une demande de réactivation ci-dessous.
+                                </p>
+                            )}
+                            <Dialog open={reactivationOpen} onOpenChange={setReactivationOpen}>
+                                <DialogTrigger asChild>
+                                    <Button className="mt-4" variant="default">
+                                        Demande de réactivation de compte
+                                    </Button>
+                                </DialogTrigger>
+                                <DialogContent>
+                                    <DialogHeader>
+                                        <DialogTitle>Demande de réactivation de compte</DialogTitle>
+                                        <DialogDescription>
+                                            Veuillez indiquer la raison de votre demande de réactivation.
+                                        </DialogDescription>
+                                    </DialogHeader>
+                                    <div className="grid gap-4 py-4">
+                                        <div className="grid gap-2">
+                                            <Label htmlFor="reason">Raison de la réactivation *</Label>
+                                            <Textarea
+                                                id="reason"
+                                                value={reactivationReason}
+                                                onChange={(e) => setReactivationReason(e.target.value)}
+                                                placeholder="Expliquez pourquoi vous souhaitez réactiver votre compte..."
+                                                rows={4}
+                                            />
+                                        </div>
+                                    </div>
+                                    <DialogFooter>
+                                        <Button variant="outline" onClick={() => setReactivationOpen(false)}>
+                                            Annuler
+                                        </Button>
+                                        <Button 
+                                            onClick={() => {
+                                                if (!reactivationReason.trim()) return;
+                                                setSubmitting(true);
+                                                router.post('/user/reactivation-request', {
+                                                    reason: reactivationReason
+                                                }, {
+                                                    onSuccess: () => {
+                                                        setReactivationOpen(false);
+                                                        setReactivationReason('');
+                                                        setSubmitting(false);
+                                                    },
+                                                    onError: () => {
+                                                        setSubmitting(false);
+                                                    }
+                                                });
+                                            }}
+                                            disabled={!reactivationReason.trim() || submitting}
+                                        >
+                                            {submitting ? 'Envoi...' : 'Envoyer la demande'}
+                                        </Button>
+                                    </DialogFooter>
+                                </DialogContent>
+                            </Dialog>
+                        </div>
+                    </AlertDescription>
+                </Alert>
+            </div>
+        );
+    }
 
     return (
         <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
@@ -274,7 +391,7 @@ export default function Dashboard() {
             ) : role === 'matchmaker' ? (
                 <MatchMakerDashboardContent />
             ) : (
-                <UserDashboardContent user={user} profile={profile} subscriptionReminder={subscriptionReminder} />
+                <UserDashboardContent user={user} profile={profile} subscriptionReminder={subscriptionReminder} accountStatus={props?.accountStatus || 'active'} />
             )}
         </AppLayout>
     );

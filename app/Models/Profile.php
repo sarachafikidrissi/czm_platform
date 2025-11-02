@@ -36,6 +36,10 @@ class Profile extends Model
         'hijab_choice',
         // Step3 extensions
         'profil_recherche_description',
+        // Account status
+        'account_status',
+        'activation_reason',
+        'deactivation_reason',
     ];
 
     protected $casts = [

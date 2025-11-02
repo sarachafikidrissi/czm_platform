@@ -112,9 +112,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
         $profile = null;
         $subscription = null;
         $subscriptionReminder = null;
+        $accountStatus = null;
         
         if ($role === 'user' && $user) {
             $profile = $user->profile;
+            $accountStatus = $profile ? $profile->account_status : 'active';
+            // Load assigned matchmaker for desactivated accounts
+            $user->load('assignedMatchmaker');
 
             // Load active subscription for reminders
             $subscription = $user->subscriptions()
@@ -155,6 +159,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             'stats' => $stats,
             'profile' => $profile,
             'subscriptionReminder' => $subscriptionReminder,
+            'accountStatus' => $accountStatus,
         ]);
     })->name('dashboard');
 
@@ -177,6 +182,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/prospects', [\App\Http\Controllers\AdminController::class, 'prospects'])->name('prospects');
         Route::post('/prospects/dispatch', [\App\Http\Controllers\AdminController::class, 'dispatchProspects'])->name('prospects.dispatch');
         Route::post('/prospects/reassign', [\App\Http\Controllers\AdminController::class, 'reassignProspects'])->name('prospects.reassign');
+        Route::post('/users/{user}/activate', [\App\Http\Controllers\AccountStatusController::class, 'activateAccount'])->name('users.activate');
+        Route::post('/users/{user}/deactivate', [\App\Http\Controllers\AccountStatusController::class, 'deactivateAccount'])->name('users.deactivate');
+        Route::get('/reactivation-requests', [\App\Http\Controllers\ReactivationRequestController::class, 'index'])->name('reactivation-requests');
+        Route::post('/reactivation-requests/{request}/approve', [\App\Http\Controllers\ReactivationRequestController::class, 'approve'])->name('reactivation-requests.approve');
+        Route::post('/reactivation-requests/{request}/reject', [\App\Http\Controllers\ReactivationRequestController::class, 'reject'])->name('reactivation-requests.reject');
     });
 
     // Manager-only: track assignments
@@ -194,6 +204,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/create-bill', [\App\Http\Controllers\MatchmakerController::class, 'createBill'])->name('create-bill');
         Route::get('/subscription-form-data/{userId}', [\App\Http\Controllers\MatchmakerController::class, 'getSubscriptionFormData'])->name('subscription-form-data');
         Route::post('/test-subscription-expiration', [\App\Http\Controllers\MatchmakerController::class, 'testSubscriptionExpiration'])->name('test-subscription-expiration');
+        // Matchmaker: activate/deactivate member/client accounts
+        Route::post('/users/{user}/activate', [\App\Http\Controllers\AccountStatusController::class, 'activateMemberClient'])->name('users.activate');
+        Route::post('/users/{user}/deactivate', [\App\Http\Controllers\AccountStatusController::class, 'deactivateMemberClient'])->name('users.deactivate');
+        // Reactivation requests
+        Route::get('/reactivation-requests', [\App\Http\Controllers\ReactivationRequestController::class, 'index'])->name('reactivation-requests');
+        Route::post('/reactivation-requests/{request}/approve', [\App\Http\Controllers\ReactivationRequestController::class, 'approve'])->name('reactivation-requests.approve');
+        Route::post('/reactivation-requests/{request}/reject', [\App\Http\Controllers\ReactivationRequestController::class, 'reject'])->name('reactivation-requests.reject');
     });
 
     // User routes
@@ -209,6 +226,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         
         // Subscription routes
         Route::get('/subscription', [\App\Http\Controllers\UserController::class, 'subscription'])->name('subscription');
+        // Reactivation request
+        Route::post('/reactivation-request', [\App\Http\Controllers\AccountStatusController::class, 'submitReactivationRequest'])->name('reactivation-request');
     });
 
     // Public user profile routes (accessible by all authenticated users)
