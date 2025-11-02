@@ -531,10 +531,10 @@ class MatchmakerController extends Controller
         $billDate = now()->toDateString();
         $dueDate = now()->addDays(30)->toDateString(); // 30 days from now
         
-        $totalAmount = $request->pack_price; // Total amount includes tax
         $taxRate = 20.00; // 20% TVA
-        $amount = $totalAmount / (1 + ($taxRate / 100)); // Calculate amount without tax
-        $taxAmount = $totalAmount - $amount; // Calculate tax amount
+        $amount = $request->pack_price; // Base amount (pack price)
+        $taxAmount = $amount * ($taxRate / 100); // Calculate tax: 20% of pack price
+        $totalAmount = $amount + $taxAmount; // Total = pack price + 20% TVA
 
         $bill = Bill::create([
             'bill_number' => $billNumber,
