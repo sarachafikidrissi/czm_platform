@@ -44,7 +44,10 @@ class User extends Authenticatable
         'assigned_matchmaker_id',
         'approved_at',
         'approved_by',
-        'validated_by_manager_id'
+        'validated_by_manager_id',
+        'rejection_reason',
+        'rejected_by',
+        'rejected_at'
     ];
 
     /**

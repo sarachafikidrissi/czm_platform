@@ -284,6 +284,60 @@ class MatchmakerController extends Controller
         return redirect()->back()->with('success', 'Prospect validated and assigned successfully. You can now create a subscription using the "Abonnement" button.');
     }
 
+    public function rejectProspect(Request $request, $id)
+    {
+        $request->validate([
+            'rejection_reason' => 'required|string|max:1000',
+        ]);
+
+        $prospect = User::findOrFail($id);
+        
+        // Check if prospect status is 'prospect'
+        if ($prospect->status !== 'prospect') {
+            return redirect()->back()->with('error', 'Seuls les prospects peuvent être rejetés.');
+        }
+
+        $me = Auth::user();
+        if (!$me) {
+            abort(403, 'Unauthorized.');
+        }
+
+        $roleName = \Illuminate\Support\Facades\DB::table('model_has_roles')
+            ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+            ->where('model_has_roles.model_id', $me->id)
+            ->value('roles.name');
+
+        // Check authorization: admin, assigned matchmaker, or manager of the agency
+        $canReject = false;
+        
+        if ($roleName === 'admin') {
+            $canReject = true;
+        } elseif ($roleName === 'matchmaker') {
+            // Matchmaker can reject if they are assigned to the prospect
+            if ($prospect->assigned_matchmaker_id === $me->id) {
+                $canReject = true;
+            }
+        } elseif ($roleName === 'manager') {
+            // Manager can reject if the prospect is assigned to their agency
+            if ($prospect->agency_id === $me->agency_id) {
+                $canReject = true;
+            }
+        }
+
+        if (!$canReject) {
+            abort(403, 'Vous n\'êtes pas autorisé à rejeter ce prospect.');
+        }
+
+        // Update prospect with rejection information
+        $prospect->update([
+            'rejection_reason' => $request->rejection_reason,
+            'rejected_by' => $me->id,
+            'rejected_at' => now(),
+        ]);
+
+        return redirect()->back()->with('success', 'Prospect rejeté avec succès.');
+    }
+
     public function validatedProspects(Request $request)
     {
         // Allow roles: admin, manager, matchmaker (middleware handles role)
@@ -487,7 +541,7 @@ class MatchmakerController extends Controller
             }
         }
 
-        $prospects = $query->get(['id','name','email','phone','country','city','agency_id','assigned_matchmaker_id','created_at']);
+        $prospects = $query->get(['id','name','email','phone','country','city','status','agency_id','assigned_matchmaker_id','created_at']);
 
         $services = [];
         if (\Illuminate\Support\Facades\Schema::hasTable('services')) {

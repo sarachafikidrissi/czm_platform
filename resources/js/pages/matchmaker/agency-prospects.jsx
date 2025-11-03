@@ -11,10 +11,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
-import { LayoutGrid, Table2, Mail, MapPin, CheckCircle, Pencil } from 'lucide-react';
+import { LayoutGrid, Table2, Mail, MapPin, CheckCircle, Pencil, XCircle } from 'lucide-react';
 
 export default function AgencyProspects() {
-    const { prospects = [], services = [], matrimonialPacks = [] } = usePage().props;
+    const { prospects = [], services = [], matrimonialPacks = [], auth } = usePage().props;
     const { data, setData, post, processing, errors, reset } = useForm({
         notes: '',
         cin: '',
@@ -29,6 +29,65 @@ export default function AgencyProspects() {
     const [viewMode, setViewMode] = useState('cards'); // 'cards' or 'table'
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 24;
+    
+    // Rejection dialog state
+    const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+    const [rejectionReason, setRejectionReason] = useState('');
+    const [rejecting, setRejecting] = useState(false);
+    const [selectedProspectForReject, setSelectedProspectForReject] = useState(null);
+    
+    const { role: userRole } = usePage().props; // Get role from shared props
+    const currentUser = auth?.user;
+    const userId = currentUser?.id || null;
+    const userAgencyId = currentUser?.agency_id || null;
+    
+    // Check if current user can reject a prospect
+    const canRejectProspect = (prospect) => {
+        if (!prospect || prospect.status !== 'prospect') {
+            return false;
+        }
+        if (!userRole || !userId) {
+            return false;
+        }
+        // Admin can reject any prospect
+        if (userRole === 'admin') {
+            return true;
+        }
+        // Matchmaker can reject if assigned to them
+        if (userRole === 'matchmaker' && prospect.assigned_matchmaker_id === userId) {
+            return true;
+        }
+        // Manager can reject if prospect is from their agency
+        if (userRole === 'manager' && prospect.agency_id === userAgencyId) {
+            return true;
+        }
+        return false;
+    };
+    
+    const handleReject = (prospect) => {
+        setSelectedProspectForReject(prospect);
+        setRejectionReason('');
+        setRejectDialogOpen(true);
+    };
+    
+    const submitRejection = () => {
+        if (!selectedProspectForReject || !rejectionReason.trim()) return;
+        
+        setRejecting(true);
+        router.post(`/staff/prospects/${selectedProspectForReject.id}/reject`, {
+            rejection_reason: rejectionReason
+        }, {
+            onSuccess: () => {
+                setRejectDialogOpen(false);
+                setRejectionReason('');
+                setSelectedProspectForReject(null);
+                setRejecting(false);
+            },
+            onError: () => {
+                setRejecting(false);
+            }
+        });
+    };
     
     // Reset page when prospects change
     useEffect(() => {
@@ -201,11 +260,22 @@ export default function AgencyProspects() {
                                         </div>
                                     )}
                                     
-                                    <div className="pt-2">
+                                    <div className="pt-2 flex gap-2">
+                                        {canRejectProspect(p) && (
+                                            <Button
+                                                variant="destructive"
+                                                size="sm"
+                                                className="flex-1"
+                                                onClick={() => handleReject(p)}
+                                            >
+                                                <XCircle className="w-4 h-4 mr-1" />
+                                                Rejeter
+                                            </Button>
+                                        )}
                                         <Button
                                             variant="outline"
                                             size="sm"
-                                            className="w-full"
+                                            className={canRejectProspect(p) ? "flex-1" : "w-full"}
                                             onClick={() => handleValidateClick(p)}
                                         >
                                             Validate
@@ -261,7 +331,19 @@ export default function AgencyProspects() {
                                                     )}
                                                 </TableCell>
                                                 <TableCell>
-                                                    <Button size="sm" onClick={() => handleValidateClick(p)}>Validate</Button>
+                                                    <div className="flex gap-2">
+                                                        {canRejectProspect(p) && (
+                                                            <Button
+                                                                size="sm"
+                                                                variant="destructive"
+                                                                onClick={() => handleReject(p)}
+                                                            >
+                                                                <XCircle className="w-4 h-4 mr-1" />
+                                                                Rejeter
+                                                            </Button>
+                                                        )}
+                                                        <Button size="sm" onClick={() => handleValidateClick(p)}>Validate</Button>
+                                                    </div>
                                                 </TableCell>
                                             </TableRow>
                                         ))}
@@ -517,6 +599,43 @@ export default function AgencyProspects() {
                             disabled={processing}
                         >
                             Validate & Assign
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+            
+            {/* Rejection Dialog */}
+            <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Rejeter le prospect</DialogTitle>
+                        <DialogDescription>
+                            Veuillez fournir une raison pour le rejet de {selectedProspectForReject?.name || 'ce prospect'}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                            <Label htmlFor="rejection-reason">Raison du rejet *</Label>
+                            <Textarea
+                                id="rejection-reason"
+                                value={rejectionReason}
+                                onChange={(e) => setRejectionReason(e.target.value)}
+                                placeholder="Expliquez pourquoi vous rejetez ce prospect..."
+                                rows={4}
+                                required
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setRejectDialogOpen(false)}>
+                            Annuler
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={submitRejection}
+                            disabled={!rejectionReason.trim() || rejecting}
+                        >
+                            {rejecting ? 'Envoi...' : 'Rejeter'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

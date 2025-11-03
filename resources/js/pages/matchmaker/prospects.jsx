@@ -9,12 +9,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { CheckCircle, User } from 'lucide-react';
+import { CheckCircle, User, XCircle } from 'lucide-react';
 import { useState } from 'react';
 import AppLayout from '@/layouts/app-layout';
 
 export default function MatchmakerProspects() {
-    const { prospects, filter, services = [], matrimonialPacks = [] } = usePage().props;
+    const { prospects, filter, services = [], matrimonialPacks = [], auth } = usePage().props;
     const [selectedProspect, setSelectedProspect] = useState(null);
     const [notes, setNotes] = useState('');
     const [serviceId, setServiceId] = useState('');
@@ -27,6 +27,52 @@ export default function MatchmakerProspects() {
     const [front, setFront] = useState(null);
     const [submitting, setSubmitting] = useState(false);
     const [errors, setErrors] = useState({ notes: null, recommendations: null, cin: null, identity_card_front: null, payment_mode: null, general: null });
+    
+    // Rejection dialog state
+    const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+    const [rejectionReason, setRejectionReason] = useState('');
+    const [rejecting, setRejecting] = useState(false);
+    
+    const { role: userRole } = usePage().props; // Get role from shared props
+    const currentUser = auth?.user;
+    const userId = currentUser?.id || null;
+    const userAgencyId = currentUser?.agency_id || null;
+    
+    // Check if current user can reject a prospect
+    const canRejectProspect = (prospect) => {
+        if (!prospect || prospect.status !== 'prospect') return false;
+        if (!userRole || !userId) return false;
+        if (userRole === 'admin') return true;
+        if (userRole === 'matchmaker' && prospect.assigned_matchmaker_id === userId) return true;
+        if (userRole === 'manager' && prospect.agency_id === userAgencyId) return true;
+        return false;
+    };
+    
+    const handleReject = (prospect) => {
+        setSelectedProspect(prospect);
+        setRejectionReason('');
+        setRejectDialogOpen(true);
+    };
+    
+    const submitRejection = () => {
+        if (!selectedProspect || !rejectionReason.trim()) return;
+        
+        setRejecting(true);
+        router.post(`/staff/prospects/${selectedProspect.id}/reject`, {
+            rejection_reason: rejectionReason
+        }, {
+            onSuccess: () => {
+                setRejectDialogOpen(false);
+                setRejectionReason('');
+                setSelectedProspect(null);
+                setRejecting(false);
+            },
+            onError: () => {
+                setRejecting(false);
+            }
+        });
+    };
+    
     console.log(prospects);
     
 
@@ -218,16 +264,27 @@ export default function MatchmakerProspects() {
                                         )}
                                     </TableCell>
                                     <TableCell className="text-right">
-                                        <Dialog>
-                                            <DialogTrigger asChild>
+                                        <div className="flex justify-end gap-2">
+                                            {canRejectProspect(prospect) && (
                                                 <Button
                                                     size="sm"
-                                                    onClick={() => handleValidate(prospect)}
+                                                    variant="destructive"
+                                                    onClick={() => handleReject(prospect)}
                                                 >
-                                                    <CheckCircle className="w-4 h-4 mr-2" />
-                                                    Validate
+                                                    <XCircle className="w-4 h-4 mr-2" />
+                                                    Rejeter
                                                 </Button>
-                                            </DialogTrigger>
+                                            )}
+                                            <Dialog>
+                                                <DialogTrigger asChild>
+                                                    <Button
+                                                        size="sm"
+                                                        onClick={() => handleValidate(prospect)}
+                                                    >
+                                                        <CheckCircle className="w-4 h-4 mr-2" />
+                                                        Validate
+                                                    </Button>
+                                                </DialogTrigger>
                                             <DialogContent className="sm:max-w-[425px]">
                                                 <DialogHeader>
                                                     <DialogTitle>Validate Prospect</DialogTitle>
@@ -398,6 +455,7 @@ export default function MatchmakerProspects() {
                                                 </DialogFooter>
                                             </DialogContent>
                                         </Dialog>
+                                        </div>
                                     </TableCell>
                                 </TableRow>
                             ))}
@@ -412,6 +470,43 @@ export default function MatchmakerProspects() {
                     )}
                 </CardContent>
             </Card>
+            
+            {/* Rejection Dialog */}
+            <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Rejeter le prospect</DialogTitle>
+                        <DialogDescription>
+                            Veuillez fournir une raison pour le rejet de {selectedProspect?.name || 'ce prospect'}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                            <Label htmlFor="rejection-reason">Raison du rejet *</Label>
+                            <Textarea
+                                id="rejection-reason"
+                                value={rejectionReason}
+                                onChange={(e) => setRejectionReason(e.target.value)}
+                                placeholder="Expliquez pourquoi vous rejetez ce prospect..."
+                                rows={4}
+                                required
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setRejectDialogOpen(false)}>
+                            Annuler
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={submitRejection}
+                            disabled={!rejectionReason.trim() || rejecting}
+                        >
+                            {rejecting ? 'Envoi...' : 'Rejeter'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
             </div>
         </AppLayout>
     );

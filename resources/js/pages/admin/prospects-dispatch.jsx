@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { XCircle } from 'lucide-react';
 
 export default function ProspectsDispatch() {
     const { prospects = [], agencies = [], matchmakers = [], filters = {} } = usePage().props;
@@ -34,6 +35,35 @@ export default function ProspectsDispatch() {
     const [selectedProspect, setSelectedProspect] = useState(null);
     const [reason, setReason] = useState('');
     const [submitting, setSubmitting] = useState(false);
+    const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+    const [rejectionReason, setRejectionReason] = useState('');
+    const [rejecting, setRejecting] = useState(false);
+    
+    const handleReject = (prospect) => {
+        if (prospect.status !== 'prospect') return;
+        setSelectedProspect(prospect);
+        setRejectionReason('');
+        setRejectDialogOpen(true);
+    };
+    
+    const submitRejection = () => {
+        if (!selectedProspect || !rejectionReason.trim()) return;
+        
+        setRejecting(true);
+        router.post(`/admin/prospects/${selectedProspect.id}/reject`, {
+            rejection_reason: rejectionReason
+        }, {
+            onSuccess: () => {
+                setRejectDialogOpen(false);
+                setRejectionReason('');
+                setSelectedProspect(null);
+                setRejecting(false);
+            },
+            onError: () => {
+                setRejecting(false);
+            }
+        });
+    };
 
     useEffect(() => {
         let isMounted = true;
@@ -321,6 +351,16 @@ export default function ProspectsDispatch() {
                                         <TableCell>{new Date(p.created_at ?? Date.now()).toLocaleDateString()}</TableCell>
                                         <TableCell>
                                             <div className="flex gap-2">
+                                                {p.status === 'prospect' && (
+                                                    <Button
+                                                        size="sm"
+                                                        variant="destructive"
+                                                        onClick={() => handleReject(p)}
+                                                    >
+                                                        <XCircle className="w-4 h-4 mr-1" />
+                                                        Rejeter
+                                                    </Button>
+                                                )}
                                                 {p.profile?.account_status === 'desactivated' ? (
                                                     <Button
                                                         size="sm"
@@ -576,6 +616,43 @@ export default function ProspectsDispatch() {
                             disabled={!reason.trim() || submitting}
                         >
                             {submitting ? 'Envoi...' : 'Désactiver'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+            
+            {/* Rejection Dialog */}
+            <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Rejeter le prospect</DialogTitle>
+                        <DialogDescription>
+                            Veuillez fournir une raison pour le rejet de {selectedProspect?.name || 'ce prospect'}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                            <Label htmlFor="rejection-reason">Raison du rejet *</Label>
+                            <Textarea
+                                id="rejection-reason"
+                                value={rejectionReason}
+                                onChange={(e) => setRejectionReason(e.target.value)}
+                                placeholder="Expliquez pourquoi vous rejetez ce prospect..."
+                                rows={4}
+                                required
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setRejectDialogOpen(false)}>
+                            Annuler
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={submitRejection}
+                            disabled={!rejectionReason.trim() || rejecting}
+                        >
+                            {rejecting ? 'Envoi...' : 'Rejeter'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
