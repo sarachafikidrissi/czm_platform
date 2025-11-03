@@ -170,7 +170,7 @@ const PersonalInfo = ({ formData, setFormData, gender }) => {
             <div className="space-y-6">
                 {/* Nom */}
                 <div>
-                    <label htmlFor="nom" className="mb-1 block text-sm font-medium text-gray-700">
+                    <label htmlFor="nom" className="mb-1 block text-sm font-medium text-foreground">
                         Nom *
                     </label>
                     <input
@@ -180,7 +180,7 @@ const PersonalInfo = ({ formData, setFormData, gender }) => {
                         value={formData.nom}
                         onChange={handleInputChange}
                         placeholder="Nom"
-                        className="w-full rounded-lg border border-gray-300 px-4 py-3 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                        className="w-full rounded-lg border border-border px-4 py-3 transition-colors focus:border-info focus:ring-2 focus:ring-info"
                     />
                 </div>
 
@@ -196,7 +196,7 @@ const PersonalInfo = ({ formData, setFormData, gender }) => {
                         value={formData.prenom}
                         onChange={handleInputChange}
                         placeholder="Prénom"
-                        className="w-full rounded-lg border border-gray-300 px-4 py-3 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                        className="w-full rounded-lg border border-border px-4 py-3 transition-colors focus:border-info focus:ring-2 focus:ring-info"
                     />
                 </div>
 
@@ -214,7 +214,7 @@ const PersonalInfo = ({ formData, setFormData, gender }) => {
                         value={formData.dateNaissance}
                         onChange={handleInputChange}
                         placeholder="dd / mm / yyyy"
-                        className="w-full rounded-lg border border-gray-300 px-4 py-3 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                        className="w-full rounded-lg border border-border px-4 py-3 transition-colors focus:border-info focus:ring-2 focus:ring-info"
                     />
                 </div>
 
@@ -228,7 +228,7 @@ const PersonalInfo = ({ formData, setFormData, gender }) => {
                         name="niveauEtudes"
                         value={formData.niveauEtudes}
                         onChange={handleInputChange}
-                        className="w-full rounded-lg border border-gray-300 px-4 py-3 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                        className="w-full rounded-lg border border-border px-4 py-3 transition-colors focus:border-info focus:ring-2 focus:ring-info"
                     >
                         <option value="">Please fill out this field</option>
                         <option value="moins-bac">Moins Bac</option>
@@ -251,7 +251,7 @@ const PersonalInfo = ({ formData, setFormData, gender }) => {
                             name="situationProfessionnelle"
                             value={formData.situationProfessionnelle}
                             onChange={handleInputChange}
-                            className="w-full rounded-lg border border-gray-300 px-4 py-3 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                            className="w-full rounded-lg border border-border px-4 py-3 transition-colors focus:border-info focus:ring-2 focus:ring-info"
                         >
                             <option value="">Sélectionnez</option>
                             <option value="etudiant">Étudiant</option>
@@ -273,7 +273,7 @@ const PersonalInfo = ({ formData, setFormData, gender }) => {
                             name="secteur"
                             value={formData.secteur}
                             onChange={handleInputChange}
-                            className="w-full rounded-lg border border-gray-300 px-4 py-3 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                            className="w-full rounded-lg border border-border px-4 py-3 transition-colors focus:border-info focus:ring-2 focus:ring-info"
                         >
                             <option value="">Sélectionnez un secteur</option>
                             <option value="agriculture">Agriculture</option>
@@ -315,7 +315,7 @@ const PersonalInfo = ({ formData, setFormData, gender }) => {
                         name="revenu"
                         value={formData.revenu}
                         onChange={handleInputChange}
-                        className="w-full rounded-lg border border-gray-300 px-4 py-3 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                        className="w-full rounded-lg border border-border px-4 py-3 transition-colors focus:border-info focus:ring-2 focus:ring-info"
                     >
                         <option value="">Sélectionnez une tranche de revenu</option>
                         <option value="0-2500">0-2500 MAD</option>
@@ -340,7 +340,7 @@ const PersonalInfo = ({ formData, setFormData, gender }) => {
                             name="religion"
                             value={formData.religion}
                             onChange={handleInputChange}
-                            className="w-full rounded-lg border border-gray-300 px-4 py-3 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                            className="w-full rounded-lg border border-border px-4 py-3 transition-colors focus:border-info focus:ring-2 focus:ring-info"
                         >
                             <option value="">Sélectionnez</option>
                             <option value="pratiquant">Pratiquant(e)</option>
@@ -357,7 +357,7 @@ const PersonalInfo = ({ formData, setFormData, gender }) => {
                             name="origine"
                             value={formData.origine}
                             onChange={handleInputChange}
-                            className="w-full rounded-lg border border-gray-300 px-4 py-3 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                            className="w-full rounded-lg border border-border px-4 py-3 transition-colors focus:border-info focus:ring-2 focus:ring-info"
                         >
                             <option value="">Sélectionnez</option>
                             <option value="amazigh">Amazigh</option>
@@ -376,7 +376,7 @@ const PersonalInfo = ({ formData, setFormData, gender }) => {
                             Pays de résidence
                         </label>
                         {loadingCountries ? (
-                            <div className="rounded-lg border border-gray-300 px-4 py-3 text-sm text-gray-500">
+                            <div className="rounded-lg border border-border px-4 py-3 text-sm text-muted-foreground">
                                 Chargement des pays...
                             </div>
                         ) : (
@@ -397,11 +397,11 @@ const PersonalInfo = ({ formData, setFormData, gender }) => {
                             Ville de résidence
                         </label>
                         {!selectedResidenceCountry ? (
-                            <div className="rounded-lg border border-gray-300 px-4 py-3 text-sm text-gray-400">
+                            <div className="rounded-lg border border-border px-4 py-3 text-sm text-muted-foreground">
                                 Veuillez d'abord sélectionner un pays de résidence
                             </div>
                         ) : residenceCities.length === 0 ? (
-                            <div className="rounded-lg border border-gray-300 px-4 py-3 text-sm text-gray-400">
+                            <div className="rounded-lg border border-border px-4 py-3 text-sm text-muted-foreground">
                                 Aucune ville disponible pour ce pays
                             </div>
                         ) : (
@@ -424,7 +424,7 @@ const PersonalInfo = ({ formData, setFormData, gender }) => {
                             Pays d'origine
                         </label>
                         {loadingCountries ? (
-                            <div className="rounded-lg border border-gray-300 px-4 py-3 text-sm text-gray-500">
+                            <div className="rounded-lg border border-border px-4 py-3 text-sm text-muted-foreground">
                                 Chargement des pays...
                             </div>
                         ) : (
@@ -445,11 +445,11 @@ const PersonalInfo = ({ formData, setFormData, gender }) => {
                             Ville d'origine
                         </label>
                         {!selectedOriginCountry ? (
-                            <div className="rounded-lg border border-gray-300 px-4 py-3 text-sm text-gray-400">
+                            <div className="rounded-lg border border-border px-4 py-3 text-sm text-muted-foreground">
                                 Veuillez d'abord sélectionner un pays d'origine
                             </div>
                         ) : originCities.length === 0 ? (
-                            <div className="rounded-lg border border-gray-300 px-4 py-3 text-sm text-gray-400">
+                            <div className="rounded-lg border border-border px-4 py-3 text-sm text-muted-foreground">
                                 Aucune ville disponible pour ce pays
                             </div>
                         ) : (

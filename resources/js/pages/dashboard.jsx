@@ -46,16 +46,16 @@ function UserDashboardContent({ user, profile, subscriptionReminder, accountStat
                     </div>
                 </div>
 
-                <Alert className="bg-red-50 border-red-200">
-                    <AlertCircle className="h-4 w-4 text-red-600" />
+                <Alert className="bg-error-light border-error">
+                    <AlertCircle className="h-4 w-4 text-error" />
                     <AlertDescription>
                         <div className="space-y-4">
-                            <p className="font-semibold text-red-800">Votre compte a été désactivé.</p>
-                            <p className="text-red-700">
+                            <p className="font-semibold text-error">Votre compte a été désactivé.</p>
+                            <p className="text-error">
                                 Vous n'avez plus accès aux profils d'autres utilisateurs ni aux autres pages du site.
                             </p>
                             {assignedMatchmaker && (
-                                <div className="mt-4 p-4 bg-white rounded-lg border border-red-200">
+                                <div className="mt-4 p-4 bg-card rounded-lg border border-error">
                                     <h3 className="font-semibold mb-2">Informations de votre matchmaker:</h3>
                                     <div className="space-y-2 text-sm">
                                         <p><strong>Nom:</strong> {assignedMatchmaker.name}</p>
@@ -72,13 +72,13 @@ function UserDashboardContent({ user, profile, subscriptionReminder, accountStat
                                             </p>
                                         )}
                                     </div>
-                                    <p className="mt-3 text-sm text-red-700">
+                                    <p className="mt-3 text-sm text-error">
                                         Si vous souhaitez réactiver votre compte, veuillez contacter votre matchmaker ou soumettre une demande de réactivation ci-dessous.
                                     </p>
                                 </div>
                             )}
                             {!assignedMatchmaker && (
-                                <p className="text-sm text-red-700">
+                                <p className="text-sm text-error">
                                     Si vous souhaitez réactiver votre compte, veuillez contacter l'administration ou soumettre une demande de réactivation ci-dessous.
                                 </p>
                             )}
@@ -178,7 +178,7 @@ function UserDashboardContent({ user, profile, subscriptionReminder, accountStat
                         <AlertDescription>
                             <div className="flex items-center justify-between">
                                 <span>Prospect : en attente de validation</span>
-                                <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
+                                <Badge variant="outline" className="bg-warning-light text-warning-foreground border-warning">
                                     En attente
                                 </Badge>
                             </div>
@@ -222,23 +222,23 @@ function UserDashboardContent({ user, profile, subscriptionReminder, accountStat
 
                 {/* Subscription Reminder */}
                 {subscriptionReminder && (
-                    <Alert className={subscriptionReminder.isExpired ? "bg-red-50 border-red-200" : "bg-yellow-50 border-yellow-200"}>
+                    <Alert className={subscriptionReminder.isExpired ? "bg-error-light border-error" : "bg-warning-light border-warning"}>
                         <Bell className="h-4 w-4" />
                         <AlertDescription>
                             <div className="flex items-center justify-between">
                                 <div className="flex-1">
                                     {subscriptionReminder.isExpired ? (
                                         <>
-                                            <span className="font-semibold text-red-800">⚠️ Votre abonnement a expiré</span>
-                                            <p className="text-sm text-red-700 mt-1">
+                                            <span className="font-semibold text-error">⚠️ Votre abonnement a expiré</span>
+                                            <p className="text-sm text-error mt-1">
                                                 Votre abonnement au pack {subscriptionReminder.packName} a expiré le {subscriptionReminder.expirationDate}.
                                                 Veuillez renouveler votre abonnement pour continuer à bénéficier de nos services.
                                             </p>
                                         </>
                                     ) : (
                                         <>
-                                            <span className="font-semibold text-yellow-800">⏰ Rappel d'abonnement</span>
-                                            <p className="text-sm text-yellow-700 mt-1">
+                                            <span className="font-semibold text-warning-foreground">⏰ Rappel d'abonnement</span>
+                                            <p className="text-sm text-warning-foreground mt-1">
                                                 Votre abonnement au pack {subscriptionReminder.packName} expire dans {subscriptionReminder.daysRemaining} {subscriptionReminder.daysRemaining === 1 ? 'jour' : 'jours'} (le {subscriptionReminder.expirationDate}).
                                                 Pensez à renouveler votre abonnement pour continuer à bénéficier de nos services.
                                             </p>

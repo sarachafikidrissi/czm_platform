@@ -92,13 +92,13 @@ export default function AdminDashboard() {
     const getStatusBadge = (status) => {
         switch (status) {
             case 'approved':
-                return <Badge className="bg-green-100 text-green-800">Approved</Badge>;
+                return <Badge className="bg-success-bg text-success">Approved</Badge>;
             case 'pending':
-                return <Badge className="bg-yellow-100 text-yellow-800">Pending</Badge>;
+                return <Badge className="bg-warning-light text-warning-foreground">Pending</Badge>;
             case 'rejected':
-                return <Badge className="bg-red-100 text-red-800">Rejected</Badge>;
+                return <Badge className="bg-error-bg text-error">Rejected</Badge>;
             default:
-                return <Badge className="bg-gray-100 text-gray-800">{status}</Badge>;
+                return <Badge className="bg-muted text-muted-foreground">{status}</Badge>;
         }
     };
 
@@ -200,7 +200,7 @@ export default function AdminDashboard() {
                                                     size="sm"
                                                     variant="outline"
                                                     onClick={() => handleEditAgency(manager)}
-                                                    className="text-blue-600 hover:text-blue-700"
+                                                    className="text-info hover:opacity-80"
                                                 >
                                                     <Edit className="w-4 h-4" />
                                                 </Button>
@@ -278,7 +278,7 @@ export default function AdminDashboard() {
                                                     size="sm"
                                                     variant="outline"
                                                     onClick={() => handleEditAgency(matchmaker)}
-                                                    className="text-blue-600 hover:text-blue-700"
+                                                    className="text-info hover:opacity-80"
                                                 >
                                                     <Edit className="w-4 h-4" />
                                                 </Button>

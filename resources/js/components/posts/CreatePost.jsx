@@ -138,7 +138,7 @@ export default function CreatePost() {
                         <Button 
                             type="submit" 
                             disabled={isSubmitting || !content.trim()}
-                            className="bg-blue-600 hover:bg-blue-700"
+                            className="bg-info hover:opacity-90"
                         >
                             {isSubmitting ? 'Posting...' : 'Post'}
                         </Button>

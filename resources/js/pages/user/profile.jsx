@@ -88,7 +88,7 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
     return (
         <AppLayout>
             <Head title={`${user?.name} - Profile`} />
-            <div className="min-h-screen bg-gray-50">
+            <div className="min-h-screen bg-background">
                 {/* Profile Header */}
 
                 <ProfileHeader user={user} profile={profile} isOwnProfile={isOwnProfile} age={age} />
@@ -110,35 +110,35 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                         </CardHeader>
                                         <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                             <div>
-                                                <div className="text-sm text-gray-500">Situation matrimoniale</div>
+                                                <div className="text-sm text-muted-foreground">Situation matrimoniale</div>
                                                 <div className="font-medium">{user?.profile?.etat_matrimonial || '—'}</div>
                                             </div>
                                             <div>
-                                                <div className="text-sm text-gray-500">Vous avez des enfants ?</div>
+                                                <div className="text-sm text-muted-foreground">Vous avez des enfants ?</div>
                                                 <div className="font-medium">{user?.profile?.has_children == 1 ? 'Oui' : 'Non' || '—'}</div>
                                             </div>
                                             <div>
-                                                <div className="text-sm text-gray-500">Niveau d’études</div>
+                                                <div className="text-sm text-muted-foreground">Niveau d’études</div>
                                                 <div className="font-medium">{user?.profile?.niveau_etudes || '—'}</div>
                                             </div>
                                             <div>
-                                                <div className="text-sm text-gray-500">Situation professionnelle</div>
+                                                <div className="text-sm text-muted-foreground">Situation professionnelle</div>
                                                 <div className="font-medium">{user?.profile?.situation_professionnelle || '—'}</div>
                                             </div>
                                             <div>
-                                                <div className="text-sm text-gray-500">Secteur d’activité</div>
+                                                <div className="text-sm text-muted-foreground">Secteur d’activité</div>
                                                 <div className="font-medium">{user?.profile?.secteur || '—'}</div>
                                             </div>
                                             <div>
-                                                <div className="text-sm text-gray-500">Revenu mensuel</div>
+                                                <div className="text-sm text-muted-foreground">Revenu mensuel</div>
                                                 <div className="font-medium">{user?.profile?.revenu || '—'}</div>
                                             </div>
                                             <div>
-                                                <div className="text-sm text-gray-500">Poids</div>
+                                                <div className="text-sm text-muted-foreground">Poids</div>
                                                 <div className="font-medium">{user?.profile?.poids || '—'} kg</div>
                                             </div>
                                             <div>
-                                                <div className="text-sm text-gray-500">Taille</div>
+                                                <div className="text-sm text-muted-foreground">Taille</div>
                                                 <div className="font-medium">{user?.profile?.taille || '—'} cm</div>
                                             </div>
                                         </CardContent>
@@ -155,19 +155,19 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                         <CardContent className="space-y-4">
                                             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                                 <div>
-                                                    <div className="text-sm text-gray-500">Âge minimum / maximum</div>
+                                                    <div className="text-sm text-muted-foreground">Âge minimum / maximum</div>
                                                     <div className="font-medium">{user?.profile?.age_minimum + ' ans' ?? '—'}</div>
                                                 </div>
                                                 <div>
-                                                    <div className="text-sm text-gray-500">Situation matrimoniale</div>
+                                                    <div className="text-sm text-muted-foreground">Situation matrimoniale</div>
                                                     <div className="font-medium">{user?.profile?.situation_matrimoniale_recherche || '—'}</div>
                                                 </div>
                                                 <div>
-                                                    <div className="text-sm text-gray-500">Pays</div>
+                                                    <div className="text-sm text-muted-foreground">Pays</div>
                                                     <div className="font-medium">{user?.profile?.pays_recherche || '—'}</div>
                                                 </div>
                                                 <div>
-                                                    <div className="text-sm text-gray-500">Lieu de résidence</div>
+                                                    <div className="text-sm text-muted-foreground">Lieu de résidence</div>
                                                     {/* <div className="font-medium">{user?.profile?.lieu_residence || '—'}</div> */}
                                                     <div className="flex flex-wrap gap-2">
                                                         {user?.profile?.villes_recherche && user?.profile?.villes_recherche.length > 0
@@ -184,22 +184,22 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                                     </div>
                                                 </div>
                                                 <div>
-                                                    <div className="text-sm text-gray-500">Niveau d’études</div>
+                                                    <div className="text-sm text-muted-foreground">Niveau d’études</div>
                                                     <div className="font-medium">{user?.profile?.niveau_etudes_recherche || '—'}</div>
                                                 </div>
                                                 <div>
-                                                    <div className="text-sm text-gray-500">Statut d’emploi</div>
+                                                    <div className="text-sm text-muted-foreground">Statut d’emploi</div>
                                                     <div className="font-medium">{user?.profile?.statut_emploi_recherche || '—'}</div>
                                                 </div>
                                                 {/* <div>
-                                                    <div className="text-sm text-gray-500">Secteur d’activité</div>
+                                                    <div className="text-sm text-muted-foreground">Secteur d’activité</div>
                                                     <div className="font-medium">{user?.profile?.secteur_activite || '—'}</div>
                                                 </div> */}
                                             </div>
                                             {/* Description (Arabic) sur le profil recherché A ajouter plus tard */}
                                             <div>
                                                 <div className="mb-1 text-sm text-gray-500">Description</div>
-                                                <div className="rounded-md border border-gray-200 bg-gray-50 p-3 leading-relaxed">
+                                                <div className="rounded-md border border-border bg-muted p-3 leading-relaxed">
                                                     {user?.description || '—'}
                                                 </div>
                                             </div>
@@ -217,18 +217,18 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                             {/* Parlez-nous de vous, vos loisirs, votre personnalité : A ajouter  plus tard */}
                                             <div>
                                                 <div className="mb-1 text-sm text-gray-500">Description</div>
-                                                <div className="rounded-md border border-gray-200 bg-gray-50 p-3 leading-relaxed">
+                                                <div className="rounded-md border border-border bg-muted p-3 leading-relaxed">
                                                     {apropos?.description || '—'}
                                                 </div>
                                             </div>
                                             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                                 <div>
-                                                    <div className="text-sm text-gray-500">État de santé</div>
+                                                    <div className="text-sm text-muted-foreground">État de santé</div>
                                                     <div className="font-medium">{user?.profile?.etat_sante || '—'}</div>
                                                 </div>
                                                 {/* Votre travail, votre vie professionnelle A ajouter plus tard */}
                                                 <div>
-                                                    <div className="text-sm text-gray-500">Travail</div>
+                                                    <div className="text-sm text-muted-foreground">Travail</div>
                                                     <div className="font-medium">{apropos?.travail || '—'}</div>
                                                 </div>
                                             </div>
@@ -246,35 +246,35 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                             <CardContent className="space-y-6">
                                                 {/* Notes list */}
                                                 <div>
-                                                    <div className="mb-2 text-sm text-gray-500">Notes du matchmaker assigné</div>
+                                                    <div className="mb-2 text-sm text-muted-foreground">Notes du matchmaker assigné</div>
                                                     <div className="space-y-3">
                                                         {Array.isArray(matchmakerNotes) && matchmakerNotes.length > 0 ? (
                                                             matchmakerNotes.map((n) => (
-                                                                <div key={n.id} className="rounded-md border border-gray-200 bg-gray-50 p-3">
-                                                                    <div className="mb-1 text-xs text-gray-500">
+                                                                <div key={n.id} className="rounded-md border border-border bg-muted p-3">
+                                                                    <div className="mb-1 text-xs text-muted-foreground">
                                                                         {n.author?.name} · {new Date(n.created_at).toLocaleString()}
                                                                     </div>
                                                                     <div className="text-sm">{n.content}</div>
                                                                 </div>
                                                             ))
                                                         ) : (
-                                                            <div className="text-sm text-gray-500">Aucune note pour le moment.</div>
+                                                            <div className="text-sm text-muted-foreground">Aucune note pour le moment.</div>
                                                         )}
                                                     </div>
                                                 </div>
 
                                                 {/* Add note */}
                                                 <form onSubmit={addNote} className="space-y-2">
-                                                    <label className="text-sm text-gray-600">Ajouter une note</label>
+                                                    <label className="text-sm text-muted-foreground">Ajouter une note</label>
                                                     <textarea
-                                                        className="w-full rounded-md border border-gray-300 p-3 focus:border-red-500 focus:ring-1 focus:ring-red-500 focus:outline-none"
+                                                        className="w-full rounded-md border border-border p-3 focus:border-error focus:ring-1 focus:ring-error focus:outline-none"
                                                         rows={3}
                                                         value={newNote}
                                                         onChange={(e) => setNewNote(e.target.value)}
                                                         placeholder="Saisissez votre note..."
                                                     />
                                                     <div>
-                                                        <button type="submit" className="inline-flex items-center rounded-md bg-gray-900 px-4 py-2 text-white hover:bg-black">
+                                                        <button type="submit" className="inline-flex items-center rounded-md bg-foreground px-4 py-2 text-background hover:opacity-90">
                                                             Ajouter la note
                                                         </button>
                                                     </div>
@@ -284,7 +284,7 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                                 <form onSubmit={saveEvaluation} className="space-y-4">
                                                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                                         <div>
-                                                            <div className="text-sm text-gray-500">Statut</div>
+                                                            <div className="text-sm text-muted-foreground">Statut</div>
                                                             <div className="mt-2 flex gap-4 text-sm">
                                                                 {['prospect','member','client'].map((val) => (
                                                                     <label key={val} className="inline-flex items-center gap-2">
@@ -307,10 +307,10 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                                         ['defects','Défauts'],
                                                     ].map(([key,label]) => (
                                                         <div key={key}>
-                                                            <label className="mb-1 block text-sm text-gray-500">{label}</label>
+                                                            <label className="mb-1 block text-sm text-muted-foreground">{label}</label>
                                                             <textarea
                                                                 rows={2}
-                                                                className="w-full rounded-md border border-gray-300 p-3 focus:border-gray-900 focus:ring-1 focus:ring-gray-900 focus:outline-none"
+                                                                className="w-full rounded-md border border-border p-3 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
                                                                 value={evaluation[key] || ''}
                                                                 onChange={(e)=>setEvaluation({...evaluation, [key]: e.target.value})}
                                                             />
@@ -318,7 +318,7 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                                     ))}
 
                                                     <div>
-                                                        <div className="text-sm text-gray-500">Recommandation du matchmaker</div>
+                                                        <div className="text-sm text-muted-foreground">Recommandation du matchmaker</div>
                                                         <div className="mt-2 flex gap-6 text-sm">
                                                             {[
                                                                 ['ready','Profil prêt'],
@@ -335,30 +335,30 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
 
                 
                                                     <div>
-                                                        <label className="mb-1 block text-sm text-gray-500">Remarques supplémentaires</label>
+                                                        <label className="mb-1 block text-sm text-muted-foreground">Remarques supplémentaires</label>
                                                         <textarea rows={2} className="w-full rounded-md border border-gray-300 p-3 focus:border-gray-900 focus:ring-1 focus:ring-gray-900 focus:outline-none" value={evaluation.remarks} onChange={(e)=>setEvaluation({...evaluation, remarks: e.target.value})} />
                                                     </div>
 
                                                     <div>
-                                                        <div className="mb-2 text-sm font-medium text-gray-700">Feedback après rendez-vous</div>
+                                                        <div className="mb-2 text-sm font-medium text-foreground">Feedback après rendez-vous</div>
                                                         <div className="space-y-3">
                                                             <div>
-                                                                <label className="mb-1 block text-sm text-gray-500">Comportement pendant le rendez-vous</label>
+                                                                <label className="mb-1 block text-sm text-muted-foreground">Comportement pendant le rendez-vous</label>
                                                                 <textarea rows={2} className="w-full rounded-md border border-gray-300 p-3 focus:border-gray-900 focus:ring-1 focus:ring-gray-900 focus:outline-none" value={evaluation.feedback_behavior} onChange={(e)=>setEvaluation({...evaluation, feedback_behavior: e.target.value})} />
                                                             </div>
                                                             <div>
-                                                                <label className="mb-1 block text-sm text-gray-500">Impression du partenaire</label>
+                                                                <label className="mb-1 block text-sm text-muted-foreground">Impression du partenaire</label>
                                                                 <textarea rows={2} className="w-full rounded-md border border-gray-300 p-3 focus:border-gray-900 focus:ring-1 focus:ring-gray-900 focus:outline-none" value={evaluation.feedback_partner_impression} onChange={(e)=>setEvaluation({...evaluation, feedback_partner_impression: e.target.value})} />
                                                             </div>
                                                             <div>
-                                                                <label className="mb-1 block text-sm text-gray-500">Points positifs / négatifs</label>
+                                                                <label className="mb-1 block text-sm text-muted-foreground">Points positifs / négatifs</label>
                                                                 <textarea rows={2} className="w-full rounded-md border border-gray-300 p-3 focus:border-gray-900 focus:ring-1 focus:ring-gray-900 focus:outline-none" value={evaluation.feedback_pos_neg} onChange={(e)=>setEvaluation({...evaluation, feedback_pos_neg: e.target.value})} />
                                                             </div>
                                                         </div>
                                                     </div>
 
                                                     <div>
-                                                        <button type="submit" className="inline-flex items-center rounded-md bg-gray-900 px-4 py-2 text-white hover:bg-black">Enregistrer l’évaluation</button>
+                                                        <button type="submit" className="inline-flex items-center rounded-md bg-foreground px-4 py-2 text-background hover:opacity-90">Enregistrer l’évaluation</button>
                                                     </div>
                                                 </form>
                                             </CardContent>
@@ -414,7 +414,7 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                             <div>
                                                 <button
                                                     type="button"
-                                                    className="inline-flex items-center rounded-md bg-red-600 px-4 py-2 font-medium text-white transition-colors hover:bg-red-700"
+                                                    className="inline-flex items-center rounded-md bg-error px-4 py-2 font-medium text-error-foreground transition-colors hover:opacity-90"
                                                 >
                                                     Envoyer l'avis
                                                 </button>
@@ -430,10 +430,10 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                     
                                     {
                                         assignedMatchmakerId == user?.id ? (
-                                            <Button className='bg-green-500 text-white px-4 py-2 rounded-md cursor-pointer'>Conatcter mon matchmaker</Button>
+                                            <Button className='bg-success text-success-foreground px-4 py-2 rounded-md cursor-pointer'>Conatcter mon matchmaker</Button>
                                             // <h1>this is my matchmaker</h1>
                                         ) : (
-                                            <Button className='bg-red-500 text-white px-4 py-2 rounded-md cursor-pointer'>Changer mon matchmaker</Button>
+                                            <Button className='bg-error text-error-foreground px-4 py-2 rounded-md cursor-pointer'>Changer mon matchmaker</Button>
 
                                         )
                                     }
@@ -441,8 +441,8 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                     <Card>
                                         <CardHeader>
                                             <CardTitle className="flex items-center gap-2">
-                                                <FaUser className="h-5 w-5 text-blue-500" />
-                                                <span className="text-xl font-bold text-gray-600">Matchmaker Bio</span>
+                                                <FaUser className="h-5 w-5 text-info" />
+                                                <span className="text-xl font-bold text-muted-foreground">Matchmaker Bio</span>
                                             </CardTitle>
                                         </CardHeader>
                                         <CardContent className="space-y-4">
@@ -457,21 +457,21 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                         </CardHeader>
                                         <CardContent>
                                             <div className="grid grid-cols-2 gap-4">
-                                                <div className="rounded-lg bg-blue-50 p-4 text-center">
-                                                    <div className="text-2xl font-bold text-blue-600">12</div>
-                                                    <div className="text-sm text-gray-500">Successful Matches</div>
+                                                <div className="rounded-lg bg-info-light p-4 text-center">
+                                                    <div className="text-2xl font-bold text-info">12</div>
+                                                    <div className="text-sm text-muted-foreground">Successful Matches</div>
                                                 </div>
-                                                <div className="rounded-lg bg-green-50 p-4 text-center">
-                                                    <div className="text-2xl font-bold text-green-600">8</div>
-                                                    <div className="text-sm text-gray-500">Happy Couples</div>
+                                                <div className="rounded-lg bg-success-bg p-4 text-center">
+                                                    <div className="text-2xl font-bold text-success">8</div>
+                                                    <div className="text-sm text-muted-foreground">Happy Couples</div>
                                                 </div>
-                                                <div className="rounded-lg bg-purple-50 p-4 text-center">
-                                                    <div className="text-2xl font-bold text-purple-600">4.8</div>
-                                                    <div className="text-sm text-gray-500">Rating</div>
+                                                <div className="rounded-lg bg-accent p-4 text-center">
+                                                    <div className="text-2xl font-bold text-accent-foreground">4.8</div>
+                                                    <div className="text-sm text-muted-foreground">Rating</div>
                                                 </div>
-                                                <div className="rounded-lg bg-orange-50 p-4 text-center">
-                                                    <div className="text-2xl font-bold text-orange-600">2</div>
-                                                    <div className="text-sm text-gray-500">Years Experience</div>
+                                                <div className="rounded-lg bg-warning-light p-4 text-center">
+                                                    <div className="text-2xl font-bold text-warning">2</div>
+                                                    <div className="text-sm text-muted-foreground">Years Experience</div>
                                                 </div>
                                             </div>
                                         </CardContent>
@@ -498,7 +498,7 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                                     ))}
                                                 </div>
                                             ) : (
-                                                <div className="text-center py-8 text-gray-500">
+                                                <div className="text-center py-8 text-muted-foreground">
                                                     {isOwnProfile ? 'No posts yet. Share your first post!' : 'No posts yet.'}
                                                 </div>
                                             )}
@@ -517,19 +517,19 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                 </CardHeader>
                                 <CardContent className="space-y-3">
                                     <div className="flex items-center gap-3">
-                                        <MapPin className="h-4 w-4 text-gray-500" />
+                                        <MapPin className="h-4 w-4 text-muted-foreground" />
                                         <span>
                                             {user?.city}, {user?.country}
                                         </span>
                                     </div>
                                     {age && (
                                         <div className="flex items-center gap-3">
-                                            <span className="text-sm text-gray-500">Age:</span>
+                                            <span className="text-sm text-muted-foreground">Age:</span>
                                             <span>{age} ans</span>
                                         </div>
                                     )}
                                     <div className="flex items-center gap-3">
-                                        <span className="text-sm text-gray-500">Role:</span>
+                                        <span className="text-sm text-muted-foreground">Role:</span>
                                         <Badge variant="outline" className="capitalize">
                                             {userRole}
                                         </Badge>
@@ -545,12 +545,12 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                 <CardContent>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="text-center">
-                                            <div className="text-2xl font-bold text-blue-600">{userRole === 'user' ? '0' : '12'}</div>
-                                            <div className="text-sm text-gray-500">{userRole === 'user' ? 'Posts' : 'Matches'}</div>
+                                                    <div className="text-2xl font-bold text-info">{userRole === 'user' ? '0' : '12'}</div>
+                                            <div className="text-sm text-muted-foreground">{userRole === 'user' ? 'Posts' : 'Matches'}</div>
                                         </div>
                                         <div className="text-center">
-                                            <div className="text-2xl font-bold text-green-600">{userRole === 'user' ? '0' : '8'}</div>
-                                            <div className="text-sm text-gray-500">{userRole === 'user' ? 'Followers' : 'Success'}</div>
+                                            <div className="text-2xl font-bold text-success">{userRole === 'user' ? '0' : '8'}</div>
+                                            <div className="text-sm text-muted-foreground">{userRole === 'user' ? 'Followers' : 'Success'}</div>
                                         </div>
                                     </div>
                                 </CardContent>

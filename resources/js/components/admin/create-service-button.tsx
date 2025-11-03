@@ -33,7 +33,7 @@ export default function CreateServiceButton({ buttonLabel = 'Create Service', cl
                     <div className="grid gap-2">
                         <Label htmlFor="service-name">Service Name</Label>
                         <Input id="service-name" value={data.name} onChange={(e) => setData('name', e.target.value)} placeholder="Ex: Consultation" />
-                        {errors.name && <p className="text-red-500 text-sm">{errors.name}</p>}
+                        {errors.name && <p className="text-error text-sm">{errors.name}</p>}
                     </div>
                 </div>
                 <DialogFooter>

@@ -216,7 +216,7 @@ export default function ValidatedProspects() {
                                 variant="outline"
                                 size="sm"
                                 onClick={() => setTestExpirationOpen(true)}
-                                className="flex items-center gap-2 border-orange-500 text-orange-600 hover:bg-orange-50"
+                                className="flex items-center gap-2 border-warning text-warning hover:bg-warning-light"
                             >
                                 <TestTube className="w-4 h-4" />
                                 Test Expiration
@@ -237,7 +237,7 @@ export default function ValidatedProspects() {
                     </div>
 
                     {/* Filters */}
-                    <div className="flex flex-wrap items-center gap-3 bg-white rounded-lg p-3 border">
+                    <div className="flex flex-wrap items-center gap-3 bg-card rounded-lg p-3 border">
                         <div className="flex items-center gap-2">
                             <Label className="text-sm text-muted-foreground">Status</Label>
                             <Select value={status || 'all'} onValueChange={(v) => router.visit(`/staff/validated-prospects?status=${v}`, { preserveScroll: true, preserveState: true, replace: true })}>
@@ -270,10 +270,10 @@ export default function ValidatedProspects() {
                                     />
                                     {/* Overlay Tags */}
                                     <div className="absolute top-2 right-2 flex gap-2">
-                                        <Badge className="bg-black text-white text-xs px-2 py-1">
+                                        <Badge className="bg-foreground text-background text-xs px-2 py-1">
                                             {getStep(u)}
                                         </Badge>
-                                        <Badge className="bg-green-600 text-white text-xs px-2 py-1 flex items-center gap-1">
+                                        <Badge className="bg-success text-success-foreground text-xs px-2 py-1 flex items-center gap-1">
                                             <CheckCircle className="w-3 h-3" />
                                             Confirmed
                                         </Badge>
@@ -331,7 +331,7 @@ export default function ValidatedProspects() {
                                             <Button
                                                 variant="default"
                                                 size="sm"
-                                                className="w-full bg-blue-600 hover:bg-blue-700"
+                                                className="w-full bg-info hover:opacity-90"
                                                 onClick={() => handleCreateSubscription(u)}
                                             >
                                                 Abonnement
@@ -341,7 +341,7 @@ export default function ValidatedProspects() {
                                             <Button
                                                 variant="default"
                                                 size="sm"
-                                                className="w-full bg-green-600 hover:bg-green-700"
+                                                className="w-full bg-success hover:opacity-90"
                                                 onClick={() => handleMarkAsClient(u.id)}
                                                 disabled={loading[u.id]}
                                             >
@@ -389,12 +389,12 @@ export default function ValidatedProspects() {
                                                 <TableCell className="hidden md:table-cell">{u.phone || 'N/A'}</TableCell>
                                                 <TableCell className="hidden lg:table-cell">{getLocation(u)}</TableCell>
                                                 <TableCell>
-                                                    <Badge className="bg-black text-white">
+                                                    <Badge className="bg-foreground text-background">
                                                         {getStep(u)}
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell>
-                                                    <Badge className="bg-green-100 text-green-800 flex items-center gap-1 w-fit">
+                                                    <Badge className="bg-success-bg text-success flex items-center gap-1 w-fit">
                                                         <CheckCircle className="w-3 h-3" />
                                                         Approved
                                                     </Badge>
@@ -435,7 +435,7 @@ export default function ValidatedProspects() {
                                                             <Button
                                                                 variant="default"
                                                                 size="sm"
-                                                                className="bg-blue-600 hover:bg-blue-700"
+                                                                className="bg-info hover:opacity-90"
                                                                 onClick={() => handleCreateSubscription(u)}
                                                             >
                                                                 Abonnement
@@ -445,7 +445,7 @@ export default function ValidatedProspects() {
                                                             <Button
                                                                 variant="default"
                                                                 size="sm"
-                                                                className="bg-green-600 hover:bg-green-700"
+                                                                className="bg-success hover:opacity-90"
                                                                 onClick={() => handleMarkAsClient(u.id)}
                                                                 disabled={loading[u.id]}
                                                             >
@@ -686,8 +686,8 @@ export default function ValidatedProspects() {
                         </div>
 
                         {testUser && (
-                            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                                <p className="text-sm text-yellow-800">
+                            <div className="bg-warning-light border border-warning rounded-lg p-3">
+                                    <p className="text-sm text-warning-foreground">
                                     <strong>Warning:</strong> This will modify the subscription end date for <strong>{testUser.name}</strong> and send an email. This is a test action.
                                 </p>
                             </div>
@@ -706,7 +706,7 @@ export default function ValidatedProspects() {
                             <Button
                                 onClick={confirmTestExpiration}
                                 disabled={!testUser || loading[`test_${testUser?.id}`]}
-                                className="bg-orange-600 hover:bg-orange-700"
+                                className="bg-warning hover:opacity-90"
                             >
                                 {loading[`test_${testUser?.id}`] ? 'Testing...' : 'Test Expiration'}
                             </Button>

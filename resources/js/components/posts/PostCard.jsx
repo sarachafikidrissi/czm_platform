@@ -121,7 +121,7 @@ export default function PostCard({ post }) {
                 {/* Post Header */}
                 <div className="mb-4 flex items-start justify-between">
                     <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-200">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
                             <span className="text-sm font-medium text-gray-600">
                                 {post.user?.profile_picture ? (
                                     <img
@@ -130,17 +130,17 @@ export default function PostCard({ post }) {
                                         className="h-full w-full object-cover rounded-full"
                                     />
                                 ) : (
-                                    <span className="text-sm font-medium text-gray-600">{post.user?.name?.charAt(0)?.toUpperCase() || 'U'}</span>
+                                    <span className="text-sm font-medium text-muted-foreground">{post.user?.name?.charAt(0)?.toUpperCase() || 'U'}</span>
                                 )}
                             </span>
                         </div>
                         <div>
-                            <h3 className="font-semibold text-gray-900">{post.user?.name || 'Unknown User'}</h3>
-                            <p className="text-sm text-gray-500">{formatTimeAgo(post.created_at)}</p>
+                            <h3 className="font-semibold text-foreground">{post.user?.name || 'Unknown User'}</h3>
+                            <p className="text-sm text-muted-foreground">{formatTimeAgo(post.created_at)}</p>
                         </div>
                     </div>
                     {auth.user.id === post.user_id && (
-                        <Button variant="ghost" size="sm" onClick={handleDelete} className="text-red-600 hover:text-red-700">
+                        <Button variant="ghost" size="sm" onClick={handleDelete} className="text-error hover:opacity-80">
                             <Trash2 className="h-4 w-4" />
                         </Button>
                     )}
@@ -160,7 +160,7 @@ export default function PostCard({ post }) {
 
                 {post.type === 'youtube' && post.media_url && (
                     <div className="mb-4">
-                        <div className="relative h-64 w-full overflow-hidden rounded-lg bg-gray-100">
+                        <div className="relative h-64 w-full overflow-hidden rounded-lg bg-muted">
                             <iframe
                                 src={`https://www.youtube.com/embed/${getYouTubeVideoId(post.media_url)}`}
                                 title="YouTube video"
@@ -174,19 +174,19 @@ export default function PostCard({ post }) {
                 )}
 
                 {/* Engagement Stats */}
-                <div className="mb-4 flex items-center gap-4 text-sm text-gray-600">
+                <div className="mb-4 flex items-center gap-4 text-sm text-muted-foreground">
                     <span>{likesCount} j'aime</span>
                     <span>{commentsCount} commentaires</span>
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex items-center gap-4 border-t border-gray-200 pt-4">
+                <div className="flex items-center gap-4 border-t border-border pt-4">
                     <Button
                         variant="ghost"
                         size="sm"
                         onClick={handleLike}
                         disabled={isLiking}
-                        className={`flex items-center gap-2 ${isLiked ? 'text-red-600' : 'text-gray-600'}`}
+                        className={`flex items-center gap-2 ${isLiked ? 'text-error' : 'text-muted-foreground'}`}
                     >
                         <Heart className={`h-4 w-4 ${isLiked ? 'fill-current' : ''}`} />
                         J'aime
@@ -196,7 +196,7 @@ export default function PostCard({ post }) {
                         variant="ghost"
                         size="sm"
                         onClick={() => setShowComments(!showComments)}
-                        className="flex items-center gap-2 text-gray-600"
+                        className="flex items-center gap-2 text-muted-foreground"
                     >
                         <MessageCircle className="h-4 w-4" />
                         {showComments ? 'Masquer les commentaires' : 'Voir les commentaires'}
@@ -210,7 +210,7 @@ export default function PostCard({ post }) {
 
                 {/* Comments Section */}
                 {showComments && (
-                    <div className="mt-4 border-t border-gray-200 pt-4">
+                    <div className="mt-4 border-t border-border pt-4">
                         {/* Existing Comments */}
                         {comments && comments.length > 0 && (
                             <div className="mb-4 space-y-3">
@@ -231,14 +231,14 @@ export default function PostCard({ post }) {
                                             </span>
                                         </div>
                                         <div className="flex-1">
-                                            <div className="rounded-lg bg-gray-50 p-3">
-                                                <h4 className="text-sm font-medium text-gray-900">{comment.user?.name || 'Unknown User'}</h4>
-                                                <p className="mt-1 text-sm text-gray-700">{comment.content}</p>
+                                            <div className="rounded-lg bg-muted p-3">
+                                                <h4 className="text-sm font-medium text-foreground">{comment.user?.name || 'Unknown User'}</h4>
+                                                <p className="mt-1 text-sm text-foreground">{comment.content}</p>
                                             </div>
-                                            <div className="mt-2 flex items-center gap-4 text-xs text-gray-500">
+                                            <div className="mt-2 flex items-center gap-4 text-xs text-muted-foreground">
                                                 <span>{formatTimeAgo(comment.created_at)}</span>
-                                                <button className="hover:text-gray-700">J'aime</button>
-                                                <button className="hover:text-gray-700">Répondre</button>
+                                                <button className="hover:text-foreground">J'aime</button>
+                                                <button className="hover:text-foreground">Répondre</button>
                                             </div>
                                         </div>
                                     </div>
@@ -259,7 +259,7 @@ export default function PostCard({ post }) {
                                     className="min-h-[40px] resize-none"
                                 />
                             </div>
-                            <Button type="submit" disabled={isCommenting || !newComment.trim()} className="bg-red-600 hover:bg-red-700">
+                            <Button type="submit" disabled={isCommenting || !newComment.trim()} className="bg-error hover:opacity-90">
                                 {isCommenting ? '...' : 'Commentaire'}
                             </Button>
                         </form>

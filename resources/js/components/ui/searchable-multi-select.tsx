@@ -97,20 +97,20 @@ export function SearchableMultiSelect({
             <div
                 onClick={() => !disabled && setIsOpen(!isOpen)}
                 className={cn(
-                    'flex h-auto min-h-[40px] w-full items-center justify-between rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm transition-colors',
-                    isOpen && 'border-blue-500 ring-2 ring-blue-500',
+                    'flex h-auto min-h-[40px] w-full items-center justify-between rounded-lg border border-border bg-background px-3 py-2 text-sm transition-colors',
+                    isOpen && 'border-info ring-2 ring-info',
                     disabled && 'cursor-not-allowed opacity-50',
-                    !disabled && 'cursor-pointer hover:border-gray-400'
+                    !disabled && 'cursor-pointer hover:border-border-dark'
                 )}
             >
                 <div className="flex flex-1 flex-wrap items-center gap-1">
                     {selectedValues.length === 0 ? (
-                        <span className="text-gray-500">{placeholder}</span>
+                        <span className="text-muted-foreground">{placeholder}</span>
                     ) : (
                         selectedLabels.map((label, index) => (
                             <span
                                 key={index}
-                                className="flex items-center gap-1 rounded bg-blue-100 px-2 py-0.5 text-xs text-blue-800"
+                                className="flex items-center gap-1 rounded bg-info-light px-2 py-0.5 text-xs text-info"
                             >
                                 {label}
                                 {!disabled && (
@@ -128,7 +128,7 @@ export function SearchableMultiSelect({
                 </div>
                 <ChevronDownIcon
                     className={cn(
-                        'h-4 w-4 text-gray-500 transition-transform',
+                        'h-4 w-4 text-muted-foreground transition-transform',
                         isOpen && 'rotate-180'
                     )}
                 />
@@ -145,14 +145,14 @@ export function SearchableMultiSelect({
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             placeholder={searchPlaceholder}
-                            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-full rounded-lg border border-border px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-info focus:outline-none focus:ring-2 focus:ring-info"
                         />
                     </div>
 
                     {/* Options List */}
                     <div className="max-h-[300px] overflow-y-auto p-1">
                         {filteredOptions.length === 0 ? (
-                            <div className="px-3 py-2 text-sm text-gray-500">{emptyMessage}</div>
+                            <div className="px-3 py-2 text-sm text-muted-foreground">{emptyMessage}</div>
                         ) : (
                             <>
                                 {/* Select All */}
@@ -160,8 +160,8 @@ export function SearchableMultiSelect({
                                     onClick={handleSelectAll}
                                     className={cn(
                                         'flex cursor-pointer items-center gap-2 rounded px-3 py-2 text-sm transition-colors',
-                                        'hover:bg-gray-50',
-                                        allFilteredSelected && 'bg-gray-50'
+                                        'hover:bg-muted',
+                                        allFilteredSelected && 'bg-muted'
                                     )}
                                 >
                                     <Checkbox 
@@ -172,7 +172,7 @@ export function SearchableMultiSelect({
                                             }
                                         }}
                                     />
-                                    <span className="text-gray-700">Select All</span>
+                                    <span className="text-foreground">Select All</span>
                                 </div>
 
                                 {/* Options */}
@@ -187,8 +187,8 @@ export function SearchableMultiSelect({
                                             }}
                                             className={cn(
                                                 'flex cursor-pointer items-center gap-2 rounded px-3 py-2 text-sm transition-colors',
-                                                'hover:bg-gray-50',
-                                                isSelected && 'bg-gray-50'
+                                                'hover:bg-muted',
+                                                isSelected && 'bg-muted'
                                             )}
                                         >
                                             <div onClick={(e) => e.stopPropagation()}>
@@ -201,7 +201,7 @@ export function SearchableMultiSelect({
                                                     }}
                                                 />
                                             </div>
-                                            <span className="text-gray-700">{option.label}</span>
+                                            <span className="text-foreground">{option.label}</span>
                                         </div>
                                     );
                                 })}

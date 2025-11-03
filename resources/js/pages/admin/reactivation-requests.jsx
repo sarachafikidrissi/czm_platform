@@ -166,7 +166,7 @@ export default function ReactivationRequests() {
                                                         size="sm"
                                                         variant="default"
                                                         onClick={() => handleAction(request, 'approve')}
-                                                        className="bg-green-600 hover:bg-green-700"
+                                                        className="bg-success hover:opacity-90"
                                                     >
                                                         <CheckCircle className="w-4 h-4 mr-1" />
                                                         Approuver
@@ -203,7 +203,7 @@ export default function ReactivationRequests() {
                             </DialogDescription>
                         </DialogHeader>
                         <div className="grid gap-4 py-4">
-                            <div className="bg-gray-50 p-3 rounded-lg">
+                            <div className="bg-muted p-3 rounded-lg">
                                 <p className="text-sm font-semibold mb-2">Raison de la demande:</p>
                                 <p className="text-sm text-muted-foreground">{selectedRequest?.reason || 'Aucune raison spécifiée'}</p>
                             </div>
@@ -228,7 +228,7 @@ export default function ReactivationRequests() {
                                 variant={actionType === 'approve' ? 'default' : 'destructive'}
                                 onClick={submitAction}
                                 disabled={submitting}
-                                className={actionType === 'approve' ? 'bg-green-600 hover:bg-green-700' : ''}
+                                className={actionType === 'approve' ? 'bg-success hover:opacity-90' : ''}
                             >
                                 {submitting ? 'Traitement...' : (actionType === 'approve' ? 'Approuver' : 'Rejeter')}
                             </Button>

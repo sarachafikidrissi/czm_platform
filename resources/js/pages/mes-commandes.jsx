@@ -81,23 +81,23 @@ export default function MesCommandes({ bills = [] }) {
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                     {bills.map((bill) => (
                                         bill.pack_advantages && bill.pack_advantages.length > 0 && (
-                                            <div key={bill.id} className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4">
+                                            <div key={bill.id} className="bg-info-light border border-info rounded-lg p-4">
                                                 <div className="flex items-center gap-2 mb-3">
-                                                    <Package className="w-5 h-5 text-blue-600" />
-                                                    <h4 className="font-semibold text-blue-800">{bill.pack_name}</h4>
+                                                    <Package className="w-5 h-5 text-info" />
+                                                    <h4 className="font-semibold text-info">{bill.pack_name}</h4>
                                                 </div>
                                                 <div className="space-y-2">
                                                     {bill.pack_advantages.map((advantage, index) => (
                                                         <div key={index} className="flex items-start gap-2">
-                                                            <CheckCircle className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
-                                                            <span className="text-sm text-gray-700">{advantage}</span>
+                                                            <CheckCircle className="w-4 h-4 text-success mt-0.5 flex-shrink-0" />
+                                                            <span className="text-sm text-foreground">{advantage}</span>
                                                         </div>
                                                     ))}
                                                 </div>
-                                                <div className="mt-3 pt-3 border-t border-blue-200">
+                                                <div className="mt-3 pt-3 border-t border-info">
                                                     <div className="flex justify-between items-center">
-                                                        <span className="text-xs text-gray-500">Commande:</span>
-                                                        <span className="text-xs font-medium text-blue-600">{bill.order_number}</span>
+                                                        <span className="text-xs text-muted-foreground">Commande:</span>
+                                                        <span className="text-xs font-medium text-info">{bill.order_number}</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -144,9 +144,9 @@ export default function MesCommandes({ bills = [] }) {
                                                 </TableCell>
                                                 <TableCell>
                                                     <div className="flex flex-col">
-                                                        <span className="font-medium text-blue-600">{bill.pack_name}</span>
+                                                        <span className="font-medium text-info">{bill.pack_name}</span>
                                                         {bill.pack_advantages && bill.pack_advantages.length > 0 && (
-                                                            <span className="text-xs text-gray-500">
+                                                            <span className="text-xs text-muted-foreground">
                                                                 {bill.pack_advantages.length} avantage{bill.pack_advantages.length > 1 ? 's' : ''}
                                                             </span>
                                                         )}
@@ -156,8 +156,8 @@ export default function MesCommandes({ bills = [] }) {
                                                     <Badge 
                                                         className={`capitalize ${
                                                             bill.status === 'paid' 
-                                                                ? 'bg-green-100 text-green-800' 
-                                                                : 'bg-orange-100 text-orange-800'
+                                                                ? 'bg-success-bg text-success' 
+                                                                : 'bg-warning-light text-warning-foreground'
                                                         }`}
                                                     >
                                                         {bill.status === 'paid' ? 'Payé' : 'Impayé'}
@@ -205,11 +205,11 @@ export default function MesCommandes({ bills = [] }) {
                                 </Table>
                             ) : (
                                 <div className="text-center py-8">
-                                    <ShoppingCart className="w-16 h-16 mx-auto text-gray-400 mb-4" />
-                                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                                    <ShoppingCart className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+                                    <h3 className="text-lg font-semibold text-foreground mb-2">
                                         Aucune commande pour le moment
                                     </h3>
-                                    <p className="text-gray-600 mb-4">
+                                    <p className="text-muted-foreground mb-4">
                                         Vous n'avez pas encore passé de commande. Découvrez nos services et devenez client pour accéder à nos offres.
                                     </p>
                                     <Button className="bg-primary hover:bg-primary/90">
@@ -230,10 +230,10 @@ export default function MesCommandes({ bills = [] }) {
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                            <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
                                 <div>
                                     <h4 className="font-semibold">Adhésion Gratuite : Membre Passif</h4>
-                                    <p className="text-sm text-gray-600">
+                                    <p className="text-sm text-muted-foreground">
                                         Vous bénéficiez de l'adhésion gratuite. Passez au statut client pour accéder à tous nos services.
                                     </p>
                                 </div>
@@ -247,20 +247,20 @@ export default function MesCommandes({ bills = [] }) {
 
                 {/* Invoice Modal */}
                 {showInvoice && selectedInvoice && (
-                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                        <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+                    <div className="fixed inset-0 bg-foreground/50 flex items-center justify-center z-50 p-4">
+                        <div className="bg-card rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
                             <div className="p-8">
                                 {/* Invoice Header */}
                                 <div className="flex justify-between items-start mb-8">
                                     <div>
-                                        <h1 className="text-2xl font-bold text-gray-900 mb-2">
+                                        <h1 className="text-2xl font-bold text-foreground mb-2">
                                             Centre Zawaj Maroc
                                         </h1>
-                                        <p className="text-gray-600">Service de mariage et accompagnement matrimonial</p>
+                                        <p className="text-muted-foreground">Service de mariage et accompagnement matrimonial</p>
                                     </div>
                                     <div className="text-right">
-                                        <h2 className="text-xl font-bold text-gray-900">FACTURE</h2>
-                                        <p className="text-sm text-gray-600">N° {selectedInvoice.bill_number}</p>
+                                        <h2 className="text-xl font-bold text-foreground">FACTURE</h2>
+                                        <p className="text-sm text-muted-foreground">N° {selectedInvoice.bill_number}</p>
                                     </div>
                                 </div>
 
@@ -291,27 +291,27 @@ export default function MesCommandes({ bills = [] }) {
                                 {/* Pack Advantages */}
                                 {selectedInvoice.pack_advantages && selectedInvoice.pack_advantages.length > 0 && (
                                     <div className="mb-8">
-                                        <div className="bg-gradient-to-r from-purple-600 via-pink-600 to-red-600 text-white p-6 rounded-xl mb-6 shadow-lg">
+                                        <div className="bg-primary text-primary-foreground p-6 rounded-xl mb-6 shadow-lg">
                                             <div className="text-center">
                                                 <div className="text-4xl mb-2">🎁</div>
                                                 <h3 className="text-xl font-bold mb-2">Avantages inclus dans votre pack</h3>
-                                                <p className="text-purple-100 text-sm">Profitez de tous ces avantages exclusifs</p>
+                                                <p className="text-primary-foreground/80 text-sm">Profitez de tous ces avantages exclusifs</p>
                                             </div>
                                         </div>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                             {selectedInvoice.pack_advantages.map((advantage, index) => (
-                                                <div key={index} className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl p-4 flex items-start shadow-sm hover:shadow-md transition-shadow">
-                                                    <div className="bg-green-500 rounded-full p-1 mr-4 flex-shrink-0">
-                                                        <CheckCircle className="w-4 h-4 text-white" />
+                                                <div key={index} className="bg-success-bg border-2 border-success rounded-xl p-4 flex items-start shadow-sm hover:shadow-md transition-shadow">
+                                                    <div className="bg-success rounded-full p-1 mr-4 flex-shrink-0">
+                                                        <CheckCircle className="w-4 h-4 text-success-foreground" />
                                                     </div>
-                                                    <span className="text-green-800 font-medium">{advantage}</span>
+                                                    <span className="text-success font-medium">{advantage}</span>
                                                 </div>
                                             ))}
                                         </div>
-                                        <div className="mt-6 bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-lg p-4">
+                                        <div className="mt-6 bg-warning-light border border-warning rounded-lg p-4">
                                             <div className="flex items-center gap-2">
                                                 <span className="text-2xl">💡</span>
-                                                <p className="text-yellow-800 font-medium">
+                                                <p className="text-warning-foreground font-medium">
                                                     Ces avantages vous aideront à trouver votre âme sœur plus rapidement et efficacement !
                                                 </p>
                                             </div>
@@ -320,12 +320,12 @@ export default function MesCommandes({ bills = [] }) {
                                 )}
 
                                 {/* Payment Reminder */}
-                                <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-lg p-4 mb-6">
+                                <div className="bg-warning-light border border-warning rounded-lg p-4 mb-6">
                                     <div className="flex items-center gap-2">
                                         <span className="text-2xl">⏰</span>
                                         <div>
-                                            <h3 className="font-semibold text-yellow-800">Paiement en attente</h3>
-                                            <p className="text-yellow-700 text-sm">
+                                            <h3 className="font-semibold text-warning-foreground">Paiement en attente</h3>
+                                            <p className="text-warning-foreground text-sm">
                                                 Veuillez effectuer le paiement avant le {formatDate(selectedInvoice.due_date)} pour activer votre pack matrimonial.
                                             </p>
                                         </div>
@@ -336,26 +336,26 @@ export default function MesCommandes({ bills = [] }) {
                                 <div className="mb-8">
                                     <table className="w-full border-collapse">
                                         <thead>
-                                            <tr className="bg-gray-50">
-                                                <th className="border border-gray-200 px-4 py-3 text-left font-semibold">Description</th>
-                                                <th className="border border-gray-200 px-4 py-3 text-center font-semibold">Quantité</th>
-                                                <th className="border border-gray-200 px-4 py-3 text-right font-semibold">Prix unitaire</th>
-                                                <th className="border border-gray-200 px-4 py-3 text-right font-semibold">Montant</th>
+                                            <tr className="bg-muted">
+                                                <th className="border border-border px-4 py-3 text-left font-semibold">Description</th>
+                                                <th className="border border-border px-4 py-3 text-center font-semibold">Quantité</th>
+                                                <th className="border border-border px-4 py-3 text-right font-semibold">Prix unitaire</th>
+                                                <th className="border border-border px-4 py-3 text-right font-semibold">Montant</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             <tr>
-                                                <td className="border border-gray-200 px-4 py-3">
+                                                <td className="border border-border px-4 py-3">
                                                     <div className="flex items-center gap-2">
-                                                        <Package className="w-4 h-4 text-blue-600" />
+                                                        <Package className="w-4 h-4 text-info" />
                                                         {selectedInvoice.pack_name}
                                                     </div>
                                                 </td>
-                                                <td className="border border-gray-200 px-4 py-3 text-center">1</td>
-                                                <td className="border border-gray-200 px-4 py-3 text-right">
+                                                <td className="border border-border px-4 py-3 text-center">1</td>
+                                                <td className="border border-border px-4 py-3 text-right">
                                                     {parseFloat(selectedInvoice.amount).toLocaleString()} {selectedInvoice.currency}
                                                 </td>
-                                                <td className="border border-gray-200 px-4 py-3 text-right">
+                                                <td className="border border-border px-4 py-3 text-right">
                                                     {parseFloat(selectedInvoice.amount).toLocaleString()} {selectedInvoice.currency}
                                                 </td>
                                             </tr>
@@ -380,7 +380,7 @@ export default function MesCommandes({ bills = [] }) {
                                                 <span>{parseFloat(selectedInvoice.total_amount).toLocaleString()} {selectedInvoice.currency}</span>
                                             </div>
                                         </div>
-                                        <div className="flex justify-between font-bold text-lg text-blue-600">
+                                        <div className="flex justify-between font-bold text-lg text-info">
                                             <span>Montant dû:</span>
                                             <span>{parseFloat(selectedInvoice.total_amount).toLocaleString()} {selectedInvoice.currency}</span>
                                         </div>
@@ -389,7 +389,7 @@ export default function MesCommandes({ bills = [] }) {
 
                                 {/* Actions */}
                                 <div className="flex justify-between items-center pt-6 border-t">
-                                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
                                         <FileText className="w-4 h-4" />
                                         <span>Document généré le {new Date().toLocaleDateString('fr-FR')}</span>
                                     </div>

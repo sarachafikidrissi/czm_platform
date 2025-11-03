@@ -206,9 +206,9 @@ export default function Profile({ auth, profile }) {
                 <div className="mx-auto max-w-3xl">
                     {/* Header */}
                     <div className="mb-8 text-center">
-                        <h1 className="mb-2 text-3xl font-bold text-gray-900">Construisons ensemble votre profil unique</h1>
-                        <p className="text-lg text-gray-600">Complétez votre demande en 4 étapes simples</p>
-                        <a href="/dashboard" className="ml-1 text-blue-600 hover:underline">
+                        <h1 className="mb-2 text-3xl font-bold text-foreground">Construisons ensemble votre profil unique</h1>
+                        <p className="text-lg text-muted-foreground">Complétez votre demande en 4 étapes simples</p>
+                        <a href="/dashboard" className="ml-1 text-info hover:underline">
                                visiter votre dashboard
                             </a>
                     </div>
@@ -228,13 +228,13 @@ export default function Profile({ auth, profile }) {
                                     <div className="flex w-full items-center">
                                         {/* Connector line */}
                                         {index > 0 && (
-                                            <div className={`h-1 flex-1 ${currentStep >= step.number ? 'bg-button-primary' : 'bg-gray-300'}`} />
+                                            <div className={`h-1 flex-1 ${currentStep >= step.number ? 'bg-button-primary' : 'bg-border'}`} />
                                         )}
 
                                         {/* Step circle */}
                                         <div
                                             className={`flex h-10 w-10 items-center justify-center rounded-full border-2 ${
-                                                currentStep >= step.number ? 'bg-button-primary text-white' : 'border-gray-300 bg-white text-gray-500'
+                                                currentStep >= step.number ? 'bg-button-primary text-primary-foreground' : 'border-border bg-card text-muted-foreground'
                                             } text-sm font-semibold`}
                                         >
                                             {step.number}
@@ -242,13 +242,13 @@ export default function Profile({ auth, profile }) {
 
                                         {/* Connector line */}
                                         {index < steps.length - 1 && (
-                                            <div className={`h-1 flex-1 ${currentStep > step.number ? 'bg-button-primary' : 'bg-gray-300'}`} />
+                                            <div className={`h-1 flex-1 ${currentStep > step.number ? 'bg-button-primary' : 'bg-border'}`} />
                                         )}
                                     </div>
 
                                     {/* Step label */}
                                     <span
-                                        className={`mt-2 text-xs font-medium ${currentStep >= step.number ? 'text-button-primary' : 'text-gray-500'} hidden sm:block`}
+                                        className={`mt-2 text-xs font-medium ${currentStep >= step.number ? 'text-button-primary' : 'text-muted-foreground'} hidden sm:block`}
                                     >
                                         {step.label}
                                     </span>
@@ -258,7 +258,7 @@ export default function Profile({ auth, profile }) {
                     </div>
 
                     {/* form steps */}
-                    <div className="rounded-lg bg-white p-6 shadow-md sm:p-8 max-h-[600px] overflow-y-auto ">
+                    <div className="rounded-lg bg-card p-6 shadow-md sm:p-8 max-h-[600px] overflow-y-auto ">
                         {currentStep === 1 && <PersonalInfo {...stepProps} />}
                         {currentStep === 2 && <Details {...stepProps} gender={auth?.user?.gender} />}
                         {currentStep === 3 && <PartnerInfo {...stepProps} />}
@@ -266,7 +266,7 @@ export default function Profile({ auth, profile }) {
                     </div>
 
                     {/* buttons */}
-                    <div className="mt-8 flex justify-between border-t border-gray-200 pt-6">
+                    <div className="mt-8 flex justify-between border-t border-border pt-6">
                         <button
                             onClick={handlePrevious}
                             disabled={currentStep === 1}
@@ -282,7 +282,7 @@ export default function Profile({ auth, profile }) {
                         <button
                             onClick={handleNext}
                             disabled={isSubmitting}
-                            className={`bg-button-primary hover:bg-button-secondary rounded-lg px-6 py-2 font-medium text-white transition-colors ${
+                            className={`bg-button-primary hover:bg-button-secondary rounded-lg px-6 py-2 font-medium text-primary-foreground transition-colors ${
                                 isSubmitting ? 'cursor-not-allowed opacity-50' : ''
                             }`}
                         >
@@ -291,7 +291,7 @@ export default function Profile({ auth, profile }) {
                     </div>
 
                     {/* Progress info */}
-                    <div className="mt-4 text-center text-sm text-gray-500">
+                    <div className="mt-4 text-center text-sm text-muted-foreground">
                         Étape {currentStep} sur 4 •{profile?.isCompleted ? ' ✓ Complété' : ' En cours'}
                     </div>
                 </div>

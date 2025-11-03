@@ -29,13 +29,13 @@ export default function UserSubscription() {
     const getStatusBadge = (status) => {
         switch (status) {
             case 'active':
-                return <Badge className="bg-green-100 text-green-800">Actif</Badge>;
+                return <Badge className="bg-success-bg text-success">Actif</Badge>;
             case 'expired':
-                return <Badge className="bg-red-100 text-red-800">Expiré</Badge>;
+                return <Badge className="bg-error-bg text-error">Expiré</Badge>;
             case 'cancelled':
-                return <Badge className="bg-gray-100 text-gray-800">Annulé</Badge>;
+                return <Badge className="bg-muted text-muted-foreground">Annulé</Badge>;
             default:
-                return <Badge className="bg-gray-100 text-gray-800">N/A</Badge>;
+                return <Badge className="bg-muted text-muted-foreground">N/A</Badge>;
         }
     };
     
@@ -46,45 +46,45 @@ export default function UserSubscription() {
                 {/* Page Header */}
                 <div className="flex flex-col gap-4">
                     <div className="flex items-center justify-between">
-                        <h1 className="text-3xl font-bold text-gray-900">Mon abonnement</h1>
+                        <h1 className="text-3xl font-bold text-foreground">Mon abonnement</h1>
                     </div>
                     
                     {/* Decorative line with heart */}
                     <div className="flex items-center justify-center">
-                        <div className="h-px bg-gray-300 flex-1"></div>
-                        <Heart className="w-4 h-4 text-red-500 mx-4" />
-                        <div className="h-px bg-gray-300 flex-1"></div>
+                        <div className="h-px bg-border flex-1"></div>
+                        <Heart className="w-4 h-4 text-error mx-4" />
+                        <div className="h-px bg-border flex-1"></div>
                     </div>
                     
                     {/* Status Banner */}
                     <div className="flex items-center justify-between gap-4">
                         {isPassiveMember ? (
-                            <div className="bg-yellow-100 border border-yellow-200 rounded-lg p-4 flex-1">
+                            <div className="bg-warning-light border border-warning rounded-lg p-4 flex-1">
                                 <div className="flex items-center gap-2">
-                                    <User className="w-5 h-5 text-yellow-600" />
-                                    <span className="text-yellow-800 font-medium">Adhésion Gratuite : </span>
-                                    <span className="text-yellow-600">membre passif</span>
+                                    <User className="w-5 h-5 text-warning" />
+                                    <span className="text-warning-foreground font-medium">Adhésion Gratuite : </span>
+                                    <span className="text-warning">membre passif</span>
                                 </div>
                             </div>
                         ) : isClient ? (
-                            <div className="bg-green-100 border border-green-200 rounded-lg p-4 flex-1">
+                            <div className="bg-success-bg border border-success rounded-lg p-4 flex-1">
                                 <div className="flex items-center gap-2">
-                                    <Crown className="w-5 h-5 text-green-600" />
-                                    <span className="text-green-800 font-medium">Client Actif</span>
+                                    <Crown className="w-5 h-5 text-success" />
+                                    <span className="text-success font-medium">Client Actif</span>
                                 </div>
                             </div>
                         ) : (
-                            <div className="bg-blue-100 border border-blue-200 rounded-lg p-4 flex-1">
+                            <div className="bg-info-light border border-info rounded-lg p-4 flex-1">
                                 <div className="flex items-center gap-2">
-                                    <User className="w-5 h-5 text-blue-600" />
-                                    <span className="text-blue-800 font-medium">Membre</span>
+                                    <User className="w-5 h-5 text-info" />
+                                    <span className="text-info-foreground font-medium">Membre</span>
                                 </div>
                             </div>
                         )}
                         
                         {isPassiveMember && (
                             <Link href="/user/matchmakers">
-                                <Button className="bg-red-600 hover:bg-red-700 text-white rounded-lg px-6 py-2">
+                                <Button className="bg-error hover:opacity-90 text-error-foreground rounded-lg px-6 py-2">
                                     Devenir Client
                                 </Button>
                             </Link>
@@ -164,7 +164,7 @@ export default function UserSubscription() {
                 {/* Advantages Comparison Table */}
                 <Card>
                     <CardHeader>
-                        <CardTitle className="text-blue-600">Avantages</CardTitle>
+                        <CardTitle className="text-info">Avantages</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <Table>

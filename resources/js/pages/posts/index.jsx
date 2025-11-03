@@ -7,11 +7,11 @@ export default function PostsIndex({ posts }) {
     return (
         <AppLayout>
             <Head title="Posts" />
-            <div className="min-h-screen bg-gray-50">
+            <div className="min-h-screen bg-background">
                 <div className="max-w-2xl mx-auto px-4 py-6">
                     <div className="mb-6">
-                        <h1 className="text-2xl font-bold text-gray-900">Posts</h1>
-                        <p className="text-gray-600">Share your thoughts and connect with others</p>
+                        <h1 className="text-2xl font-bold text-foreground">Posts</h1>
+                        <p className="text-muted-foreground">Share your thoughts and connect with others</p>
                     </div>
 
                     {/* Create Post Form */}

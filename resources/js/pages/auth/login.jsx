@@ -30,7 +30,7 @@ export default function Login({ status, canResetPassword }) {
                 {/* left side  */}
                 <div className="sm:h-full sm:w-[50%] w-[100svw]">
                     <AuthLayout
-                        className="sm:absolute left-[160px] h-full sm:rounded-s-4xl sm:rounded-e-[40px] bg-[#fbf6f6]"
+                        className="sm:absolute left-[160px] h-full sm:rounded-s-4xl sm:rounded-e-[40px] bg-muted"
                         title="Accès à votre compte"
                         description="Entrez votre email et votre mot de passe ci-dessous pour vous connecter"
                     >

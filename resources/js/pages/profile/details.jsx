@@ -58,7 +58,7 @@ function Details({ formData, setFormData, gender }) {
                                 value="celibataire"
                                 checked={formData.etatMatrimonial === 'celibataire'}
                                 onChange={handleInputChange}
-                                className="text-blue-600 focus:ring-blue-500"
+                                className="text-info focus:ring-info"
                             />
                             <span className="ml-2 text-sm text-gray-700">Célibataire</span>
                         </label>
@@ -69,7 +69,7 @@ function Details({ formData, setFormData, gender }) {
                                 value="marie"
                                 checked={formData.etatMatrimonial === 'marie'}
                                 onChange={handleInputChange}
-                                className="text-blue-600 focus:ring-blue-500"
+                                className="text-info focus:ring-info"
                             />
                             <span className="ml-2 text-sm text-gray-700">Marié(e)</span>
                         </label>
@@ -80,7 +80,7 @@ function Details({ formData, setFormData, gender }) {
                                 value="divorce"
                                 checked={formData.etatMatrimonial === 'divorce'}
                                 onChange={handleInputChange}
-                                className="text-blue-600 focus:ring-blue-500"
+                                className="text-info focus:ring-info"
                             />
                             <span className="ml-2 text-sm text-gray-700">Divorcé(e)</span>
                         </label>
@@ -91,7 +91,7 @@ function Details({ formData, setFormData, gender }) {
                                 value="veuf"
                                 checked={formData.etatMatrimonial === 'veuf'}
                                 onChange={handleInputChange}
-                                className="text-blue-600 focus:ring-blue-500"
+                                className="text-info focus:ring-info"
                             />
                             <span className="ml-2 text-sm text-gray-700">Veuf/Veuve</span>
                         </label>
@@ -109,7 +109,7 @@ function Details({ formData, setFormData, gender }) {
                                 value="proprietaire"
                                 checked={formData.logement === 'proprietaire'}
                                 onChange={handleInputChange}
-                                className="text-blue-600 focus:ring-blue-500"
+                                className="text-info focus:ring-info"
                             />
                             <span className="ml-2 text-sm text-gray-700">Propriétaire</span>
                         </label>
@@ -120,7 +120,7 @@ function Details({ formData, setFormData, gender }) {
                                 value="locataire"
                                 checked={formData.logement === 'locataire'}
                                 onChange={handleInputChange}
-                                className="text-blue-600 focus:ring-blue-500"
+                                className="text-info focus:ring-info"
                             />
                             <span className="ml-2 text-sm text-gray-700">Locataire</span>
                         </label>
@@ -131,7 +131,7 @@ function Details({ formData, setFormData, gender }) {
                                 value="familial"
                                 checked={formData.logement === 'familial'}
                                 onChange={handleInputChange}
-                                className="text-blue-600 focus:ring-blue-500"
+                                className="text-info focus:ring-info"
                             />
                             <span className="ml-2 text-sm text-gray-700">Familial</span>
                         </label>
@@ -151,7 +151,7 @@ function Details({ formData, setFormData, gender }) {
                                         value="yes"
                                         checked={formData.hasChildren === true}
                                         onChange={() => setValue('hasChildren', true)}
-                                        className="text-blue-600 focus:ring-blue-500"
+                                        className="text-info focus:ring-info"
                                     />
                                     <span className="ml-2 text-sm text-gray-700">Oui</span>
                                 </label>
@@ -162,7 +162,7 @@ function Details({ formData, setFormData, gender }) {
                                         value="no"
                                         checked={formData.hasChildren === false}
                                         onChange={() => setValue('hasChildren', false)}
-                                        className="text-blue-600 focus:ring-blue-500"
+                                        className="text-info focus:ring-info"
                                     />
                                     <span className="ml-2 text-sm text-gray-700">Non</span>
                                 </label>
@@ -181,7 +181,7 @@ function Details({ formData, setFormData, gender }) {
                                         max="20"
                                         value={formData.childrenCount || ''}
                                         onChange={handleInputChange}
-                                        className="w-full rounded-lg border border-gray-300 px-4 py-3 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                                        className="w-full rounded-lg border border-border px-4 py-3 transition-colors focus:border-info focus:ring-2 focus:ring-info"
                                     />
                                 </div>
 
@@ -191,7 +191,7 @@ function Details({ formData, setFormData, gender }) {
                                         name="childrenGuardian"
                                         value={formData.childrenGuardian || ''}
                                         onChange={handleInputChange}
-                                        className="w-full rounded-lg border border-gray-300 px-4 py-3 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                                        className="w-full rounded-lg border border-border px-4 py-3 transition-colors focus:border-info focus:ring-2 focus:ring-info"
                                     >
                                         <option value="">Sélectionnez</option>
                                         <option value="mother">La mère</option>
@@ -338,7 +338,7 @@ function Details({ formData, setFormData, gender }) {
                                     value="oui"
                                     checked={formData.fumeur === 'oui'}
                                     onChange={handleInputChange}
-                                    className="text-blue-600 focus:ring-blue-500"
+                                    className="text-info focus:ring-info"
                                 />
                                 <span className="ml-2 text-sm text-gray-700">Oui</span>
                             </label>
@@ -349,7 +349,7 @@ function Details({ formData, setFormData, gender }) {
                                     value="non"
                                     checked={formData.fumeur === 'non'}
                                     onChange={handleInputChange}
-                                    className="text-blue-600 focus:ring-blue-500"
+                                    className="text-info focus:ring-info"
                                 />
                                 <span className="ml-2 text-sm text-gray-700">Non</span>
                             </label>
@@ -360,7 +360,7 @@ function Details({ formData, setFormData, gender }) {
                                     value="parfois"
                                     checked={formData.fumeur === 'parfois'}
                                     onChange={handleInputChange}
-                                    className="text-blue-600 focus:ring-blue-500"
+                                    className="text-info focus:ring-info"
                                 />
                                 <span className="ml-2 text-sm text-gray-700">Parfois</span>
                             </label>
@@ -378,7 +378,7 @@ function Details({ formData, setFormData, gender }) {
                                     value="oui"
                                     checked={formData.buveur === 'oui'}
                                     onChange={handleInputChange}
-                                    className="text-blue-600 focus:ring-blue-500"
+                                    className="text-info focus:ring-info"
                                 />
                                 <span className="ml-2 text-sm text-gray-700">Oui</span>
                             </label>
@@ -389,7 +389,7 @@ function Details({ formData, setFormData, gender }) {
                                     value="non"
                                     checked={formData.buveur === 'non'}
                                     onChange={handleInputChange}
-                                    className="text-blue-600 focus:ring-blue-500"
+                                    className="text-info focus:ring-info"
                                 />
                                 <span className="ml-2 text-sm text-gray-700">Non</span>
                             </label>
@@ -400,7 +400,7 @@ function Details({ formData, setFormData, gender }) {
                                     value="parfois"
                                     checked={formData.buveur === 'parfois'}
                                     onChange={handleInputChange}
-                                    className="text-blue-600 focus:ring-blue-500"
+                                    className="text-info focus:ring-info"
                                 />
                                 <span className="ml-2 text-sm text-gray-700">Parfois</span>
                             </label>
@@ -418,7 +418,7 @@ function Details({ formData, setFormData, gender }) {
                                     value="oui"
                                     checked={formData.sport === 'oui'}
                                     onChange={handleInputChange}
-                                    className="text-blue-600 focus:ring-blue-500"
+                                    className="text-info focus:ring-info"
                                 />
                                 <span className="ml-2 text-sm text-gray-700">Oui</span>
                             </label>
@@ -429,7 +429,7 @@ function Details({ formData, setFormData, gender }) {
                                     value="non"
                                     checked={formData.sport === 'non'}
                                     onChange={handleInputChange}
-                                    className="text-blue-600 focus:ring-blue-500"
+                                    className="text-info focus:ring-info"
                                 />
                                 <span className="ml-2 text-sm text-gray-700">Non</span>
                             </label>
@@ -440,7 +440,7 @@ function Details({ formData, setFormData, gender }) {
                                     value="parfois"
                                     checked={formData.sport === 'parfois'}
                                     onChange={handleInputChange}
-                                    className="text-blue-600 focus:ring-blue-500"
+                                    className="text-info focus:ring-info"
                                 />
                                 <span className="ml-2 text-sm text-gray-700">Parfois</span>
                             </label>
@@ -458,7 +458,7 @@ function Details({ formData, setFormData, gender }) {
                                     value="oui"
                                     checked={formData.motorise === 'oui'}
                                     onChange={handleInputChange}
-                                    className="text-blue-600 focus:ring-blue-500"
+                                    className="text-info focus:ring-info"
                                 />
                                 <span className="ml-2 text-sm text-gray-700">Oui</span>
                             </label>
@@ -469,7 +469,7 @@ function Details({ formData, setFormData, gender }) {
                                     value="non"
                                     checked={formData.motorise === 'non'}
                                     onChange={handleInputChange}
-                                    className="text-blue-600 focus:ring-blue-500"
+                                    className="text-info focus:ring-info"
                                 />
                                 <span className="ml-2 text-sm text-gray-700">Non</span>
                             </label>

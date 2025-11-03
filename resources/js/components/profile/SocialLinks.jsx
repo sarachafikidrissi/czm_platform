@@ -29,7 +29,7 @@ export default function SocialLinks({ user }) {
                         <div className="flex items-center gap-x-4">
                             {socialLinks.facebook && (
                                 <FaFacebook
-                                    className="cursor-pointer rounded-full text-blue-600"
+                                    className="cursor-pointer rounded-full text-info"
                                     size={30}
                                     onClick={() => window.open(socialLinks.facebook, '_blank')}
                                 />
@@ -53,7 +53,7 @@ export default function SocialLinks({ user }) {
 
                             {socialLinks.youtube && (
                                 <FaYoutube
-                                    className="cursor-pointer rounded-full bg-red-600 p-1 text-white"
+                                    className="cursor-pointer rounded-full bg-error p-1 text-error-foreground"
                                     size={30}
                                     onClick={() => window.open(socialLinks.youtube, '_blank')}
                                 />
@@ -72,17 +72,17 @@ export default function SocialLinks({ user }) {
                 {/* <div> */}
                 {/* <div className="flex items-center gap-3"> */}
                 <div className="flex items-center">
-                    <Phone className="h-4 w-4 text-green-700" />
+                    <Phone className="h-4 w-4 text-success" />
                     {/* <div> */}
                     {/* <div className="text-sm text-gray-500">Phone Number</div> */}
-                    <div className="font-medium text-red-700">{user?.phone || 'Not provided'}</div>
+                    <div className="font-medium text-error">{user?.phone || 'Not provided'}</div>
                     {/* </div> */}
                 </div>
 
                 {user?.agency && (
                     <div className="flex items-center gap-3">
                         {/* <div> */}
-                            <Building className="h-4 w-4 text-red-950" /> <span>Agency</span>
+                            <Building className="h-4 w-4 text-error-dark" /> <span>Agency</span>
                         <div className="font-medium">{user.agency.name}</div>
                         {/* </div> */}
                     </div>

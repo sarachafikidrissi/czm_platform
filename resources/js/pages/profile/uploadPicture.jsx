@@ -100,14 +100,14 @@ function UploadPicture({ formData, setFormData }) {
             {/* Form Content */}
             {/* Step Title */}
             <div className="mb-8">
-                <h2 className="mb-2 text-2xl font-bold text-gray-900">Ajoutez votre photo</h2>
-                <p className="text-gray-600">Les photos renforcent les connexions. Choisissez une image claire et naturelle.</p>
+                <h2 className="mb-2 text-2xl font-bold text-foreground">Ajoutez votre photo</h2>
+                <p className="text-muted-foreground">Les photos renforcent les connexions. Choisissez une image claire et naturelle.</p>
             </div>
 
             {/* Form Fields */}
             {/* Profile Picture Upload */}
             <div className="space-y-4">
-                <label className="mb-2 block text-sm font-medium text-gray-700">Photo de profil *</label>
+                <label className="mb-2 block text-sm font-medium text-foreground">Photo de profil *</label>
 
                 <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 p-6 transition-colors hover:border-blue-400">
                     {/* Preview Area */}
@@ -122,19 +122,19 @@ function UploadPicture({ formData, setFormData }) {
                                 <button
                                     type="button"
                                     onClick={() => setFormData((prev) => ({ ...prev, profilePicture: null }))}
-                                    className="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-xs text-white transition-colors hover:bg-red-600"
+                                    className="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full bg-error text-xs text-error-foreground transition-colors hover:opacity-90"
                                 >
                                     ×
                                 </button>
                             </div>
-                            <p className="mt-2 text-sm text-green-600">✓ Photo sélectionnée: {formData.profilePicture.name}</p>
-                            <p className="mt-1 text-xs text-gray-500">Taille: {(formData.profilePicture.size / 1024 / 1024).toFixed(2)} MB</p>
+                            <p className="mt-2 text-sm text-success">✓ Photo sélectionnée: {formData.profilePicture.name}</p>
+                            <p className="mt-1 text-xs text-muted-foreground">Taille: {(formData.profilePicture.size / 1024 / 1024).toFixed(2)} MB</p>
                         </div>
                     ) : (
                         /* Upload Area */
                         <div className="text-center">
-                            <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100">
-                                <svg className="h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+                                <svg className="h-8 w-8 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path
                                         strokeLinecap="round"
                                         strokeLinejoin="round"
@@ -144,8 +144,8 @@ function UploadPicture({ formData, setFormData }) {
                                 </svg>
                             </div>
                             <div className="flex flex-col items-center">
-                                <p className="mb-2 text-sm text-gray-600">Cliquez pour télécharger ou glissez-déposez</p>
-                                <p className="text-xs text-gray-500">PNG, JPG, JPEG (Max. 2MB)</p>
+                                <p className="mb-2 text-sm text-muted-foreground">Cliquez pour télécharger ou glissez-déposez</p>
+                                <p className="text-xs text-muted-foreground">PNG, JPG, JPEG (Max. 2MB)</p>
                             </div>
                         </div>
                     )}
@@ -163,7 +163,7 @@ function UploadPicture({ formData, setFormData }) {
                     {/* Upload Button */}
                     <label
                         htmlFor="profilePicture"
-                        className="mt-4 cursor-pointer rounded-lg bg-blue-600 px-4 py-2 font-medium text-white transition-colors hover:bg-blue-700"
+                        className="mt-4 cursor-pointer rounded-lg bg-info px-4 py-2 font-medium text-info-foreground transition-colors hover:opacity-90"
                     >
                         {formData.profilePicture ? 'Changer la photo' : 'Choisir une photo'}
                     </label>
@@ -171,7 +171,7 @@ function UploadPicture({ formData, setFormData }) {
 
                 {/* Validation Messages */}
                 {formData.profilePictureError && (
-                    <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600">
+                    <div className="rounded-lg border border-error bg-error-light p-3 text-sm text-error">
                         <div className="flex items-center">
                             <svg className="mr-2 h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
                                 <path
@@ -186,9 +186,9 @@ function UploadPicture({ formData, setFormData }) {
                 )}
 
                 {/* Requirements */}
-                <div className="rounded-lg bg-gray-50 p-4">
-                    <h4 className="mb-2 text-sm font-medium text-gray-700">Recommandations pour la photo :</h4>
-                    <ul className="space-y-1 text-xs text-gray-600">
+                <div className="rounded-lg bg-muted p-4">
+                    <h4 className="mb-2 text-sm font-medium text-foreground">Recommandations pour la photo :</h4>
+                    <ul className="space-y-1 text-xs text-muted-foreground">
                         <li>• Format : PNG, JPG, JPEG</li>
                         <li>• Taille maximale : 2 MB</li>
                         <li>• Résolution recommandée : 500x500 pixels minimum</li>
@@ -201,13 +201,13 @@ function UploadPicture({ formData, setFormData }) {
 
             {/* CNI Upload Section */}
             <div className="mt-8 space-y-4">
-                <div className="border-t border-gray-200 pt-6">
-                    <label className="mb-2 block text-sm font-medium text-gray-700">Carte d'Identité Nationale (CNI)</label>
-                    <p className="mb-4 text-xs text-gray-500">Veuillez télécharger la face avant de votre CNI (optionnel - peut être rempli par votre matchmaker)</p>
+                <div className="border-t border-border pt-6">
+                    <label className="mb-2 block text-sm font-medium text-foreground">Carte d'Identité Nationale (CNI)</label>
+                    <p className="mb-4 text-xs text-muted-foreground">Veuillez télécharger la face avant de votre CNI (optionnel - peut être rempli par votre matchmaker)</p>
 
                     {/* CIN Number */}
                     <div className="mb-4">
-                        <label htmlFor="cin" className="mb-1 block text-sm font-medium text-gray-700">
+                        <label htmlFor="cin" className="mb-1 block text-sm font-medium text-foreground">
                             Numéro de CNI
                         </label>
                         <input
@@ -217,29 +217,29 @@ function UploadPicture({ formData, setFormData }) {
                             value={formData.cin || ''}
                             onChange={(e) => setFormData((prev) => ({ ...prev, cin: e.target.value }))}
                             placeholder="Ex: A123456 ou AB1234"
-                            className="w-full rounded-lg border border-gray-300 px-4 py-3 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                            className="w-full rounded-lg border border-border px-4 py-3 transition-colors focus:border-info focus:ring-2 focus:ring-info"
                         />
-                        <p className="mt-1 text-xs text-gray-500">Format: 1-2 lettres suivies de 4-6 chiffres</p>
+                        <p className="mt-1 text-xs text-muted-foreground">Format: 1-2 lettres suivies de 4-6 chiffres</p>
                     </div>
 
                     {/* CNI Front Upload */}
-                    <div className="rounded-lg border-2 border-dashed border-gray-300 p-6">
+                    <div className="rounded-lg border-2 border-dashed border-border p-6">
                         {formData.identityCardFrontPath && !formData.identityCardFront ? (
                             <div className="text-center">
-                                <p className="mb-2 text-sm text-gray-700">CNI déjà téléchargée</p>
+                                <p className="mb-2 text-sm text-foreground">CNI déjà téléchargée</p>
                                 <div className="flex items-center justify-center gap-4">
                                     <a
                                         href={`/storage/${formData.identityCardFrontPath}`}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+                                        className="rounded-lg bg-info px-4 py-2 text-sm font-medium text-info-foreground transition-colors hover:opacity-90"
                                     >
                                         Télécharger la CNI
                                     </a>
                                     <button
                                         type="button"
                                         onClick={() => setFormData((prev) => ({ ...prev, identityCardFront: null }))}
-                                        className="rounded-lg bg-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-300"
+                                        className="rounded-lg bg-secondary px-4 py-2 text-sm font-medium text-secondary-foreground transition-colors hover:opacity-80"
                                     >
                                         Remplacer
                                     </button>
@@ -256,17 +256,17 @@ function UploadPicture({ formData, setFormData }) {
                                     <button
                                         type="button"
                                         onClick={() => setFormData((prev) => ({ ...prev, identityCardFront: null }))}
-                                        className="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-xs text-white transition-colors hover:bg-red-600"
+                                        className="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full bg-error text-xs text-error-foreground transition-colors hover:opacity-90"
                                     >
                                         ×
                                     </button>
                                 </div>
-                                <p className="mt-2 text-sm text-green-600">✓ CNI sélectionnée: {formData.identityCardFront.name}</p>
+                                <p className="mt-2 text-sm text-success">✓ CNI sélectionnée: {formData.identityCardFront.name}</p>
                             </div>
                         ) : (
                             <div className="text-center">
-                                <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100">
-                                    <svg className="h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+                                    <svg className="h-8 w-8 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path
                                             strokeLinecap="round"
                                             strokeLinejoin="round"
@@ -276,8 +276,8 @@ function UploadPicture({ formData, setFormData }) {
                                     </svg>
                                 </div>
                                 <div className="flex flex-col items-center">
-                                    <p className="mb-2 text-sm text-gray-600">Cliquez pour télécharger la face avant de votre CNI</p>
-                                    <p className="text-xs text-gray-500">PNG, JPG, JPEG (Max. 5MB)</p>
+                                    <p className="mb-2 text-sm text-muted-foreground">Cliquez pour télécharger la face avant de votre CNI</p>
+                                    <p className="text-xs text-muted-foreground">PNG, JPG, JPEG (Max. 5MB)</p>
                                 </div>
                             </div>
                         )}
@@ -311,15 +311,15 @@ function UploadPicture({ formData, setFormData }) {
                         {/* Upload Button */}
                         <label
                             htmlFor="identityCardFront"
-                            className="mt-4 inline-block cursor-pointer rounded-lg bg-blue-600 px-4 py-2 font-medium text-white transition-colors hover:bg-blue-700"
+                            className="mt-4 inline-block cursor-pointer rounded-lg bg-info px-4 py-2 font-medium text-info-foreground transition-colors hover:opacity-90"
                         >
                             {formData.identityCardFront || formData.identityCardFrontPath ? 'Changer la CNI' : 'Télécharger la CNI (Face avant)'}
                         </label>
                     </div>
 
-                    <div className="mt-2 rounded-lg bg-blue-50 p-3">
-                        <p className="text-xs text-blue-800">• Seule la face avant de la CNI est requise</p>
-                        <p className="text-xs text-blue-800">• Assurez-vous que l'image est claire et lisible</p>
+                    <div className="mt-2 rounded-lg bg-info-light p-3">
+                        <p className="text-xs text-info">• Seule la face avant de la CNI est requise</p>
+                        <p className="text-xs text-info">• Assurez-vous que l'image est claire et lisible</p>
                     </div>
                 </div>
             </div>

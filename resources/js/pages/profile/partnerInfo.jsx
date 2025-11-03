@@ -218,12 +218,12 @@ function PartnerInfo({ formData, setFormData }) {
                 {/* Header */}
                 <div className="mb-6 text-center">
                     <h1 className="mb-2 text-3xl font-bold text-gray-900">Profil recherché</h1>
-                    <p className="text-sm text-gray-600">« * » indique les champs nécessaires</p>
+                    <p className="text-sm text-muted-foreground">« * » indique les champs nécessaires</p>
                 </div>
 
                 {/* Information Box */}
                 <div className="mb-6 rounded-lg border border-blue-200 bg-blue-50 p-4">
-                    <ul className="space-y-2 text-sm text-blue-800">
+                    <ul className="space-y-2 text-sm text-info">
                         <li>• Les critères pour le profil recherché, sont à valider avec votre matchmaker.</li>
                         <li>• Une fois acceptés, ces critères ne peuvent être modifiés qu'avec l'accord de votre matchmaker.</li>
                     </ul>
@@ -249,7 +249,7 @@ function PartnerInfo({ formData, setFormData }) {
                         name="ageMinimum"
                         value={formData.ageMinimum || ''}
                         onChange={handleInputChange}
-                        className="w-full rounded-lg border border-gray-300 px-4 py-3 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                        className="w-full rounded-lg border border-border px-4 py-3 transition-colors focus:border-info focus:ring-2 focus:ring-info"
                     >
                         <option value="">Select an Option</option>
                         {Array.from({ length: 50 - 18 + 1 }, (_, i) => 18 + i).map((age) => (
@@ -287,9 +287,9 @@ function PartnerInfo({ formData, setFormData }) {
                                                 situationMatrimonialeRecherche: newValue,
                                             }));
                                         }}
-                                        className="text-blue-600 focus:ring-blue-500"
+                                        className="text-info focus:ring-info"
                                     />
-                                    <span className="ml-2 text-sm text-gray-700">
+                                    <span className="ml-2 text-sm text-foreground">
                                         {option === 'celibataire' ? 'Célibataire' : option === 'marie' ? 'Marié(e)' : option === 'divorce' ? 'Divorcé(e)' : 'Veuf/Veuve'}
                                     </span>
                                 </label>
@@ -360,7 +360,7 @@ function PartnerInfo({ formData, setFormData }) {
                         name="niveauEtudesRecherche"
                         value={formData.niveauEtudesRecherche || ''}
                         onChange={handleInputChange}
-                        className="w-full rounded-lg border border-gray-300 px-4 py-3 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                        className="w-full rounded-lg border border-border px-4 py-3 transition-colors focus:border-info focus:ring-2 focus:ring-info"
                     >
                         <option value="">Select an Option</option>
                         <option value="moins-bac">Moins Bac</option>
@@ -383,7 +383,7 @@ function PartnerInfo({ formData, setFormData }) {
                         name="statutEmploiRecherche"
                         value={formData.statutEmploiRecherche || ''}
                         onChange={handleInputChange}
-                        className="w-full rounded-lg border border-gray-300 px-4 py-3 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                        className="w-full rounded-lg border border-border px-4 py-3 transition-colors focus:border-info focus:ring-2 focus:ring-info"
                     >
                         <option value="">Select an Option</option>
                         <option value="etudiant">Étudiant</option>
@@ -407,7 +407,7 @@ function PartnerInfo({ formData, setFormData }) {
                             name="revenuMinimum"
                             value={formData.revenuMinimum || ''}
                             onChange={handleInputChange}
-                            className="w-full rounded-lg border border-gray-300 px-4 py-3 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                            className="w-full rounded-lg border border-border px-4 py-3 transition-colors focus:border-info focus:ring-2 focus:ring-info"
                         >
                             <option value="">Sélectionnez</option>
                             <option value="0-2500">0-2500 MAD</option>
@@ -430,7 +430,7 @@ function PartnerInfo({ formData, setFormData }) {
                             name="religionRecherche"
                             value={formData.religionRecherche || ''}
                             onChange={handleInputChange}
-                            className="w-full rounded-lg border border-gray-300 px-4 py-3 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                            className="w-full rounded-lg border border-border px-4 py-3 transition-colors focus:border-info focus:ring-2 focus:ring-info"
                         >
                             <option value="">Sélectionnez</option>
                             <option value="pratiquant">Pratiquant(e)</option>
@@ -452,7 +452,7 @@ function PartnerInfo({ formData, setFormData }) {
                         onChange={handleInputChange}
                         placeholder="Décrivez le profil que vous recherchez..."
                         rows={5}
-                        className="w-full rounded-lg border border-gray-300 px-4 py-3 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                        className="w-full rounded-lg border border-border px-4 py-3 transition-colors focus:border-info focus:ring-2 focus:ring-info"
                     />
                     <p className="mt-1 text-xs text-gray-500">Optionnel - Décrivez les caractéristiques et qualités que vous recherchez chez votre futur conjoint</p>
                 </div>

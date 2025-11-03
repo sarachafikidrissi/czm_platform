@@ -46,7 +46,7 @@ export default function StaffRegister({ agencies = [] }) {
                 <div className="sm:h-full sm:w-[50%] w-[100%]">
                     <AuthLayout
                         title="Créer un compte Staff"
-                        className="h-full sm:rounded-e-4xl sm:rounded-s-[40px] sm:absolute sm:right-[35%] bg-[#fbf6f6]"
+                        className="h-full sm:rounded-e-4xl sm:rounded-s-[40px] sm:absolute sm:right-[35%] bg-muted"
                         description="Saisissez vos coordonnées ci-dessous pour créer un compte staff."
                     >
                         <Head title="Staff Registration" />

@@ -36,7 +36,7 @@ export default function UserMatchmakers() {
                 <div className="flex items-center justify-between">
                     <h1 className="text-2xl font-bold">Matchmaker Posts</h1>
                     {assignedMatchmaker && (
-                        <Badge className="bg-green-100 text-green-800">
+                        <Badge className="bg-success-bg text-success">
                             Assigned to: {assignedMatchmaker.name}
                         </Badge>
                     )}
@@ -110,7 +110,7 @@ export default function UserMatchmakers() {
                                         </div>
                                         <div className="flex justify-end pt-4 space-x-2">
                                             <Link href={`/profile/${selected?.username || selected?.id}`}>
-                                                <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
+                                                <Button size="sm" className="bg-info hover:opacity-90">
                                                     View Full Profile
                                                 </Button>
                                             </Link>

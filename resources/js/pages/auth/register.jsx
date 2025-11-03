@@ -110,7 +110,7 @@ export default function Register() {
                 <div className="sm:h-full sm:w-[50%] w-[100%]">
                     <AuthLayout
                         title="Créer un compte"
-                        className="h-full  sm:rounded-e-4xl sm:rounded-s-[40px] sm:absolute sm:right-[170px] bg-[#fbf6f6]"
+                        className="h-full  sm:rounded-e-4xl sm:rounded-s-[40px] sm:absolute sm:right-[170px] bg-muted"
                         description="Saisissez vos coordonnées ci-dessous pour créer votre compte."
                     >
                         <Head title="Register" />

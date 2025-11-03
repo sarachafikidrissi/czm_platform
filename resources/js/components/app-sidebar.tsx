@@ -155,7 +155,7 @@ export function AppSidebar() {
     
     return (
         // sidebar container
-        <Sidebar collapsible="icon" variant="inset" className="bg-[#722323]">
+        <Sidebar collapsible="icon" variant="inset" className="bg-[#890505]">
             <SidebarHeader>
                 <SidebarMenu className="">
                     <SidebarMenuItem>

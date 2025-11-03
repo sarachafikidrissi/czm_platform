@@ -356,7 +356,7 @@ export default function ProspectsDispatch() {
                             </TableHeader>
                             <TableBody>
                                 {prospects.map((p) => (
-                                    <TableRow key={p.id} className={statusFilter === 'rejected' ? 'bg-red-50' : ''}>
+                                    <TableRow key={p.id} className={statusFilter === 'rejected' ? 'bg-error-light' : ''}>
                                         <TableCell><input type="checkbox" checked={selectedProspectIds.includes(p.id)} onChange={() => toggleProspect(p.id)} /></TableCell>
                                         <TableCell className="font-medium">{p.name}</TableCell>
                                         <TableCell>{p.country}</TableCell>
@@ -366,20 +366,20 @@ export default function ProspectsDispatch() {
                                             <TableCell>
                                                 {p.assigned_matchmaker_id ? (
                                                     <div className="text-sm">
-                                                        <div className="font-medium text-green-600">Matchmaker: {p.assigned_matchmaker?.name || 'Unknown'}</div>
+                                                        <div className="font-medium text-success">Matchmaker: {p.assigned_matchmaker?.name || 'Unknown'}</div>
                                                         {p.agency_id && (
-                                                            <div className="text-blue-600">Agency: {p.agency?.name || 'Unknown'}</div>
+                                                            <div className="text-info">Agency: {p.agency?.name || 'Unknown'}</div>
                                                         )}
                                                     </div>
                                                 ) : p.agency_id ? (
-                                                    <span className="text-blue-600">Agency: {p.agency?.name || 'Unknown'}</span>
+                                                    <span className="text-info">Agency: {p.agency?.name || 'Unknown'}</span>
                                                 ) : (
-                                                    <span className="text-gray-500">Not dispatched</span>
+                                                    <span className="text-muted-foreground">Not dispatched</span>
                                                 )}
                                             </TableCell>
                                         ) : (
                                             <TableCell className="max-w-xs">
-                                                <p className="text-sm text-red-600 truncate" title={p.rejection_reason}>
+                                                <p className="text-sm text-error truncate" title={p.rejection_reason}>
                                                     {p.rejection_reason || 'N/A'}
                                                 </p>
                                             </TableCell>
@@ -436,7 +436,7 @@ export default function ProspectsDispatch() {
                                                             <Button
                                                                 size="sm"
                                                                 variant="default"
-                                                                className="bg-green-600 hover:bg-green-700"
+                                                                className="bg-success hover:opacity-90"
                                                                 onClick={() => handleAccept(p)}
                                                             >
                                                                 <CheckCircle className="w-4 h-4 mr-1" />

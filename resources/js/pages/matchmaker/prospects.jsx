@@ -242,7 +242,7 @@ export default function MatchmakerProspects() {
                     <h1 className="text-2xl font-bold">Prospects</h1>
                     <Badge variant="outline">{prospects.length} prospects</Badge>
                 </div>
-                <div className="flex flex-wrap items-center gap-3 bg-white rounded-lg p-3 border">
+                <div className="flex flex-wrap items-center gap-3 bg-card rounded-lg p-3 border">
                     <div className="flex items-center gap-2">
                         <Label className="text-sm text-muted-foreground">View</Label>
                         <Select value={filter || 'all'} onValueChange={(v) => router.visit(`/staff/prospects?filter=${v}&status_filter=${statusFilter}`, { preserveScroll: true, preserveState: true, replace: true })}>
@@ -302,23 +302,23 @@ export default function MatchmakerProspects() {
                         </TableHeader>
                         <TableBody>
                             {prospects.map((prospect) => (
-                                <TableRow key={prospect.id} className={statusFilter === 'rejected' ? 'bg-red-50' : ''}>
-                                    <TableCell><input type="checkbox" className="accent-neutral-800" /></TableCell>
+                                <TableRow key={prospect.id} className={statusFilter === 'rejected' ? 'bg-error-light' : ''}>
+                                    <TableCell><input type="checkbox" className="accent-primary" /></TableCell>
                                     <TableCell className="font-medium">{prospect.name}</TableCell>
                                     <TableCell className="text-muted-foreground">{new Date(prospect.created_at ?? Date.now()).toLocaleDateString()}</TableCell>
                                     <TableCell>{prospect.phone}</TableCell>
                                     <TableCell>
                                         {statusFilter === 'rejected' ? (
-                                            <Badge className="bg-red-100 text-red-800">
+                                            <Badge className="bg-error text-error-foreground">
                                                 Rejeté
                                             </Badge>
                                         ) : (
                                             prospect.profile.is_completed == 1 ? (
-                                                <Badge className="bg-green-100 text-green-800">
+                                                <Badge className="bg-success text-success-foreground">
                                                     Profile Complete
                                                 </Badge>
                                             ) : (
-                                                <Badge className="bg-yellow-100 text-yellow-800">
+                                                <Badge className="bg-warning-light text-warning-foreground">
                                                     Profile Incomplete
                                                 </Badge>
                                             )
@@ -326,7 +326,7 @@ export default function MatchmakerProspects() {
                                     </TableCell>
                                     {statusFilter === 'rejected' && (
                                         <TableCell className="max-w-xs">
-                                            <p className="text-sm text-red-600 truncate" title={prospect.rejection_reason}>
+                                            <p className="text-sm text-error truncate" title={prospect.rejection_reason}>
                                                 {prospect.rejection_reason || 'N/A'}
                                             </p>
                                         </TableCell>
@@ -382,7 +382,7 @@ export default function MatchmakerProspects() {
                                                                 ))}
                                                             </SelectContent>
                                                         </Select>
-                                                        {errors.service_id && <p className="text-red-500 text-sm">{errors.service_id}</p>}
+                                                        {errors.service_id && <p className="text-error text-sm">{errors.service_id}</p>}
                                                     </div>
                                                     <div className="grid gap-2">
                                                         <Label htmlFor="matrimonial_pack">Matrimonial Pack</Label>
@@ -435,7 +435,7 @@ export default function MatchmakerProspects() {
                                                                 </label>
                                                             ))}
                                                         </div>
-                                                        {errors.pack_advantages && <p className="text-red-500 text-sm">{errors.pack_advantages}</p>}
+                                                        {errors.pack_advantages && <p className="text-error text-sm">{errors.pack_advantages}</p>}
                                                     </div>
                                                     <div className="grid gap-2">
                                                         <Label htmlFor="payment_mode">Mode de Paiement</Label>
@@ -451,13 +451,13 @@ export default function MatchmakerProspects() {
                                                                 <SelectItem value="RDV">RDV</SelectItem>
                                                             </SelectContent>
                                                         </Select>
-                                                        {errors.payment_mode && <p className="text-red-500 text-sm">{errors.payment_mode}</p>}
+                                                        {errors.payment_mode && <p className="text-error text-sm">{errors.payment_mode}</p>}
                                                     </div>
                                                     <div className="grid gap-2">
                                                         <Label htmlFor="cin">
                                                             CIN {!selectedProspect?.profile?.cin && '*'}
                                                             {selectedProspect?.profile?.cin && (
-                                                                <span className="text-xs text-gray-500 ml-2">(Déjà rempli par le prospect)</span>
+                                                                <span className="text-xs text-muted-foreground ml-2">(Déjà rempli par le prospect)</span>
                                                             )}
                                                         </Label>
                                                         {selectedProspect?.profile?.cin ? (
@@ -465,7 +465,7 @@ export default function MatchmakerProspects() {
                                                                 id="cin" 
                                                                 value={cin} 
                                                                 disabled 
-                                                                className="bg-gray-100"
+                                                                className="bg-muted"
                                                             />
                                                         ) : (
                                                             <Input 
@@ -475,20 +475,20 @@ export default function MatchmakerProspects() {
                                                                 placeholder="Ex: A123456 or AB1234" 
                                                             />
                                                         )}
-                                                        {cinError && <p className="text-red-500 text-sm">{cinError}</p>}
-                                                        {errors.cin && <p className="text-red-500 text-sm">{errors.cin}</p>}
+                                                        {cinError && <p className="text-error text-sm">{cinError}</p>}
+                                                        {errors.cin && <p className="text-error text-sm">{errors.cin}</p>}
                                                     </div>
                                                     <div className="grid grid-cols-2 gap-3">
                                                         <div className="grid gap-2">
                                                             <Label htmlFor="front">
                                                                 Identity Card Front {!selectedProspect?.profile?.identity_card_front_path && '*'}
                                                                 {selectedProspect?.profile?.identity_card_front_path && (
-                                                                    <span className="text-xs text-gray-500 ml-2">(Déjà téléchargée)</span>
+                                                                    <span className="text-xs text-muted-foreground ml-2">(Déjà téléchargée)</span>
                                                                 )}
                                                             </Label>
                                                             {selectedProspect?.profile?.identity_card_front_path ? (
                                                                 <div className="space-y-2">
-                                                                    <div className="relative inline-block rounded-lg border-2 border-gray-200 overflow-hidden bg-gray-50">
+                                                                    <div className="relative inline-block rounded-lg border-2 border-border overflow-hidden bg-muted">
                                                                         <img 
                                                                             src={`/storage/${selectedProspect.profile.identity_card_front_path}`}
                                                                             alt="CNI Front Preview"
@@ -503,7 +503,7 @@ export default function MatchmakerProspects() {
                                                                         href={`/storage/${selectedProspect.profile.identity_card_front_path}`}
                                                                         target="_blank"
                                                                         rel="noopener noreferrer"
-                                                                        className="text-xs text-blue-600 hover:underline inline-block"
+                                                                        className="text-xs text-primary hover:underline inline-block"
                                                                     >
                                                                         Ouvrir dans un nouvel onglet
                                                                     </a>
@@ -511,11 +511,11 @@ export default function MatchmakerProspects() {
                                                             ) : (
                                                                 <Input id="front" type="file" accept="image/*" onChange={(e) => e.target.files?.[0] && setFront(e.target.files[0])} />
                                                             )}
-                                                            {errors.identity_card_front && <p className="text-red-500 text-sm">{errors.identity_card_front}</p>}
+                                                            {errors.identity_card_front && <p className="text-error text-sm">{errors.identity_card_front}</p>}
                                                         </div>
                                                     </div>
                                                     {errors.general && (
-                                                        <div className="text-red-600 text-sm">{errors.general}</div>
+                                                        <div className="text-error text-sm">{errors.general}</div>
                                                     )}
                                                 </div>
                                                 <DialogFooter>
@@ -532,7 +532,7 @@ export default function MatchmakerProspects() {
                                                         <Button
                                                             size="sm"
                                                             variant="default"
-                                                            className="bg-green-600 hover:bg-green-700"
+                                                            className="bg-success hover:opacity-90"
                                                             onClick={() => handleAccept(prospect)}
                                                         >
                                                             <CheckCircle className="w-4 h-4 mr-2" />
@@ -550,8 +550,8 @@ export default function MatchmakerProspects() {
                     
                     {prospects.length === 0 && (
                         <div className="text-center py-8">
-                            <User className="w-12 h-12 mx-auto text-gray-400 mb-4" />
-                            <p className="text-gray-500">
+                            <User className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                            <p className="text-muted-foreground">
                                 {statusFilter === 'rejected' 
                                     ? 'Aucun prospect rejeté pour le moment.'
                                     : 'No prospects available at the moment.'}
@@ -609,9 +609,9 @@ export default function MatchmakerProspects() {
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
                         {selectedProspectForAccept?.rejection_reason && (
-                            <div className="bg-red-50 p-3 rounded-lg">
+                            <div className="bg-error-light p-3 rounded-lg border border-error">
                                 <p className="text-sm font-semibold mb-2">Raison du rejet précédent:</p>
-                                <p className="text-sm text-red-600">{selectedProspectForAccept.rejection_reason}</p>
+                                <p className="text-sm text-error">{selectedProspectForAccept.rejection_reason}</p>
                             </div>
                         )}
                         <div className="grid gap-2">
@@ -634,7 +634,7 @@ export default function MatchmakerProspects() {
                             variant="default"
                             onClick={submitAcceptance}
                             disabled={!acceptanceReason.trim() || accepting}
-                            className="bg-green-600 hover:bg-green-700"
+                            className="bg-success hover:opacity-90"
                         >
                             {accepting ? 'Envoi...' : 'Accepter'}
                         </Button>

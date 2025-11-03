@@ -70,18 +70,18 @@ export function SearchableSelect({
             <div
                 onClick={() => !disabled && setIsOpen(!isOpen)}
                 className={cn(
-                    'flex h-10 w-full items-center justify-between rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm transition-colors',
-                    isOpen && 'border-blue-500 ring-2 ring-blue-500',
+                    'flex h-10 w-full items-center justify-between rounded-lg border border-border bg-background px-3 py-2 text-sm transition-colors',
+                    isOpen && 'border-info ring-2 ring-info',
                     disabled && 'cursor-not-allowed opacity-50',
-                    !disabled && 'cursor-pointer hover:border-gray-400'
+                    !disabled && 'cursor-pointer hover:border-border-dark'
                 )}
             >
-                <span className={cn('flex-1 truncate', !selectedOption && 'text-gray-500')}>
+                <span className={cn('flex-1 truncate', !selectedOption && 'text-muted-foreground')}>
                     {selectedOption ? selectedOption.label : placeholder}
                 </span>
                 <ChevronDownIcon
                     className={cn(
-                        'h-4 w-4 text-gray-500 transition-transform',
+                        'h-4 w-4 text-muted-foreground transition-transform',
                         isOpen && 'rotate-180'
                     )}
                 />
@@ -98,14 +98,14 @@ export function SearchableSelect({
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             placeholder={searchPlaceholder}
-                            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-full rounded-md border border-border px-3 py-2 text-sm focus:border-info focus:outline-none focus:ring-2 focus:ring-info"
                         />
                     </div>
 
                     {/* Options List */}
                     <div className="max-h-[300px] overflow-y-auto">
                         {filteredOptions.length === 0 ? (
-                            <div className="px-3 py-2 text-sm text-gray-500">{emptyMessage}</div>
+                            <div className="px-3 py-2 text-sm text-muted-foreground">{emptyMessage}</div>
                         ) : (
                             filteredOptions.map((option) => {
                                 const isSelected = value === option.value;
@@ -115,13 +115,13 @@ export function SearchableSelect({
                                         onClick={() => handleSelect(option.value)}
                                         className={cn(
                                             'flex cursor-pointer items-center px-3 py-2 text-sm transition-colors',
-                                            'hover:bg-gray-50',
-                                            isSelected && 'bg-blue-50 text-blue-700'
+                                            'hover:bg-muted',
+                                            isSelected && 'bg-info-light text-info'
                                         )}
                                     >
                                         <span>{option.label}</span>
                                         {isSelected && (
-                                            <span className="ml-auto text-blue-600">✓</span>
+                                            <span className="ml-auto text-info">✓</span>
                                         )}
                                     </div>
                                 );

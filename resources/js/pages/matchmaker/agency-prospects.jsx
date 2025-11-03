@@ -233,7 +233,7 @@ export default function AgencyProspects() {
                     </div>
 
                     {/* Filters */}
-                    <div className="flex flex-wrap items-center gap-3 bg-white rounded-lg p-3 border">
+                    <div className="flex flex-wrap items-center gap-3 bg-card rounded-lg p-3 border">
                         <div className="flex items-center gap-2">
                             <Label className="text-sm text-muted-foreground">Status</Label>
                             <Select value={statusFilter || 'active'} onValueChange={(v) => router.visit(`/staff/agency-prospects?status_filter=${v}`, { preserveScroll: true, preserveState: true, replace: true })}>
@@ -260,7 +260,7 @@ export default function AgencyProspects() {
                 {viewMode === 'cards' && (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                         {paginatedProspects.map((p) => (
-                            <Card key={p.id} className={`overflow-hidden hover:shadow-lg transition-shadow ${statusFilter === 'rejected' ? 'border-red-200' : ''}`}>
+                            <Card key={p.id} className={`overflow-hidden hover:shadow-lg transition-shadow ${statusFilter === 'rejected' ? 'border-error' : ''}`}>
                                 <div className="relative">
                                     <img
                                         src={getProfilePicture(p)}
@@ -273,18 +273,18 @@ export default function AgencyProspects() {
                                     {/* Overlay Tags */}
                                     <div className="absolute top-2 right-2 flex gap-2">
                                         {statusFilter === 'rejected' ? (
-                                            <Badge className="bg-red-600 text-white text-xs px-2 py-1">
+                                            <Badge className="bg-error text-error-foreground text-xs px-2 py-1">
                                                 Rejeté
                                             </Badge>
                                         ) : (
                                             <>
-                                                <Badge className="bg-black text-white text-xs px-2 py-1">
+                                                <Badge className="bg-foreground text-background text-xs px-2 py-1">
                                                     Prospect
                                                 </Badge>
                                                 <Badge className={`text-white text-xs px-2 py-1 flex items-center gap-1 ${
-                                                    p.assigned_matchmaker_id ? 'bg-green-600' : 
-                                                    p.agency_id ? 'bg-blue-600' : 
-                                                    'bg-gray-600'
+                                                    p.assigned_matchmaker_id ? 'bg-success' : 
+                                                    p.agency_id ? 'bg-info' : 
+                                                    'bg-muted-foreground'
                                                 }`}>
                                                     <CheckCircle className="w-3 h-3" />
                                                     {p.assigned_matchmaker_id ? 'Assigned' : 
@@ -299,7 +299,7 @@ export default function AgencyProspects() {
                                     <div>
                                         <h3 className="font-semibold text-lg">{p.name}</h3>
                                         {statusFilter === 'rejected' && p.rejection_reason && (
-                                            <p className="text-xs text-red-600 mt-1 line-clamp-2" title={p.rejection_reason}>
+                                            <p className="text-xs text-error mt-1 line-clamp-2" title={p.rejection_reason}>
                                                 {p.rejection_reason}
                                             </p>
                                         )}
@@ -321,7 +321,7 @@ export default function AgencyProspects() {
                                     
                                     {p.assigned_matchmaker_id && (
                                         <div className="text-sm">
-                                            <span className="text-green-600 font-medium">Matchmaker: {p.assigned_matchmaker?.name || 'Unknown'}</span>
+                                            <span className="text-success font-medium">Matchmaker: {p.assigned_matchmaker?.name || 'Unknown'}</span>
                                         </div>
                                     )}
                                     
@@ -354,7 +354,7 @@ export default function AgencyProspects() {
                                                     <Button
                                                         variant="default"
                                                         size="sm"
-                                                        className="w-full bg-green-600 hover:bg-green-700"
+                                                        className="w-full bg-success hover:opacity-90"
                                                         onClick={() => handleAccept(p)}
                                                     >
                                                         <CheckCircle className="w-4 h-4 mr-1" />
@@ -402,15 +402,15 @@ export default function AgencyProspects() {
                                                 <TableCell>
                                                     {p.assigned_matchmaker_id ? (
                                                         <div className="text-sm">
-                                                            <div className="font-medium text-green-600">Matchmaker: {p.assigned_matchmaker?.name || 'Unknown'}</div>
+                                                            <div className="font-medium text-success">Matchmaker: {p.assigned_matchmaker?.name || 'Unknown'}</div>
                                                             {p.agency_id && (
-                                                                <div className="text-blue-600">Agency: {p.agency?.name || 'Unknown'}</div>
+                                                                <div className="text-info">Agency: {p.agency?.name || 'Unknown'}</div>
                                                             )}
                                                         </div>
                                                     ) : p.agency_id ? (
-                                                        <span className="text-blue-600">Agency: {p.agency?.name || 'Unknown'}</span>
+                                                        <span className="text-info">Agency: {p.agency?.name || 'Unknown'}</span>
                                                     ) : (
-                                                        <span className="text-gray-500">Not dispatched</span>
+                                                        <span className="text-muted-foreground">Not dispatched</span>
                                                     )}
                                                 </TableCell>
                                                 <TableCell>
@@ -436,7 +436,7 @@ export default function AgencyProspects() {
                             
                             {paginatedProspects.length === 0 && (
                                 <div className="text-center py-8">
-                                    <p className="text-gray-500">
+                                    <p className="text-muted-foreground">
                                         {statusFilter === 'rejected' 
                                             ? 'Aucun prospect rejeté pour le moment.'
                                             : 'No prospects assigned to your agency yet.'}
@@ -507,7 +507,7 @@ export default function AgencyProspects() {
                             <Label htmlFor="cin">
                                 CIN {!validatingProspect?.profile?.cin && '*'}
                                 {validatingProspect?.profile?.cin && (
-                                    <span className="text-xs text-gray-500 ml-2">(Déjà rempli par le prospect)</span>
+                                    <span className="text-xs text-muted-foreground ml-2">(Déjà rempli par le prospect)</span>
                                 )}
                             </Label>
                             {validatingProspect?.profile?.cin ? (
@@ -515,7 +515,7 @@ export default function AgencyProspects() {
                                     id="cin" 
                                     value={data.cin} 
                                     disabled 
-                                    className="bg-gray-100"
+                                    className="bg-muted"
                                 />
                             ) : (
                                 <Input 
@@ -525,18 +525,18 @@ export default function AgencyProspects() {
                                     placeholder="Ex: A123456 or AB1234" 
                                 />
                             )}
-                            {errors.cin && <p className="text-red-500 text-sm">{errors.cin}</p>}
+                            {errors.cin && <p className="text-error text-sm">{errors.cin}</p>}
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="front">
                                 Identity Card Front {!validatingProspect?.profile?.identity_card_front_path && '*'}
                                 {validatingProspect?.profile?.identity_card_front_path && (
-                                    <span className="text-xs text-gray-500 ml-2">(Déjà téléchargée)</span>
+                                    <span className="text-xs text-muted-foreground ml-2">(Déjà téléchargée)</span>
                                 )}
                             </Label>
                             {validatingProspect?.profile?.identity_card_front_path ? (
                                 <div className="space-y-2">
-                                    <div className="relative rounded-lg border-2 border-gray-200 overflow-hidden bg-gray-50">
+                                    <div className="relative rounded-lg border-2 border-border overflow-hidden bg-muted">
                                         <img 
                                             src={`/storage/${validatingProspect.profile.identity_card_front_path}`}
                                             alt="CNI Front Preview"
@@ -551,7 +551,7 @@ export default function AgencyProspects() {
                                         href={`/storage/${validatingProspect.profile.identity_card_front_path}`}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="text-xs text-blue-600 hover:underline inline-block"
+                                        className="text-xs text-primary hover:underline inline-block"
                                     >
                                         Ouvrir dans un nouvel onglet
                                     </a>
@@ -564,7 +564,7 @@ export default function AgencyProspects() {
                                     onChange={(e) => e.target.files?.[0] && setData('identity_card_front', e.target.files[0])} 
                                 />
                             )}
-                            {errors.identity_card_front && <p className="text-red-500 text-sm">{errors.identity_card_front}</p>}
+                            {errors.identity_card_front && <p className="text-error text-sm">{errors.identity_card_front}</p>}
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="service">Service</Label>
@@ -577,7 +577,7 @@ export default function AgencyProspects() {
                                 </SelectContent>
                             </Select>
                             
-                            {errors.service_id && <p className="text-red-500 text-sm">{errors.service_id}</p>}
+                            {errors.service_id && <p className="text-error text-sm">{errors.service_id}</p>}
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="matrimonial_pack">Matrimonial Pack</Label>
@@ -589,12 +589,12 @@ export default function AgencyProspects() {
                                     ))}
                                 </SelectContent>
                             </Select>
-                            {errors.matrimonial_pack_id && <p className="text-red-500 text-sm">{errors.matrimonial_pack_id}</p>}
+                            {errors.matrimonial_pack_id && <p className="text-error text-sm">{errors.matrimonial_pack_id}</p>}
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="pack_price">Pack Price (MAD)</Label>
                             <Input id="pack_price" type="number" value={data.pack_price} onChange={(e) => setData('pack_price', e.target.value)} placeholder="Enter price" />
-                            {errors.pack_price && <p className="text-red-500 text-sm">{errors.pack_price}</p>}
+                            {errors.pack_price && <p className="text-error text-sm">{errors.pack_price}</p>}
                         </div>
                         <div className="grid gap-2">
                             <Label>Pack Advantages</Label>
@@ -630,7 +630,7 @@ export default function AgencyProspects() {
                                     </label>
                                 ))}
                             </div>
-                            {errors.pack_advantages && <p className="text-red-500 text-sm">{errors.pack_advantages}</p>}
+                            {errors.pack_advantages && <p className="text-error text-sm">{errors.pack_advantages}</p>}
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="payment_mode">Mode de Paiement</Label>
@@ -739,9 +739,9 @@ export default function AgencyProspects() {
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
                         {selectedProspectForAccept?.rejection_reason && (
-                            <div className="bg-red-50 p-3 rounded-lg">
+                            <div className="bg-error-light p-3 rounded-lg border border-error">
                                 <p className="text-sm font-semibold mb-2">Raison du rejet précédent:</p>
-                                <p className="text-sm text-red-600">{selectedProspectForAccept.rejection_reason}</p>
+                                <p className="text-sm text-error">{selectedProspectForAccept.rejection_reason}</p>
                             </div>
                         )}
                         <div className="grid gap-2">
@@ -764,7 +764,7 @@ export default function AgencyProspects() {
                             variant="default"
                             onClick={submitAcceptance}
                             disabled={!acceptanceReason.trim() || accepting}
-                            className="bg-green-600 hover:bg-green-700"
+                            className="bg-success hover:opacity-90"
                         >
                             {accepting ? 'Envoi...' : 'Accepter'}
                         </Button>

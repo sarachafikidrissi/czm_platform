@@ -26,7 +26,7 @@ export default function MatchmakerPage() {
                         </CardHeader>
                         <CardContent>
                             <div className="flex flex-col gap-y-4">
-                                <div className="md:w-[50%] w-full rounded-full border-red-800 cursor-pointer hover:border-green-800 hover:bg-red-600  hover:text-white border-2 px-4 py-1.5 font-semibold">
+                                <div className="md:w-[50%] w-full rounded-full border-error-dark cursor-pointer hover:border-success hover:bg-error  hover:text-error-foreground border-2 px-4 py-1.5 font-semibold">
                                     <div className='flex items-center gap-2'>
                                         <Link />
                                         <a href={`/profile/${assignedMatchmaker?.username}`} target="_blank">
@@ -34,7 +34,7 @@ export default function MatchmakerPage() {
                                         </a>
                                     </div>
                                 </div>
-                                <div className="md:w-[50%] w-full rounded-full border-red-800 cursor-pointer hover:border-green-800 hover:bg-red-600  hover:text-white border-2 px-4 py-1.5 font-semibold">
+                                <div className="md:w-[50%] w-full rounded-full border-error-dark cursor-pointer hover:border-success hover:bg-error  hover:text-error-foreground border-2 px-4 py-1.5 font-semibold">
                                     {/* to be added later now it's 404 not found page */}
                                     <div className='flex items-center gap-2'>
                                         <Link />
@@ -44,7 +44,7 @@ export default function MatchmakerPage() {
 
                                     </div>
                                 </div>
-                                <div className="md:w-[50%] w-full rounded-full border-red-800 cursor-pointer hover:border-green-800 hover:bg-red-600  hover:text-white border-2 px-4 py-1.5 font-semibold">
+                                <div className="md:w-[50%] w-full rounded-full border-error-dark cursor-pointer hover:border-success hover:bg-error  hover:text-error-foreground border-2 px-4 py-1.5 font-semibold">
                                     <div className='flex items-center gap-2'>
                                         <Link />
                                         <a href={`/user/matchmakers`}>Changer de matchmaker</a>
