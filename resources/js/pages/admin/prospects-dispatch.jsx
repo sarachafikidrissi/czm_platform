@@ -9,10 +9,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { XCircle } from 'lucide-react';
+import { XCircle, CheckCircle } from 'lucide-react';
 
 export default function ProspectsDispatch() {
-    const { prospects = [], agencies = [], matchmakers = [], filters = {} } = usePage().props;
+    const { prospects = [], agencies = [], matchmakers = [], filters = {}, statusFilter = 'active' } = usePage().props;
     const [countries, setCountries] = useState([]);
     const [countryCodeToCities, setCountryCodeToCities] = useState({});
     const [selectedCountryCode, setSelectedCountryCode] = useState('');
@@ -44,6 +44,24 @@ export default function ProspectsDispatch() {
         setSelectedProspect(prospect);
         setRejectionReason('');
         setRejectDialogOpen(true);
+    };
+    
+    const handleAccept = (prospect) => {
+        if (!prospect) return;
+        router.post(`/admin/prospects/${prospect.id}/accept`, {}, {
+            onSuccess: () => {
+                // Prospect will be removed from rejected list and added back to prospects
+            },
+            onError: () => {
+                // Error handling
+            }
+        });
+    };
+    
+    const canAcceptProspect = (prospect) => {
+        if (!prospect || !prospect.rejection_reason) return false;
+        // Admin can accept any rejected prospect
+        return true;
     };
     
     const submitRejection = () => {
@@ -112,11 +130,12 @@ export default function ProspectsDispatch() {
     const prospectsCountry = filters?.country || '';
     const prospectsCity = filters?.city || '';
 
-    const handleFilterProspects = (countryName, cityName, dispatchVal = dispatchStatus) => {
+    const handleFilterProspects = (countryName, cityName, dispatchVal = dispatchStatus, statusVal = statusFilter) => {
         const params = new URLSearchParams();
         if (countryName) params.set('country', countryName);
         if (cityName) params.set('city', cityName);
         if (dispatchVal && dispatchVal !== 'all') params.set('dispatch', dispatchVal);
+        if (statusVal && statusVal !== 'active') params.set('status_filter', statusVal);
         router.visit(`/admin/prospects?${params.toString()}`, { preserveScroll: true, preserveState: true, replace: true });
     };
 
@@ -300,7 +319,20 @@ export default function ProspectsDispatch() {
                                     </SelectContent>
                                 </Select>
                             </div>
-                            <Button variant="outline" onClick={() => handleFilterProspects(selectedCountryCode ? (countries.find((c) => c.iso2 === selectedCountryCode)?.frenchName || '') : '', '')}>Réinitialiser</Button>
+                            <div className="grid gap-2 w-[220px]">
+                                <Label>Status</Label>
+                                <Select
+                                    value={statusFilter || 'active'}
+                                    onValueChange={(v) => handleFilterProspects(selectedCountryCode ? (countries.find((c) => c.iso2 === selectedCountryCode)?.frenchName || '') : prospectsCountry, prospectsCity, dispatchStatus, v)}
+                                >
+                                    <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="active">Actifs</SelectItem>
+                                        <SelectItem value="rejected">Rejetés</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <Button variant="outline" onClick={() => handleFilterProspects(selectedCountryCode ? (countries.find((c) => c.iso2 === selectedCountryCode)?.frenchName || '') : '', '', dispatchStatus, 'active')}>Réinitialiser</Button>
                             <div className="ml-auto flex gap-2">
                                 <Button disabled={!hasValidDispatchSelection} onClick={handleDispatchClick}>Dispatch Prospects</Button>
                                 <Button disabled={!hasValidReassignSelection} variant="outline" onClick={handleReassignClick}>Reassign Prospects</Button>
@@ -315,7 +347,8 @@ export default function ProspectsDispatch() {
                                     <TableHead>Country</TableHead>
                                     <TableHead>City</TableHead>
                                     <TableHead>Phone</TableHead>
-                                    <TableHead>Dispatched To</TableHead>
+                                    {statusFilter === 'active' && <TableHead>Dispatched To</TableHead>}
+                                    {statusFilter === 'rejected' && <TableHead>Raison du rejet</TableHead>}
                                     <TableHead>Account Status</TableHead>
                                     <TableHead>Date</TableHead>
                                     <TableHead>Actions</TableHead>
@@ -323,26 +356,34 @@ export default function ProspectsDispatch() {
                             </TableHeader>
                             <TableBody>
                                 {prospects.map((p) => (
-                                    <TableRow key={p.id}>
+                                    <TableRow key={p.id} className={statusFilter === 'rejected' ? 'bg-red-50' : ''}>
                                         <TableCell><input type="checkbox" checked={selectedProspectIds.includes(p.id)} onChange={() => toggleProspect(p.id)} /></TableCell>
                                         <TableCell className="font-medium">{p.name}</TableCell>
                                         <TableCell>{p.country}</TableCell>
                                         <TableCell>{p.city}</TableCell>
                                         <TableCell>{p.phone}</TableCell>
-                                        <TableCell>
-                                            {p.assigned_matchmaker_id ? (
-                                                <div className="text-sm">
-                                                    <div className="font-medium text-green-600">Matchmaker: {p.assigned_matchmaker?.name || 'Unknown'}</div>
-                                                    {p.agency_id && (
-                                                        <div className="text-blue-600">Agency: {p.agency?.name || 'Unknown'}</div>
-                                                    )}
-                                                </div>
-                                            ) : p.agency_id ? (
-                                                <span className="text-blue-600">Agency: {p.agency?.name || 'Unknown'}</span>
-                                            ) : (
-                                                <span className="text-gray-500">Not dispatched</span>
-                                            )}
-                                        </TableCell>
+                                        {statusFilter === 'active' ? (
+                                            <TableCell>
+                                                {p.assigned_matchmaker_id ? (
+                                                    <div className="text-sm">
+                                                        <div className="font-medium text-green-600">Matchmaker: {p.assigned_matchmaker?.name || 'Unknown'}</div>
+                                                        {p.agency_id && (
+                                                            <div className="text-blue-600">Agency: {p.agency?.name || 'Unknown'}</div>
+                                                        )}
+                                                    </div>
+                                                ) : p.agency_id ? (
+                                                    <span className="text-blue-600">Agency: {p.agency?.name || 'Unknown'}</span>
+                                                ) : (
+                                                    <span className="text-gray-500">Not dispatched</span>
+                                                )}
+                                            </TableCell>
+                                        ) : (
+                                            <TableCell className="max-w-xs">
+                                                <p className="text-sm text-red-600 truncate" title={p.rejection_reason}>
+                                                    {p.rejection_reason || 'N/A'}
+                                                </p>
+                                            </TableCell>
+                                        )}
                                         <TableCell>
                                             <Badge variant={p.profile?.account_status === 'desactivated' ? 'destructive' : 'default'}>
                                                 {p.profile?.account_status === 'desactivated' ? 'Désactivé' : 'Actif'}
@@ -351,9 +392,11 @@ export default function ProspectsDispatch() {
                                         <TableCell>{new Date(p.created_at ?? Date.now()).toLocaleDateString()}</TableCell>
                                         <TableCell>
                                             <div className="flex gap-2">
-                                                {p.status === 'prospect' && (
-                                                    <Button
-                                                        size="sm"
+                                                {statusFilter === 'active' ? (
+                                                    <>
+                                                        {p.status === 'prospect' && (
+                                                            <Button
+                                                                size="sm"
                                                         variant="destructive"
                                                         onClick={() => handleReject(p)}
                                                     >
@@ -385,6 +428,22 @@ export default function ProspectsDispatch() {
                                                     >
                                                         Désactiver
                                                     </Button>
+                                                )}
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        {canAcceptProspect(p) && (
+                                                            <Button
+                                                                size="sm"
+                                                                variant="default"
+                                                                className="bg-green-600 hover:bg-green-700"
+                                                                onClick={() => handleAccept(p)}
+                                                            >
+                                                                <CheckCircle className="w-4 h-4 mr-1" />
+                                                                Accepter
+                                                            </Button>
+                                                        )}
+                                                    </>
                                                 )}
                                             </div>
                                         </TableCell>

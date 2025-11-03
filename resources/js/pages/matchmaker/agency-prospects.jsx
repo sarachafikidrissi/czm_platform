@@ -14,7 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { LayoutGrid, Table2, Mail, MapPin, CheckCircle, Pencil, XCircle } from 'lucide-react';
 
 export default function AgencyProspects() {
-    const { prospects = [], rejectedProspects = [], services = [], matrimonialPacks = [], auth } = usePage().props;
+    const { prospects = [], statusFilter = 'active', services = [], matrimonialPacks = [], auth } = usePage().props;
     const { data, setData, post, processing, errors, reset } = useForm({
         notes: '',
         cin: '',
@@ -234,6 +234,17 @@ export default function AgencyProspects() {
 
                     {/* Filters */}
                     <div className="flex flex-wrap items-center gap-3 bg-white rounded-lg p-3 border">
+                        <div className="flex items-center gap-2">
+                            <Label className="text-sm text-muted-foreground">Status</Label>
+                            <Select value={statusFilter || 'active'} onValueChange={(v) => router.visit(`/staff/agency-prospects?status_filter=${v}`, { preserveScroll: true, preserveState: true, replace: true })}>
+                                <SelectTrigger className="h-9 w-[160px]"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="active">Actifs</SelectItem>
+                                    <SelectItem value="rejected">Rejetés</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <Separator orientation="vertical" className="h-6" />
                         <div className="ml-auto flex items-center gap-2">
                             <Button variant="outline" className="h-9">
                                 Date Range
@@ -249,36 +260,49 @@ export default function AgencyProspects() {
                 {viewMode === 'cards' && (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                         {paginatedProspects.map((p) => (
-                            <Card key={p.id} className="overflow-hidden hover:shadow-lg transition-shadow">
+                            <Card key={p.id} className={`overflow-hidden hover:shadow-lg transition-shadow ${statusFilter === 'rejected' ? 'border-red-200' : ''}`}>
                                 <div className="relative">
                                     <img
                                         src={getProfilePicture(p)}
                                         alt={p.name}
-                                        className="w-full h-48 object-cover"
+                                        className={`w-full h-48 object-cover ${statusFilter === 'rejected' ? 'opacity-75' : ''}`}
                                         onError={(e) => {
                                             e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(p.name)}&background=random`;
                                         }}
                                     />
                                     {/* Overlay Tags */}
                                     <div className="absolute top-2 right-2 flex gap-2">
-                                        <Badge className="bg-black text-white text-xs px-2 py-1">
-                                            Prospect
-                                        </Badge>
-                                        <Badge className={`text-white text-xs px-2 py-1 flex items-center gap-1 ${
-                                            p.assigned_matchmaker_id ? 'bg-green-600' : 
-                                            p.agency_id ? 'bg-blue-600' : 
-                                            'bg-gray-600'
-                                        }`}>
-                                            <CheckCircle className="w-3 h-3" />
-                                            {p.assigned_matchmaker_id ? 'Assigned' : 
-                                             p.agency_id ? 'Dispatched' : 
-                                             'Pending'}
-                                        </Badge>
+                                        {statusFilter === 'rejected' ? (
+                                            <Badge className="bg-red-600 text-white text-xs px-2 py-1">
+                                                Rejeté
+                                            </Badge>
+                                        ) : (
+                                            <>
+                                                <Badge className="bg-black text-white text-xs px-2 py-1">
+                                                    Prospect
+                                                </Badge>
+                                                <Badge className={`text-white text-xs px-2 py-1 flex items-center gap-1 ${
+                                                    p.assigned_matchmaker_id ? 'bg-green-600' : 
+                                                    p.agency_id ? 'bg-blue-600' : 
+                                                    'bg-gray-600'
+                                                }`}>
+                                                    <CheckCircle className="w-3 h-3" />
+                                                    {p.assigned_matchmaker_id ? 'Assigned' : 
+                                                     p.agency_id ? 'Dispatched' : 
+                                                     'Pending'}
+                                                </Badge>
+                                            </>
+                                        )}
                                     </div>
                                 </div>
                                 <CardContent className="p-4 space-y-3">
                                     <div>
                                         <h3 className="font-semibold text-lg">{p.name}</h3>
+                                        {statusFilter === 'rejected' && p.rejection_reason && (
+                                            <p className="text-xs text-red-600 mt-1 line-clamp-2" title={p.rejection_reason}>
+                                                {p.rejection_reason}
+                                            </p>
+                                        )}
                                     </div>
                                     
                                     <div className="flex items-start gap-2 text-sm text-muted-foreground">
@@ -302,25 +326,43 @@ export default function AgencyProspects() {
                                     )}
                                     
                                     <div className="pt-2 flex gap-2">
-                                        {canRejectProspect(p) && (
-                                            <Button
-                                                variant="destructive"
-                                                size="sm"
-                                                className="flex-1"
-                                                onClick={() => handleReject(p)}
-                                            >
-                                                <XCircle className="w-4 h-4 mr-1" />
-                                                Rejeter
-                                            </Button>
+                                        {statusFilter === 'active' ? (
+                                            <>
+                                                {canRejectProspect(p) && (
+                                                    <Button
+                                                        variant="destructive"
+                                                        size="sm"
+                                                        className="flex-1"
+                                                        onClick={() => handleReject(p)}
+                                                    >
+                                                        <XCircle className="w-4 h-4 mr-1" />
+                                                        Rejeter
+                                                    </Button>
+                                                )}
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className={canRejectProspect(p) ? "flex-1" : "w-full"}
+                                                    onClick={() => handleValidateClick(p)}
+                                                >
+                                                    Validate
+                                                </Button>
+                                            </>
+                                        ) : (
+                                            <>
+                                                {canAcceptProspect(p) && (
+                                                    <Button
+                                                        variant="default"
+                                                        size="sm"
+                                                        className="w-full bg-green-600 hover:bg-green-700"
+                                                        onClick={() => handleAccept(p)}
+                                                    >
+                                                        <CheckCircle className="w-4 h-4 mr-1" />
+                                                        Accepter
+                                                    </Button>
+                                                )}
+                                            </>
                                         )}
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            className={canRejectProspect(p) ? "flex-1" : "w-full"}
-                                            onClick={() => handleValidateClick(p)}
-                                        >
-                                            Validate
-                                        </Button>
                                     </div>
                                 </CardContent>
                             </Card>
@@ -394,7 +436,11 @@ export default function AgencyProspects() {
                             
                             {paginatedProspects.length === 0 && (
                                 <div className="text-center py-8">
-                                    <p className="text-gray-500">No prospects assigned to your agency yet.</p>
+                                    <p className="text-gray-500">
+                                        {statusFilter === 'rejected' 
+                                            ? 'Aucun prospect rejeté pour le moment.'
+                                            : 'No prospects assigned to your agency yet.'}
+                                    </p>
                                 </div>
                             )}
                         </CardContent>
@@ -446,111 +492,6 @@ export default function AgencyProspects() {
                             Next
                         </Button>
                     </div>
-                )}
-                
-                {/* Rejected Prospects Section */}
-                {rejectedProspects && rejectedProspects.length > 0 && (
-                    <Card className="mt-6 border-red-200">
-                        <CardHeader>
-                            <CardTitle className="text-red-600">Prospects Rejetés ({rejectedProspects.length})</CardTitle>
-                            <CardDescription>
-                                Prospects précédemment rejetés. Vous pouvez les accepter pour les remettre dans la liste de validation.
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            {viewMode === 'cards' ? (
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                                    {rejectedProspects.map((p) => (
-                                        <Card key={p.id} className="overflow-hidden hover:shadow-lg transition-shadow border-red-200">
-                                            <div className="relative">
-                                                <img
-                                                    src={getProfilePicture(p)}
-                                                    alt={p.name}
-                                                    className="w-full h-48 object-cover opacity-75"
-                                                    onError={(e) => {
-                                                        e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(p.name)}&background=random`;
-                                                    }}
-                                                />
-                                                <div className="absolute top-2 right-2 flex gap-2">
-                                                    <Badge className="bg-red-600 text-white text-xs px-2 py-1">
-                                                        Rejeté
-                                                    </Badge>
-                                                </div>
-                                            </div>
-                                            <CardContent className="p-4 space-y-3">
-                                                <div>
-                                                    <h3 className="font-semibold text-lg">{p.name}</h3>
-                                                    {p.rejection_reason && (
-                                                        <p className="text-xs text-red-600 mt-1 line-clamp-2" title={p.rejection_reason}>
-                                                            {p.rejection_reason}
-                                                        </p>
-                                                    )}
-                                                </div>
-                                                
-                                                <div className="flex items-start gap-2 text-sm text-muted-foreground">
-                                                    <Mail className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                                                    <span className="truncate">{p.email || 'N/A'}</span>
-                                                </div>
-                                                
-                                                <div className="pt-2">
-                                                    {canAcceptProspect(p) && (
-                                                        <Button
-                                                            variant="default"
-                                                            size="sm"
-                                                            className="w-full bg-green-600 hover:bg-green-700"
-                                                            onClick={() => handleAccept(p)}
-                                                        >
-                                                            <CheckCircle className="w-4 h-4 mr-1" />
-                                                            Accepter
-                                                        </Button>
-                                                    )}
-                                                </div>
-                                            </CardContent>
-                                        </Card>
-                                    ))}
-                                </div>
-                            ) : (
-                                <div className="overflow-x-auto">
-                                    <Table>
-                                        <TableHeader>
-                                            <TableRow>
-                                                <TableHead>Name</TableHead>
-                                                <TableHead>Email</TableHead>
-                                                <TableHead>Raison du rejet</TableHead>
-                                                <TableHead>Actions</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {rejectedProspects.map((p) => (
-                                                <TableRow key={p.id} className="bg-red-50">
-                                                    <TableCell className="font-medium">{p.name}</TableCell>
-                                                    <TableCell>{p.email || 'N/A'}</TableCell>
-                                                    <TableCell className="max-w-xs">
-                                                        <p className="text-sm text-red-600 truncate" title={p.rejection_reason}>
-                                                            {p.rejection_reason || 'N/A'}
-                                                        </p>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        {canAcceptProspect(p) && (
-                                                            <Button
-                                                                size="sm"
-                                                                variant="default"
-                                                                className="bg-green-600 hover:bg-green-700"
-                                                                onClick={() => handleAccept(p)}
-                                                            >
-                                                                <CheckCircle className="w-4 h-4 mr-1" />
-                                                                Accepter
-                                                            </Button>
-                                                        )}
-                                                    </TableCell>
-                                                </TableRow>
-                                            ))}
-                                        </TableBody>
-                                    </Table>
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
                 )}
             </div>
             <Dialog open={!!validatingProspect} onOpenChange={(open) => { if (!open) { setValidatingProspect(null); reset(); } }}>

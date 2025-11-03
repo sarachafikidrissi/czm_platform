@@ -15,7 +15,7 @@ import { useState } from 'react';
 import AppLayout from '@/layouts/app-layout';
 
 export default function MatchmakerProspects() {
-    const { prospects, rejectedProspects = [], filter, services = [], matrimonialPacks = [], auth } = usePage().props;
+    const { prospects = [], filter, statusFilter = 'active', services = [], matrimonialPacks = [], auth } = usePage().props;
     const [selectedProspect, setSelectedProspect] = useState(null);
     const [notes, setNotes] = useState('');
     const [serviceId, setServiceId] = useState('');
@@ -245,7 +245,7 @@ export default function MatchmakerProspects() {
                 <div className="flex flex-wrap items-center gap-3 bg-white rounded-lg p-3 border">
                     <div className="flex items-center gap-2">
                         <Label className="text-sm text-muted-foreground">View</Label>
-                        <Select value={filter || 'all'} onValueChange={(v) => router.visit(`/staff/prospects?filter=${v}`, { preserveScroll: true, preserveState: true, replace: true })}>
+                        <Select value={filter || 'all'} onValueChange={(v) => router.visit(`/staff/prospects?filter=${v}&status_filter=${statusFilter}`, { preserveScroll: true, preserveState: true, replace: true })}>
                             <SelectTrigger className="h-9 w-[160px]"><SelectValue /></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="all">All</SelectItem>
@@ -254,9 +254,17 @@ export default function MatchmakerProspects() {
                             </SelectContent>
                         </Select>
                     </div>
-                    {/* removed status filter per requirements */}
+                    <div className="flex items-center gap-2">
+                        <Label className="text-sm text-muted-foreground">Status</Label>
+                        <Select value={statusFilter || 'active'} onValueChange={(v) => router.visit(`/staff/prospects?filter=${filter || 'all'}&status_filter=${v}`, { preserveScroll: true, preserveState: true, replace: true })}>
+                            <SelectTrigger className="h-9 w-[160px]"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="active">Actifs</SelectItem>
+                                <SelectItem value="rejected">Rejetés</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
                     <Separator orientation="vertical" className="h-6" />
-                    {/* removed search per requirements */}
                     <div className="ml-auto flex items-center gap-2">
                         <Button variant="outline" className="h-9">
                             Date Range
@@ -270,9 +278,13 @@ export default function MatchmakerProspects() {
 
                 <Card className="overflow-hidden">
                 <CardHeader>
-                    <CardTitle>Available Prospects</CardTitle>
+                    <CardTitle>
+                        {statusFilter === 'rejected' ? 'Prospects Rejetés' : 'Available Prospects'}
+                    </CardTitle>
                     <CardDescription>
-                        Review and validate prospects to assign them to your care
+                        {statusFilter === 'rejected' 
+                            ? 'Prospects précédemment rejetés. Vous pouvez les accepter pour les remettre dans la liste de validation.'
+                            : 'Review and validate prospects to assign them to your care'}
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -284,49 +296,65 @@ export default function MatchmakerProspects() {
                                 <TableHead>Date</TableHead>
                                 <TableHead>Phone</TableHead>
                                 <TableHead>Profile</TableHead>
+                                {statusFilter === 'rejected' && <TableHead>Raison du rejet</TableHead>}
                                 <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {prospects.map((prospect) => (
-                                <TableRow key={prospect.id}>
+                                <TableRow key={prospect.id} className={statusFilter === 'rejected' ? 'bg-red-50' : ''}>
                                     <TableCell><input type="checkbox" className="accent-neutral-800" /></TableCell>
                                     <TableCell className="font-medium">{prospect.name}</TableCell>
                                     <TableCell className="text-muted-foreground">{new Date(prospect.created_at ?? Date.now()).toLocaleDateString()}</TableCell>
                                     <TableCell>{prospect.phone}</TableCell>
                                     <TableCell>
-                                        {prospect.profile.is_completed == 1 ? (
-                                            <Badge className="bg-green-100 text-green-800">
-                                                Profile Complete
+                                        {statusFilter === 'rejected' ? (
+                                            <Badge className="bg-red-100 text-red-800">
+                                                Rejeté
                                             </Badge>
                                         ) : (
-                                            <Badge className="bg-yellow-100 text-yellow-800">
-                                                Profile Incomplete
-                                            </Badge>
+                                            prospect.profile.is_completed == 1 ? (
+                                                <Badge className="bg-green-100 text-green-800">
+                                                    Profile Complete
+                                                </Badge>
+                                            ) : (
+                                                <Badge className="bg-yellow-100 text-yellow-800">
+                                                    Profile Incomplete
+                                                </Badge>
+                                            )
                                         )}
                                     </TableCell>
+                                    {statusFilter === 'rejected' && (
+                                        <TableCell className="max-w-xs">
+                                            <p className="text-sm text-red-600 truncate" title={prospect.rejection_reason}>
+                                                {prospect.rejection_reason || 'N/A'}
+                                            </p>
+                                        </TableCell>
+                                    )}
                                     <TableCell className="text-right">
                                         <div className="flex justify-end gap-2">
-                                            {canRejectProspect(prospect) && (
-                                                <Button
-                                                    size="sm"
-                                                    variant="destructive"
-                                                    onClick={() => handleReject(prospect)}
-                                                >
-                                                    <XCircle className="w-4 h-4 mr-2" />
-                                                    Rejeter
-                                                </Button>
-                                            )}
-                                            <Dialog>
-                                                <DialogTrigger asChild>
-                                                    <Button
-                                                        size="sm"
-                                                        onClick={() => handleValidate(prospect)}
-                                                    >
-                                                        <CheckCircle className="w-4 h-4 mr-2" />
-                                                        Validate
-                                                    </Button>
-                                                </DialogTrigger>
+                                            {statusFilter === 'active' ? (
+                                                <>
+                                                    {canRejectProspect(prospect) && (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="destructive"
+                                                            onClick={() => handleReject(prospect)}
+                                                        >
+                                                            <XCircle className="w-4 h-4 mr-2" />
+                                                            Rejeter
+                                                        </Button>
+                                                    )}
+                                                    <Dialog>
+                                                        <DialogTrigger asChild>
+                                                            <Button
+                                                                size="sm"
+                                                                onClick={() => handleValidate(prospect)}
+                                                            >
+                                                                <CheckCircle className="w-4 h-4 mr-2" />
+                                                                Validate
+                                                            </Button>
+                                                        </DialogTrigger>
                                             <DialogContent className="sm:max-w-[425px]">
                                                 <DialogHeader>
                                                     <DialogTitle>Validate Prospect</DialogTitle>
@@ -497,6 +525,22 @@ export default function MatchmakerProspects() {
                                                 </DialogFooter>
                                             </DialogContent>
                                         </Dialog>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    {canAcceptProspect(prospect) && (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="default"
+                                                            className="bg-green-600 hover:bg-green-700"
+                                                            onClick={() => handleAccept(prospect)}
+                                                        >
+                                                            <CheckCircle className="w-4 h-4 mr-2" />
+                                                            Accepter
+                                                        </Button>
+                                                    )}
+                                                </>
+                                            )}
                                         </div>
                                     </TableCell>
                                 </TableRow>
@@ -507,7 +551,11 @@ export default function MatchmakerProspects() {
                     {prospects.length === 0 && (
                         <div className="text-center py-8">
                             <User className="w-12 h-12 mx-auto text-gray-400 mb-4" />
-                            <p className="text-gray-500">No prospects available at the moment.</p>
+                            <p className="text-gray-500">
+                                {statusFilter === 'rejected' 
+                                    ? 'Aucun prospect rejeté pour le moment.'
+                                    : 'No prospects available at the moment.'}
+                            </p>
                         </div>
                     )}
                 </CardContent>
@@ -549,58 +597,6 @@ export default function MatchmakerProspects() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-            
-            {/* Rejected Prospects Section */}
-            {rejectedProspects && rejectedProspects.length > 0 && (
-                <Card className="mt-6 border-red-200">
-                    <CardHeader>
-                        <CardTitle className="text-red-600">Prospects Rejetés ({rejectedProspects.length})</CardTitle>
-                        <CardDescription>
-                            Prospects précédemment rejetés. Vous pouvez les accepter pour les remettre dans la liste de validation.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Name</TableHead>
-                                    <TableHead>Email</TableHead>
-                                    <TableHead>Phone</TableHead>
-                                    <TableHead>Raison du rejet</TableHead>
-                                    <TableHead className="text-right">Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {rejectedProspects.map((p) => (
-                                    <TableRow key={p.id} className="bg-red-50">
-                                        <TableCell className="font-medium">{p.name}</TableCell>
-                                        <TableCell>{p.email || 'N/A'}</TableCell>
-                                        <TableCell>{p.phone || 'N/A'}</TableCell>
-                                        <TableCell className="max-w-xs">
-                                            <p className="text-sm text-red-600 truncate" title={p.rejection_reason}>
-                                                {p.rejection_reason || 'N/A'}
-                                            </p>
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            {canAcceptProspect(p) && (
-                                                <Button
-                                                    size="sm"
-                                                    variant="default"
-                                                    className="bg-green-600 hover:bg-green-700"
-                                                    onClick={() => handleAccept(p)}
-                                                >
-                                                    <CheckCircle className="w-4 h-4 mr-1" />
-                                                    Accepter
-                                                </Button>
-                                            )}
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </CardContent>
-                </Card>
-            )}
             
             {/* Acceptance Dialog */}
             <Dialog open={acceptDialogOpen} onOpenChange={setAcceptDialogOpen}>
