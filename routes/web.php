@@ -183,6 +183,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/prospects/dispatch', [\App\Http\Controllers\AdminController::class, 'dispatchProspects'])->name('prospects.dispatch');
         Route::post('/prospects/reassign', [\App\Http\Controllers\AdminController::class, 'reassignProspects'])->name('prospects.reassign');
         Route::post('/prospects/{user}/reject', [\App\Http\Controllers\MatchmakerController::class, 'rejectProspect'])->name('prospects.reject');
+        Route::post('/prospects/{user}/accept', [\App\Http\Controllers\MatchmakerController::class, 'acceptRejectedProspect'])->name('prospects.accept');
         Route::post('/users/{user}/activate', [\App\Http\Controllers\AccountStatusController::class, 'activateAccount'])->name('users.activate');
         Route::post('/users/{user}/deactivate', [\App\Http\Controllers\AccountStatusController::class, 'deactivateAccount'])->name('users.deactivate');
         Route::get('/reactivation-requests', [\App\Http\Controllers\ReactivationRequestController::class, 'index'])->name('reactivation-requests');
@@ -200,6 +201,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/prospects', [\App\Http\Controllers\MatchmakerController::class, 'prospects'])->name('prospects');
         Route::post('/prospects/{user}/validate', [\App\Http\Controllers\MatchmakerController::class, 'validateProspect'])->name('prospects.validate');
         Route::post('/prospects/{user}/reject', [\App\Http\Controllers\MatchmakerController::class, 'rejectProspect'])->name('prospects.reject');
+        Route::post('/prospects/{user}/accept', [\App\Http\Controllers\MatchmakerController::class, 'acceptRejectedProspect'])->name('prospects.accept');
         Route::get('/validated-prospects', [\App\Http\Controllers\MatchmakerController::class, 'validatedProspects'])->name('prospects.validated');
         Route::post('/mark-as-client', [\App\Http\Controllers\MatchmakerController::class, 'markAsClient'])->name('mark-as-client');
         Route::get('/agency-prospects', [\App\Http\Controllers\MatchmakerController::class, 'agencyProspects'])->name('agency-prospects');

@@ -14,7 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { LayoutGrid, Table2, Mail, MapPin, CheckCircle, Pencil, XCircle } from 'lucide-react';
 
 export default function AgencyProspects() {
-    const { prospects = [], services = [], matrimonialPacks = [], auth } = usePage().props;
+    const { prospects = [], rejectedProspects = [], services = [], matrimonialPacks = [], auth } = usePage().props;
     const { data, setData, post, processing, errors, reset } = useForm({
         notes: '',
         cin: '',
@@ -35,6 +35,12 @@ export default function AgencyProspects() {
     const [rejectionReason, setRejectionReason] = useState('');
     const [rejecting, setRejecting] = useState(false);
     const [selectedProspectForReject, setSelectedProspectForReject] = useState(null);
+    
+    // Acceptance dialog state
+    const [acceptDialogOpen, setAcceptDialogOpen] = useState(false);
+    const [acceptanceReason, setAcceptanceReason] = useState('');
+    const [accepting, setAccepting] = useState(false);
+    const [selectedProspectForAccept, setSelectedProspectForAccept] = useState(null);
     
     const { role: userRole } = usePage().props; // Get role from shared props
     const currentUser = auth?.user;
@@ -87,6 +93,41 @@ export default function AgencyProspects() {
                 setRejecting(false);
             }
         });
+    };
+    
+    const handleAccept = (prospect) => {
+        setSelectedProspectForAccept(prospect);
+        setAcceptanceReason('');
+        setAcceptDialogOpen(true);
+    };
+    
+    const submitAcceptance = () => {
+        if (!selectedProspectForAccept || !acceptanceReason.trim()) return;
+        
+        setAccepting(true);
+        router.post(`/staff/prospects/${selectedProspectForAccept.id}/accept`, {
+            acceptance_reason: acceptanceReason
+        }, {
+            onSuccess: () => {
+                setAcceptDialogOpen(false);
+                setAcceptanceReason('');
+                setSelectedProspectForAccept(null);
+                setAccepting(false);
+            },
+            onError: () => {
+                setAccepting(false);
+            }
+        });
+    };
+    
+    // Check if user can accept a rejected prospect (same authorization as reject)
+    const canAcceptProspect = (prospect) => {
+        if (!prospect || !prospect.rejection_reason) return false;
+        if (!userRole || !userId) return false;
+        if (userRole === 'admin') return true;
+        if (userRole === 'matchmaker' && prospect.assigned_matchmaker_id === userId) return true;
+        if (userRole === 'manager' && prospect.agency_id === userAgencyId) return true;
+        return false;
     };
     
     // Reset page when prospects change
@@ -406,6 +447,111 @@ export default function AgencyProspects() {
                         </Button>
                     </div>
                 )}
+                
+                {/* Rejected Prospects Section */}
+                {rejectedProspects && rejectedProspects.length > 0 && (
+                    <Card className="mt-6 border-red-200">
+                        <CardHeader>
+                            <CardTitle className="text-red-600">Prospects Rejetés ({rejectedProspects.length})</CardTitle>
+                            <CardDescription>
+                                Prospects précédemment rejetés. Vous pouvez les accepter pour les remettre dans la liste de validation.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            {viewMode === 'cards' ? (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                                    {rejectedProspects.map((p) => (
+                                        <Card key={p.id} className="overflow-hidden hover:shadow-lg transition-shadow border-red-200">
+                                            <div className="relative">
+                                                <img
+                                                    src={getProfilePicture(p)}
+                                                    alt={p.name}
+                                                    className="w-full h-48 object-cover opacity-75"
+                                                    onError={(e) => {
+                                                        e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(p.name)}&background=random`;
+                                                    }}
+                                                />
+                                                <div className="absolute top-2 right-2 flex gap-2">
+                                                    <Badge className="bg-red-600 text-white text-xs px-2 py-1">
+                                                        Rejeté
+                                                    </Badge>
+                                                </div>
+                                            </div>
+                                            <CardContent className="p-4 space-y-3">
+                                                <div>
+                                                    <h3 className="font-semibold text-lg">{p.name}</h3>
+                                                    {p.rejection_reason && (
+                                                        <p className="text-xs text-red-600 mt-1 line-clamp-2" title={p.rejection_reason}>
+                                                            {p.rejection_reason}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                                
+                                                <div className="flex items-start gap-2 text-sm text-muted-foreground">
+                                                    <Mail className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                                                    <span className="truncate">{p.email || 'N/A'}</span>
+                                                </div>
+                                                
+                                                <div className="pt-2">
+                                                    {canAcceptProspect(p) && (
+                                                        <Button
+                                                            variant="default"
+                                                            size="sm"
+                                                            className="w-full bg-green-600 hover:bg-green-700"
+                                                            onClick={() => handleAccept(p)}
+                                                        >
+                                                            <CheckCircle className="w-4 h-4 mr-1" />
+                                                            Accepter
+                                                        </Button>
+                                                    )}
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="overflow-x-auto">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>Name</TableHead>
+                                                <TableHead>Email</TableHead>
+                                                <TableHead>Raison du rejet</TableHead>
+                                                <TableHead>Actions</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {rejectedProspects.map((p) => (
+                                                <TableRow key={p.id} className="bg-red-50">
+                                                    <TableCell className="font-medium">{p.name}</TableCell>
+                                                    <TableCell>{p.email || 'N/A'}</TableCell>
+                                                    <TableCell className="max-w-xs">
+                                                        <p className="text-sm text-red-600 truncate" title={p.rejection_reason}>
+                                                            {p.rejection_reason || 'N/A'}
+                                                        </p>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        {canAcceptProspect(p) && (
+                                                            <Button
+                                                                size="sm"
+                                                                variant="default"
+                                                                className="bg-green-600 hover:bg-green-700"
+                                                                onClick={() => handleAccept(p)}
+                                                            >
+                                                                <CheckCircle className="w-4 h-4 mr-1" />
+                                                                Accepter
+                                                            </Button>
+                                                        )}
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                )}
             </div>
             <Dialog open={!!validatingProspect} onOpenChange={(open) => { if (!open) { setValidatingProspect(null); reset(); } }}>
                 <DialogContent className="sm:w-[500px]   sm:max-h-[90vh] overflow-y-auto">
@@ -636,6 +782,50 @@ export default function AgencyProspects() {
                             disabled={!rejectionReason.trim() || rejecting}
                         >
                             {rejecting ? 'Envoi...' : 'Rejeter'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+            
+            {/* Acceptance Dialog */}
+            <Dialog open={acceptDialogOpen} onOpenChange={setAcceptDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Accepter le prospect</DialogTitle>
+                        <DialogDescription>
+                            Veuillez fournir une raison pour l'acceptation de {selectedProspectForAccept?.name || 'ce prospect'}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        {selectedProspectForAccept?.rejection_reason && (
+                            <div className="bg-red-50 p-3 rounded-lg">
+                                <p className="text-sm font-semibold mb-2">Raison du rejet précédent:</p>
+                                <p className="text-sm text-red-600">{selectedProspectForAccept.rejection_reason}</p>
+                            </div>
+                        )}
+                        <div className="grid gap-2">
+                            <Label htmlFor="acceptance-reason">Raison de l'acceptation *</Label>
+                            <Textarea
+                                id="acceptance-reason"
+                                value={acceptanceReason}
+                                onChange={(e) => setAcceptanceReason(e.target.value)}
+                                placeholder="Expliquez pourquoi vous acceptez ce prospect..."
+                                rows={4}
+                                required
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setAcceptDialogOpen(false)}>
+                            Annuler
+                        </Button>
+                        <Button
+                            variant="default"
+                            onClick={submitAcceptance}
+                            disabled={!acceptanceReason.trim() || accepting}
+                            className="bg-green-600 hover:bg-green-700"
+                        >
+                            {accepting ? 'Envoi...' : 'Accepter'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

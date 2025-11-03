@@ -43,6 +43,7 @@ class MatchmakerController extends Controller
         $filter = $request->string('filter')->toString(); // all | complete | incomplete
         $query = User::role('user')
             ->where('status', 'prospect')
+            ->whereNull('rejection_reason') // Filter out rejected prospects
             ->with(['profile', 'assignedMatchmaker', 'agency']);
 
         // Role-based filtering
@@ -81,6 +82,35 @@ class MatchmakerController extends Controller
 
         $prospects = $query->get();
         
+        // Get rejected prospects separately
+        $rejectedQuery = User::role('user')
+            ->where('status', 'prospect')
+            ->whereNotNull('rejection_reason')
+            ->with(['profile', 'assignedMatchmaker', 'agency']);
+
+        // Apply same role-based filtering for rejected prospects
+        if ($roleName === 'matchmaker') {
+            $rejectedQuery->where(function($q) use ($me) {
+                $q->where('assigned_matchmaker_id', $me->id)
+                  ->orWhere('agency_id', $me->agency_id);
+            });
+        } elseif ($roleName === 'manager') {
+            $matchmakerIds = User::role('matchmaker')
+                ->where('agency_id', $me->agency_id)
+                ->pluck('id')
+                ->toArray();
+            
+            $rejectedQuery->where(function($q) use ($me, $matchmakerIds) {
+                $q->where('agency_id', $me->agency_id);
+                if (!empty($matchmakerIds)) {
+                    $q->orWhereIn('assigned_matchmaker_id', $matchmakerIds);
+                }
+            });
+        }
+
+        $rejectedProspects = $rejectedQuery->get(['id','name','email','phone','country','city','status','agency_id','assigned_matchmaker_id','rejection_reason','rejected_by','rejected_at','created_at']);
+        $rejectedProspects->load(['profile', 'assignedMatchmaker', 'agency']);
+        
         $services = [];
         if (Schema::hasTable('services')) {
             $services = \App\Models\Service::all(['id','name']);
@@ -105,6 +135,7 @@ class MatchmakerController extends Controller
 
         return Inertia::render('matchmaker/prospects', [
             'prospects' => $prospects,
+            'rejectedProspects' => $rejectedProspects,
             'filter' => $filter ?: 'all',
             'services' => $services,
             'matrimonialPacks' => $matrimonialPacks,
@@ -338,6 +369,68 @@ class MatchmakerController extends Controller
         return redirect()->back()->with('success', 'Prospect rejeté avec succès.');
     }
 
+    public function acceptRejectedProspect(Request $request, $id)
+    {
+        $request->validate([
+            'acceptance_reason' => 'required|string|max:1000',
+        ]);
+
+        $prospect = User::findOrFail($id);
+        
+        // Check if prospect was previously rejected
+        if (!$prospect->rejection_reason) {
+            return redirect()->back()->with('error', 'Ce prospect n\'a pas été rejeté.');
+        }
+
+        // Check if prospect status is still 'prospect'
+        if ($prospect->status !== 'prospect') {
+            return redirect()->back()->with('error', 'Ce prospect n\'est plus un prospect.');
+        }
+
+        $me = Auth::user();
+        if (!$me) {
+            abort(403, 'Unauthorized.');
+        }
+
+        $roleName = \Illuminate\Support\Facades\DB::table('model_has_roles')
+            ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+            ->where('model_has_roles.model_id', $me->id)
+            ->value('roles.name');
+
+        // Check authorization: admin, assigned matchmaker, or manager of the agency
+        $canAccept = false;
+        
+        if ($roleName === 'admin') {
+            $canAccept = true;
+        } elseif ($roleName === 'matchmaker') {
+            // Matchmaker can accept if they are assigned to the prospect
+            if ($prospect->assigned_matchmaker_id === $me->id) {
+                $canAccept = true;
+            }
+        } elseif ($roleName === 'manager') {
+            // Manager can accept if the prospect is assigned to their agency
+            if ($prospect->agency_id === $me->agency_id) {
+                $canAccept = true;
+            }
+        }
+
+        if (!$canAccept) {
+            abort(403, 'Vous n\'êtes pas autorisé à accepter ce prospect.');
+        }
+
+        // Clear rejection information and store acceptance reason
+        $prospect->update([
+            'rejection_reason' => null,
+            'rejected_by' => null,
+            'rejected_at' => null,
+            'acceptance_reason' => $request->acceptance_reason,
+            'accepted_by' => $me->id,
+            'accepted_at' => now(),
+        ]);
+
+        return redirect()->back()->with('success', 'Prospect accepté et restauré avec succès.');
+    }
+
     public function validatedProspects(Request $request)
     {
         // Allow roles: admin, manager, matchmaker (middleware handles role)
@@ -509,6 +602,7 @@ class MatchmakerController extends Controller
 
         $query = User::role('user')
             ->where('status', 'prospect')
+            ->whereNull('rejection_reason') // Filter out rejected prospects from main list
             ->with(['profile', 'assignedMatchmaker', 'agency']);
 
         // Role-based filtering
@@ -556,6 +650,40 @@ class MatchmakerController extends Controller
         // Load profiles with relationships
         $prospects->load(['profile', 'assignedMatchmaker', 'agency']);
         
+        // Get rejected prospects separately
+        $rejectedQuery = User::role('user')
+            ->where('status', 'prospect')
+            ->whereNotNull('rejection_reason')
+            ->with(['profile', 'assignedMatchmaker', 'agency']);
+
+        // Apply same role-based filtering for rejected prospects
+        if ($roleName === 'matchmaker') {
+            $rejectedQuery->where(function($q) use ($me) {
+                $q->where('assigned_matchmaker_id', $me->id)
+                  ->orWhere('agency_id', $me->agency_id);
+            });
+        } elseif ($roleName === 'manager') {
+            $matchmakerIds = User::role('matchmaker')
+                ->where('agency_id', $me->agency_id)
+                ->pluck('id')
+                ->toArray();
+            
+            $rejectedQuery->where(function($q) use ($me, $matchmakerIds) {
+                $q->where('agency_id', $me->agency_id);
+                if (!empty($matchmakerIds)) {
+                    $q->orWhereIn('assigned_matchmaker_id', $matchmakerIds);
+                }
+            });
+        } elseif ($roleName === 'admin') {
+            $agencyId = (int) $request->integer('agency_id');
+            if ($agencyId) {
+                $rejectedQuery->where('agency_id', $agencyId);
+            }
+        }
+
+        $rejectedProspects = $rejectedQuery->get(['id','name','email','phone','country','city','status','agency_id','assigned_matchmaker_id','rejection_reason','rejected_by','rejected_at','created_at']);
+        $rejectedProspects->load(['profile', 'assignedMatchmaker', 'agency']);
+
         // Decrypt CNI for prospects who already provided it (for validation form display)
         $prospects->each(function ($prospect) {
             if ($prospect->profile && $prospect->profile->cin) {
@@ -570,6 +698,7 @@ class MatchmakerController extends Controller
 
         return Inertia::render('matchmaker/agency-prospects', [
             'prospects' => $prospects,
+            'rejectedProspects' => $rejectedProspects,
             'agencyId' => $me?->agency_id,
             'services' => $services,
             'matrimonialPacks' => $matrimonialPacks,

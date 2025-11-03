@@ -47,7 +47,10 @@ class User extends Authenticatable
         'validated_by_manager_id',
         'rejection_reason',
         'rejected_by',
-        'rejected_at'
+        'rejected_at',
+        'acceptance_reason',
+        'accepted_by',
+        'accepted_at'
     ];
 
     /**
