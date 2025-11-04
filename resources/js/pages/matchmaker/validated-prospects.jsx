@@ -351,7 +351,7 @@ export default function ValidatedProspects() {
                                         <Button
                                             variant="outline"
                                             size="sm"
-                                            className="w-full"
+                                            className="w-full  hover:bg-[#096725]!  hover:text-white"
                                             onClick={() => router.visit(`/profile/${u.username || u.id}`)}
                                         >
                                             Find Story

@@ -429,12 +429,16 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                     {/* changer matchmaker ou contacter mon matchmaker  functionality must be added later */}
                                     
                                     {
-                                        assignedMatchmakerId == user?.id ? (
-                                            <Button className='bg-success text-success-foreground px-4 py-2 rounded-md cursor-pointer'>Conatcter mon matchmaker</Button>
-                                            // <h1>this is my matchmaker</h1>
-                                        ) : (
-                                            <Button className='bg-error text-error-foreground px-4 py-2 rounded-md cursor-pointer'>Changer mon matchmaker</Button>
-
+                                        auth.user?.roles?.[0]?.name === 'user' && (
+                                            assignedMatchmakerId == user?.id ? (
+                                                <Button className='bg-success text-success-foreground px-4 py-2 rounded-md cursor-pointer'>Conatcter mon matchmaker</Button>
+                                                // <h1>this is my matchmaker</h1>
+                                            ) : assignedMatchmakerId !== null && assignedMatchmakerId !== user?.id ? (
+                                                <Button className='bg-error text-error-foreground px-4 py-2 rounded-md cursor-pointer'>Choisir matchmaker</Button>
+    
+                                            ) : (
+                                                <Button className='bg-error text-error-foreground px-4 py-2 rounded-md cursor-pointer'>Changer mon matchmaker</Button>
+                                            )
                                         )
                                     }
                                     {/* Contact Information */}

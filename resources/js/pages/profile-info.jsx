@@ -816,7 +816,7 @@ export default function ProfileInfo() {
                     <div className="flex gap-4 pt-6">
                         <button 
                             onClick={handleEditProfile}
-                            className="rounded-lg bg-info px-6 py-2 font-medium text-info-foreground transition-colors hover:opacity-90"
+                            className="rounded-lg bg-success text-white hover:bg-green-600! hover:text-black! cursor-pointer! px-6 py-2 font-medium text-info-foreground transition-colors hover:opacity-90"
                         >
                             Modifier le profil
                         </button>

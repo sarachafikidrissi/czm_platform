@@ -212,7 +212,7 @@ export default function MesCommandes({ bills = [] }) {
                                     <p className="text-muted-foreground mb-4">
                                         Vous n'avez pas encore passé de commande. Découvrez nos services et devenez client pour accéder à nos offres.
                                     </p>
-                                    <Button className="bg-primary hover:bg-primary/90">
+                                    <Button className="bg-[#890505]! hover:bg-[#096725]!">
                                         <CreditCard className="w-4 h-4 mr-2" />
                                         Devenir Client
                                     </Button>
@@ -222,7 +222,7 @@ export default function MesCommandes({ bills = [] }) {
                     </Card>
 
                     {/* Membership Status Card */}
-                    <Card>
+                    {/* <Card>
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
                                 <CheckCircle className="w-5 h-5" />
@@ -237,12 +237,12 @@ export default function MesCommandes({ bills = [] }) {
                                         Vous bénéficiez de l'adhésion gratuite. Passez au statut client pour accéder à tous nos services.
                                     </p>
                                 </div>
-                                <Button variant="outline">
+                                <Button variant="outline" className="bg-[#890505]! hover:bg-[#096725]! text-white hover:text-white">
                                     Devenir Client
                                 </Button>
                             </div>
                         </CardContent>
-                    </Card>
+                    </Card> */}
                 </div>
 
                 {/* Invoice Modal */}

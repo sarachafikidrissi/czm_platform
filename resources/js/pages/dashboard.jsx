@@ -1,35 +1,33 @@
-import { PlaceholderPattern } from '@/components/ui/placeholder-pattern';
-import AppLayout from '@/layouts/app-layout';
-import { Head, usePage, Link } from '@inertiajs/react';
-import AdminDashboardContent from './admin/adminDashboardContent'
-import MatchMakerDashboardContent from './matchmaker/matchmakerDashboardContent'
-import ManagerDashboardContent from './manager/managerDashboardContent'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { User, HeartHandshake, ShoppingCart, CheckCircle, Clock, AlertCircle, Bell, Mail, Phone } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import AppLayout from '@/layouts/app-layout';
+import { Head, Link, router, usePage } from '@inertiajs/react';
+import { AlertCircle, Bell, CheckCircle, Clock, HeartHandshake, Mail, Phone, ShoppingCart, User } from 'lucide-react';
 import { useState } from 'react';
-import { router } from '@inertiajs/react';
+import AdminDashboardContent from './admin/adminDashboardContent';
+import ManagerDashboardContent from './manager/managerDashboardContent';
+import MatchMakerDashboardContent from './matchmaker/matchmakerDashboardContent';
 
-
-
-function UserDashboardContent({ user, profile, subscriptionReminder, accountStatus }) {
+function UserDashboardContent({ user, profile, subscriptionReminder, accountStatus, rejectedBy }) {
     // Debug: Log the profile data in frontend
     console.log('Dashboard Profile Data:', {
         profile,
         is_completed: profile?.is_completed,
-        current_step: profile?.current_step
+        current_step: profile?.current_step,
     });
-    
+
     const isProfileComplete = profile?.is_completed;
     const userStatus = user?.status;
     const approvalStatus = user?.approval_status;
     const hasAssignedMatchmaker = user?.assigned_matchmaker_id;
     const isDesactivated = accountStatus === 'desactivated';
+    const isRejected = user?.rejection_reason;
+    const rejectedReason = user?.rejection_reason;
     const [reactivationOpen, setReactivationOpen] = useState(false);
     const [reactivationReason, setReactivationReason] = useState('');
     const [submitting, setSubmitting] = useState(false);
@@ -47,39 +45,41 @@ function UserDashboardContent({ user, profile, subscriptionReminder, accountStat
                 </div>
 
                 <Alert className="bg-error-light border-error">
-                    <AlertCircle className="h-4 w-4 text-error" />
+                    <AlertCircle className="text-error h-4 w-4" />
                     <AlertDescription>
                         <div className="space-y-4">
-                            <p className="font-semibold text-error">Votre compte a été désactivé.</p>
-                            <p className="text-error">
-                                Vous n'avez plus accès aux profils d'autres utilisateurs ni aux autres pages du site.
-                            </p>
+                            <p className="text-error font-semibold">Votre compte a été désactivé.</p>
+                            <p className="text-error">Vous n'avez plus accès aux profils d'autres utilisateurs ni aux autres pages du site.</p>
                             {assignedMatchmaker && (
-                                <div className="mt-4 p-4 bg-card rounded-lg border border-error">
-                                    <h3 className="font-semibold mb-2">Informations de votre matchmaker:</h3>
+                                <div className="bg-card border-error mt-4 rounded-lg border p-4">
+                                    <h3 className="mb-2 font-semibold">Informations de votre matchmaker:</h3>
                                     <div className="space-y-2 text-sm">
-                                        <p><strong>Nom:</strong> {assignedMatchmaker.name}</p>
+                                        <p>
+                                            <strong>Nom:</strong> {assignedMatchmaker.name}
+                                        </p>
                                         {assignedMatchmaker.email && (
                                             <p className="flex items-center gap-2">
-                                                <Mail className="w-4 h-4" />
+                                                <Mail className="h-4 w-4" />
                                                 <strong>Email:</strong> {assignedMatchmaker.email}
                                             </p>
                                         )}
                                         {assignedMatchmaker.phone && (
                                             <p className="flex items-center gap-2">
-                                                <Phone className="w-4 h-4" />
+                                                <Phone className="h-4 w-4" />
                                                 <strong>Téléphone:</strong> {assignedMatchmaker.phone}
                                             </p>
                                         )}
                                     </div>
-                                    <p className="mt-3 text-sm text-error">
-                                        Si vous souhaitez réactiver votre compte, veuillez contacter votre matchmaker ou soumettre une demande de réactivation ci-dessous.
+                                    <p className="text-error mt-3 text-sm">
+                                        Si vous souhaitez réactiver votre compte, veuillez contacter votre matchmaker ou soumettre une demande de
+                                        réactivation ci-dessous.
                                     </p>
                                 </div>
                             )}
                             {!assignedMatchmaker && (
-                                <p className="text-sm text-error">
-                                    Si vous souhaitez réactiver votre compte, veuillez contacter l'administration ou soumettre une demande de réactivation ci-dessous.
+                                <p className="text-error text-sm">
+                                    Si vous souhaitez réactiver votre compte, veuillez contacter l'administration ou soumettre une demande de
+                                    réactivation ci-dessous.
                                 </p>
                             )}
                             <Dialog open={reactivationOpen} onOpenChange={setReactivationOpen}>
@@ -91,9 +91,7 @@ function UserDashboardContent({ user, profile, subscriptionReminder, accountStat
                                 <DialogContent>
                                     <DialogHeader>
                                         <DialogTitle>Demande de réactivation de compte</DialogTitle>
-                                        <DialogDescription>
-                                            Veuillez indiquer la raison de votre demande de réactivation.
-                                        </DialogDescription>
+                                        <DialogDescription>Veuillez indiquer la raison de votre demande de réactivation.</DialogDescription>
                                     </DialogHeader>
                                     <div className="grid gap-4 py-4">
                                         <div className="grid gap-2">
@@ -111,22 +109,26 @@ function UserDashboardContent({ user, profile, subscriptionReminder, accountStat
                                         <Button variant="outline" onClick={() => setReactivationOpen(false)}>
                                             Annuler
                                         </Button>
-                                        <Button 
+                                        <Button
                                             onClick={() => {
                                                 if (!reactivationReason.trim()) return;
                                                 setSubmitting(true);
-                                                router.post('/user/reactivation-request', {
-                                                    reason: reactivationReason
-                                                }, {
-                                                    onSuccess: () => {
-                                                        setReactivationOpen(false);
-                                                        setReactivationReason('');
-                                                        setSubmitting(false);
+                                                router.post(
+                                                    '/user/reactivation-request',
+                                                    {
+                                                        reason: reactivationReason,
                                                     },
-                                                    onError: () => {
-                                                        setSubmitting(false);
-                                                    }
-                                                });
+                                                    {
+                                                        onSuccess: () => {
+                                                            setReactivationOpen(false);
+                                                            setReactivationReason('');
+                                                            setSubmitting(false);
+                                                        },
+                                                        onError: () => {
+                                                            setSubmitting(false);
+                                                        },
+                                                    },
+                                                );
                                             }}
                                             disabled={!reactivationReason.trim() || submitting}
                                         >
@@ -154,17 +156,68 @@ function UserDashboardContent({ user, profile, subscriptionReminder, accountStat
 
             {/* Status Messages and CTAs */}
             <div className="grid gap-4">
+                {/* Rejection Message */}
+                {isRejected && (
+                    <Alert className="bg-error-light border-error">
+                        <AlertDescription>
+                            <div className="space-y-3  w-full">
+                                <div className="flex items-center justify-center gap-2 font-bold">
+                                    <AlertCircle className="text-error" />
+                                    <h3 className="text-error text-4xl font-semibold">Votre demande d'adhésion est rejetée</h3>
+                                </div>
+                                <div className="space-y-2">
+                                    <div className='flex items-center gap-2 '>
+                                        <p className="text-sm ">Motif de rejet :</p>
+                                        <p className="text-error text-sm">
+                                            {rejectedBy ? (
+                                                <>
+                                                    {/* ZAWAJMAROCCENTRE : Suite à votre demande, votre inscription est malheureusement annulée. <br />Si
+                                                    toujours intéressée par nos services, merci de contacter directement {rejectedBy.name} pour la
+                                                    réouverture de votre dossier au {rejectedBy.phone || 'matchmaker'}
+                                                    <br />
+                                                    <br /> */}
+
+                                                    <p className='font-extrabold text-lg text-black'>{rejectedReason}</p>
+                                                </>
+                                            ) : (
+                                                <>ZAWAJMAROCCENTRE : Suite à votre demande, votre inscription est malheureusement annulée.</>
+                                            )}
+                                        </p>
+                                    </div>
+                                    {rejectedBy && (
+                                        <div className="border-error/30 border-t pt-2">
+                                            <p className=" text-sm">
+                                                <span className="text-sm">Par matchmaker :</span> <span className='font-extrabold text-lg text-black'>{rejectedBy.name}</span>
+                                            </p>
+                                        </div>
+                                    )}
+                                    {user?.rejected_at && (
+                                        <div>
+                                            <p className=" text-sm">
+                                                <span className="">Date :</span>{' '}
+                                                <span className='font-extrabold text-lg text-black'>{new Date(user.rejected_at).toLocaleDateString('fr-FR', {
+                                                    year: 'numeric',
+                                                    month: 'numeric',
+                                                    day: 'numeric',
+                                                })}</span>
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </AlertDescription>
+                    </Alert>
+                )}
+
                 {/* Profile Completion CTA */}
-                {!isProfileComplete && (
+                {!isProfileComplete && !isRejected && (
                     <Alert>
                         <User className="h-4 w-4" />
                         <AlertDescription>
                             <div className="flex items-center justify-between">
                                 <span>Votre profil n'est pas encore complet. Complétez-le pour accéder à tous nos services.</span>
                                 <Link href="/profile-info">
-                                    <Button size="sm">
-                                        Compléter mon profil
-                                    </Button>
+                                    <Button size="sm">Compléter mon profil</Button>
                                 </Link>
                             </div>
                         </AlertDescription>
@@ -211,9 +264,7 @@ function UserDashboardContent({ user, profile, subscriptionReminder, accountStat
                             <div className="flex items-center justify-between">
                                 <span>Choisissez votre matchmaker pour commencer votre parcours matrimonial.</span>
                                 <Link href="/user/matchmakers">
-                                    <Button size="sm">
-                                        Choisir mon matchmaker
-                                    </Button>
+                                    <Button size="sm">Choisir mon matchmaker</Button>
                                 </Link>
                             </div>
                         </AlertDescription>
@@ -222,31 +273,34 @@ function UserDashboardContent({ user, profile, subscriptionReminder, accountStat
 
                 {/* Subscription Reminder */}
                 {subscriptionReminder && (
-                    <Alert className={subscriptionReminder.isExpired ? "bg-error-light border-error" : "bg-warning-light border-warning"}>
+                    <Alert className={subscriptionReminder.isExpired ? 'bg-error-light border-error' : 'bg-warning-light border-warning'}>
                         <Bell className="h-4 w-4" />
                         <AlertDescription>
                             <div className="flex items-center justify-between">
                                 <div className="flex-1">
                                     {subscriptionReminder.isExpired ? (
                                         <>
-                                            <span className="font-semibold text-error">⚠️ Votre abonnement a expiré</span>
-                                            <p className="text-sm text-error mt-1">
-                                                Votre abonnement au pack {subscriptionReminder.packName} a expiré le {subscriptionReminder.expirationDate}.
-                                                Veuillez renouveler votre abonnement pour continuer à bénéficier de nos services.
+                                            <span className="text-error font-semibold">⚠️ Votre abonnement a expiré</span>
+                                            <p className="text-error mt-1 text-sm">
+                                                Votre abonnement au pack {subscriptionReminder.packName} a expiré le{' '}
+                                                {subscriptionReminder.expirationDate}. Veuillez renouveler votre abonnement pour continuer à
+                                                bénéficier de nos services.
                                             </p>
                                         </>
                                     ) : (
                                         <>
-                                            <span className="font-semibold text-warning-foreground">⏰ Rappel d'abonnement</span>
-                                            <p className="text-sm text-warning-foreground mt-1">
-                                                Votre abonnement au pack {subscriptionReminder.packName} expire dans {subscriptionReminder.daysRemaining} {subscriptionReminder.daysRemaining === 1 ? 'jour' : 'jours'} (le {subscriptionReminder.expirationDate}).
-                                                Pensez à renouveler votre abonnement pour continuer à bénéficier de nos services.
+                                            <span className="text-warning-foreground font-semibold">⏰ Rappel d'abonnement</span>
+                                            <p className="text-warning-foreground mt-1 text-sm">
+                                                Votre abonnement au pack {subscriptionReminder.packName} expire dans{' '}
+                                                {subscriptionReminder.daysRemaining} {subscriptionReminder.daysRemaining === 1 ? 'jour' : 'jours'} (le{' '}
+                                                {subscriptionReminder.expirationDate}). Pensez à renouveler votre abonnement pour continuer à
+                                                bénéficier de nos services.
                                             </p>
                                         </>
                                     )}
                                 </div>
                                 <Link href="/user/subscription">
-                                    <Button size="sm" variant={subscriptionReminder.isExpired ? "destructive" : "outline"}>
+                                    <Button size="sm" variant={subscriptionReminder.isExpired ? 'destructive' : 'outline'}>
                                         Voir mon abonnement
                                     </Button>
                                 </Link>
@@ -261,17 +315,13 @@ function UserDashboardContent({ user, profile, subscriptionReminder, accountStat
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Mon Profil</CardTitle>
-                        <User className="h-4 w-4 text-muted-foreground" />
+                        <User className="text-muted-foreground h-4 w-4" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">
-                            {isProfileComplete ? '100%' : `${profile?.current_step || 1}/4`}
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                            {isProfileComplete ? 'Profil complet' : 'Étapes complétées'}
-                        </p>
+                        <div className="text-2xl font-bold">{isProfileComplete ? '100%' : `${profile?.current_step || 1}/4`}</div>
+                        <p className="text-muted-foreground text-xs">{isProfileComplete ? 'Profil complet' : 'Étapes complétées'}</p>
                         <Link href="/profile-info">
-                            <Button variant="outline" size="sm" className="mt-2 w-full">
+                            <Button variant="outline" size="sm" className="mt-2 w-full bg-success text-white hover:bg-green-600! hover:text-black! cursor-pointer!">
                                 {isProfileComplete ? 'Voir mon profil' : 'Compléter mon profil'}
                             </Button>
                         </Link>
@@ -281,17 +331,15 @@ function UserDashboardContent({ user, profile, subscriptionReminder, accountStat
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Mon Matchmaker</CardTitle>
-                        <HeartHandshake className="h-4 w-4 text-muted-foreground" />
+                        <HeartHandshake className="text-muted-foreground h-4 w-4" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">
-                            {hasAssignedMatchmaker ? 'Assigné' : 'Non assigné'}
-                        </div>
-                        <p className="text-xs text-muted-foreground">
+                        <div className="text-2xl font-bold">{hasAssignedMatchmaker ? 'Assigné' : 'Non assigné'}</div>
+                        <p className="text-muted-foreground text-xs">
                             {hasAssignedMatchmaker ? 'Vous avez un matchmaker' : 'Choisissez votre matchmaker'}
                         </p>
-                        <Link href={hasAssignedMatchmaker ? "/matchmaker" : "/user/matchmakers"}>
-                            <Button variant="outline" size="sm" className="mt-2 w-full">
+                        <Link href={hasAssignedMatchmaker ? '/matchmaker' : '/user/matchmakers'}>
+                            <Button variant="outline" size="sm" className="mt-2 w-full hover:bg-red-600! text-white hover:text-whote  bg-[#890505]! cursor-pointer!">
                                 {hasAssignedMatchmaker ? 'Voir mon matchmaker' : 'Choisir un matchmaker'}
                             </Button>
                         </Link>
@@ -301,17 +349,13 @@ function UserDashboardContent({ user, profile, subscriptionReminder, accountStat
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Mes Commandes</CardTitle>
-                        <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+                        <ShoppingCart className="text-muted-foreground h-4 w-4" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">
-                            {userStatus === 'client' ? 'Client' : 'Membre'}
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                            {userStatus === 'client' ? 'Statut client actif' : 'Membre passif'}
-                        </p>
+                        <div className="text-2xl font-bold">{userStatus === 'client' ? 'Client' : 'Membre'}</div>
+                        <p className="text-muted-foreground text-xs">{userStatus === 'client' ? 'Statut client actif' : 'Membre passif'}</p>
                         <Link href="/mes-commandes">
-                            <Button variant="outline" size="sm" className="mt-2 w-full">
+                            <Button variant="outline" size="sm" className="mt-2 w-full bg-success text-white hover:bg-green-600! hover:text-black! cursor-pointer!">
                                 {userStatus === 'client' ? 'Voir mes commandes' : 'Devenir client'}
                             </Button>
                         </Link>
@@ -323,19 +367,13 @@ function UserDashboardContent({ user, profile, subscriptionReminder, accountStat
             <Card>
                 <CardHeader>
                     <CardTitle>Activité Récente</CardTitle>
-                    <CardDescription>
-                        Suivez vos dernières activités sur la plateforme
-                    </CardDescription>
+                    <CardDescription>Suivez vos dernières activités sur la plateforme</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div className="text-center py-8">
-                        <AlertCircle className="w-12 h-12 mx-auto text-gray-400 mb-4" />
-                        <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                            Aucune activité récente
-                        </h3>
-                        <p className="text-gray-600">
-                            Vos activités apparaîtront ici une fois que vous commencerez à utiliser nos services.
-                        </p>
+                    <div className="py-8 text-center">
+                        <AlertCircle className="mx-auto mb-4 h-12 w-12 text-gray-400" />
+                        <h3 className="mb-2 text-lg font-semibold text-gray-900">Aucune activité récente</h3>
+                        <p className="text-gray-600">Vos activités apparaîtront ici une fois que vous commencerez à utiliser nos services.</p>
                     </div>
                 </CardContent>
             </Card>
@@ -343,17 +381,14 @@ function UserDashboardContent({ user, profile, subscriptionReminder, accountStat
     );
 }
 
-
-
 function PendingApprovalContent() {
     return (
         <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
-            <div className="flex items-center justify-center h-64">
+            <div className="flex h-64 items-center justify-center">
                 <div className="text-center">
-                    <h2 className="text-2xl font-bold text-gray-900 mb-4">Pending Approval</h2>
+                    <h2 className="mb-4 text-2xl font-bold text-gray-900">Pending Approval</h2>
                     <p className="text-gray-600">
-                        Your account is pending approval from an administrator. 
-                        You will be notified once your account has been reviewed.
+                        Your account is pending approval from an administrator. You will be notified once your account has been reviewed.
                     </p>
                 </div>
             </div>
@@ -364,13 +399,14 @@ function PendingApprovalContent() {
 export default function Dashboard() {
     const { props } = usePage();
     const role = props?.role ?? null;
-    const user = props?.auth?.user;
+    const user = props?.auth?.user || null;
     const approvalStatus = user?.approval_status;
     const agencies = props?.agencies || [];
     const stats = props?.stats || null;
     const profile = props?.profile || null;
     const subscriptionReminder = props?.subscriptionReminder || null;
-    
+    const rejectedBy = props?.rejectedBy || null;
+
     // Show pending approval for non-admin staff who aren't approved
     if ((role === 'manager' || role === 'matchmaker') && approvalStatus !== 'approved') {
         return (
@@ -380,18 +416,27 @@ export default function Dashboard() {
             </AppLayout>
         );
     }
-    
+
     return (
-        <AppLayout >
+        <AppLayout>
             <Head title="Dashboard" />
             {role === 'admin' ? (
-                <AdminDashboardContent agencies={agencies} stats={stats || { totalUsers: 0, pending: 0, approvedManagers: 0, approvedMatchmakers: 0 }} />
+                <AdminDashboardContent
+                    agencies={agencies}
+                    stats={stats || { totalUsers: 0, pending: 0, approvedManagers: 0, approvedMatchmakers: 0 }}
+                />
             ) : role === 'manager' ? (
                 <ManagerDashboardContent />
             ) : role === 'matchmaker' ? (
                 <MatchMakerDashboardContent />
             ) : (
-                <UserDashboardContent user={user} profile={profile} subscriptionReminder={subscriptionReminder} accountStatus={props?.accountStatus || 'active'} />
+                <UserDashboardContent
+                    user={user}
+                    profile={profile}
+                    subscriptionReminder={subscriptionReminder}
+                    accountStatus={props?.accountStatus || 'active'}
+                    rejectedBy={props?.rejectedBy || null}
+                />
             )}
         </AppLayout>
     );

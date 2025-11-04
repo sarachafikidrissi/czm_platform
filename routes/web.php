@@ -113,12 +113,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
         $subscription = null;
         $subscriptionReminder = null;
         $accountStatus = null;
+        $rejectedBy = null;
         
         if ($role === 'user' && $user) {
             $profile = $user->profile;
             $accountStatus = $profile ? $profile->account_status : 'active';
             // Load assigned matchmaker for desactivated accounts
             $user->load('assignedMatchmaker');
+            
+            // Load rejection information if user is rejected
+            if ($user->rejected_by) {
+                $rejectedBy = \App\Models\User::find($user->rejected_by);
+            }
 
             // Load active subscription for reminders
             $subscription = $user->subscriptions()
@@ -160,6 +166,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
             'profile' => $profile,
             'subscriptionReminder' => $subscriptionReminder,
             'accountStatus' => $accountStatus,
+            'rejectedBy' => $rejectedBy ? [
+                'id' => $rejectedBy->id,
+                'name' => $rejectedBy->name,
+                'phone' => $rejectedBy->phone,
+            ] : null,
         ]);
     })->name('dashboard');
 
