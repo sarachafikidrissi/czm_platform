@@ -31,6 +31,7 @@ function UserDashboardContent({ user, profile, subscriptionReminder, accountStat
     const [reactivationOpen, setReactivationOpen] = useState(false);
     const [reactivationReason, setReactivationReason] = useState('');
     const [submitting, setSubmitting] = useState(false);
+    const [showMatchmakerDialog, setShowMatchmakerDialog] = useState(false);
     const assignedMatchmaker = user?.assigned_matchmaker;
 
     // If account is desactivated, show restricted view
@@ -246,11 +247,13 @@ function UserDashboardContent({ user, profile, subscriptionReminder, accountStat
                         <AlertDescription>
                             <div className="flex items-center justify-between">
                                 <span>Adhésion Gratuite : membre passif</span>
-                                <Link href="/mes-commandes">
-                                    <Button size="sm" variant="outline">
-                                        Devenir Client
-                                    </Button>
-                                </Link>
+                                <Button 
+                                    size="sm" 
+                                    variant="outline"
+                                    onClick={() => setShowMatchmakerDialog(true)}
+                                >
+                                    Devenir Client
+                                </Button>
                             </div>
                         </AlertDescription>
                     </Alert>
@@ -354,11 +357,22 @@ function UserDashboardContent({ user, profile, subscriptionReminder, accountStat
                     <CardContent>
                         <div className="text-2xl font-bold">{userStatus === 'client' ? 'Client' : 'Membre'}</div>
                         <p className="text-muted-foreground text-xs">{userStatus === 'client' ? 'Statut client actif' : 'Membre passif'}</p>
-                        <Link href="/mes-commandes">
-                            <Button variant="outline" size="sm" className="mt-2 w-full bg-success text-white hover:bg-green-600! hover:text-black! cursor-pointer!">
-                                {userStatus === 'client' ? 'Voir mes commandes' : 'Devenir client'}
+                        {userStatus === 'client' ? (
+                            <Link href="/mes-commandes">
+                                <Button variant="outline" size="sm" className="mt-2 w-full bg-success text-white hover:bg-green-600! hover:text-black! cursor-pointer!">
+                                    Voir mes commandes
+                                </Button>
+                            </Link>
+                        ) : (
+                            <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="mt-2 w-full bg-success text-white hover:bg-green-600! hover:text-black! cursor-pointer!"
+                                onClick={() => setShowMatchmakerDialog(true)}
+                            >
+                                Devenir client
                             </Button>
-                        </Link>
+                        )}
                     </CardContent>
                 </Card>
             </div>
@@ -377,6 +391,44 @@ function UserDashboardContent({ user, profile, subscriptionReminder, accountStat
                     </div>
                 </CardContent>
             </Card>
+
+            {/* Matchmaker Contact Dialog */}
+            <Dialog open={showMatchmakerDialog} onOpenChange={setShowMatchmakerDialog}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Devenir Client</DialogTitle>
+                        <DialogDescription>
+                            Contacter votre matchmaker pour plus de détails
+                        </DialogDescription>
+                    </DialogHeader>
+                    {assignedMatchmaker ? (
+                        <div className="flex flex-col gap-4">
+                            <p className="text-sm text-muted-foreground">
+                                Pour devenir client, veuillez contacter votre matchmaker pour plus de détails.
+                            </p>
+                            <Link 
+                                href={assignedMatchmaker.username ? `/profile/${assignedMatchmaker.username}` : '/matchmaker'}
+                                className="w-full"
+                            >
+                                <Button className="w-full">
+                                    Voir le profil de mon matchmaker
+                                </Button>
+                            </Link>
+                        </div>
+                    ) : (
+                        <div className="flex flex-col gap-4">
+                            <p className="text-sm text-muted-foreground">
+                                Pour devenir client, veuillez d'abord choisir un matchmaker.
+                            </p>
+                            <Link href="/user/matchmakers" className="w-full">
+                                <Button className="w-full">
+                                    Choisir un matchmaker
+                                </Button>
+                            </Link>
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

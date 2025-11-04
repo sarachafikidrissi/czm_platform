@@ -1,16 +1,21 @@
-import { Head, router } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ShoppingCart, Package, CreditCard, CheckCircle, MoreHorizontal, Eye, Download, FileText, Mail } from 'lucide-react';
 import { useState } from 'react';
+import { Link } from '@inertiajs/react';
 
 export default function MesCommandes({ bills = [] }) {
+    const { auth } = usePage().props;
     const [selectedInvoice, setSelectedInvoice] = useState(null);
     const [showInvoice, setShowInvoice] = useState(false);
+    const [showMatchmakerDialog, setShowMatchmakerDialog] = useState(false);
+    const assignedMatchmaker = auth?.user?.assignedMatchmaker ?? auth?.user?.assigned_matchmaker ?? null;
 
     const handleViewInvoice = (order) => {
         setSelectedInvoice(order);
@@ -212,7 +217,10 @@ export default function MesCommandes({ bills = [] }) {
                                     <p className="text-muted-foreground mb-4">
                                         Vous n'avez pas encore passé de commande. Découvrez nos services et devenez client pour accéder à nos offres.
                                     </p>
-                                    <Button className="bg-[#890505]! hover:bg-[#096725]!">
+                                    <Button 
+                                        className="bg-[#890505]! hover:bg-[#096725]!"
+                                        onClick={() => setShowMatchmakerDialog(true)}
+                                    >
                                         <CreditCard className="w-4 h-4 mr-2" />
                                         Devenir Client
                                     </Button>
@@ -410,6 +418,44 @@ export default function MesCommandes({ bills = [] }) {
                         </div>
                     </div>
                 )}
+
+                {/* Matchmaker Contact Dialog */}
+                <Dialog open={showMatchmakerDialog} onOpenChange={setShowMatchmakerDialog}>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Devenir Client</DialogTitle>
+                            <DialogDescription>
+                                Contacter votre matchmaker pour plus de détails
+                            </DialogDescription>
+                        </DialogHeader>
+                        {assignedMatchmaker ? (
+                            <div className="flex flex-col gap-4">
+                                <p className="text-sm text-muted-foreground">
+                                    Pour devenir client, veuillez contacter votre matchmaker pour plus de détails.
+                                </p>
+                                <Link 
+                                    href={assignedMatchmaker.username ? `/profile/${assignedMatchmaker.username}` : '/matchmaker'}
+                                    className="w-full"
+                                >
+                                    <Button className="w-full">
+                                        Voir le profil de mon matchmaker
+                                    </Button>
+                                </Link>
+                            </div>
+                        ) : (
+                            <div className="flex flex-col gap-4">
+                                <p className="text-sm text-muted-foreground">
+                                    Pour devenir client, veuillez d'abord choisir un matchmaker.
+                                </p>
+                                <Link href="/user/matchmakers" className="w-full">
+                                    <Button className="w-full">
+                                        Choisir un matchmaker
+                                    </Button>
+                                </Link>
+                            </div>
+                        )}
+                    </DialogContent>
+                </Dialog>
             </div>
         </AppLayout>
     );

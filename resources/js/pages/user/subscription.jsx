@@ -3,12 +3,16 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Heart, Check, X, Calendar, User, Crown } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { usePage } from '@inertiajs/react';
+import { useState } from 'react';
 
 export default function UserSubscription() {
     const { user, profile, subscription, subscriptionStatus } = usePage().props;
+    const [showMatchmakerDialog, setShowMatchmakerDialog] = useState(false);
+    const assignedMatchmaker = user?.assignedMatchmaker ?? user?.assigned_matchmaker ?? subscription?.assignedMatchmaker ?? subscription?.assigned_matchmaker ?? null;
     
     // Determine current status
     const isClient = user.status === 'client';
@@ -83,11 +87,12 @@ export default function UserSubscription() {
                         )}
                         
                         {isPassiveMember && (
-                            <Link href="/user/matchmakers">
-                                <Button className="bg-error hover:opacity-90 text-error-foreground rounded-lg px-6 py-2">
-                                    Devenir Client
-                                </Button>
-                            </Link>
+                            <Button 
+                                className="bg-error hover:opacity-90 text-error-foreground rounded-lg px-6 py-2"
+                                onClick={() => setShowMatchmakerDialog(true)}
+                            >
+                                Devenir Client
+                            </Button>
                         )}
                     </div>
                 </div>
@@ -249,6 +254,44 @@ export default function UserSubscription() {
                         </Table>
                     </CardContent>
                 </Card>
+
+                {/* Matchmaker Contact Dialog */}
+                <Dialog open={showMatchmakerDialog} onOpenChange={setShowMatchmakerDialog}>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Devenir Client</DialogTitle>
+                            <DialogDescription>
+                                Contacter votre matchmaker pour plus de détails
+                            </DialogDescription>
+                        </DialogHeader>
+                        {assignedMatchmaker ? (
+                            <div className="flex flex-col gap-4">
+                                <p className="text-sm text-muted-foreground">
+                                    Pour devenir client, veuillez contacter votre matchmaker pour plus de détails.
+                                </p>
+                                <Link 
+                                    href={assignedMatchmaker.username ? `/profile/${assignedMatchmaker.username}` : '/matchmaker'}
+                                    className="w-full"
+                                >
+                                    <Button className="w-full">
+                                        Voir le profil de mon matchmaker
+                                    </Button>
+                                </Link>
+                            </div>
+                        ) : (
+                            <div className="flex flex-col gap-4">
+                                <p className="text-sm text-muted-foreground">
+                                    Pour devenir client, veuillez d'abord choisir un matchmaker.
+                                </p>
+                                <Link href="/user/matchmakers" className="w-full">
+                                    <Button className="w-full">
+                                        Choisir un matchmaker
+                                    </Button>
+                                </Link>
+                            </div>
+                        )}
+                    </DialogContent>
+                </Dialog>
             </div>
         </AppLayout>
     );

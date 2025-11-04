@@ -150,6 +150,9 @@ class UserController extends Controller
             return redirect()->route('dashboard');
         }
         
+        // Load assigned matchmaker relationship
+        $user->load('assignedMatchmaker');
+        
         // Get user's latest subscription
         $latestSubscription = $user->subscriptions()
             ->with(['matrimonialPack', 'assignedMatchmaker'])
