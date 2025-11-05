@@ -1,6 +1,6 @@
 import { Head, useForm } from '@inertiajs/react';
 import { Eye, EyeOff, LoaderCircle } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import InputError from '@/components/input-error';
 import TextLink from '@/components/text-link';
@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import AuthLayout from '@/layouts/auth-layout';
 
 export default function Register() {
+    const containerRef = useRef(null);
     const [showPassword, setShowPassword] = useState(false);
     const [showPasswordConfirmation, setShowPasswordConfirmation] = useState(false);
     const [termsAccepted, setTermsAccepted] = useState(false);
@@ -85,6 +86,28 @@ export default function Register() {
         return list;
     }, [selectedCountryCode, countryCodeToCities]);
 
+    // Ensure background expands with content height
+    useEffect(() => {
+        const updateBackgroundHeight = () => {
+            if (containerRef.current) {
+                const height = containerRef.current.scrollHeight;
+                containerRef.current.style.setProperty('--container-height', `${height}px`);
+            }
+        };
+
+        updateBackgroundHeight();
+        window.addEventListener('resize', updateBackgroundHeight);
+        const observer = new ResizeObserver(updateBackgroundHeight);
+        if (containerRef.current) {
+            observer.observe(containerRef.current);
+        }
+
+        return () => {
+            window.removeEventListener('resize', updateBackgroundHeight);
+            observer.disconnect();
+        };
+    }, [data]); // Re-run when form data changes
+
     const submit = (e) => {
         e.preventDefault();
         if (!termsAccepted) {
@@ -99,25 +122,40 @@ export default function Register() {
     };
 
     return (
-        <div className="flex h-[100svh] w-[100svw] place-content-center place-items-center auth-layout-bg ">
-            <div className='w-full absolute top-0 left-0 auth-layout-overlay '></div>
-            <div className="flex sm:flex-row flex-col sm:h-[90svh] h-fit sm:w-[80svw] w-[100vw] z-50 sm:relative sm:translate-x-[100px]">
-                {/* left side  */}
-                <div className="contenr-center sm:h-full h-[30%] sm:w-[50%] w-[100%]">
-                    <img loading="lazy" src="/images/wedding-boucket.avif" alt="" className="h-full w-full sm:rounded-s-4xl  object-cover" />
+        <div ref={containerRef} className="auth-layout-bg  flex min-h-screen flex-col relative">
+            {/* Red Banner */}
+            {/* <div className="auth-red-banner">
+                <div className="relative z-10">VOTRE MARIAGE, NOTRE MISSION !</div>
+            </div> */}
+            
+            
+            {/* Main Content Area */}
+            <div className="flex-1 relative flex items-center justify-center py-4 px-4">
+                {/* Welcome Text Overlay */}
+                {/* <div className="auth-welcome-overlay hidden md:block">
+                    <div className="auth-welcome-text">Bienvenu</div>
+                    <div className="auth-welcome-arabic">أهلا وسهلا</div>
                 </div>
-                {/* right side */}
-                <div className="sm:h-full sm:w-[50%] w-[100%]">
+                 */}
+                {/* Form Modal */}
+                <div className="auth-form-modal relative z-10 bottom-0">
+                    <Head title="Register" />
+                    
+                    {/* CZM Logo in Red Circle */}
+                    {/* <div className="auth-logo-container">
+                        <div className="auth-logo-ribbon">
+                            <img src="/images/czm_Logo.png" alt="CZM Logo" />
+                        </div>
+                    </div> */}
+                    
                     <AuthLayout
                         title="Créer un compte"
-                        className="h-full  sm:rounded-e-4xl sm:rounded-s-[40px] sm:absolute sm:right-[170px] bg-muted"
+                        className="bg-transparent p-0"
                         description="Saisissez vos coordonnées ci-dessous pour créer votre compte."
                     >
-                        <Head title="Register" />
-
                         <form className=" " onSubmit={submit}>
-                            <div className="flex flex-col gap-y-2">
-                                <div className="flex flex-col gap-y-2">
+                            <div className="flex flex-col gap-y-1.5">
+                                <div className="flex  flex-col gap-y-1">
                                     <Label htmlFor="name" >
                                         Identifiant
                                     </Label>
@@ -133,7 +171,7 @@ export default function Register() {
                                         disabled={processing}
                                         placeholder="Entrer votre identifiant ex:hajar05"
                                     />
-                                    <InputError message={errors.name} className="mt-2" />
+                                    <InputError message={errors.name} className="mt-0.5" />
                                 </div>
 
                                 <div className="">
@@ -187,8 +225,8 @@ export default function Register() {
                                     </Select>
                                     <InputError message={errors.gender} />
                                 </div>
-                                <div className="flex w-full gap-x-4">
-                                    <div className="grid w-[50%] gap-2 truncate">
+                                <div className="flex flex-col w-full gap-y-2">
+                                    <div className="grid w-full gap-2 truncate">
                                         <Label  htmlFor="country">
                                             Pays
                                         </Label>
@@ -217,7 +255,7 @@ export default function Register() {
                                         <InputError message={errors.country} />
                                     </div>
 
-                                    <div className="grid w-[60%] gap-2">
+                                    <div className="grid w-full gap-2">
                                         <Label  htmlFor="city">
                                             Ville
                                         </Label>
@@ -248,7 +286,7 @@ export default function Register() {
                                         <InputError message={errors.city} />
                                     </div>
                                 </div>
-                                <div className="grid grid-cols-2 gap-x-4">
+                                <div className="flex flex-col w-full gap-y-2">
                                     <div className="grid gap-2">
                                         <Label  htmlFor="password">
                                             Mot de passe
@@ -587,7 +625,7 @@ export default function Register() {
 
                                 <Button
                                     type="submit"
-                                    className="ursor-pointer bg-button-primary hover:bg-button-primary-hover mt-2 w-full"
+                                    className="auth-signup-button mt-1 w-full"
                                     tabIndex={9}
                                     disabled={processing || !termsAccepted}
                                 >
@@ -596,7 +634,7 @@ export default function Register() {
                                 </Button>
                             </div>
 
-                            <div className="text-muted-foreground text-center text-sm">
+                            <div className="text-muted-foreground text-center text-sm mt-2">
                                 Vous avez déjà un compte ?{' '}
                                 <TextLink href={route('login')} tabIndex={6}>
                                     Se connecter

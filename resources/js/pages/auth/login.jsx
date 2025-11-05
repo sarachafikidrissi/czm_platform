@@ -1,5 +1,6 @@
 import { Head, useForm } from '@inertiajs/react';
 import { LoaderCircle } from 'lucide-react';
+import { useEffect, useRef } from 'react';
 
 import InputError from '@/components/input-error';
 import TextLink from '@/components/text-link';
@@ -10,11 +11,34 @@ import { Label } from '@/components/ui/label';
 import AuthLayout from '@/layouts/auth-layout';
 
 export default function Login({ status, canResetPassword }) {
+    const containerRef = useRef(null);
     const { data, setData, post, processing, errors, reset } = useForm({
         email: '',
         password: '',
         remember: false,
     });
+
+    // Ensure background expands with content height
+    useEffect(() => {
+        const updateBackgroundHeight = () => {
+            if (containerRef.current) {
+                const height = containerRef.current.scrollHeight;
+                containerRef.current.style.setProperty('--container-height', `${height}px`);
+            }
+        };
+
+        updateBackgroundHeight();
+        window.addEventListener('resize', updateBackgroundHeight);
+        const observer = new ResizeObserver(updateBackgroundHeight);
+        if (containerRef.current) {
+            observer.observe(containerRef.current);
+        }
+
+        return () => {
+            window.removeEventListener('resize', updateBackgroundHeight);
+            observer.disconnect();
+        };
+    }, []);
 
     const submit = (e) => {
         e.preventDefault();
@@ -24,20 +48,39 @@ export default function Login({ status, canResetPassword }) {
     };
 
     return (
-        <div className="auth-layout-bg flex h-[100svh] w-[100svw] place-content-center place-items-center">
-            <div className="auth-layout-overlay sm:absolute top-0 left-0 w-full bg-red-400"></div>
-            <div className="sm:relative z-50 flex sm:flex-row flex-col-reverse sm:h-[90svh] h-fit sm:w-[80svw] w-[100vw] sm:translate-x-[-50px]">
-                {/* left side  */}
-                <div className="sm:h-full sm:w-[50%] w-[100svw]">
+        <div ref={containerRef} className="auth-layout-bg flex min-h-screen flex-col relative">
+            {/* Red Banner */}
+            {/* <div className="auth-red-banner">
+                <div className="relative z-10">VOTRE MARIAGE, NOTRE MISSION !</div>
+            </div> */}
+            
+            {/* Main Content Area */}
+            <div className="flex-1 relative flex items-center justify-center py-4 px-4">
+                {/* Welcome Text Overlay */}
+                {/* <div className="auth-welcome-overlay hidden md:block">
+                    <div className="auth-welcome-text">Bienvenu</div>
+                    <div className="auth-welcome-arabic">أهلا وسهلا</div>
+                </div> */}
+                
+                {/* Form Modal */}
+                <div className="auth-form-modal bottom-0 relative z-10">
+                    {/* <Head title="Log in" /> */}
+                    
+                    {/* CZM Logo in Red Circle */}
+                    {/* <div className="auth-logo-container">
+                        <div className="auth-logo-ribbon">
+                            <img src="/images/czm_Logo.png" alt="CZM Logo" />
+                        </div>
+                    </div>
+                     */}
                     <AuthLayout
-                        className="sm:absolute left-[160px] h-full sm:rounded-s-4xl sm:rounded-e-[40px] bg-muted"
+                        className="bg-transparent p-0"
                         title="Accès à votre compte"
                         description="Entrez votre email et votre mot de passe ci-dessous pour vous connecter"
                     >
-                        <Head title="Log in" />
 
-                        <form className="flex flex-col gap-6" onSubmit={submit}>
-                            <div className="grid gap-6">
+                        <form className="flex flex-col gap-3" onSubmit={submit}>
+                            <div className="grid gap-3">
                                 <div className="grid gap-2">
                                     <Label htmlFor="email">Adress Email</Label>
                                     <Input
@@ -89,7 +132,7 @@ export default function Login({ status, canResetPassword }) {
 
                                 <Button
                                     type="submit"
-                                    className="bg-button-primary hover:bg-button-primary-hover mt-4 w-full cursor-pointer"
+                                    className="auth-signup-button mt-1 w-full cursor-pointer"
                                     tabIndex={4}
                                     disabled={processing}
                                 >
@@ -98,20 +141,16 @@ export default function Login({ status, canResetPassword }) {
                                 </Button>
                             </div>
 
-                            <div className="text-muted-foreground text-center text-sm">
-                                Vous n'avez pas de compte ?{' '}
+                            <div className="text-muted-foreground text-center text-sm mt-2">
+                                Vous n'avez pas de compte ?{' '}
                                 <TextLink href={route('register')} tabIndex={5}>
                                     Inscrivez-vous
                                 </TextLink>
                             </div>
                         </form>
 
-                        {status && <div className="mb-4 text-center text-sm font-medium text-green-600">{status}</div>}
+                        {status && <div className="mb-2 text-center text-sm font-medium text-green-600 mt-2">{status}</div>}
                     </AuthLayout>
-                </div>
-                {/* right side */}
-                <div className="contenr-center sm:h-full h-[30vh] sm:w-[50%] w-[100%]">
-                    <img loading="lazy" src="./images/Wedding-photo.avif" alt="Flower Bouquet" className="h-full w-full sm:rounded-e-4xl object-cover" />
                 </div>
             </div>
         </div>

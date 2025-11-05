@@ -367,21 +367,324 @@
 
 /* In your CSS file */
 .auth-layout-bg {
-    background-image: url('/images/flower-background.jpg');
+    position: relative;
+    min-height: 100vh;
+    height: auto;
+    background-image: url('/images/Czm-arrière-site-web.jpg');
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
-    min-height: 100vh;
+    background-attachment: fixed;
+    /* min-height: 100vh; */
+    /* height: var(--container-height, 100%); */
+    padding: 20px;
 }
+
+/* Green scrollbar for auth layout */
+.auth-layout-bg {
+    scrollbar-width: thin;
+    scrollbar-color: #096725 #f5f5f5;
+}
+
+.auth-layout-bg::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.auth-layout-bg::-webkit-scrollbar-track {
+    background: #f5f5f5;
+    border-radius: 4px;
+}
+
+.auth-layout-bg::-webkit-scrollbar-thumb {
+    background: #096725;
+    border-radius: 4px;
+}
+
+.auth-layout-bg::-webkit-scrollbar-thumb:hover {
+    background: #086020;
+}
+
+
+/* Ensure background covers full content height on scroll */
+/* .auth-layout-bg::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 10px;
+    right: 0;
+    width: 100%;
+    height: var(--container-height, 100%);
+    min-height: 100vh;
+    background-image: url('/images/Czm-arrière-site-web.jpg');
+    background-size: contain;
+    background-position: center 200px;
+    background-repeat: no-repeat;
+    z-index: -1;
+    pointer-events: none;
+} */
 
 /* Optional: Overlay for better text readability */
 .auth-layout-overlay {
     background: rgba(0, 0, 0, 0.2); /* Dark overlay */
     min-height: 100vh;
 }
+
+
+
+
+/* Form modal with semi-transparent white background - centered and compact */
+.auth-form-modal {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(5px);
+    border-radius: 1rem;
+    /* padding: 1rem; */
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    max-width: 500px;
+    width: 100%;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 20px;
+    margin-bottom: 20px;
+    overflow-y: auto;
+    max-height: 60%;
+    /* top: 12rem; */
+}
+
+/* Green scrollbar for auth form modal */
+.auth-form-modal {
+    scrollbar-width: thin;
+    scrollbar-color: #096725 #f5f5f5;
+}
+
+.auth-form-modal::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.auth-form-modal::-webkit-scrollbar-track {
+    background: #f5f5f5;
+    border-radius: 4px;
+}
+
+.auth-form-modal::-webkit-scrollbar-thumb {
+    background: #096725;
+    border-radius: 4px;
+}
+
+.auth-form-modal::-webkit-scrollbar-thumb:hover {
+    background: #086020;
+}
+
+/* Position form lower on page to show background text */
+@media (min-width: 640px) {
+    .auth-form-modal {
+        top: 17rem;
+    }
+    .auth-layout-bg {
+        padding: 20px;
+    }
+}
+
+@media (min-width: 768px) {
+    /* .auth-form-modal {
+        top: 20rem;
+    } */
+    .auth-layout-bg {
+        padding: 20px;
+    }
+   
+   
+}
+
+@media (min-width: 1024px) {
+    .auth-form-modal {
+        /* top: 24rem; */
+    }
+}
+
+/* Compact form styling */
+.auth-form-modal form {
+    margin-top: 0.25rem;
+}
+
+.auth-form-modal .flex.flex-col.gap-y-1.5,
+.auth-form-modal .flex.flex-col.gap-y-2,
+.auth-form-modal .grid.gap-6,
+.auth-form-modal .grid.gap-3,
+.auth-form-modal .grid.gap-2,
+.auth-form-modal .flex.gap-x-2,
+.auth-form-modal .grid.gap-x-2 {
+    gap: 0.5rem !important;
+}
+
+.auth-form-modal .flex.gap-x-4 {
+    gap: 0.5rem !important;
+}
+
+.auth-form-modal .flex.flex-col.gap-y-1.5 > *,
+.auth-form-modal .flex.flex-col.gap-y-2 > * {
+    margin-bottom: 0;
+}
+
+/* Reduce spacing in form elements */
+.auth-form-modal .grid.gap-2 > * {
+    margin-bottom: 0;
+}
+
+.auth-form-modal label {
+    margin-bottom: 0.25rem;
+    font-size: 0.875rem;
+}
+
+
+/* Checkbox styling - light gray border when unchecked, green when checked */
+.auth-form-modal [data-slot="checkbox"] {
+    border-color: #e5e5e5 !important;
+    border-width: 1px !important;
+    background-color: #ffffff !important;
+}
+
+.auth-form-modal [data-slot="checkbox"]:focus-visible {
+    border-color: #e5e5e5 !important;
+}
+
+/* Green color when checked */
+.auth-form-modal [data-slot="checkbox"][data-state="checked"] {
+    background-color: #096725 !important;
+    border-color: #096725 !important;
+    color: #ffffff !important;
+}
+
+.auth-form-modal [data-slot="checkbox-indicator"] {
+    color: #ffffff !important;
+} */
+
+.auth-form-modal button {
+    padding: 0.625rem 1rem;
+    font-size: 0.875rem;
+}
+
+/* Reduce all margins and padding in form */
+.auth-form-modal .space-x-2,
+.auth-form-modal .space-x-3 {
+    gap: 0.5rem;
+}
+
+
+/* Responsive sizing */
+@media (min-width: 640px) {
+    .auth-form-modal {
+        padding: 1.25rem;
+        max-width: 480px;
+    }
+    
+}
+
+@media (min-width: 1024px) {
+    .auth-form-modal {
+        /* padding: 1.5rem; */
+        max-width: 500px;
+        
+    }
+}
+
+/* Logo in red circular ribbon */
+.auth-logo-container {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 1rem;
+}
+
+.auth-logo-ribbon {
+    width: 80px;
+    height: 80px;
+    background: #dc2626;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.auth-logo-ribbon img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+/* Welcome text overlay */
+.auth-welcome-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    z-index: 1;
+    pointer-events: none;
+}
+
+.auth-welcome-text {
+    font-family: 'Dancing Script', 'Brush Script MT', cursive, serif;
+    font-size: 3rem;
+    font-weight: bold;
+    color: rgba(0, 0, 0, 0.7);
+    text-shadow: 2px 2px 4px rgba(255, 255, 255, 0.8);
+}
+
+.auth-welcome-arabic {
+    font-family: 'Dancing Script', 'Brush Script MT', cursive, serif;
+    font-size: 2.5rem;
+    font-weight: bold;
+    color: rgba(0, 0, 0, 0.7);
+    text-shadow: 2px 2px 4px rgba(255, 255, 255, 0.8);
+    margin-top: 0.5rem;
+}
+
+/* Button styling for sign up */
+.auth-signup-button {
+    background-color: #8B2635; /* Dark red/burgundy */
+    color: white;
+    border-radius: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    font-weight: 600;
+    transition: background-color 0.2s;
+    border: none;
+}
+
+.auth-signup-button:hover {
+    background-color: #9D2E3F;
+}
+
+.auth-signup-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Background blur effect */
+.auth-background-blur {
+    filter: blur(2px);
+    transform: scale(1.05);
+}
+
+/* Hide default AuthLayout logo when using custom logo in modal */
+.auth-form-modal .auth-logo-container ~ * a[href*="home"] {
+    display: none;
+}
+
+.auth-form-modal .auth-logo-container ~ * h1 {
+    margin-top: 0.5rem;
+}
+
+/* Ensure form modal has proper spacing */
+.auth-form-modal form {
+    margin-top: 1rem;
+}
 .footer-layout-bg {
     background-image: url('/images/morocco-flag-banner.jpg');
-    background-size: 100%;
+    background-size: 100% 100%;
     background-position: center;
     background-repeat: no-repeat;
 }
