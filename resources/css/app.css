@@ -619,6 +619,7 @@ button[role="combobox"]:focus-visible,
         max-width: 480px;
     }
     
+    
 }
 
 @media (min-width: 1024px) {
@@ -627,7 +628,10 @@ button[role="combobox"]:focus-visible,
         max-width: 500px;
         
     }
+    
 }
+
+
 
 /* Logo in red circular ribbon */
 .auth-logo-container {
@@ -796,4 +800,3 @@ button[role="combobox"]:focus-visible,
 .border-info {
     border-color: var(--info-border);
 }
-
