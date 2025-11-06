@@ -179,7 +179,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/dashboard', [\App\Http\Controllers\AdminController::class, 'index'])->name('dashboard');
         Route::get('/create-staff', [\App\Http\Controllers\AdminController::class, 'createStaffForm'])->name('create-staff');
         Route::post('/create-staff', [\App\Http\Controllers\AdminController::class, 'createStaff']);
+        Route::get('/agencies', [\App\Http\Controllers\AdminController::class, 'agencies'])->name('agencies');
         Route::post('/agencies', [\App\Http\Controllers\AdminController::class, 'createAgency'])->name('agencies.create');
+        Route::post('/agencies/{agency}', [\App\Http\Controllers\AdminController::class, 'updateAgency'])->name('agencies.update');
+        Route::put('/agencies/{agency}', [\App\Http\Controllers\AdminController::class, 'updateAgency'])->name('agencies.update.put');
+        Route::delete('/agencies/{agency}', [\App\Http\Controllers\AdminController::class, 'deleteAgency'])->name('agencies.delete');
         Route::post('/services', [\App\Http\Controllers\AdminController::class, 'createService'])->name('services.create');
         Route::post('/matrimonial-packs', [\App\Http\Controllers\AdminController::class, 'createMatrimonialPack'])->name('matrimonial-packs.create');
         Route::post('/users/{user}/update-agency', [\App\Http\Controllers\AdminController::class, 'updateUserAgency'])->name('users.update-agency');

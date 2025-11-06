@@ -73,6 +73,12 @@ const mainNavItems: NavItem[] = [
         ],
     },
     {
+        title: 'Manage Agencies',
+        url: '/admin/agencies',
+        icon: Building2,
+        roles: ['admin'],
+    },
+    {
         title: 'Prospects',
         url: '/admin/prospects',
         icon: UserCheck,

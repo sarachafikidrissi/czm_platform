@@ -52,7 +52,7 @@ export default function AgenciesIndex() {
                                     key={agency.id}
                                     variant={activeTab === agency.id ? 'default' : 'outline'}
                                     onClick={() => handleAgencyClick(agency.id)}
-                                    className="flex items-center gap-2 rounded-lg px-2 py-2 w-[250px] max-w-content text-truncate"
+                                    className="flex items-center gap-2 rounded-lg px-2 py-2 sm:w-[250px] w-full max-w-content text-truncate"
                                     style={activeTab === agency.id ? { backgroundColor: '#890505', color: '#ffffff' } : {}}
                                 >
                                     <Building2 className="" />

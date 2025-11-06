@@ -419,6 +419,32 @@ class AdminController extends Controller
         return redirect()->back()->with('success', 'Staff member created successfully. Credentials sent via email.');
     }
 
+    public function agencies()
+    {
+        $agencies = Agency::orderBy('name')->get();
+        
+        // Add counts manually
+        foreach ($agencies as $agency) {
+            $agency->matchmakers_count = User::where('agency_id', $agency->id)
+                ->whereHas('roles', function($query) {
+                    $query->where('name', 'matchmaker');
+                })
+                ->where('approval_status', 'approved')
+                ->count();
+            
+            $agency->managers_count = User::where('agency_id', $agency->id)
+                ->whereHas('roles', function($query) {
+                    $query->where('name', 'manager');
+                })
+                ->where('approval_status', 'approved')
+                ->count();
+        }
+
+        return Inertia::render('admin/agencies', [
+            'agencies' => $agencies,
+        ]);
+    }
+
     public function createAgency(Request $request)
     {
         $request->validate([
@@ -445,6 +471,74 @@ class AdminController extends Controller
         ]);
 
         return redirect()->back()->with('success', 'Agency created successfully.');
+    }
+
+    public function updateAgency(Request $request, $id)
+    {
+        $agency = Agency::findOrFail($id);
+        
+        $request->validate([
+            'name' => 'nullable|string|max:255',
+            'country' => 'nullable|string|max:120',
+            'city' => 'nullable|string|max:120',
+            'address' => 'nullable|string',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'map' => 'nullable|string',
+        ]);
+        
+        $updateData = [];
+
+        // Get all input data - use all() to get everything, then filter
+        $allInput = $request->all();
+        
+        
+        // Update all fields that are in the request
+        // Check if fields exist in the request (even if empty)
+        $fieldsToCheck = ['name', 'country', 'city', 'address', 'map'];
+        foreach ($fieldsToCheck as $field) {
+            // Check if field exists in request (using array_key_exists for form data)
+            if (array_key_exists($field, $allInput)) {
+                $value = $request->input($field);
+                // Convert empty strings to null, but keep actual values
+                $updateData[$field] = ($value === '' || $value === null) ? null : $value;
+            }
+        }
+        
+
+        if ($request->hasFile('image')) {
+            // Delete old image if exists
+            if ($agency->image) {
+                Storage::disk('public')->delete($agency->image);
+            }
+            $updateData['image'] = $request->file('image')->store('agencies', 'public');
+        }
+
+        // Always update if we have data (form always sends data when submitted)
+        if (!empty($updateData) || $request->hasFile('image')) {
+            $agency->update($updateData);
+        }
+
+        return redirect()->back()->with('success', 'Agency updated successfully.');
+    }
+
+    public function deleteAgency($id)
+    {
+        $agency = Agency::findOrFail($id);
+        
+        // Check if agency has users
+        $usersCount = User::where('agency_id', $agency->id)->count();
+        if ($usersCount > 0) {
+            return redirect()->back()->with('error', 'Cannot delete agency. It has ' . $usersCount . ' user(s) assigned to it.');
+        }
+
+        // Delete image if exists
+        if ($agency->image) {
+            Storage::disk('public')->delete($agency->image);
+        }
+
+        $agency->delete();
+
+        return redirect()->back()->with('success', 'Agency deleted successfully.');
     }
 
     public function updateUserAgency(Request $request, $id)
