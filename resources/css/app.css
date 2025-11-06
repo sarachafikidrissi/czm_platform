@@ -509,6 +509,45 @@
     margin-top: 0.25rem;
 }
 
+/* Green focus border for all inputs - remove default styles */
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[role="combobox"]:focus-visible,
+button[role="combobox"]:focus-visible,
+[data-slot="input"]:focus-visible,
+[data-slot="select-trigger"]:focus-visible {
+    outline: none !important;
+    border-color: #096725 !important;
+    outline-color: #096725 !important;
+    --ring-color: #096725;
+    box-shadow: 0 0 0 3px rgba(9, 103, 37, 0.2) !important;
+}
+
+/* Multistep form inputs - override focus:border-info and focus:ring-info to green */
+.bg-card {
+    --info: #096725;
+}
+
+.bg-card input:focus,
+.bg-card select:focus,
+.bg-card textarea:focus,
+.bg-card [role="combobox"]:focus,
+.bg-card button[role="combobox"]:focus {
+    outline: none !important;
+    border-color: #096725 !important;
+    --tw-ring-color: #096725 !important;
+    box-shadow: 0 0 0 2px rgba(9, 103, 37, 0.2) !important;
+}
+
+.bg-card input:focus-visible,
+.bg-card select:focus-visible,
+.bg-card textarea:focus-visible {
+    outline: none !important;
+    border-color: #096725 !important;
+    box-shadow: 0 0 0 2px rgba(9, 103, 37, 0.2) !important;
+}
+
 .auth-form-modal .flex.flex-col.gap-y-1.5,
 .auth-form-modal .flex.flex-col.gap-y-2,
 .auth-form-modal .grid.gap-6,

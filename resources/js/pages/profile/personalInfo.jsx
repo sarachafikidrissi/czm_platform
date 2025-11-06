@@ -209,8 +209,8 @@ const PersonalInfo = ({ formData, setFormData, gender }) => {
                         type="date"
                         id="dateNaissance"
                         name="dateNaissance"
-                        max={new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().split('T')[0]}
-                        min={new Date(new Date().setFullYear(new Date().getFullYear() - 30)).toISOString().split('T')[0]}
+                        max={new Date(new Date().setFullYear(new Date().getFullYear() - 16)).toISOString().split('T')[0]}
+                        min={new Date(new Date().setFullYear(new Date().getFullYear() - 70)).toISOString().split('T')[0]}
                         value={formData.dateNaissance}
                         onChange={handleInputChange}
                         placeholder="dd / mm / yyyy"
