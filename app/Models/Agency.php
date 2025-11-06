@@ -22,4 +22,20 @@ class Agency extends Model
     {
         return $this->hasMany(User::class, 'agency_id');
     }
+
+    public function matchmakers()
+    {
+        return $this->hasMany(User::class, 'agency_id')
+            ->whereHas('roles', function($query) {
+                $query->where('name', 'matchmaker');
+            });
+    }
+
+    public function managers()
+    {
+        return $this->hasMany(User::class, 'agency_id')
+            ->whereHas('roles', function($query) {
+                $query->where('name', 'manager');
+            });
+    }
 }

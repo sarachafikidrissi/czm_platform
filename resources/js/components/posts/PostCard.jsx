@@ -219,15 +219,14 @@ export default function PostCard({ post }) {
                                         <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200">
                                             <span className="text-xs font-medium text-gray-600">
                                                 {
-                                                    comment.user.roles[0].name !== 'user' && comment.user.profile_picture ? (
+                                                    comment.user?.roles?.[0]?.name !== 'user' && comment.user?.profile_picture ? (
                                                         <img src={`/storage/${comment.user.profile_picture}`} alt={comment.user.name} className="h-full w-full object-cover rounded-full" />
-                                                    ) : comment.user.roles[0].name === 'user' && comment.user.profile.profile_picture_path ? (
+                                                    ) : comment.user?.roles?.[0]?.name === 'user' && comment.user?.profile?.profile_picture_path ? (
                                                         <img src={`/storage/${comment.user.profile.profile_picture_path}`} alt={comment.user.name} className="h-full w-full object-cover rounded-full" />
                                                     ) : (
                                                        comment.user?.name?.charAt(0)?.toUpperCase() || 'U'
                                                     )
                                                 }
-                                                {/* {comment.user?.name?.charAt(0)?.toUpperCase() || 'U'} */}
                                             </span>
                                         </div>
                                         <div className="flex-1">

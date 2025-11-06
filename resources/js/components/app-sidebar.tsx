@@ -5,7 +5,7 @@ import { NavUser } from '@/components/nav-user';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { CalendarHeart, Flame, HeartHandshake, Images, LayoutGrid, User, UserRoundSearch, Users, UserCheck, Plus, ShoppingCart, CreditCard, RotateCcw } from 'lucide-react';
+import { CalendarHeart, Flame, HeartHandshake, Images, LayoutGrid, User, UserRoundSearch, Users, UserCheck, Plus, ShoppingCart, CreditCard, RotateCcw, Building2 } from 'lucide-react';
 
 const mainNavItems: NavItem[] = [
     {
@@ -113,6 +113,12 @@ const mainNavItems: NavItem[] = [
         url: '/staff/reactivation-requests',
         icon: RotateCcw,
         roles: ['matchmaker'],
+    },
+    {
+        title: 'Agencies',
+        url: '/agencies',
+        icon: Building2,
+        roles: ['user', 'admin', 'matchmaker', 'manager'],
     },
 ];
 

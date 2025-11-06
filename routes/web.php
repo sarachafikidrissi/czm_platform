@@ -261,6 +261,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('/posts/{post}', [\App\Http\Controllers\PostController::class, 'destroy'])->name('posts.destroy');
     });
 
+    // Agency routes (accessible by all authenticated users)
+    Route::middleware(['auth'])->group(function () {
+        Route::get('/agencies', [\App\Http\Controllers\AgencyController::class, 'index'])->name('agencies.index');
+        Route::get('/agencies/{id}', [\App\Http\Controllers\AgencyController::class, 'show'])->name('agencies.show');
+    });
+
     // Sidebar pages
     Route::get('/photos', function () {
         return Inertia::render('photos');
