@@ -91,6 +91,12 @@ const mainNavItems: NavItem[] = [
         roles: ['matchmaker', 'manager'],
     },
     {
+        title: 'Ajouter un prospect',
+        url: '/staff/prospects/create',
+        icon: Plus,
+        roles: ['matchmaker', 'manager'],
+    },
+    {
         title: 'Assignment Tracking',
         url: '/manager/tracking',
         icon: UserRoundSearch,

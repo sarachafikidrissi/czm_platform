@@ -50,7 +50,11 @@ export default function MatchmakerProspects() {
         if (!prospect || prospect.status !== 'prospect') return false;
         if (!userRole || !userId) return false;
         if (userRole === 'admin') return true;
-        if (userRole === 'matchmaker' && prospect.assigned_matchmaker_id === userId) return true;
+        // Matchmaker can reject if assigned to them OR if prospect is from their agency and was added by manager
+        if (userRole === 'matchmaker') {
+            if (prospect.assigned_matchmaker_id === userId) return true;
+            if (prospect.agency_id === userAgencyId && prospect.assigned_matchmaker_id === null) return true;
+        }
         if (userRole === 'manager' && prospect.agency_id === userAgencyId) return true;
         return false;
     };
@@ -110,7 +114,11 @@ export default function MatchmakerProspects() {
         if (!prospect || !prospect.rejection_reason) return false;
         if (!userRole || !userId) return false;
         if (userRole === 'admin') return true;
-        if (userRole === 'matchmaker' && prospect.assigned_matchmaker_id === userId) return true;
+        // Matchmaker can accept if assigned to them OR if prospect is from their agency and was added by manager
+        if (userRole === 'matchmaker') {
+            if (prospect.assigned_matchmaker_id === userId) return true;
+            if (prospect.agency_id === userAgencyId && prospect.assigned_matchmaker_id === null) return true;
+        }
         if (userRole === 'manager' && prospect.agency_id === userAgencyId) return true;
         return false;
     };

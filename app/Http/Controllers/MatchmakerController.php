@@ -6,10 +6,14 @@ use App\Models\User;
 use App\Models\Bill;
 use App\Models\MatrimonialPack;
 use App\Mail\BillEmail;
+use App\Mail\ProspectCredentialsMail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rules;
 use Inertia\Inertia;
 use App\Models\Service;
 use Illuminate\Support\Facades\Schema;
@@ -45,24 +49,20 @@ class MatchmakerController extends Controller
         $query = User::role('user')
             ->where('status', 'prospect')
             ->with(['profile', 'assignedMatchmaker', 'agency']);
-        
-        // Filter by rejection status
-        if ($statusFilter === 'rejected') {
-            $query->whereNotNull('rejection_reason');
-        } else {
-            // Default to active (non-rejected) prospects
-            $query->whereNull('rejection_reason');
-        }
 
-        // Role-based filtering
+        // Role-based filtering (applied before rejection filter to ensure correct filtering)
         if ($roleName === 'matchmaker') {
-            // Matchmaker: see prospects dispatched to them specifically OR to their agency
+            // Matchmaker: see prospects they added OR prospects added by manager to their agency
             $query->where(function($q) use ($me) {
                 $q->where('assigned_matchmaker_id', $me->id)
-                  ->orWhere('agency_id', $me->agency_id);
+                  ->orWhere(function($subQ) use ($me) {
+                      // Prospects added by manager to their agency (agency_id matches and no assigned matchmaker)
+                      $subQ->where('agency_id', $me->agency_id)
+                           ->whereNull('assigned_matchmaker_id');
+                  });
             });
         } elseif ($roleName === 'manager') {
-            // Manager: see prospects dispatched to their agency OR to matchmakers in their agency
+            // Manager: see prospects from their agency (including those added by matchmakers in their agency)
             // Get all matchmaker IDs in the manager's agency to avoid relationship caching issues
             $matchmakerIds = User::role('matchmaker')
                 ->where('agency_id', $me->agency_id)
@@ -70,12 +70,26 @@ class MatchmakerController extends Controller
                 ->toArray();
             
             $query->where(function($q) use ($me, $matchmakerIds) {
-                $q->where('agency_id', $me->agency_id);
-                // Only add the matchmaker check if there are matchmakers in the agency
+                // Prospects assigned to the agency directly (added by manager)
+                $q->where('agency_id', $me->agency_id)
+                  ->whereNull('assigned_matchmaker_id');
+                // OR prospects added by matchmakers in their agency
                 if (!empty($matchmakerIds)) {
                     $q->orWhereIn('assigned_matchmaker_id', $matchmakerIds);
                 }
             });
+        }
+
+        // Filter by rejection status (after role-based filtering)
+        if ($statusFilter === 'rejected') {
+            $query->whereNotNull('rejection_reason');
+            // For matchmakers, only show prospects they rejected
+            if ($roleName === 'matchmaker') {
+                $query->where('rejected_by', $me->id);
+            }
+        } else {
+            // Default to active (non-rejected) prospects
+            $query->whereNull('rejection_reason');
         }
 
         if ($filter === 'complete') {
@@ -318,14 +332,18 @@ class MatchmakerController extends Controller
             ->where('model_has_roles.model_id', $me->id)
             ->value('roles.name');
 
-        // Check authorization: admin, assigned matchmaker, or manager of the agency
+        // Check authorization: admin, assigned matchmaker, matchmaker from same agency (for manager-added prospects), or manager of the agency
         $canReject = false;
         
         if ($roleName === 'admin') {
             $canReject = true;
         } elseif ($roleName === 'matchmaker') {
-            // Matchmaker can reject if they are assigned to the prospect
+            // Matchmaker can reject if:
+            // 1. They are assigned to the prospect (they added it)
+            // 2. OR the prospect is from their agency and was added by manager (assigned_matchmaker_id is NULL)
             if ($prospect->assigned_matchmaker_id === $me->id) {
+                $canReject = true;
+            } elseif ($prospect->agency_id === $me->agency_id && $prospect->assigned_matchmaker_id === null) {
                 $canReject = true;
             }
         } elseif ($roleName === 'manager') {
@@ -339,12 +357,22 @@ class MatchmakerController extends Controller
             abort(403, 'Vous n\'êtes pas autorisé à rejeter ce prospect.');
         }
 
-        // Update prospect with rejection information
-        $prospect->update([
-            'rejection_reason' => $request->rejection_reason,
-            'rejected_by' => $me->id,
-            'rejected_at' => now(),
-        ]);
+        // If matchmaker rejects a prospect added by manager, assign it to them
+        if ($roleName === 'matchmaker' && $prospect->assigned_matchmaker_id === null && $prospect->agency_id === $me->agency_id) {
+            $prospect->update([
+                'assigned_matchmaker_id' => $me->id,
+                'rejection_reason' => $request->rejection_reason,
+                'rejected_by' => $me->id,
+                'rejected_at' => now(),
+            ]);
+        } else {
+            // Update prospect with rejection information
+            $prospect->update([
+                'rejection_reason' => $request->rejection_reason,
+                'rejected_by' => $me->id,
+                'rejected_at' => now(),
+            ]);
+        }
 
         return redirect()->back()->with('success', 'Prospect rejeté avec succès.');
     }
@@ -377,14 +405,18 @@ class MatchmakerController extends Controller
             ->where('model_has_roles.model_id', $me->id)
             ->value('roles.name');
 
-        // Check authorization: admin, assigned matchmaker, or manager of the agency
+        // Check authorization: admin, assigned matchmaker, matchmaker from same agency (for manager-added prospects), or manager of the agency
         $canAccept = false;
         
         if ($roleName === 'admin') {
             $canAccept = true;
         } elseif ($roleName === 'matchmaker') {
-            // Matchmaker can accept if they are assigned to the prospect
+            // Matchmaker can accept if:
+            // 1. They are assigned to the prospect (they added it)
+            // 2. OR the prospect is from their agency and was added by manager (assigned_matchmaker_id is NULL)
             if ($prospect->assigned_matchmaker_id === $me->id) {
+                $canAccept = true;
+            } elseif ($prospect->agency_id === $me->agency_id && $prospect->assigned_matchmaker_id === null) {
                 $canAccept = true;
             }
         } elseif ($roleName === 'manager') {
@@ -443,11 +475,10 @@ class MatchmakerController extends Controller
         // Role-based filtering
         if ($me) {
             if ($roleName === 'matchmaker') {
-                // Matchmaker: see users they validated OR assigned to them OR from their agency
+                // Matchmaker: see users they validated OR assigned to them (not all from agency)
                 $query->where(function($q) use ($me) {
                     $q->where('approved_by', $me->id)
-                      ->orWhere('assigned_matchmaker_id', $me->id)
-                      ->orWhere('agency_id', $me->agency_id);
+                      ->orWhere('assigned_matchmaker_id', $me->id);
                 });
             } elseif ($roleName === 'manager') {
                 // Manager: see users validated by matchmakers in their agency OR assigned to matchmakers in their agency OR from their agency
@@ -595,13 +626,17 @@ class MatchmakerController extends Controller
 
         // Role-based filtering
         if ($roleName === 'matchmaker') {
-            // Matchmaker: see prospects dispatched to them specifically OR to their agency
+            // Matchmaker: see prospects they added OR prospects added by manager to their agency
             $query->where(function($q) use ($me) {
                 $q->where('assigned_matchmaker_id', $me->id)
-                  ->orWhere('agency_id', $me->agency_id);
+                  ->orWhere(function($subQ) use ($me) {
+                      // Prospects added by manager to their agency (agency_id matches and no assigned matchmaker)
+                      $subQ->where('agency_id', $me->agency_id)
+                           ->whereNull('assigned_matchmaker_id');
+                  });
             });
         } elseif ($roleName === 'manager') {
-            // Manager: see prospects dispatched to their agency OR to matchmakers in their agency
+            // Manager: see prospects from their agency (including those added by matchmakers in their agency)
             // Get all matchmaker IDs in the manager's agency to avoid relationship caching issues
             $matchmakerIds = User::role('matchmaker')
                 ->where('agency_id', $me->agency_id)
@@ -609,13 +644,29 @@ class MatchmakerController extends Controller
                 ->toArray();
             
             $query->where(function($q) use ($me, $matchmakerIds) {
-                $q->where('agency_id', $me->agency_id);
-                // Only add the matchmaker check if there are matchmakers in the agency
+                // Prospects assigned to the agency directly (added by manager)
+                $q->where('agency_id', $me->agency_id)
+                  ->whereNull('assigned_matchmaker_id');
+                // OR prospects added by matchmakers in their agency
                 if (!empty($matchmakerIds)) {
                     $q->orWhereIn('assigned_matchmaker_id', $matchmakerIds);
                 }
             });
-        } elseif ($roleName === 'admin') {
+        }
+
+        // Filter by rejection status (after role-based filtering)
+        if ($statusFilter === 'rejected') {
+            $query->whereNotNull('rejection_reason');
+            // For matchmakers, only show prospects they rejected
+            if ($roleName === 'matchmaker') {
+                $query->where('rejected_by', $me->id);
+            }
+        } else {
+            // Default to active (non-rejected) prospects
+            $query->whereNull('rejection_reason');
+        }
+
+        if ($roleName === 'admin') {
             // Admin: may filter by agency_id
             $agencyId = (int) $request->integer('agency_id');
             if ($agencyId) {
@@ -879,5 +930,156 @@ class MatchmakerController extends Controller
         }
 
         return redirect()->back()->with('success', $message);
+    }
+
+    /**
+     * Show the form to add a new prospect
+     */
+    public function createProspect()
+    {
+        $me = Auth::user();
+        if (!$me) {
+            abort(403, 'Unauthorized.');
+        }
+
+        $roleName = \Illuminate\Support\Facades\DB::table('model_has_roles')
+            ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+            ->where('model_has_roles.model_id', $me->id)
+            ->value('roles.name');
+
+        // Only matchmakers and managers can add prospects
+        if (!in_array($roleName, ['matchmaker', 'manager'])) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        // Check approval status
+        if ($me->approval_status !== 'approved') {
+            abort(403, 'Your account is not validated yet.');
+        }
+
+        // Restrict matchmaker access: must be linked to an agency
+        if ($roleName === 'matchmaker' && !$me->agency_id) {
+            abort(403, 'You must be linked to an agency to add prospects.');
+        }
+
+        return Inertia::render('matchmaker/add-prospect');
+    }
+
+    /**
+     * Store a new prospect added by matchmaker or manager
+     */
+    public function storeProspect(Request $request)
+    {
+        $me = Auth::user();
+        if (!$me) {
+            abort(403, 'Unauthorized.');
+        }
+
+        $roleName = \Illuminate\Support\Facades\DB::table('model_has_roles')
+            ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+            ->where('model_has_roles.model_id', $me->id)
+            ->value('roles.name');
+
+        // Only matchmakers and managers can add prospects
+        if (!in_array($roleName, ['matchmaker', 'manager'])) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        // Check approval status
+        if ($me->approval_status !== 'approved') {
+            abort(403, 'Your account is not validated yet.');
+        }
+
+        // Restrict matchmaker access: must be linked to an agency
+        if ($roleName === 'matchmaker' && !$me->agency_id) {
+            abort(403, 'You must be linked to an agency to add prospects.');
+        }
+
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|lowercase|email|max:255|unique:'.User::class,
+            'phone' => 'required|string|max:20',
+            'gender' => 'required|string|in:male,female,other,prefer-not-to-say',
+            'country' => 'required|string|max:100',
+            'city' => 'required|string|max:100',
+        ]);
+
+        // Generate unique username
+        $baseUsername = Str::slug($request->name);
+        $username = $baseUsername;
+        $counter = 1;
+        
+        while (User::where('username', $username)->exists()) {
+            $username = $baseUsername . $counter;
+            $counter++;
+        }
+
+        // Generate a secure random password that meets password rules
+        // Generate password with uppercase, lowercase, numbers, and special characters
+        $uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        $lowercase = 'abcdefghijklmnopqrstuvwxyz';
+        $numbers = '0123456789';
+        $special = '!@#$%^&*';
+        $all = $uppercase . $lowercase . $numbers . $special;
+        
+        $password = '';
+        // Ensure at least one character from each set
+        $password .= $uppercase[random_int(0, strlen($uppercase) - 1)];
+        $password .= $lowercase[random_int(0, strlen($lowercase) - 1)];
+        $password .= $numbers[random_int(0, strlen($numbers) - 1)];
+        $password .= $special[random_int(0, strlen($special) - 1)];
+        
+        // Fill the rest randomly
+        for ($i = strlen($password); $i < 12; $i++) {
+            $password .= $all[random_int(0, strlen($all) - 1)];
+        }
+        
+        // Shuffle the password to randomize character positions
+        $password = str_shuffle($password);
+
+        // Determine assignment based on role
+        $assignedMatchmakerId = null;
+        $agencyId = null;
+
+        if ($roleName === 'matchmaker') {
+            // If matchmaker adds prospect, assign directly to them
+            $assignedMatchmakerId = $me->id;
+            $agencyId = $me->agency_id;
+        } elseif ($roleName === 'manager') {
+            // If manager adds prospect, assign to agency (visible to all matchmakers in that agency)
+            $agencyId = $me->agency_id;
+            // Don't set assigned_matchmaker_id, so it's visible to all matchmakers in the agency
+        }
+
+        $user = User::create([
+            'name' => $request->name,
+            'username' => $username,
+            'email' => $request->email,
+            'phone' => $request->phone,
+            'gender' => $request->gender,
+            'country' => $request->country,
+            'city' => $request->city,
+            'password' => Hash::make($password),
+            'status' => 'prospect',
+            'agency_id' => $agencyId,
+            'assigned_matchmaker_id' => $assignedMatchmakerId,
+        ]);
+
+        $user->assignRole('user');
+        $user->profile()->create([]);
+
+        // Send email with credentials
+        try {
+            Mail::to($user->email)->send(new ProspectCredentialsMail(
+                name: $user->name,
+                email: $user->email,
+                password: $password,
+            ));
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error("Failed to send prospect credentials email to {$user->email}: " . $e->getMessage());
+            // Don't fail the creation if email fails, but log it
+        }
+
+        return redirect()->route('staff.agency-prospects')->with('success', 'Prospect créé avec succès. Les identifiants ont été envoyés par email.');
     }
 }
