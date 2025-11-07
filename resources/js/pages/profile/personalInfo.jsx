@@ -163,6 +163,7 @@ const PersonalInfo = ({ formData, setFormData, gender }) => {
             {/* Step Title */}
             <div className="mb-8">
                 <h2 className="mb-2 text-2xl font-bold text-gray-900">Informations Personnelles</h2>
+                <p className="text-2xl font-bold text-gray-900 mb-1" dir="rtl">المعلومات الشخصية</p>
                 <p className="text-gray-600">Parlez-nous un peu de vous</p>
             </div>
 
@@ -173,6 +174,7 @@ const PersonalInfo = ({ formData, setFormData, gender }) => {
                     <label htmlFor="nom" className="mb-1 block text-sm font-medium text-foreground">
                         Nom *
                     </label>
+                    <p className="text-sm font-medium text-foreground mb-1" dir="rtl">الاسم</p>
                     <input
                         type="text"
                         id="nom"
@@ -189,6 +191,7 @@ const PersonalInfo = ({ formData, setFormData, gender }) => {
                     <label htmlFor="prenom" className="mb-1 block text-sm font-medium text-gray-700">
                         Prénom *
                     </label>
+                    <p className="text-sm font-medium text-gray-700 mb-1" dir="rtl">الاسم الأول</p>
                     <input
                         type="text"
                         id="prenom"
@@ -205,6 +208,7 @@ const PersonalInfo = ({ formData, setFormData, gender }) => {
                     <label htmlFor="dateNaissance" className="mb-1 block text-sm font-medium text-gray-700">
                         Date de naissance *
                     </label>
+                    <p className="text-sm font-medium text-gray-700 mb-1" dir="rtl">تاريخ الميلاد</p>
                     <input
                         type="date"
                         id="dateNaissance"
@@ -223,6 +227,7 @@ const PersonalInfo = ({ formData, setFormData, gender }) => {
                     <label htmlFor="niveauEtudes" className="mb-1 block text-sm font-medium text-gray-700">
                         Niveau d'études *
                     </label>
+                    <p className="text-sm font-medium text-gray-700 mb-1" dir="rtl">المستوى التعليمي</p>
                     <select
                         id="niveauEtudes"
                         name="niveauEtudes"
@@ -246,6 +251,7 @@ const PersonalInfo = ({ formData, setFormData, gender }) => {
                         <label htmlFor="situationProfessionnelle" className="mb-1 block text-sm font-medium text-gray-700">
                             Situation professionnelle *
                         </label>
+                        <p className="text-sm font-medium text-gray-700 mb-1" dir="rtl">الوضع المهني</p>
                         <select
                             id="situationProfessionnelle"
                             name="situationProfessionnelle"
@@ -268,6 +274,7 @@ const PersonalInfo = ({ formData, setFormData, gender }) => {
                         <label htmlFor="secteur" className="mb-1 block text-sm font-medium text-gray-700">
                             Secteur d'activité
                         </label>
+                        <p className="text-sm font-medium text-gray-700 mb-1" dir="rtl">قطاع النشاط</p>
                         <select
                             id="secteur"
                             name="secteur"
@@ -310,6 +317,7 @@ const PersonalInfo = ({ formData, setFormData, gender }) => {
                     <label htmlFor="revenu" className="mb-1 block text-sm font-medium text-gray-700">
                         Revenu mensuel (MAD) *
                     </label>
+                    <p className="text-sm font-medium text-gray-700 mb-1" dir="rtl">الدخل الشهري</p>
                     <select
                         id="revenu"
                         name="revenu"
@@ -335,6 +343,7 @@ const PersonalInfo = ({ formData, setFormData, gender }) => {
                         <label htmlFor="religion" className="mb-1 block text-sm font-medium text-gray-700">
                             Religion
                         </label>
+                        <p className="text-sm font-medium text-gray-700 mb-1" dir="rtl">الدين</p>
                         <select
                             id="religion"
                             name="religion"
@@ -352,6 +361,7 @@ const PersonalInfo = ({ formData, setFormData, gender }) => {
                         <label htmlFor="origine" className="mb-1 block text-sm font-medium text-gray-700">
                             Origine
                         </label>
+                        <p className="text-sm font-medium text-gray-700 mb-1" dir="rtl">الأصل</p>
                         <select
                             id="origine"
                             name="origine"
@@ -375,6 +385,7 @@ const PersonalInfo = ({ formData, setFormData, gender }) => {
                         <label htmlFor="paysResidence" className="mb-1 block text-sm font-medium text-gray-700">
                             Pays de résidence
                         </label>
+                        <p className="text-sm font-medium text-gray-700 mb-1" dir="rtl">بلد الإقامة</p>
                         {loadingCountries ? (
                             <div className="rounded-lg border border-border px-4 py-3 text-sm text-muted-foreground">
                                 Chargement des pays...
@@ -396,6 +407,7 @@ const PersonalInfo = ({ formData, setFormData, gender }) => {
                         <label htmlFor="villeResidence" className="mb-1 block text-sm font-medium text-gray-700">
                             Ville de résidence
                         </label>
+                        <p className="text-sm font-medium text-gray-700 mb-1" dir="rtl">مدينة الإقامة</p>
                         {!selectedResidenceCountry ? (
                             <div className="rounded-lg border border-border px-4 py-3 text-sm text-muted-foreground">
                                 Veuillez d'abord sélectionner un pays de résidence
@@ -423,6 +435,7 @@ const PersonalInfo = ({ formData, setFormData, gender }) => {
                         <label htmlFor="paysOrigine" className="mb-1 block text-sm font-medium text-gray-700">
                             Pays d'origine
                         </label>
+                        <p className="text-sm font-medium text-gray-700 mb-1" dir="rtl">بلد المنشأ</p>
                         {loadingCountries ? (
                             <div className="rounded-lg border border-border px-4 py-3 text-sm text-muted-foreground">
                                 Chargement des pays...
@@ -444,6 +457,7 @@ const PersonalInfo = ({ formData, setFormData, gender }) => {
                         <label htmlFor="villeOrigine" className="mb-1 block text-sm font-medium text-gray-700">
                             Ville d'origine
                         </label>
+                        <p className="text-sm font-medium text-gray-700 mb-1" dir="rtl">مدينة المنشأ</p>
                         {!selectedOriginCountry ? (
                             <div className="rounded-lg border border-border px-4 py-3 text-sm text-muted-foreground">
                                 Veuillez d'abord sélectionner un pays d'origine

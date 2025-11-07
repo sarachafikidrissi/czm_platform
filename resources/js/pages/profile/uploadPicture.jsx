@@ -101,13 +101,17 @@ function UploadPicture({ formData, setFormData }) {
             {/* Step Title */}
             <div className="mb-8">
                 <h2 className="mb-2 text-2xl font-bold text-foreground">Ajoutez votre photo</h2>
+                <p className="text-2xl font-bold text-foreground mb-1" dir="rtl">أضف صورتك</p>
                 <p className="text-muted-foreground">Les photos renforcent les connexions. Choisissez une image claire et naturelle.</p>
             </div>
 
             {/* Form Fields */}
             {/* Profile Picture Upload */}
             <div className="space-y-4">
-                <label className="mb-2 block text-sm font-medium text-foreground">Photo de profil *</label>
+                <div>
+                    <label className="mb-2 block text-sm font-medium text-foreground">Photo de profil *</label>
+                    <p className="text-sm font-medium text-foreground mb-2" dir="rtl">صورة الملف الشخصي</p>
+                </div>
 
                 <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 p-6 transition-colors hover:border-blue-400">
                     {/* Preview Area */}
@@ -203,6 +207,7 @@ function UploadPicture({ formData, setFormData }) {
             <div className="mt-8 space-y-4">
                 <div className="border-t border-border pt-6">
                     <label className="mb-2 block text-sm font-medium text-foreground">Carte d'Identité Nationale (CNI)</label>
+                    <p className="text-sm font-medium text-foreground mb-1" dir="rtl">بطاقة الهوية الوطنية</p>
                     <p className="mb-4 text-xs text-muted-foreground">Veuillez télécharger la face avant de votre CNI (optionnel - peut être rempli par votre matchmaker)</p>
 
                     {/* CIN Number */}
@@ -210,6 +215,7 @@ function UploadPicture({ formData, setFormData }) {
                         <label htmlFor="cin" className="mb-1 block text-sm font-medium text-foreground">
                             Numéro de CNI
                         </label>
+                        <p className="text-sm font-medium text-foreground mb-1" dir="rtl">رقم بطاقة الهوية الوطنية</p>
                         <input
                             type="text"
                             id="cin"

@@ -159,6 +159,7 @@ export default function Register() {
                                     <Label htmlFor="name" >
                                         Identifiant
                                     </Label>
+                                    <p className="text-sm font-medium leading-none mt-0.5" dir="rtl">المعرف</p>
                                     <Input
                                         id="name"
                                         type="text"
@@ -178,6 +179,7 @@ export default function Register() {
                                     <Label  htmlFor="email">
                                         Adress Email
                                     </Label>
+                                    <p className="text-sm font-medium leading-none mt-0.5" dir="rtl">عنوان البريد الإلكتروني</p>
                                     <Input
                                         id="email"
                                         type="email"
@@ -196,6 +198,7 @@ export default function Register() {
                                     <Label  htmlFor="phone">
                                         Numéro de téléphone
                                     </Label>
+                                    <p className="text-sm font-medium leading-none mt-0.5" dir="rtl">رقم الهاتف</p>
                                     <Input
                                         id="phone"
                                         type="tel"
@@ -214,6 +217,7 @@ export default function Register() {
                                     <Label  htmlFor="gender">
                                         Sexe
                                     </Label>
+                                    <p className="text-sm font-medium leading-none mt-0.5" dir="rtl">الجنس</p>
                                     <Select value={data.gender} onValueChange={(value) => setData('gender', value)} disabled={processing}>
                                         <SelectTrigger tabIndex={4}>
                                             <SelectValue placeholder="Choisur votre sexe" />
@@ -230,6 +234,7 @@ export default function Register() {
                                         <Label  htmlFor="country">
                                             Pays
                                         </Label>
+                                        <p className="text-sm font-medium leading-none mt-0.5" dir="rtl">البلد</p>
                                         <Select
                                             value={selectedCountryCode}
                                             onValueChange={(value) => {
@@ -259,6 +264,7 @@ export default function Register() {
                                         <Label  htmlFor="city">
                                             Ville
                                         </Label>
+                                        <p className="text-sm font-medium leading-none mt-0.5" dir="rtl">المدينة</p>
                                         <Select
                                             value={data.city}
                                             onValueChange={(value) => setData('city', value)}
@@ -268,7 +274,7 @@ export default function Register() {
                                                 <SelectValue
                                                     placeholder={
                                                         !selectedCountryCode
-                                                            ? 'Sélectionnez d’abord un pays'
+                                                            ? 'Sélectionnez d\'abord un pays'
                                                             : availableCities.length
                                                               ? 'Sélectionnez votre ville'
                                                               : 'Aucune ville disponible'
@@ -291,6 +297,7 @@ export default function Register() {
                                         <Label  htmlFor="password">
                                             Mot de passe
                                         </Label>
+                                        <p className="text-sm font-medium leading-none mt-0.5" dir="rtl">كلمة المرور</p>
                                         <div className="relative">
                                             <Input
                                                 id="password"
@@ -322,6 +329,7 @@ export default function Register() {
                                         <Label  htmlFor="password_confirmation">
                                             Confirmer Mot de passe
                                         </Label>
+                                        <p className="text-sm font-medium leading-none mt-0.5" dir="rtl">تأكيد كلمة المرور</p>
                                         <div className="relative">
                                             <Input
                                                 id="password_confirmation"

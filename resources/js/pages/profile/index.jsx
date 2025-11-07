@@ -60,10 +60,10 @@ export default function Profile({ auth, profile }) {
     }, [profile]);
 
     const steps = [
-        { number: 1, label: 'Info De Base' },
-        { number: 2, label: 'Mode de vie' },
-        { number: 3, label: 'Profil recherche' },
-        { number: 4, label: 'Telecharger photo de profile' },
+        { number: 1, label: 'Info De Base', labelAr: 'المعلومات الأساسية' },
+        { number: 2, label: 'Mode de vie', labelAr: 'نمط الحياة' },
+        { number: 3, label: 'Profil recherche', labelAr: 'الملف الشخصي المطلوب' },
+        { number: 4, label: 'Telecharger photo de profile', labelAr: 'تحميل صورة الملف الشخصي' },
     ];
 
     const validateStep = (step) => {
@@ -247,11 +247,14 @@ export default function Profile({ auth, profile }) {
                                     </div>
 
                                     {/* Step label */}
-                                    <span
-                                        className={`mt-2 text-xs font-medium ${currentStep >= step.number ? 'text-button-primary' : 'text-muted-foreground'} hidden sm:block`}
-                                    >
-                                        {step.label}
-                                    </span>
+                                    <div className="mt-2 hidden sm:block">
+                                        <div className={`text-xs font-medium ${currentStep >= step.number ? 'text-button-primary' : 'text-muted-foreground'}`}>
+                                            {step.label}
+                                        </div>
+                                        <div className={`text-xs font-medium ${currentStep >= step.number ? 'text-button-primary' : 'text-muted-foreground'}`} dir="rtl">
+                                            {step.labelAr}
+                                        </div>
+                                    </div>
                                 </div>
                             ))}
                         </div>

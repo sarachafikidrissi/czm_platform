@@ -208,6 +208,7 @@ function PartnerInfo({ formData, setFormData }) {
             {/* Step Title */}
             <div className="mb-8">
                 <h2 className="mb-2 text-2xl font-bold text-gray-900">Ce que vous recherchez chez l'autre</h2>
+                <p className="text-2xl font-bold text-gray-900 mb-1" dir="rtl">ما تبحث عنه في الآخر</p>
                 <p className="text-gray-600">
                     Chacun·e a une vision unique du bonheur à deux. Aidez-nous à vous proposer des profils qui vous correspondent vraiment.
                 </p>
@@ -244,6 +245,7 @@ function PartnerInfo({ formData, setFormData }) {
                     <label htmlFor="ageMinimum" className="mb-1 block text-sm font-medium text-gray-700">
                         Son âge minimum *
                     </label>
+                    <p className="text-sm font-medium text-gray-700 mb-1" dir="rtl">الحد الأدنى للعمر</p>
                     <select
                         id="ageMinimum"
                         name="ageMinimum"
@@ -303,6 +305,7 @@ function PartnerInfo({ formData, setFormData }) {
                     <label htmlFor="paysRecherche" className="mb-1 block text-sm font-medium text-gray-700">
                         Pays profil recherché *
                     </label>
+                    <p className="text-sm font-medium text-gray-700 mb-1" dir="rtl">بلدان الملف الشخصي المطلوب</p>
                     {loadingCountries ? (
                         <div className="rounded-lg border border-gray-300 px-4 py-3 text-sm text-gray-500">
                             Chargement des pays...
@@ -325,6 +328,7 @@ function PartnerInfo({ formData, setFormData }) {
                     <label htmlFor="villesRecherche" className="mb-1 block text-sm font-medium text-gray-700">
                         Villes Profil recherché
                     </label>
+                    <p className="text-sm font-medium text-gray-700 mb-1" dir="rtl">مدن الملف الشخصي المطلوب</p>
                     {selectedCountryCodes.length === 0 ? (
                         <div className="rounded-lg border border-gray-300 px-4 py-3 text-sm text-gray-400">
                             Veuillez d'abord sélectionner au moins un pays
@@ -355,6 +359,7 @@ function PartnerInfo({ formData, setFormData }) {
                     <label htmlFor="niveauEtudesRecherche" className="mb-1 block text-sm font-medium text-gray-700">
                         Son niveau d'études *
                     </label>
+                    <p className="text-sm font-medium text-gray-700 mb-1" dir="rtl">مستواه التعليمي</p>
                     <select
                         id="niveauEtudesRecherche"
                         name="niveauEtudesRecherche"
@@ -378,6 +383,7 @@ function PartnerInfo({ formData, setFormData }) {
                     <label htmlFor="statutEmploiRecherche" className="mb-1 block text-sm font-medium text-gray-700">
                         Son statut emploi *
                     </label>
+                    <p className="text-sm font-medium text-gray-700 mb-1" dir="rtl">حالته الوظيفية</p>
                     <select
                         id="statutEmploiRecherche"
                         name="statutEmploiRecherche"
@@ -402,6 +408,7 @@ function PartnerInfo({ formData, setFormData }) {
                         <label htmlFor="revenuMinimum" className="mb-1 block text-sm font-medium text-gray-700">
                             Revenu minimum souhaité
                         </label>
+                        <p className="text-sm font-medium text-gray-700 mb-1" dir="rtl">الحد الأدنى للدخل المطلوب</p>
                         <select
                             id="revenuMinimum"
                             name="revenuMinimum"
@@ -425,6 +432,7 @@ function PartnerInfo({ formData, setFormData }) {
                         <label htmlFor="religionRecherche" className="mb-1 block text-sm font-medium text-gray-700">
                             Religion
                         </label>
+                        <p className="text-sm font-medium text-gray-700 mb-1" dir="rtl">الدين</p>
                         <select
                             id="religionRecherche"
                             name="religionRecherche"
@@ -445,6 +453,7 @@ function PartnerInfo({ formData, setFormData }) {
                     <label htmlFor="profilRechercheDescription" className="mb-1 block text-sm font-medium text-gray-700">
                         Profil recherché (à propos de lui)
                     </label>
+                    <p className="text-sm font-medium text-gray-700 mb-1" dir="rtl">الملف الشخصي المطلوب (عنه)</p>
                     <textarea
                         id="profilRechercheDescription"
                         name="profilRechercheDescription"

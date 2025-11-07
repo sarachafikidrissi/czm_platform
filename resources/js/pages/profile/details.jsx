@@ -40,8 +40,9 @@ function Details({ formData, setFormData, gender }) {
             {/* Step Title */}
             <div className="mb-8">
                 <h2 className="mb-2 text-2xl font-bold text-gray-900">Mode de vie & personnalité</h2>
+                <p className="text-2xl font-bold text-gray-900 mb-1" dir="rtl">نمط الحياة والشخصية</p>
                 <p className="text-gray-600">
-                    Trouver la bonne personne, c’est aussi partager des modes de vie similaires. Ces détails font la différence.
+                    Trouver la bonne personne, c'est aussi partager des modes de vie similaires. Ces détails font la différence.
                 </p>
             </div>
 
@@ -173,6 +174,7 @@ function Details({ formData, setFormData, gender }) {
                             <>
                                 <div>
                                     <label htmlFor="childrenCount" className="mb-1 block text-sm font-medium text-gray-700">Combien ?</label>
+                                    <p className="text-sm font-medium text-gray-700 mb-1" dir="rtl">كم عددهم؟</p>
                                     <input
                                         type="number"
                                         id="childrenCount"
@@ -187,6 +189,7 @@ function Details({ formData, setFormData, gender }) {
 
                                 <div>
                                     <label className="mb-2 block text-sm font-medium text-gray-700">Tuteur des enfants</label>
+                                    <p className="text-sm font-medium text-gray-700 mb-1" dir="rtl">وصي الأطفال</p>
                                     <select
                                         name="childrenGuardian"
                                         value={formData.childrenGuardian || ''}
@@ -215,6 +218,7 @@ function Details({ formData, setFormData, gender }) {
                         <label htmlFor="taille" className="mb-1 block text-sm font-medium text-gray-700">
                             Taille (cm) *
                         </label>
+                        <p className="text-sm font-medium text-gray-700 mb-1" dir="rtl">الطول (سم)</p>
                         <input
                             type="number"
                             id="taille"
@@ -232,6 +236,7 @@ function Details({ formData, setFormData, gender }) {
                         <label htmlFor="poids" className="mb-1 block text-sm font-medium text-gray-700">
                             Poids (kg) *
                         </label>
+                        <p className="text-sm font-medium text-gray-700 mb-1" dir="rtl">الوزن (كجم)</p>
                         <input
                             type="number"
                             id="poids"
@@ -292,9 +297,10 @@ function Details({ formData, setFormData, gender }) {
                             <span className="ml-2 text-sm text-gray-700">Pub</span>
                         </label>
                     </div>
-                    {formData.heardAboutUs === 'pub' && (
+                        {formData.heardAboutUs === 'pub' && (
                         <div className="mt-3">
                             <label htmlFor="heardAboutReference" className="mb-1 block text-sm font-medium text-gray-700">Référence de l'inscription</label>
+                            <p className="text-sm font-medium text-gray-700 mb-1" dir="rtl">مرجع التسجيل</p>
                             <input
                                 type="text"
                                 id="heardAboutReference"
@@ -313,6 +319,7 @@ function Details({ formData, setFormData, gender }) {
                     <label htmlFor="etatSante" className="mb-1 block text-sm font-medium text-gray-700">
                         État de santé général
                     </label>
+                    <p className="text-sm font-medium text-gray-700 mb-1" dir="rtl">الحالة الصحية العامة</p>
                     <textarea
                         id="etatSante"
                         name="etatSante"
@@ -482,6 +489,7 @@ function Details({ formData, setFormData, gender }) {
                     <label htmlFor="loisirs" className="mb-1 block text-sm font-medium text-gray-700">
                         Loisirs et centres d'intérêt
                     </label>
+                    <p className="text-sm font-medium text-gray-700 mb-1" dir="rtl">الهوايات ومراكز الاهتمام</p>
                     <input
                         type="text"
                         id="loisirs"
