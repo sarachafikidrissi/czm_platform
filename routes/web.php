@@ -106,6 +106,34 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 'approvedManagers' => $approvedManagers,
                 'approvedMatchmakers' => $approvedMatchmakers,
             ];
+        } elseif ($role === 'manager' && $user && $user->agency_id) {
+            // Calculate manager statistics: prospects, active clients, members
+            $prospectsCount = \App\Models\User::role('user')
+                ->where('status', 'prospect')
+                ->where('agency_id', $user->agency_id)
+                ->count();
+            
+            $activeClientsCount = \App\Models\User::role('user')
+                ->where('status', 'client')
+                ->where(function($query) use ($user) {
+                    $query->where('agency_id', $user->agency_id)
+                          ->orWhere('validated_by_manager_id', $user->id);
+                })
+                ->count();
+            
+            $membersCount = \App\Models\User::role('user')
+                ->where('status', 'member')
+                ->where(function($query) use ($user) {
+                    $query->where('agency_id', $user->agency_id)
+                          ->orWhere('validated_by_manager_id', $user->id);
+                })
+                ->count();
+            
+            $stats = [
+                'prospectsReceived' => $prospectsCount,
+                'activeClients' => $activeClientsCount,
+                'members' => $membersCount,
+            ];
         }
 
         // For user role, load profile data and subscription reminders

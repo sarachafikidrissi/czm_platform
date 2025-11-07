@@ -518,7 +518,7 @@ export default function Dashboard() {
                     stats={stats || { totalUsers: 0, pending: 0, approvedManagers: 0, approvedMatchmakers: 0 }}
                 />
             ) : role === 'manager' ? (
-                <ManagerDashboardContent />
+                <ManagerDashboardContent stats={stats || { prospectsReceived: 0, activeClients: 0, members: 0 }} />
             ) : role === 'matchmaker' ? (
                 <MatchMakerDashboardContent />
             ) : (
