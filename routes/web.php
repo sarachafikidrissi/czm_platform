@@ -254,6 +254,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Notes and Evaluation actions for staff (admin/manager/matchmaker) on a user profile
     Route::post('/users/{user}/notes', [\App\Http\Controllers\ProfileInsightsController::class, 'addNote'])->name('users.notes.add');
+    Route::delete('/users/{user}/notes/{note}', [\App\Http\Controllers\ProfileInsightsController::class, 'deleteNote'])->name('users.notes.delete');
     Route::post('/users/{user}/evaluation', [\App\Http\Controllers\ProfileInsightsController::class, 'saveEvaluation'])->name('users.evaluation.save');
 
     // Post routes (accessible by all authenticated users)

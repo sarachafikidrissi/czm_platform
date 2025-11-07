@@ -1,10 +1,12 @@
 import ProfileHeader from '@/components/profile/ProfileHeader';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import AppLayout from '@/layouts/app-layout';
-import { Button } from '@headlessui/react';
+import { Button as HeadlessButton } from '@headlessui/react';
 import { Head, usePage, router } from '@inertiajs/react';
-import { Heart, MapPin, MessageCircleWarning, MessageSquareWarning, User } from 'lucide-react';
+import { Heart, MapPin, MessageCircleWarning, MessageSquareWarning, User, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { FaUser } from 'react-icons/fa';
 import CreatePost from '@/components/posts/CreatePost';
@@ -60,6 +62,29 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
         router.post(`/users/${user.id}/notes`, { content: newNote }, {
             onSuccess: () => setNewNote('')
         });
+    };
+
+    // Delete note dialog state
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [noteToDelete, setNoteToDelete] = useState(null);
+
+    // Open delete confirmation dialog
+    const openDeleteDialog = (noteId) => {
+        setNoteToDelete(noteId);
+        setDeleteDialogOpen(true);
+    };
+
+    // Delete note handler
+    const deleteNote = () => {
+        if (noteToDelete) {
+            router.delete(`/users/${user.id}/notes/${noteToDelete}`, {
+                preserveScroll: true,
+                onSuccess: () => {
+                    setDeleteDialogOpen(false);
+                    setNoteToDelete(null);
+                },
+            });
+        }
     };
 
     // Evaluation form state
@@ -249,14 +274,29 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                                     <div className="mb-2 text-sm text-muted-foreground">Notes du matchmaker assigné</div>
                                                     <div className="space-y-3">
                                                         {Array.isArray(matchmakerNotes) && matchmakerNotes.length > 0 ? (
-                                                            matchmakerNotes.map((n) => (
-                                                                <div key={n.id} className="rounded-md border border-border bg-muted p-3">
-                                                                    <div className="mb-1 text-xs text-muted-foreground">
-                                                                        {n.author?.name} · {new Date(n.created_at).toLocaleString()}
+                                                            matchmakerNotes.map((n) => {
+                                                                const isAuthor = n.author_id === auth?.user?.id;
+                                                                return (
+                                                                    <div key={n.id} className="rounded-md border border-border bg-muted p-3">
+                                                                        <div className="mb-1 flex items-center justify-between">
+                                                                            <div className="text-xs text-muted-foreground">
+                                                                                {n.author?.name} · {new Date(n.created_at).toLocaleString()}
+                                                                            </div>
+                                                                            {isAuthor && (
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() => openDeleteDialog(n.id)}
+                                                                                    className="text-error hover:text-error/80 transition-colors"
+                                                                                    title="Supprimer cette note"
+                                                                                >
+                                                                                    <Trash2 className="h-4 w-4" />
+                                                                                </button>
+                                                                            )}
+                                                                        </div>
+                                                                        <div className="text-sm">{n.content}</div>
                                                                     </div>
-                                                                    <div className="text-sm">{n.content}</div>
-                                                                </div>
-                                                            ))
+                                                                );
+                                                            })
                                                         ) : (
                                                             <div className="text-sm text-muted-foreground">Aucune note pour le moment.</div>
                                                         )}
@@ -563,6 +603,35 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                     </div>
                 </div>
             </div>
+
+            {/* Delete Note Confirmation Dialog */}
+            <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Supprimer la note</DialogTitle>
+                        <DialogDescription>
+                            Êtes-vous sûr de vouloir supprimer cette note ? Cette action est irréversible.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => {
+                                setDeleteDialogOpen(false);
+                                setNoteToDelete(null);
+                            }}
+                        >
+                            Non
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={deleteNote}
+                        >
+                            Oui, supprimer
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </AppLayout>
     );
 }

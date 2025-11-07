@@ -126,7 +126,16 @@ class UserController extends Controller
         $notes = \App\Models\MatchmakerNote::where('user_id', $user->id)
             ->with('author:id,name,username')
             ->orderBy('created_at', 'desc')
-            ->get();
+            ->get()
+            ->map(function ($note) {
+                return [
+                    'id' => $note->id,
+                    'author_id' => $note->author_id,
+                    'content' => $note->content,
+                    'created_at' => $note->created_at,
+                    'author' => $note->author,
+                ];
+            });
 
         $evaluation = \App\Models\MatchmakerEvaluation::where('user_id', $user->id)->first();
 

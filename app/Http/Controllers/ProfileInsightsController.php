@@ -89,6 +89,33 @@ class ProfileInsightsController extends Controller
 
         return redirect()->back()->with('success', 'Evaluation saved.');
     }
+
+    public function deleteNote(Request $request, int $userId, int $noteId)
+    {
+        $target = User::findOrFail($userId);
+        $note = MatchmakerNote::findOrFail($noteId);
+
+        // Verify the note belongs to the target user
+        if ($note->user_id !== $target->id) {
+            abort(404);
+        }
+
+        /** @var User|null $me */
+        $me = Auth::user();
+        if (!$me) {
+            abort(403);
+        }
+
+        // Allow deletion if:
+        // 1. User is admin
+        // 2. User is the author of the note (matchmaker/admin/manager)
+        if ($me->hasRole('admin') || $note->author_id === $me->id) {
+            $note->delete();
+            return redirect()->back()->with('success', 'Note deleted successfully.');
+        }
+
+        abort(403);
+    }
 }
 
 
