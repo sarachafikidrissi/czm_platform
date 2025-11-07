@@ -114,6 +114,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         $subscriptionReminder = null;
         $accountStatus = null;
         $rejectedBy = null;
+        $unpaidBill = null;
+        $expiredSubscription = null;
         
         if ($role === 'user' && $user) {
             $profile = $user->profile;
@@ -126,26 +128,60 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 $rejectedBy = \App\Models\User::find($user->rejected_by);
             }
 
-            // Load active subscription for reminders
-            $subscription = $user->subscriptions()
-                ->where('status', 'active')
+            // Check for unpaid bills
+            $unpaidBill = $user->bills()
+                ->where('status', 'unpaid')
+                ->orderBy('due_date', 'asc')
+                ->first();
+
+            // Check for expired subscriptions (by status or by date)
+            $expiredSubscriptionRecord = $user->subscriptions()
+                ->where(function($query) {
+                    $query->where('status', 'expired')
+                        ->orWhere(function($q) {
+                            $q->where('status', 'active')
+                              ->where('subscription_end', '<', \Carbon\Carbon::today());
+                        });
+                })
                 ->with(['matrimonialPack', 'assignedMatchmaker'])
-                ->orderBy('created_at', 'desc')
+                ->orderBy('subscription_end', 'desc')
                 ->first();
             
-            if ($subscription) {
-                $today = \Carbon\Carbon::today();
-                $expirationDate = \Carbon\Carbon::parse($subscription->subscription_end);
-                $daysRemaining = $today->diffInDays($expirationDate, false);
+            if ($expiredSubscriptionRecord) {
+                $expiredSubscription = [
+                    'expirationDate' => $expiredSubscriptionRecord->subscription_end->format('d/m/Y'),
+                    'packName' => $expiredSubscriptionRecord->matrimonialPack->name ?? 'Pack',
+                    'matchmaker' => $expiredSubscriptionRecord->assignedMatchmaker ? [
+                        'name' => $expiredSubscriptionRecord->assignedMatchmaker->name,
+                        'phone' => $expiredSubscriptionRecord->assignedMatchmaker->phone,
+                        'email' => $expiredSubscriptionRecord->assignedMatchmaker->email,
+                    ] : null,
+                ];
+            }
+
+            // Load active subscription for reminders (only if not expired)
+            if (!$expiredSubscriptionRecord) {
+                $subscription = $user->subscriptions()
+                    ->where('status', 'active')
+                    ->where('subscription_end', '>=', \Carbon\Carbon::today())
+                    ->with(['matrimonialPack', 'assignedMatchmaker'])
+                    ->orderBy('created_at', 'desc')
+                    ->first();
                 
-                // Show reminder if subscription expires within 30 days or has expired
-                if ($daysRemaining <= 30) {
-                    $subscriptionReminder = [
-                        'daysRemaining' => $daysRemaining,
-                        'expirationDate' => $expirationDate->format('d/m/Y'),
-                        'isExpired' => $daysRemaining < 0,
-                        'packName' => $subscription->matrimonialPack->name ?? 'Pack',
-                    ];
+                if ($subscription) {
+                    $today = \Carbon\Carbon::today();
+                    $expirationDate = \Carbon\Carbon::parse($subscription->subscription_end);
+                    $daysRemaining = $today->diffInDays($expirationDate, false);
+                    
+                    // Show reminder if subscription expires within 30 days
+                    if ($daysRemaining <= 30 && $daysRemaining >= 0) {
+                        $subscriptionReminder = [
+                            'daysRemaining' => $daysRemaining,
+                            'expirationDate' => $expirationDate->format('d/m/Y'),
+                            'isExpired' => false,
+                            'packName' => $subscription->matrimonialPack->name ?? 'Pack',
+                        ];
+                    }
                 }
             }
 
@@ -171,6 +207,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 'name' => $rejectedBy->name,
                 'phone' => $rejectedBy->phone,
             ] : null,
+            'unpaidBill' => $unpaidBill ? [
+                'id' => $unpaidBill->id,
+                'bill_number' => $unpaidBill->bill_number,
+                'total_amount' => $unpaidBill->total_amount,
+                'currency' => $unpaidBill->currency,
+                'due_date' => $unpaidBill->due_date->format('d/m/Y'),
+            ] : null,
+            'expiredSubscription' => $expiredSubscription,
         ]);
     })->name('dashboard');
 

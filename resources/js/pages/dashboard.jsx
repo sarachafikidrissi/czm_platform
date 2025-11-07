@@ -5,15 +5,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Toast } from '@/components/ui/toast';
 import AppLayout from '@/layouts/app-layout';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { AlertCircle, Bell, CheckCircle, Clock, HeartHandshake, Mail, Phone, ShoppingCart, User } from 'lucide-react';
+import { AlertCircle, Bell, CheckCircle, Clock, HeartHandshake, Mail, Phone, ShoppingCart, User, Receipt } from 'lucide-react';
 import { useState } from 'react';
 import AdminDashboardContent from './admin/adminDashboardContent';
 import ManagerDashboardContent from './manager/managerDashboardContent';
 import MatchMakerDashboardContent from './matchmaker/matchmakerDashboardContent';
 
-function UserDashboardContent({ user, profile, subscriptionReminder, accountStatus, rejectedBy }) {
+function UserDashboardContent({ user, profile, subscriptionReminder, accountStatus, rejectedBy, unpaidBill, expiredSubscription }) {
     // Debug: Log the profile data in frontend
     console.log('Dashboard Profile Data:', {
         profile,
@@ -153,6 +154,43 @@ function UserDashboardContent({ user, profile, subscriptionReminder, accountStat
                     <h1 className="text-2xl font-bold">Bienvenue, {user?.name}</h1>
                     <p className="text-muted-foreground">Gérez votre profil et découvrez nos services</p>
                 </div>
+            </div>
+
+            {/* Toast Notifications */}
+            <div className="flex flex-col gap-3">
+                {/* Unpaid Bill Toast */}
+                {unpaidBill && (
+                    <Toast
+                        variant="error"
+                        title="Facture à payer"
+                        message={`Vous avez une facture impayée (${unpaidBill.bill_number}) d'un montant de ${parseFloat(unpaidBill.total_amount).toLocaleString()} ${unpaidBill.currency}. Date d'échéance: ${unpaidBill.due_date}. Veuillez régler cette facture pour continuer à bénéficier de nos services.`}
+                        actionLabel="Voir mes factures"
+                        onAction={() => router.visit('/user/bills')}
+                        icon={<Receipt className="h-5 w-5 text-[#e0495a]" />}
+                    />
+                )}
+
+                {/* Incomplete Profile Toast */}
+                {!isProfileComplete && !isRejected && (
+                    <Toast
+                        variant="warning"
+                        title="Profil incomplet"
+                        message="Votre profil n'est pas encore complet. Complétez votre profil pour accéder à tous nos services et commencer votre parcours matrimonial."
+                        actionLabel="Compléter mon profil"
+                        onAction={() => router.visit('/profile-info')}
+                        icon={<User className="h-5 w-5 text-[#b1bbbf]" />}
+                    />
+                )}
+
+                {/* Expired Subscription Toast */}
+                {expiredSubscription && (
+                    <Toast
+                        variant="error"
+                        title="Abonnement expiré"
+                        message={`Votre abonnement au pack ${expiredSubscription.packName} a expiré le ${expiredSubscription.expirationDate}. Pour continuer à bénéficier de nos services, veuillez contacter votre matchmaker pour un nouvel abonnement.${expiredSubscription.matchmaker ? `\n\nContactez ${expiredSubscription.matchmaker.name}${expiredSubscription.matchmaker.phone ? ` au ${expiredSubscription.matchmaker.phone}` : ''}${expiredSubscription.matchmaker.email ? ` ou par email: ${expiredSubscription.matchmaker.email}` : ''}` : ''}`}
+                        icon={<AlertCircle className="h-5 w-5 text-[#e0495a]" />}
+                    />
+                )}
             </div>
 
             {/* Status Messages and CTAs */}
@@ -458,6 +496,8 @@ export default function Dashboard() {
     const profile = props?.profile || null;
     const subscriptionReminder = props?.subscriptionReminder || null;
     const rejectedBy = props?.rejectedBy || null;
+    const unpaidBill = props?.unpaidBill || null;
+    const expiredSubscription = props?.expiredSubscription || null;
 
     // Show pending approval for non-admin staff who aren't approved
     if ((role === 'manager' || role === 'matchmaker') && approvalStatus !== 'approved') {
@@ -488,6 +528,8 @@ export default function Dashboard() {
                     subscriptionReminder={subscriptionReminder}
                     accountStatus={props?.accountStatus || 'active'}
                     rejectedBy={props?.rejectedBy || null}
+                    unpaidBill={unpaidBill}
+                    expiredSubscription={expiredSubscription}
                 />
             )}
         </AppLayout>
