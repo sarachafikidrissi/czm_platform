@@ -347,9 +347,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
 
     // Sidebar pages
-    Route::get('/photos', function () {
-        return Inertia::render('photos');
-    })->name('photos');
+    Route::middleware(['role:user'])->group(function () {
+        Route::get('/photos', [\App\Http\Controllers\PhotoController::class, 'index'])->name('photos');
+        Route::post('/photos', [\App\Http\Controllers\PhotoController::class, 'store'])->name('photos.store');
+        Route::delete('/photos/{photo}', [\App\Http\Controllers\PhotoController::class, 'destroy'])->name('photos.destroy');
+    });
 
     Route::get('/prospects', function () {
         $user = \Illuminate\Support\Facades\Auth::user();

@@ -124,6 +124,10 @@ class User extends Authenticatable
         return $this->hasMany(Post::class);
     }
 
+    public function photos() {
+        return $this->hasMany(UserPhoto::class);
+    }
+
     public function subscriptions() {
         return $this->hasMany(UserSubscription::class);
     }
