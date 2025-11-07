@@ -346,8 +346,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/agencies/{id}', [\App\Http\Controllers\AgencyController::class, 'show'])->name('agencies.show');
     });
 
-    // Sidebar pages
-    Route::middleware(['role:user'])->group(function () {
+    // Sidebar pages - Photos
+    Route::middleware(['role:user|matchmaker|manager|admin'])->group(function () {
         Route::get('/photos', [\App\Http\Controllers\PhotoController::class, 'index'])->name('photos');
         Route::post('/photos', [\App\Http\Controllers\PhotoController::class, 'store'])->name('photos.store');
         Route::delete('/photos/{photo}', [\App\Http\Controllers\PhotoController::class, 'destroy'])->name('photos.destroy');

@@ -4,6 +4,7 @@ import { Head, router, usePage } from '@inertiajs/react';
 import { Search, MoreVertical, Upload, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -19,12 +20,19 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 
-export default function PhotosPage({ photos, search: initialSearch = '' }) {
+export default function PhotosPage({ 
+    photos, 
+    search: initialSearch = '', 
+    targetUser = null,
+    availableUsers = [],
+    canUpload = true,
+    canDelete = true
+}) {
     const [search, setSearch] = useState(initialSearch);
     const [isUploading, setIsUploading] = useState(false);
     const [photoToDelete, setPhotoToDelete] = useState(null);
     const fileInputRef = useRef(null);
-    const { flash } = usePage().props;
+    const { flash, auth } = usePage().props;
     
     // Handle pagination data structure
     const photosData = photos?.data || [];
@@ -33,18 +41,40 @@ export default function PhotosPage({ photos, search: initialSearch = '' }) {
     const handleSearch = (e) => {
         const value = e.target.value;
         setSearch(value);
-        router.get('/photos', { search: value, page: 1 }, {
+        const params = { search: value, page: 1 };
+        if (targetUser?.id) {
+            params.user_id = targetUser.id;
+        }
+        router.get('/photos', params, {
             preserveState: false,
             preserveScroll: false,
         });
     };
 
     const handlePageChange = (page) => {
-        router.get('/photos', { 
+        const params = { 
             search: search || '', 
             page: page 
-        }, {
+        };
+        if (targetUser?.id) {
+            params.user_id = targetUser.id;
+        }
+        router.get('/photos', params, {
             preserveState: true,
+            preserveScroll: false,
+        });
+    };
+
+    const handleUserChange = (userId) => {
+        const params = { 
+            search: search || '', 
+            page: 1 
+        };
+        if (userId && userId !== 'current') {
+            params.user_id = userId;
+        }
+        router.get('/photos', params, {
+            preserveState: false,
             preserveScroll: false,
         });
     };
@@ -95,45 +125,82 @@ export default function PhotosPage({ photos, search: initialSearch = '' }) {
             <Head title="Gallery" />
             <div className="min-h-screen  pb-8">
                 {/* Header Section */}
-                <div className="flex items-center justify-between mb-6 px-4 pt-4">
-                    <div className="flex items-center gap-3">
-                        <h1 className="text-2xl font-bold text-gray-900">Gallery</h1>
-                        {pagination.total > 0 && (
-                            <span className="bg-gray-800 text-white text-sm font-medium px-3 py-1 rounded-full">
-                                {pagination.total}
-                            </span>
-                        )}
-                    </div>
-                    <div className="flex items-center gap-4">
-                        {/* Search Bar */}
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                            <Input
-                                type="text"
-                                placeholder="Search photos"
-                                value={search}
-                                onChange={handleSearch}
-                                className="pl-10 w-64 bg-gray-100 border-gray-200 rounded-lg"
-                            />
+                <div className="flex flex-col gap-4 mb-6 px-4 pt-4">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <h1 className="text-2xl font-bold text-gray-900">Gallery</h1>
+                            {pagination.total > 0 && (
+                                <span className="bg-gray-800 text-white text-sm font-medium px-3 py-1 rounded-full">
+                                    {pagination.total}
+                                </span>
+                            )}
                         </div>
-                        {/* Upload Button */}
-                        <Button
-                            onClick={() => fileInputRef.current?.click()}
-                            disabled={isUploading}
-                            className="bg-[#096725] hover:bg-[#096725]/90 text-white"
-                        >
-                            <Upload className="w-4 h-4 mr-2" />
-                            {isUploading ? 'Uploading...' : 'Upload'}
-                        </Button>
-                        <input
-                            ref={fileInputRef}
-                            type="file"
-                            multiple
-                            accept="image/*"
-                            onChange={handleFileSelect}
-                            className="hidden"
-                        />
+                        <div className="flex items-center gap-4">
+                            {/* Search Bar */}
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                                <Input
+                                    type="text"
+                                    placeholder="Search photos"
+                                    value={search}
+                                    onChange={handleSearch}
+                                    className="pl-10 w-64 bg-gray-100 border-gray-200 rounded-lg"
+                                />
+                            </div>
+                            {/* Upload Button - Only show if canUpload */}
+                            {canUpload && (
+                                <>
+                                    <Button
+                                        onClick={() => fileInputRef.current?.click()}
+                                        disabled={isUploading}
+                                        className="bg-[#096725] hover:bg-[#096725]/90 text-white"
+                                    >
+                                        <Upload className="w-4 h-4 mr-2" />
+                                        {isUploading ? 'Uploading...' : 'Upload'}
+                                    </Button>
+                                    <input
+                                        ref={fileInputRef}
+                                        type="file"
+                                        multiple
+                                        accept="image/*"
+                                        onChange={handleFileSelect}
+                                        className="hidden"
+                                    />
+                                </>
+                            )}
+                        </div>
                     </div>
+                    
+                    {/* User Selector and Info - Only show if viewing other users' photos */}
+                    {(availableUsers.length > 0 || targetUser) && (
+                        <div className="flex items-center gap-4">
+                            {availableUsers.length > 0 && (
+                                <div className="flex items-center gap-2">
+                                    <label className="text-sm font-medium text-gray-700">View photos of:</label>
+                                    <Select
+                                        value={targetUser?.id?.toString() || 'current'}
+                                        onValueChange={handleUserChange}
+                                    >
+                                        <SelectTrigger className="w-64">
+                                            <SelectValue placeholder="Select a user" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {availableUsers.map((user) => (
+                                                <SelectItem key={user.id} value={user.id.toString()}>
+                                                    {user.name} ({user.email})
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            )}
+                            {targetUser && (
+                                <div className="text-sm text-gray-600">
+                                    Viewing photos of <span className="font-semibold">{targetUser.name}</span>
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 {/* Success/Error Messages */}
@@ -170,28 +237,30 @@ export default function PhotosPage({ photos, search: initialSearch = '' }) {
                                             {photo.created_at}
                                         </p>
                                     </div>
-                                    {/* Options Menu */}
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="h-8 w-8 p-0 ml-2"
-                                            >
-                                                <MoreVertical className="h-4 w-4 text-gray-600" />
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
-                                            <DropdownMenuItem
-                                                onClick={() => handleDeleteClick(photo.id)}
-                                                variant="destructive"
-                                                className="bg-red-600! text-white! hover:bg-red-600/90! hover:text-white!"
-                                            >
-                                                <Trash2 className="w-4 h-4 mr-2" />
-                                                Delete
-                                            </DropdownMenuItem>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
+                                    {/* Options Menu - Only show if canDelete */}
+                                    {canDelete && (
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="h-8 w-8 p-0 ml-2"
+                                                >
+                                                    <MoreVertical className="h-4 w-4 text-gray-600" />
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                <DropdownMenuItem
+                                                    onClick={() => handleDeleteClick(photo.id)}
+                                                    variant="destructive"
+                                                    className="bg-red-600! text-white! hover:bg-red-600/90! hover:text-white!"
+                                                >
+                                                    <Trash2 className="w-4 h-4 mr-2" />
+                                                    Delete
+                                                </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    )}
                                 </div>
                             </div>
                             ))}
@@ -261,18 +330,28 @@ export default function PhotosPage({ photos, search: initialSearch = '' }) {
                                 <Upload className="w-12 h-12 text-gray-400" />
                             </div>
                             <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                                No photos yet
+                                {!targetUser && availableUsers.length === 0 
+                                    ? 'No assigned users' 
+                                    : targetUser && targetUser.id !== auth?.user?.id
+                                    ? `No photos for ${targetUser.name}`
+                                    : 'No photos yet'}
                             </h3>
                             <p className="text-gray-500 mb-4">
-                                Upload your first photo to get started
+                                {!targetUser && availableUsers.length === 0
+                                    ? 'You don\'t have any assigned users to view photos for.'
+                                    : targetUser && targetUser.id !== auth?.user?.id
+                                    ? 'This user hasn\'t uploaded any photos yet.'
+                                    : 'Upload your first photo to get started'}
                             </p>
-                            <Button
-                                onClick={() => fileInputRef.current?.click()}
-                                className="bg-[#096725] hover:bg-[#096725]/90 text-white"
-                            >
-                                <Upload className="w-4 h-4 mr-2 " />
-                                Upload Photos
-                            </Button>
+                            {canUpload && (
+                                <Button
+                                    onClick={() => fileInputRef.current?.click()}
+                                    className="bg-[#096725] hover:bg-[#096725]/90 text-white"
+                                >
+                                    <Upload className="w-4 h-4 mr-2 " />
+                                    Upload Photos
+                                </Button>
+                            )}
                         </div>
                     </div>
                 )}

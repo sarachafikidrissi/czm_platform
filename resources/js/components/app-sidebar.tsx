@@ -30,7 +30,7 @@ const mainNavItems: NavItem[] = [
         title: 'Mon Photos',
         url: '/photos',
         icon: Images,
-        roles: ['user'],
+        roles: ['user', 'matchmaker', 'manager', 'admin'],
     },
     {
         title: 'Mon Matchmaker',
@@ -157,15 +157,21 @@ export function AppSidebar() {
     const role = typeof props?.role === 'string' ? props.role : '';
     const user = (props as any)?.auth?.user;
     
-    // Process nav items to handle dynamic URLs
+    // Process nav items to handle dynamic URLs and conditional titles
     const processedNavItems = mainNavItems.map(item => {
+        let updatedItem = { ...item };
+        
+        // Handle dynamic profile URL
         if (item.url === '/user/profile/{username}' && user?.username) {
-            return {
-                ...item,
-                url: `/profile/${user.username}`
-            };
+            updatedItem.url = `/profile/${user.username}`;
         }
-        return item;
+        
+        // Handle Photos title based on role
+        if (item.url === '/photos' && role !== 'user') {
+            updatedItem.title = 'Clients Photos';
+        }
+        
+        return updatedItem;
     });
     
     const navitems = filterNavItemsByRole(processedNavItems, role);
