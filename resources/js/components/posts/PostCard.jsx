@@ -1,8 +1,9 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { router, usePage } from '@inertiajs/react';
-import { Heart, MessageCircle, Share, Trash2 } from 'lucide-react';
+import { Heart, MessageCircle, Share, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
 
 export default function PostCard({ post }) {
@@ -15,7 +16,13 @@ export default function PostCard({ post }) {
     const [commentsCount, setCommentsCount] = useState(post.comments_count || 0);
     const [isLiked, setIsLiked] = useState(post.is_liked || false);
     const [comments, setComments] = useState(post.comments || []);
-    console.log("comments are ", comments);
+    const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+    const [currentImageIndex, setCurrentImageIndex] = useState(0);
+    
+    // Handle multiple images
+    const imageUrls = post.media_urls || (post.media_url ? [post.media_url] : []);
+    console.log("matchmaker posts are ", post);
+    
 
     
 
@@ -93,9 +100,11 @@ export default function PostCard({ post }) {
     };
 
     const handleDelete = () => {
-        if (confirm('Are you sure you want to delete this post?')) {
-            router.delete(`/posts/${post.id}`);
-        }
+        router.delete(`/posts/${post.id}`, {
+            onSuccess: () => {
+                setShowDeleteDialog(false);
+            }
+        });
     };
 
     const formatTimeAgo = (date) => {
@@ -140,7 +149,7 @@ export default function PostCard({ post }) {
                         </div>
                     </div>
                     {auth.user.id === post.user_id && (
-                        <Button variant="ghost" size="sm" onClick={handleDelete} className="text-error hover:opacity-80">
+                        <Button variant="ghost" size="sm" onClick={() => setShowDeleteDialog(true)} className="text-error hover:opacity-80">
                             <Trash2 className="h-4 w-4" />
                         </Button>
                     )}
@@ -152,9 +161,46 @@ export default function PostCard({ post }) {
                 </div>
 
                 {/* Media Content */}
-                {post.type === 'image' && post.media_url && (
+                {post.type === 'image' && imageUrls.length > 0 && (
                     <div className="mb-4">
-                        <img src={post.media_url} alt="Post image" className="max-h-96 w-full rounded-lg object-cover" />
+                        <div className="relative">
+                            <img 
+                                src={imageUrls[currentImageIndex]} 
+                                alt={`Post image ${currentImageIndex + 1}`} 
+                                className="max-h-96 w-full rounded-lg object-contain bg-muted" 
+                            />
+                            {imageUrls.length > 1 && (
+                                <>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white"
+                                        onClick={() => setCurrentImageIndex((prev) => (prev > 0 ? prev - 1 : imageUrls.length - 1))}
+                                    >
+                                        <ChevronLeft className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white"
+                                        onClick={() => setCurrentImageIndex((prev) => (prev < imageUrls.length - 1 ? prev + 1 : 0))}
+                                    >
+                                        <ChevronRight className="h-4 w-4" />
+                                    </Button>
+                                    <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-black/50 rounded-full px-3 py-1">
+                                        {imageUrls.map((_, index) => (
+                                            <button
+                                                key={index}
+                                                className={`h-2 w-2 rounded-full transition-colors ${
+                                                    index === currentImageIndex ? 'bg-white' : 'bg-white/50'
+                                                }`}
+                                                onClick={() => setCurrentImageIndex(index)}
+                                            />
+                                        ))}
+                                    </div>
+                                </>
+                            )}
+                        </div>
                     </div>
                 )}
 
@@ -265,6 +311,26 @@ export default function PostCard({ post }) {
                     </div>
                 )}
             </CardContent>
+
+            {/* Delete Confirmation Dialog */}
+            <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Are you sure?</DialogTitle>
+                        <DialogDescription>
+                            This action cannot be undone. This will permanently delete your post.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
+                            Cancel
+                        </Button>
+                        <Button variant="destructive" onClick={handleDelete}>
+                            Delete
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </Card>
     );
 }

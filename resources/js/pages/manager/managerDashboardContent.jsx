@@ -2,8 +2,10 @@ import { Link } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users, UserCheck, Crown, UserPlus } from 'lucide-react';
+import CreatePost from '@/components/posts/CreatePost';
+import PostCard from '@/components/posts/PostCard';
 
-export default function ManagerDashboardContent({ stats = { prospectsReceived: 0, activeClients: 0, members: 0 } }) {
+export default function ManagerDashboardContent({ stats = { prospectsReceived: 0, activeClients: 0, members: 0 }, posts = null }) {
     return (
         <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
             <div className="flex items-center justify-between">
@@ -68,6 +70,35 @@ export default function ManagerDashboardContent({ stats = { prospectsReceived: 0
                                 Ajouter prospect
                             </Button>
                         </Link>
+                    </CardContent>
+                </Card>
+            </div>
+
+            {/* Agency Posts Section */}
+            <div className="grid gap-6 md:grid-cols-1">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Posts de l'agence</CardTitle>
+                        <CardDescription>
+                            Créez et gérez les posts de votre agence
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        {/* Create Post Form */}
+                        <CreatePost />
+
+                        {/* Posts Feed */}
+                        {posts && posts.data && posts.data.length > 0 ? (
+                            <div className="space-y-4">
+                                {posts.data.map((post) => (
+                                    <PostCard key={post.id} post={post} />
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="text-center py-8">
+                                <p className="text-muted-foreground">Aucun post pour le moment. Créez votre premier post ci-dessus.</p>
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
             </div>

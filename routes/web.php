@@ -136,6 +136,34 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ];
         }
 
+        // Load posts for managers (agency posts)
+        $posts = null;
+        if ($role === 'manager' && $user && $user->agency_id) {
+            $posts = \App\Models\Post::with(['user.profile', 'agency', 'likes', 'comments.user.roles', 'comments.user.profile'])
+                ->where('agency_id', $user->agency_id)
+                ->orderBy('created_at', 'desc')
+                ->paginate(10);
+
+            // Add like status and parse media URLs
+            if (\Illuminate\Support\Facades\Auth::check()) {
+                $posts->getCollection()->each(function ($post) {
+                    $post->is_liked = $post->isLikedBy(\Illuminate\Support\Facades\Auth::id());
+                    $post->likes_count = $post->likes_count;
+                    $post->comments_count = $post->comments_count;
+                    
+                    // Parse media_url if it's JSON (multiple images)
+                    if ($post->type === 'image' && $post->media_url) {
+                        $decoded = json_decode($post->media_url, true);
+                        if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                            $post->media_urls = $decoded;
+                        } else {
+                            $post->media_urls = [$post->media_url];
+                        }
+                    }
+                });
+            }
+        }
+
         // For user role, load profile data and subscription reminders
         $profile = null;
         $subscription = null;
@@ -243,6 +271,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 'due_date' => $unpaidBill->due_date->format('d/m/Y'),
             ] : null,
             'expiredSubscription' => $expiredSubscription,
+            'posts' => $posts,
         ]);
     })->name('dashboard');
 

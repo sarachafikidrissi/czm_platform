@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Agency;
 use App\Models\Post;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 
 class AgencyController extends Controller
@@ -62,7 +63,7 @@ class AgencyController extends Controller
 
         // Get latest posts from matchmakers in this agency
         $matchmakerIds = $matchmakers->pluck('id');
-        $latestPosts = Post::with([
+        $latestMatchmakerPosts = Post::with([
             'user' => function($query) {
                 $query->with('roles');
             },
@@ -75,12 +76,56 @@ class AgencyController extends Controller
         ->limit(5)
         ->get();
 
-        // Add like status for current user
-        if (auth()->check()) {
-            $latestPosts->each(function ($post) {
-                $post->is_liked = $post->isLikedBy(auth()->id());
+        // Get agency posts (posts with agency_id)
+        $agencyPosts = Post::with([
+            'user' => function($query) {
+                $query->with('roles');
+            },
+            'agency',
+            'likes',
+            'comments.user.roles',
+            'comments.user.profile'
+        ])
+        ->where('agency_id', $agency->id)
+        ->orderBy('created_at', 'desc')
+        ->limit(5)
+        ->get();
+
+        // Process matchmaker posts
+        if (Auth::check()) {
+            $latestMatchmakerPosts->each(function ($post) {
+                $post->is_liked = $post->isLikedBy(Auth::id());
                 $post->likes_count = $post->likes_count;
                 $post->comments_count = $post->comments_count;
+                
+                // Parse media_url if it's JSON (multiple images)
+                if ($post->type === 'image' && $post->media_url) {
+                    $decoded = json_decode($post->media_url, true);
+                    if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                        $post->media_urls = $decoded;
+                    } else {
+                        $post->media_urls = [$post->media_url];
+                    }
+                }
+            });
+        }
+
+        // Process agency posts
+        if (Auth::check()) {
+            $agencyPosts->each(function ($post) {
+                $post->is_liked = $post->isLikedBy(Auth::id());
+                $post->likes_count = $post->likes_count;
+                $post->comments_count = $post->comments_count;
+                
+                // Parse media_url if it's JSON (multiple images)
+                if ($post->type === 'image' && $post->media_url) {
+                    $decoded = json_decode($post->media_url, true);
+                    if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                        $post->media_urls = $decoded;
+                    } else {
+                        $post->media_urls = [$post->media_url];
+                    }
+                }
             });
         }
 
@@ -133,13 +178,25 @@ class AgencyController extends Controller
                         'profile_picture' => $manager->profile_picture,
                     ];
                 }),
-                'latest_posts' => $latestPosts->map(function($post) {
+                'latest_posts' => $latestMatchmakerPosts->map(function($post) {
+                    // Parse media_url if it's JSON (multiple images)
+                    $mediaUrls = [];
+                    if ($post->type === 'image' && $post->media_url) {
+                        $decoded = json_decode($post->media_url, true);
+                        if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                            $mediaUrls = $decoded;
+                        } else {
+                            $mediaUrls = [$post->media_url];
+                        }
+                    }
+                    
                     return [
                         'id' => $post->id,
                         'user_id' => $post->user_id,
                         'content' => $post->content,
                         'type' => $post->type,
                         'media_url' => $post->media_url,
+                        'media_urls' => $mediaUrls,
                         'media_thumbnail' => $post->media_thumbnail,
                         'created_at' => $post->created_at,
                         'is_liked' => $post->is_liked ?? false,
@@ -152,6 +209,59 @@ class AgencyController extends Controller
                             'profile_picture' => $post->user->profile_picture,
                             'roles' => $post->user->roles,
                         ],
+                        'comments' => $post->comments->map(function($comment) {
+                            return [
+                                'id' => $comment->id,
+                                'content' => $comment->content,
+                                'created_at' => $comment->created_at,
+                                'user' => [
+                                    'id' => $comment->user->id,
+                                    'name' => $comment->user->name,
+                                    'profile_picture' => $comment->user->profile_picture,
+                                    'roles' => $comment->user->roles,
+                                    'profile' => $comment->user->profile ? [
+                                        'profile_picture_path' => $comment->user->profile->profile_picture_path,
+                                    ] : null,
+                                ],
+                            ];
+                        }),
+                    ];
+                }),
+                'agency_posts' => $agencyPosts->map(function($post) {
+                    // Parse media_url if it's JSON (multiple images)
+                    $mediaUrls = [];
+                    if ($post->type === 'image' && $post->media_url) {
+                        $decoded = json_decode($post->media_url, true);
+                        if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                            $mediaUrls = $decoded;
+                        } else {
+                            $mediaUrls = [$post->media_url];
+                        }
+                    }
+                    
+                    return [
+                        'id' => $post->id,
+                        'user_id' => $post->user_id,
+                        'content' => $post->content,
+                        'type' => $post->type,
+                        'media_url' => $post->media_url,
+                        'media_urls' => $mediaUrls,
+                        'media_thumbnail' => $post->media_thumbnail,
+                        'created_at' => $post->created_at,
+                        'is_liked' => $post->is_liked ?? false,
+                        'likes_count' => $post->likes_count ?? 0,
+                        'comments_count' => $post->comments_count ?? 0,
+                        'user' => [
+                            'id' => $post->user->id,
+                            'name' => $post->user->name,
+                            'username' => $post->user->username,
+                            'profile_picture' => $post->user->profile_picture,
+                            'roles' => $post->user->roles,
+                        ],
+                        'agency' => $post->agency ? [
+                            'id' => $post->agency->id,
+                            'name' => $post->agency->name,
+                        ] : null,
                         'comments' => $post->comments->map(function($comment) {
                             return [
                                 'id' => $comment->id,

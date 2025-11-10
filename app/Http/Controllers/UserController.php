@@ -49,6 +49,16 @@ class UserController extends Controller
                 $post->is_liked = $post->isLikedBy(Auth::id());
                 $post->likes_count = $post->likes_count;
                 $post->comments_count = $post->comments_count;
+                
+                // Parse media_url if it's JSON (multiple images)
+                if ($post->type === 'image' && $post->media_url) {
+                    $decoded = json_decode($post->media_url, true);
+                    if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                        $post->media_urls = $decoded;
+                    } else {
+                        $post->media_urls = [$post->media_url];
+                    }
+                }
             });
         }
 
@@ -119,6 +129,16 @@ class UserController extends Controller
                 $post->is_liked = $post->isLikedBy(Auth::id());
                 $post->likes_count = $post->likes_count;
                 $post->comments_count = $post->comments_count;
+                
+                // Parse media_url if it's JSON (multiple images)
+                if ($post->type === 'image' && $post->media_url) {
+                    $decoded = json_decode($post->media_url, true);
+                    if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                        $post->media_urls = $decoded;
+                    } else {
+                        $post->media_urls = [$post->media_url];
+                    }
+                }
             });
         }
         
