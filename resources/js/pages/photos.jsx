@@ -125,8 +125,8 @@ export default function PhotosPage({
             <Head title="Gallery" />
             <div className="min-h-screen  pb-8">
                 {/* Header Section */}
-                <div className="flex flex-col gap-4 mb-6 px-4 pt-4">
-                    <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-4 mb-6 px-4 pt-4 max-md:flex-col ">
+                    <div className="flex items-center justify-between  max-md:flex-col">
                         <div className="flex items-center gap-3">
                             <h1 className="text-2xl font-bold text-gray-900">Gallery</h1>
                             {pagination.total > 0 && (
@@ -135,7 +135,7 @@ export default function PhotosPage({
                                 </span>
                             )}
                         </div>
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-4 ">
                             {/* Search Bar */}
                             <div className="relative">
                                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -173,7 +173,7 @@ export default function PhotosPage({
                     
                     {/* User Selector and Info - Only show if viewing other users' photos */}
                     {(availableUsers.length > 0 || targetUser) && (
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-4 max-md:flex-col-reverse">
                             {availableUsers.length > 0 && (
                                 <div className="flex items-center gap-2">
                                     <label className="text-sm font-medium text-gray-700">View photos of:</label>
