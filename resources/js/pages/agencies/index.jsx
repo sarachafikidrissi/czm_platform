@@ -247,17 +247,17 @@ export default function AgenciesIndex() {
 
                             {/* Latest Posts from Matchmakers Section */}
                             {selectedAgency.latest_posts && selectedAgency.latest_posts.length > 0 && (
-                                <Card>
+                                <Card className=''>
                                     <CardHeader>
                                         <CardTitle className="flex items-center gap-2">
                                             <Calendar className="h-5 w-5" />
                                             Latest Posts from Matchmakers
                                         </CardTitle>
                                     </CardHeader>
-                                    <CardContent>
+                                    <CardContent className=''>
                                         <div className="space-y-4">
                                             {selectedAgency.latest_posts.map((post) => (
-                                                <PostCard key={post.id} post={post} />
+                                                <PostCard key={post.id} post={post}   />
                                             ))}
                                         </div>
                                     </CardContent>

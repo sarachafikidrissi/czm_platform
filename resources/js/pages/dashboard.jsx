@@ -13,8 +13,9 @@ import { useState } from 'react';
 import AdminDashboardContent from './admin/adminDashboardContent';
 import ManagerDashboardContent from './manager/managerDashboardContent';
 import MatchMakerDashboardContent from './matchmaker/matchmakerDashboardContent';
+import PostCard from '@/components/posts/PostCard';
 
-function UserDashboardContent({ user, profile, subscriptionReminder, accountStatus, rejectedBy, unpaidBill, expiredSubscription }) {
+function UserDashboardContent({ user, profile, subscriptionReminder, accountStatus, rejectedBy, unpaidBill, expiredSubscription, recentPosts }) {
     // Debug: Log the profile data in frontend
     console.log('Dashboard Profile Data:', {
         profile,
@@ -350,9 +351,35 @@ function UserDashboardContent({ user, profile, subscriptionReminder, accountStat
                     </Alert>
                 )}
             </div>
+            <div className='grid grid-cols-3 gap-4 max-md:flex max-md:flex-col-reverse'>
+
+            
+            {/* Recent Activity */}
+            <Card className='col-span-2'>
+                <CardHeader>
+                    <CardTitle>Activité Récente</CardTitle>
+                    <CardDescription>Suivez vos dernières activités sur la plateforme</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    {recentPosts && recentPosts.length > 0 ? (
+                        <div className="space-y-4">
+                            {recentPosts.map((post) => (
+                                <PostCard key={post.id} post={post} />
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="py-8 text-center">
+                            <AlertCircle className="mx-auto mb-4 h-12 w-12 text-gray-400" />
+                            <h3 className="mb-2 text-lg font-semibold text-gray-900">Aucune activité récente</h3>
+                            <p className="text-gray-600">Vos activités apparaîtront ici une fois que vous commencerez à utiliser nos services.</p>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
 
             {/* Quick Actions */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div className='flex flex-col  gap-4 '>
+            {/* <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3"> */}
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Mon Profil</CardTitle>
@@ -415,20 +442,7 @@ function UserDashboardContent({ user, profile, subscriptionReminder, accountStat
                 </Card>
             </div>
 
-            {/* Recent Activity */}
-            <Card>
-                <CardHeader>
-                    <CardTitle>Activité Récente</CardTitle>
-                    <CardDescription>Suivez vos dernières activités sur la plateforme</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="py-8 text-center">
-                        <AlertCircle className="mx-auto mb-4 h-12 w-12 text-gray-400" />
-                        <h3 className="mb-2 text-lg font-semibold text-gray-900">Aucune activité récente</h3>
-                        <p className="text-gray-600">Vos activités apparaîtront ici une fois que vous commencerez à utiliser nos services.</p>
-                    </div>
-                </CardContent>
-            </Card>
+            </div>
 
             {/* Matchmaker Contact Dialog */}
             <Dialog open={showMatchmakerDialog} onOpenChange={setShowMatchmakerDialog}>
@@ -533,6 +547,7 @@ export default function Dashboard() {
                     rejectedBy={props?.rejectedBy || null}
                     unpaidBill={unpaidBill}
                     expiredSubscription={expiredSubscription}
+                    recentPosts={props?.recentPosts || null}
                 />
             )}
         </AppLayout>

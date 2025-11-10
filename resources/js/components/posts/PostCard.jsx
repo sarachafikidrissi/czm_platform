@@ -3,7 +3,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { router, usePage } from '@inertiajs/react';
-import { Heart, MessageCircle, Share, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Heart, MessageCircle, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
 
 export default function PostCard({ post }) {
@@ -130,21 +130,21 @@ export default function PostCard({ post }) {
                 {/* Post Header */}
                 <div className="mb-4 flex items-start justify-between">
                     <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
-                            <span className="text-sm font-medium text-gray-600">
+                        <div className="flex h-15 w-15 items-center justify-center border-[#096725] border-2 rounded-full bg-muted">
+                            {/* <span className="text-sm font-medium text-gray-600 border-[#096725] border-2"> */}
                                 {post.user?.profile_picture ? (
                                     <img
                                         src={`/storage/${post.user.profile_picture}`}
                                         alt={post.user.name}
-                                        className="h-full w-full object-cover rounded-full"
+                                        className="h-full w-full object-cover  rounded-full "
                                     />
                                 ) : (
                                     <span className="text-sm font-medium text-muted-foreground">{post.user?.name?.charAt(0)?.toUpperCase() || 'U'}</span>
                                 )}
-                            </span>
+                            {/* </span> */}
                         </div>
                         <div>
-                            <h3 className="font-semibold text-foreground">{post.user?.name || 'Unknown User'}</h3>
+                            <h3 className="font-semibold  text-red-800">{post.user?.name || 'Unknown User'}</h3>
                             <p className="text-sm text-muted-foreground">{formatTimeAgo(post.created_at)}</p>
                         </div>
                     </div>
@@ -167,7 +167,7 @@ export default function PostCard({ post }) {
                             <img 
                                 src={imageUrls[currentImageIndex]} 
                                 alt={`Post image ${currentImageIndex + 1}`} 
-                                className="max-h-96 w-full rounded-lg object-contain bg-muted" 
+                                className="max-h-96 w-full rounded-lg object-cover bg-muted" 
                             />
                             {imageUrls.length > 1 && (
                                 <>
@@ -247,11 +247,6 @@ export default function PostCard({ post }) {
                         <MessageCircle className="h-4 w-4" />
                         {showComments ? 'Masquer les commentaires' : 'Voir les commentaires'}
                     </Button>
-
-                    <Button variant="ghost" size="sm" className="flex items-center gap-2 text-gray-600">
-                        <Share className="h-4 w-4" />
-                        Partager
-                    </Button>
                 </div>
 
                 {/* Comments Section */}
@@ -262,18 +257,18 @@ export default function PostCard({ post }) {
                             <div className="mb-4 space-y-3">
                                 {comments.map((comment) => (
                                     <div key={comment.id} className="flex items-start gap-3">
-                                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200">
-                                            <span className="text-xs font-medium text-gray-600">
+                                        <div className="flex h-8 w-8 items-center justify-center border-2 border-red-600 rounded-full bg-gray-200">
                                                 {
                                                     comment.user?.roles?.[0]?.name !== 'user' && comment.user?.profile_picture ? (
                                                         <img src={`/storage/${comment.user.profile_picture}`} alt={comment.user.name} className="h-full w-full object-cover rounded-full" />
                                                     ) : comment.user?.roles?.[0]?.name === 'user' && comment.user?.profile?.profile_picture_path ? (
                                                         <img src={`/storage/${comment.user.profile.profile_picture_path}`} alt={comment.user.name} className="h-full w-full object-cover rounded-full" />
                                                     ) : (
-                                                       comment.user?.name?.charAt(0)?.toUpperCase() || 'U'
+                                                        <span className="text-xs font-medium text-gray-600">
+                                                            {comment.user?.name?.charAt(0)?.toUpperCase() || 'U'}
+                                                        </span>
                                                     )
                                                 }
-                                            </span>
                                         </div>
                                         <div className="flex-1">
                                             <div className="rounded-lg bg-muted p-3">

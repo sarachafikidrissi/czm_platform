@@ -249,6 +249,52 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 'is_completed' => $profile ? $profile->is_completed : 'no profile',
                 'profile_data' => $profile ? $profile->toArray() : 'no profile'
             ]);
+
+            // Load recent posts from matchmakers and managers for user dashboard
+            $matchmakerIds = \App\Models\User::role('matchmaker')
+                ->where('approval_status', 'approved')
+                ->pluck('id');
+            
+            $managerIds = \App\Models\User::role('manager')
+                ->where('approval_status', 'approved')
+                ->pluck('id');
+            
+            $staffIds = $matchmakerIds->merge($managerIds)->unique();
+            
+            $recentPosts = \App\Models\Post::with([
+                'user' => function($query) {
+                    $query->with('roles', 'profile');
+                },
+                'agency',
+                'likes',
+                'comments.user.roles',
+                'comments.user.profile'
+            ])
+            ->whereIn('user_id', $staffIds)
+            ->orderBy('created_at', 'desc')
+            ->limit(10)
+            ->get();
+
+            // Add like status and parse media URLs
+            if (\Illuminate\Support\Facades\Auth::check()) {
+                $recentPosts->each(function ($post) {
+                    $post->is_liked = $post->isLikedBy(\Illuminate\Support\Facades\Auth::id());
+                    $post->likes_count = $post->likes_count;
+                    $post->comments_count = $post->comments_count;
+                    
+                    // Parse media_url if it's JSON (multiple images)
+                    if ($post->type === 'image' && $post->media_url) {
+                        $decoded = json_decode($post->media_url, true);
+                        if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                            $post->media_urls = $decoded;
+                        } else {
+                            $post->media_urls = [$post->media_url];
+                        }
+                    }
+                });
+            }
+        } else {
+            $recentPosts = null;
         }
 
         return Inertia::render('dashboard', [
@@ -272,6 +318,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ] : null,
             'expiredSubscription' => $expiredSubscription,
             'posts' => $posts,
+            'recentPosts' => $recentPosts ?? null,
         ]);
     })->name('dashboard');
 

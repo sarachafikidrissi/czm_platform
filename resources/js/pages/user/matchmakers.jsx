@@ -76,8 +76,8 @@ export default function UserMatchmakers() {
             <div className="space-y-4">
                 {posts.data && posts.data.length > 0 ? (
                     posts.data.map((post) => (
-                        <div key={post.id} className="relative">
-                            <PostCard post={post} />
+                        <div key={post.id} className="relative w-[65%] max-md:w-[100%] max-sm:w-[100%]">
+                            <PostCard  post={post} />
                             <div className="absolute top-4 right-4">
                                 <Dialog>
                                     <DialogTrigger asChild>
