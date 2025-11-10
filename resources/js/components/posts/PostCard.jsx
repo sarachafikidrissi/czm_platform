@@ -1,9 +1,9 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 import { router, usePage } from '@inertiajs/react';
-import { Heart, MessageCircle, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Heart, MessageCircle, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 
 export default function PostCard({ post }) {
@@ -18,14 +18,10 @@ export default function PostCard({ post }) {
     const [comments, setComments] = useState(post.comments || []);
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
-    
+
     // Handle multiple images
     const imageUrls = post.media_urls || (post.media_url ? [post.media_url] : []);
-    console.log("matchmaker posts are ", post);
-    
-
-    
-
+    console.log('matchmaker posts are ', post);
 
     const handleLike = () => {
         setIsLiking(true);
@@ -103,7 +99,7 @@ export default function PostCard({ post }) {
         router.delete(`/posts/${post.id}`, {
             onSuccess: () => {
                 setShowDeleteDialog(false);
-            }
+            },
         });
     };
 
@@ -130,22 +126,22 @@ export default function PostCard({ post }) {
                 {/* Post Header */}
                 <div className="mb-4 flex items-start justify-between">
                     <div className="flex items-center gap-3">
-                        <div className="flex h-15 w-15 items-center justify-center border-[#096725] border-2 rounded-full bg-muted">
+                        <div className="bg-muted flex h-15 w-15 items-center justify-center rounded-full border-2 border-[#096725]">
                             {/* <span className="text-sm font-medium text-gray-600 border-[#096725] border-2"> */}
-                                {post.user?.profile_picture ? (
-                                    <img
-                                        src={`/storage/${post.user.profile_picture}`}
-                                        alt={post.user.name}
-                                        className="h-full w-full object-cover  rounded-full "
-                                    />
-                                ) : (
-                                    <span className="text-sm font-medium text-muted-foreground">{post.user?.name?.charAt(0)?.toUpperCase() || 'U'}</span>
-                                )}
+                            {post.user?.profile_picture ? (
+                                <img
+                                    src={`/storage/${post.user.profile_picture}`}
+                                    alt={post.user.name}
+                                    className="h-full w-full rounded-full object-cover"
+                                />
+                            ) : (
+                                <span className="text-muted-foreground text-sm font-medium">{post.user?.name?.charAt(0)?.toUpperCase() || 'U'}</span>
+                            )}
                             {/* </span> */}
                         </div>
                         <div>
-                            <h3 className="font-semibold  text-red-800">{post.user?.name || 'Unknown User'}</h3>
-                            <p className="text-sm text-muted-foreground">{formatTimeAgo(post.created_at)}</p>
+                            <h3 className="font-semibold text-red-800">{post.user?.name || 'Unknown User'}</h3>
+                            <p className="text-muted-foreground text-sm">{formatTimeAgo(post.created_at)}</p>
                         </div>
                     </div>
                     {auth.user.id === post.user_id && (
@@ -164,17 +160,17 @@ export default function PostCard({ post }) {
                 {post.type === 'image' && imageUrls.length > 0 && (
                     <div className="mb-4">
                         <div className="relative">
-                            <img 
-                                src={imageUrls[currentImageIndex]} 
-                                alt={`Post image ${currentImageIndex + 1}`} 
-                                className="max-h-96 w-full rounded-lg object-cover bg-muted" 
+                            <img
+                                src={imageUrls[currentImageIndex]}
+                                alt={`Post image ${currentImageIndex + 1}`}
+                                className="bg-muted max-h-96 w-full rounded-lg object-cover"
                             />
                             {imageUrls.length > 1 && (
                                 <>
                                     <Button
                                         variant="ghost"
                                         size="icon"
-                                        className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white"
+                                        className="absolute top-1/2 left-2 -translate-y-1/2 bg-black/50 text-white hover:bg-black/70"
                                         onClick={() => setCurrentImageIndex((prev) => (prev > 0 ? prev - 1 : imageUrls.length - 1))}
                                     >
                                         <ChevronLeft className="h-4 w-4" />
@@ -182,12 +178,12 @@ export default function PostCard({ post }) {
                                     <Button
                                         variant="ghost"
                                         size="icon"
-                                        className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white"
+                                        className="absolute top-1/2 right-2 -translate-y-1/2 bg-black/50 text-white hover:bg-black/70"
                                         onClick={() => setCurrentImageIndex((prev) => (prev < imageUrls.length - 1 ? prev + 1 : 0))}
                                     >
                                         <ChevronRight className="h-4 w-4" />
                                     </Button>
-                                    <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-black/50 rounded-full px-3 py-1">
+                                    <div className="absolute bottom-2 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-full bg-black/50 px-3 py-1">
                                         {imageUrls.map((_, index) => (
                                             <button
                                                 key={index}
@@ -206,7 +202,7 @@ export default function PostCard({ post }) {
 
                 {post.type === 'youtube' && post.media_url && (
                     <div className="mb-4">
-                        <div className="relative h-64 w-full overflow-hidden rounded-lg bg-muted">
+                        <div className="bg-muted relative h-64 w-full overflow-hidden rounded-lg">
                             <iframe
                                 src={`https://www.youtube.com/embed/${getYouTubeVideoId(post.media_url)}`}
                                 title="YouTube video"
@@ -220,13 +216,13 @@ export default function PostCard({ post }) {
                 )}
 
                 {/* Engagement Stats */}
-                <div className="mb-4 flex items-center gap-4 text-sm text-muted-foreground">
+                <div className="text-muted-foreground mb-4 flex items-center gap-4 text-sm">
                     <span>{likesCount} j'aime</span>
                     <span>{commentsCount} commentaires</span>
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex items-center gap-4 border-t border-border pt-4">
+                <div className="border-border flex items-center gap-4 border-t pt-4">
                     <Button
                         variant="ghost"
                         size="sm"
@@ -242,40 +238,47 @@ export default function PostCard({ post }) {
                         variant="ghost"
                         size="sm"
                         onClick={() => setShowComments(!showComments)}
-                        className="flex items-center gap-2 text-muted-foreground"
+                        className="text-muted-foreground flex items-center gap-2"
                     >
                         <MessageCircle className="h-4 w-4" />
-                        {showComments ? 'Masquer les commentaires' : 'Voir les commentaires'}
+                        <span className='max-md:text-xs'>{showComments ? 'Masquer les commentaires' : 'Voir les commentaires'}</span>
+                        {/* {showComments ? 'Masquer les commentaires' : 'Voir les commentaires'} */}
                     </Button>
                 </div>
 
                 {/* Comments Section */}
                 {showComments && (
-                    <div className="mt-4 border-t border-border pt-4">
+                    <div className="border-border mt-4 border-t pt-4">
                         {/* Existing Comments */}
                         {comments && comments.length > 0 && (
                             <div className="mb-4 space-y-3">
                                 {comments.map((comment) => (
                                     <div key={comment.id} className="flex items-start gap-3">
-                                        <div className="flex h-8 w-8 items-center justify-center border-2 border-red-600 rounded-full bg-gray-200">
-                                                {
-                                                    comment.user?.roles?.[0]?.name !== 'user' && comment.user?.profile_picture ? (
-                                                        <img src={`/storage/${comment.user.profile_picture}`} alt={comment.user.name} className="h-full w-full object-cover rounded-full" />
-                                                    ) : comment.user?.roles?.[0]?.name === 'user' && comment.user?.profile?.profile_picture_path ? (
-                                                        <img src={`/storage/${comment.user.profile.profile_picture_path}`} alt={comment.user.name} className="h-full w-full object-cover rounded-full" />
-                                                    ) : (
-                                                        <span className="text-xs font-medium text-gray-600">
-                                                            {comment.user?.name?.charAt(0)?.toUpperCase() || 'U'}
-                                                        </span>
-                                                    )
-                                                }
+                                        <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-red-600 bg-gray-200">
+                                            {comment.user?.roles?.[0]?.name !== 'user' && comment.user?.profile_picture ? (
+                                                <img
+                                                    src={`/storage/${comment.user.profile_picture}`}
+                                                    alt={comment.user.name}
+                                                    className="h-full w-full rounded-full object-cover"
+                                                />
+                                            ) : comment.user?.roles?.[0]?.name === 'user' && comment.user?.profile?.profile_picture_path ? (
+                                                <img
+                                                    src={`/storage/${comment.user.profile.profile_picture_path}`}
+                                                    alt={comment.user.name}
+                                                    className="h-full w-full rounded-full object-cover"
+                                                />
+                                            ) : (
+                                                <span className="text-xs font-medium text-gray-600">
+                                                    {comment.user?.name?.charAt(0)?.toUpperCase() || 'U'}
+                                                </span>
+                                            )}
                                         </div>
                                         <div className="flex-1">
-                                            <div className="rounded-lg bg-muted p-3">
-                                                <h4 className="text-sm font-medium text-foreground">{comment.user?.name || 'Unknown User'}</h4>
-                                                <p className="mt-1 text-sm text-foreground">{comment.content}</p>
+                                            <div className="bg-muted rounded-lg p-3">
+                                                <h4 className="text-foreground text-sm font-medium">{comment.user?.name || 'Unknown User'}</h4>
+                                                <p className="text-foreground mt-1 text-sm">{comment.content}</p>
                                             </div>
-                                            <div className="mt-2 flex items-center gap-4 text-xs text-muted-foreground">
+                                            <div className="text-muted-foreground mt-2 flex items-center gap-4 text-xs">
                                                 <span>{formatTimeAgo(comment.created_at)}</span>
                                                 <button className="hover:text-foreground">J'aime</button>
                                                 <button className="hover:text-foreground">Répondre</button>
@@ -287,17 +290,19 @@ export default function PostCard({ post }) {
                         )}
 
                         {/* Comment Form */}
-                        <form onSubmit={handleComment} className="flex gap-3">
-                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200">
-                                <span className="text-xs font-medium text-gray-600">{auth.user.name.charAt(0).toUpperCase()}</span>
-                            </div>
-                            <div className="flex-1">
-                                <Textarea
-                                    value={newComment}
-                                    onChange={(e) => setNewComment(e.target.value)}
-                                    placeholder="Laisser un commentaire..."
-                                    className="min-h-[40px] resize-none"
-                                />
+                        <form onSubmit={handleComment} className="flex gap-3 max-md:flex-col">
+                            <div className='flex items-center gap-3'>
+                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200">
+                                    <span className="text-xs font-medium text-gray-600">{auth.user.name.charAt(0).toUpperCase()}</span>
+                                </div>
+                                <div className="flex-1">
+                                    <Textarea
+                                        value={newComment}
+                                        onChange={(e) => setNewComment(e.target.value)}
+                                        placeholder="Laisser un commentaire..."
+                                        className="min-h-[40px] resize-none"
+                                    />
+                                </div>
                             </div>
                             <Button type="submit" disabled={isCommenting || !newComment.trim()} className="bg-error hover:opacity-90">
                                 {isCommenting ? '...' : 'Commentaire'}
@@ -312,9 +317,7 @@ export default function PostCard({ post }) {
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Are you sure?</DialogTitle>
-                        <DialogDescription>
-                            This action cannot be undone. This will permanently delete your post.
-                        </DialogDescription>
+                        <DialogDescription>This action cannot be undone. This will permanently delete your post.</DialogDescription>
                     </DialogHeader>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>

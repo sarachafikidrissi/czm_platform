@@ -91,7 +91,7 @@ export default function AgenciesIndex() {
                             {/* Agency Header Card */}
                             <Card className="overflow-hidden">
                                 <div className="relative p-6" style={{ backgroundColor: 'rgba(9, 103, 37, 0.05)' }}>
-                                    <div className="flex items-start gap-4">
+                                    <div className="flex items-start gap-4  max-md:flex-col">
                                         <div className="relative">
                                             <img
                                                 src={getAgencyImage(selectedAgency)}
@@ -105,7 +105,7 @@ export default function AgenciesIndex() {
                                         <div className="flex-1">
                                             <div className="flex items-start justify-between">
                                                 <div>
-                                                    <h2 className="text-foreground mb-1 text-2xl font-bold">{selectedAgency.name}</h2>
+                                                    <h2 className="text-foreground mb-1 text-2xl max-md:text-xl font-bold">{selectedAgency.name}</h2>
                                                     <div className="text-muted-foreground mb-2 flex items-center gap-2">
                                                         <MapPin className="h-4 w-4" />
                                                         <span>
