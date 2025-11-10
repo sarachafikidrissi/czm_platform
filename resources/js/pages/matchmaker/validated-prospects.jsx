@@ -12,7 +12,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import { useState, useEffect } from 'react';
-import { LayoutGrid, Table2, Mail, MapPin, CheckCircle, Pencil, TestTube } from 'lucide-react';
+import { LayoutGrid, Table2, Mail, MapPin, CheckCircle, Pencil, TestTube, Link as LinkIcon, Copy, Check } from 'lucide-react';
 
 export default function ValidatedProspects() {
     const { prospects, status, assignedMatchmaker } = usePage().props;
@@ -36,6 +36,14 @@ export default function ValidatedProspects() {
     const [selectedUserForStatus, setSelectedUserForStatus] = useState(null);
     const [statusReason, setStatusReason] = useState('');
     const [statusSubmitting, setStatusSubmitting] = useState(false);
+    const [userInfoModalOpen, setUserInfoModalOpen] = useState(false);
+    const [selectedUserForInfo, setSelectedUserForInfo] = useState(null);
+    const [userFormData, setUserFormData] = useState({
+        firstName: '',
+        lastName: '',
+        email: '',
+        username: ''
+    });
     
     // Reset page when prospects change (e.g., filter changes)
     useEffect(() => {
@@ -183,6 +191,39 @@ export default function ValidatedProspects() {
         return user.profile?.matrimonial_pack?.name || 
                (user.profile?.service_id ? 'Service' : null) || 
                'coding school';
+    };
+
+    // Handle user info modal
+    const handleUserInfoClick = (user) => {
+        const nameParts = (user.name || '').split(' ');
+        const firstName = nameParts[0] || '';
+        const lastName = nameParts.slice(1).join(' ') || '';
+        
+        setSelectedUserForInfo(user);
+        setUserFormData({
+            firstName: firstName,
+            lastName: lastName,
+            email: user.email || '',
+            username: user.username || ''
+        });
+        setUserInfoModalOpen(true);
+    };
+
+    // Handle copy link
+    const handleCopyLink = () => {
+        if (selectedUserForInfo) {
+            const profileUrl = `${window.location.origin}/profile/${selectedUserForInfo.username || selectedUserForInfo.id}`;
+            navigator.clipboard.writeText(profileUrl).then(() => {
+                // You could add a toast notification here
+            });
+        }
+    };
+
+    // Handle view profile
+    const handleViewProfile = () => {
+        if (selectedUserForInfo) {
+            router.visit(`/profile/${selectedUserForInfo.username || selectedUserForInfo.id}`);
+        }
     };
 
     return (
@@ -383,7 +424,11 @@ export default function ValidatedProspects() {
                                     </TableHeader>
                                     <TableBody>
                                         {paginatedProspects.map((u) => (
-                                            <TableRow key={u.id}>
+                                            <TableRow 
+                                                key={u.id}
+                                                className="cursor-pointer hover:bg-muted/50"
+                                                onClick={() => handleUserInfoClick(u)}
+                                            >
                                                 <TableCell className="font-medium">{u.name}</TableCell>
                                                 <TableCell>{u.email || 'N/A'}</TableCell>
                                                 <TableCell className="hidden md:table-cell">{u.phone || 'N/A'}</TableCell>
@@ -405,12 +450,13 @@ export default function ValidatedProspects() {
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell>
-                                                    <div className="flex items-center gap-2">
+                                                    <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                                                         {u.profile?.account_status === 'desactivated' ? (
                                                             <Button
                                                                 size="sm"
                                                                 variant="default"
-                                                                onClick={() => {
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
                                                                     setSelectedUserForStatus(u);
                                                                     setStatusReason('');
                                                                     setActivateDialogOpen(true);
@@ -422,7 +468,8 @@ export default function ValidatedProspects() {
                                                             <Button
                                                                 size="sm"
                                                                 variant="destructive"
-                                                                onClick={() => {
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
                                                                     setSelectedUserForStatus(u);
                                                                     setStatusReason('');
                                                                     setDeactivateDialogOpen(true);
@@ -436,7 +483,10 @@ export default function ValidatedProspects() {
                                                                 variant="default"
                                                                 size="sm"
                                                                 className="bg-info hover:opacity-90"
-                                                                onClick={() => handleCreateSubscription(u)}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleCreateSubscription(u);
+                                                                }}
                                                             >
                                                                 Abonnement
                                                             </Button>
@@ -446,7 +496,10 @@ export default function ValidatedProspects() {
                                                                 variant="default"
                                                                 size="sm"
                                                                 className="bg-success hover:opacity-90"
-                                                                onClick={() => handleMarkAsClient(u.id)}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleMarkAsClient(u.id);
+                                                                }}
                                                                 disabled={loading[u.id]}
                                                             >
                                                                 {loading[u.id] ? 'Traitement...' : 'Mark as Client'}
@@ -455,7 +508,10 @@ export default function ValidatedProspects() {
                                                         <Button
                                                             variant="ghost"
                                                             size="sm"
-                                                            onClick={() => router.visit(`/profile/${u.username || u.id}`)}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                router.visit(`/profile/${u.username || u.id}`);
+                                                            }}
                                                         >
                                                             <Pencil className="w-4 h-4" />
                                                         </Button>
@@ -815,6 +871,163 @@ export default function ValidatedProspects() {
                             {statusSubmitting ? 'Envoi...' : 'Désactiver'}
                         </Button>
                     </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* User Info Modal */}
+            <Dialog open={userInfoModalOpen} onOpenChange={setUserInfoModalOpen}>
+                <DialogContent className="w-[95vw] sm:w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+                    {selectedUserForInfo && (
+                        <>
+                            {/* Header Section with Profile Picture */}
+                            <div className="flex flex-col items-center gap-4 pb-6 border-b">
+                                <div className="relative">
+                                    <img
+                                        src={getProfilePicture(selectedUserForInfo)}
+                                        alt={selectedUserForInfo.name}
+                                        className="w-24 h-24 sm:w-32 sm:h-32 rounded-full object-cover"
+                                        onError={(e) => {
+                                            e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedUserForInfo.name)}&background=random`;
+                                        }}
+                                    />
+                                    <div className="absolute bottom-0 right-0 bg-blue-600 rounded-full p-1.5 border-2 border-white">
+                                        <Check className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
+                                    </div>
+                                </div>
+                                <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 w-full px-2 sm:px-0">
+                                    <div className="text-center sm:text-left flex-1">
+                                        <h2 className="text-lg sm:text-xl font-semibold break-words">{selectedUserForInfo.name}</h2>
+                                        <p className="text-xs sm:text-sm text-muted-foreground break-all">{selectedUserForInfo.email}</p>
+                                    </div>
+                                    <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={handleCopyLink}
+                                            className="flex items-center justify-center gap-2 w-full sm:w-auto"
+                                        >
+                                            <LinkIcon className="w-4 h-4" />
+                                            Copy link
+                                        </Button>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={handleViewProfile}
+                                            className="flex items-center justify-center gap-2 w-full sm:w-auto"
+                                        >
+                                            View profile
+                                        </Button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Form Fields Section - Read Only */}
+                            <div className="space-y-6 py-4 px-2 sm:px-0">
+                                {/* Name Fields */}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="firstName">Name</Label>
+                                        <Input
+                                            id="firstName"
+                                            value={userFormData.firstName}
+                                            disabled
+                                            className="bg-muted"
+                                            placeholder="First name"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="lastName" className="opacity-0">Name</Label>
+                                        <Input
+                                            id="lastName"
+                                            value={userFormData.lastName}
+                                            disabled
+                                            className="bg-muted"
+                                            placeholder="Last name"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Email Address */}
+                                <div className="space-y-2">
+                                    <Label htmlFor="email">Email address</Label>
+                                    <div className="relative">
+                                        <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                        <Input
+                                            id="email"
+                                            type="email"
+                                            value={userFormData.email}
+                                            disabled
+                                            className="pl-10 bg-muted"
+                                            placeholder="Email address"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Username */}
+                                <div className="space-y-2">
+                                    <Label htmlFor="username">Username</Label>
+                                    <div className="relative">
+                                        <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-xs sm:text-sm text-muted-foreground whitespace-nowrap">
+                                            untitledui.com/
+                                        </div>
+                                        <Input
+                                            id="username"
+                                            value={userFormData.username}
+                                            disabled
+                                            className="pl-[120px] sm:pl-[140px] pr-10 bg-muted text-sm sm:text-base"
+                                            placeholder="username"
+                                        />
+                                        <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                                            <Check className="w-4 h-4 text-blue-600" />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Profile Photo */}
+                                <div className="space-y-2">
+                                    <Label>Profile photo</Label>
+                                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                                        <img
+                                            src={getProfilePicture(selectedUserForInfo)}
+                                            alt={selectedUserForInfo.name}
+                                            className="w-16 h-16 rounded-full object-cover flex-shrink-0"
+                                            onError={(e) => {
+                                                e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedUserForInfo.name)}&background=random`;
+                                            }}
+                                        />
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => {
+                                                // Handle profile photo replacement
+                                                const input = document.createElement('input');
+                                                input.type = 'file';
+                                                input.accept = 'image/*';
+                                                input.onchange = (e) => {
+                                                    // Handle file upload here
+                                                    console.log('File selected:', e.target.files[0]);
+                                                };
+                                                input.click();
+                                            }}
+                                            className="w-full sm:w-auto"
+                                        >
+                                            Click to replace
+                                        </Button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Footer Buttons */}
+                            <DialogFooter className="flex justify-end">
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setUserInfoModalOpen(false)}
+                                >
+                                    Cancel
+                                </Button>
+                            </DialogFooter>
+                        </>
+                    )}
                 </DialogContent>
             </Dialog>
         </AppLayout>

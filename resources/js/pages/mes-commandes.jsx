@@ -341,29 +341,29 @@ export default function MesCommandes({ bills = [] }) {
                                 </div>
 
                                 {/* Order Details Table */}
-                                <div className="mb-8">
-                                    <table className="w-full border-collapse">
+                                <div className="mb-8 overflow-x-auto">
+                                    <table className="w-full border-collapse min-w-[640px]">
                                         <thead>
                                             <tr className="bg-muted">
-                                                <th className="border border-border px-4 py-3 text-left font-semibold">Description</th>
-                                                <th className="border border-border px-4 py-3 text-center font-semibold">Quantité</th>
-                                                <th className="border border-border px-4 py-3 text-right font-semibold">Prix unitaire</th>
-                                                <th className="border border-border px-4 py-3 text-right font-semibold">Montant</th>
+                                                <th className="border border-border px-2 sm:px-4 py-2 sm:py-3 text-left font-semibold text-xs sm:text-sm">Description</th>
+                                                <th className="border border-border px-2 sm:px-4 py-2 sm:py-3 text-center font-semibold text-xs sm:text-sm">Quantité</th>
+                                                <th className="border border-border px-2 sm:px-4 py-2 sm:py-3 text-right font-semibold text-xs sm:text-sm">Prix unitaire</th>
+                                                <th className="border border-border px-2 sm:px-4 py-2 sm:py-3 text-right font-semibold text-xs sm:text-sm">Montant</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             <tr>
-                                                <td className="border border-border px-4 py-3">
+                                                <td className="border border-border px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm">
                                                     <div className="flex items-center gap-2">
-                                                        <Package className="w-4 h-4 text-info" />
+                                                        <Package className="w-4 h-4 text-info flex-shrink-0" />
                                                         {selectedInvoice.pack_name}
                                                     </div>
                                                 </td>
-                                                <td className="border border-border px-4 py-3 text-center">1</td>
-                                                <td className="border border-border px-4 py-3 text-right">
+                                                <td className="border border-border px-2 sm:px-4 py-2 sm:py-3 text-center text-xs sm:text-sm">1</td>
+                                                <td className="border border-border px-2 sm:px-4 py-2 sm:py-3 text-right text-xs sm:text-sm">
                                                     {parseFloat(selectedInvoice.amount).toLocaleString()} {selectedInvoice.currency}
                                                 </td>
-                                                <td className="border border-border px-4 py-3 text-right">
+                                                <td className="border border-border px-2 sm:px-4 py-2 sm:py-3 text-right text-xs sm:text-sm">
                                                     {parseFloat(selectedInvoice.amount).toLocaleString()} {selectedInvoice.currency}
                                                 </td>
                                             </tr>

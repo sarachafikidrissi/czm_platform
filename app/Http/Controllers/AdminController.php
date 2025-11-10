@@ -83,7 +83,7 @@ class AdminController extends Controller
         } elseif ($dispatch === 'not_dispatched') {
             $query->whereNull('agency_id')->whereNull('assigned_matchmaker_id');
         }
-        $prospects = $query->with('profile')->get(['id','name','email','phone','country','city','status','agency_id','assigned_matchmaker_id','rejection_reason','rejected_by','rejected_at','created_at']);
+        $prospects = $query->with('profile')->get(['id','name','email','username','phone','country','city','status','agency_id','assigned_matchmaker_id','rejection_reason','rejected_by','rejected_at','created_at']);
         $agencies = Agency::query()->get(['id','name','country','city']);
         $matchmakers = User::role('matchmaker')
             ->where('approval_status', 'approved')
