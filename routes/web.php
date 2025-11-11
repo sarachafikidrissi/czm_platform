@@ -382,6 +382,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/reactivation-requests/{request}/reject', [\App\Http\Controllers\ReactivationRequestController::class, 'reject'])->name('reactivation-requests.reject');
     });
 
+    // Objectives routes - accessible to admin, manager, and matchmaker
+    Route::middleware(['role:admin|manager|matchmaker'])->group(function () {
+        Route::get('/objectives', [\App\Http\Controllers\ObjectiveController::class, 'index'])->name('objectives.index');
+        Route::post('/objectives', [\App\Http\Controllers\ObjectiveController::class, 'store'])->name('objectives.store');
+        Route::get('/objectives/details', [\App\Http\Controllers\ObjectiveController::class, 'getDetails'])->name('objectives.details');
+        Route::post('/objectives/{objective}/mark-commission-paid', [\App\Http\Controllers\ObjectiveController::class, 'markCommissionPaid'])->name('objectives.mark-commission-paid');
+    });
+
     // User routes
     Route::middleware(['role:user'])->prefix('user')->name('user.')->group(function () {
         Route::get('/matchmakers', [\App\Http\Controllers\UserController::class, 'matchmakers'])->name('matchmakers');

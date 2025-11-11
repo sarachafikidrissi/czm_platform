@@ -5,7 +5,7 @@ import { NavUser } from '@/components/nav-user';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { CalendarHeart, Flame, HeartHandshake, Images, LayoutGrid, User, UserRoundSearch, Users, UserCheck, Plus, ShoppingCart, CreditCard, RotateCcw, Building2 } from 'lucide-react';
+import { CalendarHeart, Flame, HeartHandshake, Images, LayoutGrid, User, UserRoundSearch, Users, UserCheck, Plus, ShoppingCart, CreditCard, RotateCcw, Building2, Target } from 'lucide-react';
 
 const mainNavItems: NavItem[] = [
     {
@@ -112,6 +112,12 @@ const mainNavItems: NavItem[] = [
         title: 'Members/Client',
         url: '/staff/validated-prospects',
         icon: HeartHandshake,
+        roles: ['admin', 'matchmaker', 'manager'],
+    },
+    {
+        title: 'Monthly Objectives',
+        url: '/objectives',
+        icon: Target,
         roles: ['admin', 'matchmaker', 'manager'],
     },
     {
