@@ -121,9 +121,9 @@ class PhotoController extends Controller
             $query = $targetUser->photos()->orderBy('created_at', 'desc');
 
             // Search functionality
-            if ($request->has('search') && $request->search) {
-                $query->where('file_name', 'like', '%' . $request->search . '%');
-            }
+            // if ($request->has('search') && $request->search) {
+            //     $query->where('file_name', 'like', '%' . $request->search . '%');
+            // }
 
             // Paginate with 8 items per page
             $photos = $query->paginate(8)->withQueryString();

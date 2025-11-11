@@ -29,6 +29,7 @@ export default function PhotosPage({
     canDelete = true
 }) {
     const [search, setSearch] = useState(initialSearch);
+    const [userSearch, setUserSearch] = useState('');
     const [isUploading, setIsUploading] = useState(false);
     const [photoToDelete, setPhotoToDelete] = useState(null);
     const fileInputRef = useRef(null);
@@ -38,18 +39,18 @@ export default function PhotosPage({
     const photosData = photos?.data || [];
     const pagination = photos || {};
 
-    const handleSearch = (e) => {
-        const value = e.target.value;
-        setSearch(value);
-        const params = { search: value, page: 1 };
-        if (targetUser?.id) {
-            params.user_id = targetUser.id;
-        }
-        router.get('/photos', params, {
-            preserveState: false,
-            preserveScroll: false,
-        });
-    };
+    // const handleSearch = (e) => {
+    //     const value = e.target.value;
+    //     setSearch(value);
+    //     const params = { search: value, page: 1 };
+    //     if (targetUser?.id) {
+    //         params.user_id = targetUser.id;
+    //     }
+    //     router.get('/photos', params, {
+    //         preserveState: false,
+    //         preserveScroll: false,
+    //     });
+    // };
 
     const handlePageChange = (page) => {
         const params = { 
@@ -137,7 +138,7 @@ export default function PhotosPage({
                         </div>
                         <div className="flex items-center gap-4 ">
                             {/* Search Bar */}
-                            <div className="relative">
+                            {/* <div className="relative">
                                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                                 <Input
                                     type="text"
@@ -146,7 +147,7 @@ export default function PhotosPage({
                                     onChange={handleSearch}
                                     className="pl-10 w-64 bg-gray-100 border-gray-200 rounded-lg"
                                 />
-                            </div>
+                            </div> */}
                             {/* Upload Button - Only show if canUpload */}
                             {canUpload && (
                                 <>
@@ -175,28 +176,48 @@ export default function PhotosPage({
                     {(availableUsers.length > 0 || targetUser) && (
                         <div className="flex items-center gap-4 max-md:flex-col-reverse">
                             {availableUsers.length > 0 && (
-                                <div className="flex items-center gap-2">
-                                    <label className="text-sm font-medium text-gray-700">View photos of:</label>
-                                    <Select
-                                        value={targetUser?.id?.toString() || 'current'}
-                                        onValueChange={handleUserChange}
-                                    >
-                                        <SelectTrigger className="w-64">
-                                            <SelectValue placeholder="Select a user" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {availableUsers.map((user) => (
-                                                <SelectItem key={user.id} value={user.id.toString()}>
-                                                    {user.name} ({user.email})
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            )}
-                            {targetUser && (
-                                <div className="text-sm text-gray-600">
-                                    Viewing photos of <span className="font-semibold">{targetUser.name}</span>
+                                <div className="flex flex-col gap-2 w-full max-w-md">
+                                    <div className="flex items-center gap-2">
+                                        <label className="text-sm font-medium text-gray-700 ">View photos of: {targetUser?.name !== auth.user.name ? targetUser.name :  ''}</label>
+                                    </div>
+                                    <div className="flex max-md:flex-col gap-2">
+                                        {/* Search Input for Users */}
+                                        <div className="relative w-[30vw] max-md:w-full">
+                                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                                            <Input
+                                                type="text"
+                                                placeholder="Search by name or email..."
+                                                value={userSearch}
+                                                onChange={(e) => setUserSearch(e.target.value)}
+                                                className="pl-10 w-full bg-gray-100 border-gray-200 rounded-lg"
+                                            />
+                                        </div>
+                                        {/* User Select */}
+                                        <Select
+                                            value={targetUser?.id?.toString() || 'current'}
+                                            onValueChange={handleUserChange}
+                                        >
+                                            <SelectTrigger className="max-md:w-full w-[30vw]">
+                                                <SelectValue placeholder="Select a user" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {availableUsers
+                                                    .filter((user) => {
+                                                        if (!userSearch.trim()) return true;
+                                                        const searchLower = userSearch.toLowerCase();
+                                                        return (
+                                                            user.name?.toLowerCase().includes(searchLower) ||
+                                                            user.email?.toLowerCase().includes(searchLower)
+                                                        );
+                                                    })
+                                                    .map((user) => (
+                                                        <SelectItem key={user.id} value={user.id.toString()}>
+                                                            {user.name} ({user.email})
+                                                        </SelectItem>
+                                                    ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
                                 </div>
                             )}
                         </div>
