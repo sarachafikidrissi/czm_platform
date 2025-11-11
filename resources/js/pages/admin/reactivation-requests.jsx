@@ -1,5 +1,5 @@
 import { Head, router, usePage } from '@inertiajs/react';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -8,7 +8,8 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { AlertCircle, CheckCircle, XCircle, User, Mail, Phone, Calendar } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { AlertCircle, CheckCircle, XCircle, User, Mail, Phone, Calendar, Search } from 'lucide-react';
 
 export default function ReactivationRequests() {
     const { requests = [], routePrefix = 'admin' } = usePage().props;
@@ -17,6 +18,7 @@ export default function ReactivationRequests() {
     const [reviewNotes, setReviewNotes] = useState('');
     const [submitting, setSubmitting] = useState(false);
     const [dialogOpen, setDialogOpen] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
 
     const handleAction = (request, type) => {
         setSelectedRequest(request);
@@ -59,6 +61,20 @@ export default function ReactivationRequests() {
         });
     };
 
+    // Filter requests based on search query
+    const filteredRequests = useMemo(() => {
+        if (!searchQuery.trim()) {
+            return requests;
+        }
+        const query = searchQuery.toLowerCase().trim();
+        return requests.filter(request => {
+            const name = (request.user?.name || '').toLowerCase();
+            const email = (request.user?.email || '').toLowerCase();
+            const username = (request.user?.username || '').toLowerCase();
+            return name.includes(query) || email.includes(query) || username.includes(query);
+        });
+    }, [requests, searchQuery]);
+
     return (
         <AppLayout>
             <Head title="Demandes de Réactivation" />
@@ -71,9 +87,33 @@ export default function ReactivationRequests() {
                         </p>
                     </div>
                     <Badge variant="outline" className="text-lg px-3 py-1">
-                        {requests.length} demande{requests.length > 1 ? 's' : ''} en attente
+                        {filteredRequests.length} demande{filteredRequests.length > 1 ? 's' : ''} {searchQuery.trim() ? 'trouvée(s)' : 'en attente'}
                     </Badge>
                 </div>
+
+                {/* Search Bar */}
+                {requests.length > 0 && (
+                    <div className="mb-4">
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                            <Input
+                                type="text"
+                                placeholder="Rechercher par nom, email ou username..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="pl-10"
+                            />
+                        </div>
+                    </div>
+                )}
+
+                {filteredRequests.length === 0 && searchQuery.trim() && (
+                    <div className="mb-4 p-4 bg-info-light border border-info rounded-lg">
+                        <p className="text-info-foreground text-sm">
+                            Aucun résultat trouvé pour "{searchQuery}". Veuillez essayer une autre recherche.
+                        </p>
+                    </div>
+                )}
 
                 {requests.length === 0 ? (
                     <Card>
@@ -107,7 +147,7 @@ export default function ReactivationRequests() {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {requests.map((request) => (
+                                    {filteredRequests.map((request) => (
                                         <TableRow key={request.id}>
                                             <TableCell className="font-medium">
                                                 <div className="flex items-center gap-2">

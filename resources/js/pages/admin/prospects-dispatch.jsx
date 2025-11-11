@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { XCircle, CheckCircle, Copy, Check, Mail } from 'lucide-react';
+import { XCircle, CheckCircle, Copy, Check, Mail, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 
 export default function ProspectsDispatch() {
@@ -41,6 +41,7 @@ export default function ProspectsDispatch() {
     const [rejecting, setRejecting] = useState(false);
     const [userInfoModalOpen, setUserInfoModalOpen] = useState(false);
     const [selectedUserForInfo, setSelectedUserForInfo] = useState(null);
+    const [searchQuery, setSearchQuery] = useState('');
     
     const handleReject = (prospect) => {
         if (prospect.status !== 'prospect') return;
@@ -188,18 +189,53 @@ export default function ProspectsDispatch() {
         [prospects]
     );
 
+    // Filter prospects based on search query
+    const filteredProspects = useMemo(() => {
+        if (!searchQuery.trim()) {
+            return prospects;
+        }
+        const query = searchQuery.toLowerCase().trim();
+        return prospects.filter(p => {
+            const name = (p.name || '').toLowerCase();
+            const email = (p.email || '').toLowerCase();
+            const username = (p.username || '').toLowerCase();
+            return name.includes(query) || email.includes(query) || username.includes(query);
+        });
+    }, [prospects, searchQuery]);
+
     const handleToggleAll = (checked) => {
         setSelectAll(checked);
         if (checked) {
-            setSelectedProspectIds(prospects.map((p) => p.id));
+            const filteredIds = filteredProspects.map((p) => p.id);
+            setSelectedProspectIds((prev) => [...new Set([...prev, ...filteredIds])]);
         } else {
-            setSelectedProspectIds([]);
+            // Only unselect filtered prospects
+            const filteredIds = filteredProspects.map((p) => p.id);
+            setSelectedProspectIds((prev) => prev.filter(id => !filteredIds.includes(id)));
         }
     };
 
     const toggleProspect = (id) => {
-        setSelectedProspectIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+        setSelectedProspectIds((prev) => {
+            const newIds = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
+            // Update selectAll state based on whether all filtered prospects are selected
+            const filteredIds = filteredProspects.map((p) => p.id);
+            const allFilteredSelected = filteredIds.length > 0 && filteredIds.every(filteredId => newIds.includes(filteredId));
+            setSelectAll(allFilteredSelected);
+            return newIds;
+        });
     };
+
+    // Sync selectAll state when filtered prospects or selected IDs change
+    useEffect(() => {
+        if (filteredProspects.length > 0) {
+            const filteredIds = filteredProspects.map((p) => p.id);
+            const allFilteredSelected = filteredIds.every(id => selectedProspectIds.includes(id));
+            setSelectAll(allFilteredSelected);
+        } else {
+            setSelectAll(false);
+        }
+    }, [filteredProspects, selectedProspectIds]);
 
     // Filter selections when opening dispatch dialog - only allow non-dispatched
     const handleDispatchClick = () => {
@@ -373,10 +409,37 @@ export default function ProspectsDispatch() {
                             </div>
                         </div>
 
+                        <div className="mb-4">
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                <Input
+                                    type="text"
+                                    placeholder="Rechercher par nom, email ou username..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="pl-10"
+                                />
+                            </div>
+                        </div>
+
+                        {filteredProspects.length === 0 && searchQuery.trim() && (
+                            <div className="mb-4 p-4 bg-info-light border border-info rounded-lg">
+                                <p className="text-info-foreground text-sm">
+                                    Aucun résultat trouvé pour "{searchQuery}". Veuillez essayer une autre recherche.
+                                </p>
+                            </div>
+                        )}
+
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead className="w-10"><input type="checkbox" checked={selectAll} onChange={(e) => handleToggleAll(e.target.checked)} /></TableHead>
+                                    <TableHead className="w-10">
+                                        <input 
+                                            type="checkbox" 
+                                            checked={filteredProspects.length > 0 && filteredProspects.every(p => selectedProspectIds.includes(p.id))} 
+                                            onChange={(e) => handleToggleAll(e.target.checked)} 
+                                        />
+                                    </TableHead>
                                     <TableHead>Name</TableHead>
                                     <TableHead>Country</TableHead>
                                     <TableHead>City</TableHead>
@@ -389,7 +452,7 @@ export default function ProspectsDispatch() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {prospects.map((p) => (
+                                {filteredProspects.map((p) => (
                                     <TableRow 
                                         key={p.id} 
                                         className={`cursor-pointer hover:bg-muted/50 ${statusFilter === 'rejected' ? 'bg-error-light' : ''}`}
@@ -501,11 +564,18 @@ export default function ProspectsDispatch() {
                                                     </>
                                                 )}
                                             </div>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                            {filteredProspects.length === 0 && !searchQuery.trim() && (
+                                <TableRow>
+                                    <TableCell colSpan={statusFilter === 'active' ? 9 : 9} className="text-center py-8">
+                                        <p className="text-muted-foreground">Aucun prospect disponible.</p>
+                                    </TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
                     </CardContent>
                 </Card>
             </div>

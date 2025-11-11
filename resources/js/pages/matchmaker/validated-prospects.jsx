@@ -11,8 +11,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
-import { useState, useEffect } from 'react';
-import { LayoutGrid, Table2, Mail, MapPin, CheckCircle, Pencil, TestTube, Link as LinkIcon, Copy, Check } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { LayoutGrid, Table2, Mail, MapPin, CheckCircle, Pencil, TestTube, Link as LinkIcon, Copy, Check, Search } from 'lucide-react';
 
 export default function ValidatedProspects() {
     const { prospects, status, assignedMatchmaker } = usePage().props;
@@ -44,19 +44,34 @@ export default function ValidatedProspects() {
         email: '',
         username: ''
     });
+    const [searchQuery, setSearchQuery] = useState('');
     
     // Reset page when prospects change (e.g., filter changes)
     useEffect(() => {
         setCurrentPage(1);
     }, [prospects.length, status]);
     
+    // Filter prospects based on search query
+    const filteredProspects = useMemo(() => {
+        if (!searchQuery.trim()) {
+            return prospects;
+        }
+        const query = searchQuery.toLowerCase().trim();
+        return prospects.filter(p => {
+            const name = (p.name || '').toLowerCase();
+            const email = (p.email || '').toLowerCase();
+            const username = (p.username || '').toLowerCase();
+            return name.includes(query) || email.includes(query) || username.includes(query);
+        });
+    }, [prospects, searchQuery]);
+    
     // Pagination logic
-    const totalPages = Math.ceil(prospects.length / itemsPerPage);
+    const totalPages = Math.ceil(filteredProspects.length / itemsPerPage);
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
-    const paginatedProspects = prospects.slice(startIndex, endIndex);
-    const showingStart = prospects.length > 0 ? startIndex + 1 : 0;
-    const showingEnd = Math.min(endIndex, prospects.length);
+    const paginatedProspects = filteredProspects.slice(startIndex, endIndex);
+    const showingStart = filteredProspects.length > 0 ? startIndex + 1 : 0;
+    const showingEnd = Math.min(endIndex, filteredProspects.length);
     
     console.log(prospects);
 
@@ -267,7 +282,7 @@ export default function ValidatedProspects() {
                         {/* Pagination Info */}
                         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 text-sm text-muted-foreground">
                             <div>
-                                Showing {showingStart} to {showingEnd} of {prospects.length} participants
+                                Showing {showingStart} to {showingEnd} of {filteredProspects.length} participants
                             </div>
                             {totalPages > 1 && (
                                 <div>
@@ -276,6 +291,31 @@ export default function ValidatedProspects() {
                             )}
                         </div>
                     </div>
+
+                    {/* Search Bar */}
+                    <div className="mb-3">
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                            <Input
+                                type="text"
+                                placeholder="Rechercher par nom, email ou username..."
+                                value={searchQuery}
+                                onChange={(e) => {
+                                    setSearchQuery(e.target.value);
+                                    setCurrentPage(1); // Reset to first page when searching
+                                }}
+                                className="pl-10"
+                            />
+                        </div>
+                    </div>
+
+                    {filteredProspects.length === 0 && searchQuery.trim() && (
+                        <div className="mb-4 p-4 bg-info-light border border-info rounded-lg">
+                            <p className="text-info-foreground text-sm">
+                                Aucun résultat trouvé pour "{searchQuery}". Veuillez essayer une autre recherche.
+                            </p>
+                        </div>
+                    )}
 
                     {/* Filters */}
                     <div className="flex flex-wrap items-center gap-3 bg-card rounded-lg p-3 border">
@@ -523,7 +563,7 @@ export default function ValidatedProspects() {
                                 </Table>
                             </div>
                             
-                            {paginatedProspects.length === 0 && (
+                            {paginatedProspects.length === 0 && !searchQuery.trim() && (
                                 <div className="text-center py-8">
                                     <p className="text-gray-500">No participants found.</p>
                                 </div>
