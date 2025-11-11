@@ -1,5 +1,5 @@
 import { Head, router, usePage, useForm } from '@inertiajs/react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import AppLayout from '@/layouts/app-layout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
-import { LayoutGrid, Table2, Mail, MapPin, CheckCircle, Pencil, XCircle } from 'lucide-react';
+import { LayoutGrid, Table2, Mail, MapPin, CheckCircle, Pencil, XCircle, Search } from 'lucide-react';
 
 export default function AgencyProspects() {
     const { prospects = [], statusFilter = 'active', services = [], matrimonialPacks = [], auth } = usePage().props;
@@ -41,6 +41,7 @@ export default function AgencyProspects() {
     const [acceptanceReason, setAcceptanceReason] = useState('');
     const [accepting, setAccepting] = useState(false);
     const [selectedProspectForAccept, setSelectedProspectForAccept] = useState(null);
+    const [searchQuery, setSearchQuery] = useState('');
     
     const { role: userRole } = usePage().props; // Get role from shared props
     const currentUser = auth?.user;
@@ -144,13 +145,27 @@ export default function AgencyProspects() {
         setCurrentPage(1);
     }, [prospects.length]);
     
+    // Filter prospects based on search query
+    const filteredProspects = useMemo(() => {
+        if (!searchQuery.trim()) {
+            return prospects;
+        }
+        const query = searchQuery.toLowerCase().trim();
+        return prospects.filter(p => {
+            const name = (p.name || '').toLowerCase();
+            const email = (p.email || '').toLowerCase();
+            const username = (p.username || '').toLowerCase();
+            return name.includes(query) || email.includes(query) || username.includes(query);
+        });
+    }, [prospects, searchQuery]);
+    
     // Pagination logic
-    const totalPages = Math.ceil(prospects.length / itemsPerPage);
+    const totalPages = Math.ceil(filteredProspects.length / itemsPerPage);
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
-    const paginatedProspects = prospects.slice(startIndex, endIndex);
-    const showingStart = prospects.length > 0 ? startIndex + 1 : 0;
-    const showingEnd = Math.min(endIndex, prospects.length);
+    const paginatedProspects = filteredProspects.slice(startIndex, endIndex);
+    const showingStart = filteredProspects.length > 0 ? startIndex + 1 : 0;
+    const showingEnd = Math.min(endIndex, filteredProspects.length);
     
     // Helper function to get profile picture URL
     const getProfilePicture = (prospect) => {
@@ -231,7 +246,7 @@ export default function AgencyProspects() {
                         {/* Pagination Info */}
                         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 text-sm text-muted-foreground">
                             <div>
-                                Showing {showingStart} to {showingEnd} of {prospects.length} prospects
+                                Showing {showingStart} to {showingEnd} of {filteredProspects.length} prospects
                             </div>
                             {totalPages > 1 && (
                                 <div>
@@ -240,6 +255,31 @@ export default function AgencyProspects() {
                             )}
                         </div>
                     </div>
+
+                    {/* Search Bar */}
+                    <div className="mb-3">
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                            <Input
+                                type="text"
+                                placeholder="Rechercher par nom, email ou username..."
+                                value={searchQuery}
+                                onChange={(e) => {
+                                    setSearchQuery(e.target.value);
+                                    setCurrentPage(1); // Reset to first page when searching
+                                }}
+                                className="pl-10"
+                            />
+                        </div>
+                    </div>
+
+                    {filteredProspects.length === 0 && searchQuery.trim() && (
+                        <div className="mb-4 p-4 bg-info-light border border-info rounded-lg">
+                            <p className="text-info-foreground text-sm">
+                                Aucun résultat trouvé pour "{searchQuery}". Veuillez essayer une autre recherche.
+                            </p>
+                        </div>
+                    )}
 
                     {/* Filters */}
                     <div className="flex flex-wrap items-center gap-3 bg-card rounded-lg p-3 border">
@@ -443,7 +483,7 @@ export default function AgencyProspects() {
                                 </Table>
                             </div>
                             
-                            {paginatedProspects.length === 0 && (
+                            {paginatedProspects.length === 0 && !searchQuery.trim() && (
                                 <div className="text-center py-8">
                                     <p className="text-muted-foreground">
                                         {statusFilter === 'rejected' 
