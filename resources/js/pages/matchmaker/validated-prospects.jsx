@@ -208,6 +208,20 @@ export default function ValidatedProspects() {
                'coding school';
     };
 
+    // Helper function to get status label and variant
+    const getStatusInfo = (userStatus) => {
+        switch (userStatus) {
+            case 'member':
+                return { label: 'Member', variant: 'default', className: 'bg-blue-500 text-white' };
+            case 'client':
+                return { label: 'Client', variant: 'default', className: 'bg-green-500 text-white' };
+            case 'client_expire':
+                return { label: 'Client Expiré', variant: 'default', className: 'bg-orange-500 text-white' };
+            default:
+                return { label: userStatus || 'Unknown', variant: 'default', className: 'bg-gray-500 text-white' };
+        }
+    };
+
     // Handle user info modal
     const handleUserInfoClick = (user) => {
         const nameParts = (user.name || '').split(' ');
@@ -350,13 +364,18 @@ export default function ValidatedProspects() {
                                         }}
                                     />
                                     {/* Overlay Tags */}
-                                    <div className="absolute top-2 right-2 flex gap-2">
-                                        <Badge className="bg-foreground text-background text-xs px-2 py-1">
-                                            {getStep(u)}
-                                        </Badge>
-                                        <Badge className="bg-success text-success-foreground text-xs px-2 py-1 flex items-center gap-1">
-                                            <CheckCircle className="w-3 h-3" />
-                                            Confirmed
+                                    <div className="absolute top-2 right-2 flex flex-col gap-2">
+                                        <div className="flex gap-2">
+                                            <Badge className="bg-foreground text-background text-xs px-2 py-1">
+                                                {getStep(u)}
+                                            </Badge>
+                                            <Badge className="bg-success text-success-foreground text-xs px-2 py-1 flex items-center gap-1">
+                                                <CheckCircle className="w-3 h-3" />
+                                                Confirmed
+                                            </Badge>
+                                        </div>
+                                        <Badge className={`${getStatusInfo(u.status).className} text-xs px-2 py-1`}>
+                                            {getStatusInfo(u.status).label}
                                         </Badge>
                                     </div>
                                 </div>
@@ -479,10 +498,15 @@ export default function ValidatedProspects() {
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell>
-                                                    <Badge className="bg-success-bg text-success flex items-center gap-1 w-fit">
-                                                        <CheckCircle className="w-3 h-3" />
-                                                        Approved
-                                                    </Badge>
+                                                    <div className="flex flex-col gap-1">
+                                                        <Badge className="bg-success-bg text-success flex items-center gap-1 w-fit">
+                                                            <CheckCircle className="w-3 h-3" />
+                                                            Approved
+                                                        </Badge>
+                                                        <Badge className={`${getStatusInfo(u.status).className} w-fit text-xs`}>
+                                                            {getStatusInfo(u.status).label}
+                                                        </Badge>
+                                                    </div>
                                                 </TableCell>
                                                 <TableCell>
                                                     <Badge variant={u.profile?.account_status === 'desactivated' ? 'destructive' : 'default'}>

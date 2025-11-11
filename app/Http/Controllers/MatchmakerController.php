@@ -467,7 +467,7 @@ class MatchmakerController extends Controller
             abort(403, 'You must be linked to an agency to access prospects.');
         }
 
-        $status = $request->string('status')->toString(); // all|member|client|client_expire
+        $status = $request->input('status', 'all'); // all|member|client|client_expire
         $query = User::role('user')
             ->whereIn('status', ['member','client','client_expire'])
             ->with(['profile', 'assignedMatchmaker']);
@@ -498,7 +498,8 @@ class MatchmakerController extends Controller
             // Admin: no additional filtering (sees all)
         }
 
-        if ($status !== 'all') {
+        // Apply status filter - if status is 'all', show all validated prospects (member, client, client_expire)
+        if ($status && $status !== 'all') {
             $query->where('status', $status);
         }
 
