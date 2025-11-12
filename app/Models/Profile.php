@@ -29,6 +29,7 @@ class Profile extends Model
         'ville_residence',
         'pays_origine',
         'ville_origine',
+        'apropos_description',
         // Step2 extensions
         'has_children',
         'children_count',

@@ -42,6 +42,12 @@ Route::middleware(['auth'])->group(function () {
                 'secteur' => $profile->secteur,
                 'revenu' => $profile->revenu,
                 'religion' => $profile->religion,
+                'origine' => $profile->origine,
+                'paysResidence' => $profile->pays_residence,
+                'villeResidence' => $profile->ville_residence,
+                'paysOrigine' => $profile->pays_origine,
+                'villeOrigine' => $profile->ville_origine,
+                'aproposDescription' => $profile->apropos_description,
                 'heardAboutUs' => $profile->heard_about_us,
                 'heardAboutReference' => $profile->heard_about_reference,
 
@@ -70,6 +76,7 @@ Route::middleware(['auth'])->group(function () {
                 'statutEmploiRecherche' => $profile->statut_emploi_recherche,
                 'revenuMinimum' => $profile->revenu_minimum,
                 'religionRecherche' => $profile->religion_recherche,
+                'profilRechercheDescription' => $profile->profil_recherche_description,
 
                 // Step 4
                 'profilePicturePath' => $profile->profile_picture_path,

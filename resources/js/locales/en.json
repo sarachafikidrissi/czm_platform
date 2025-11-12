@@ -183,6 +183,12 @@
         "hijabIdeaNiqab": "Considering Niqab",
         "hijabIdeaHijab": "Considering Hijab",
         "hijabLabel": "Hijab / Niqab",
+        "aboutMeDescription": "About Me",
+        "aboutMeDescriptionPlaceholder": "Tell us about yourself, your hobbies, your personality...",
+        "aboutMeDescriptionHelp": "Optional - Describe yourself, your interests, your personality",
+        "soughtProfileDescription": "Sought Profile (About Him/Her)",
+        "soughtProfileDescriptionPlaceholder": "Describe the profile you are looking for...",
+        "soughtProfileDescriptionHelp": "Optional - Describe the characteristics and qualities you are looking for in your future spouse",
         "userProfile": {
             "basicInfo": "Basic Information",
             "soughtProfile": "Sought Profile",

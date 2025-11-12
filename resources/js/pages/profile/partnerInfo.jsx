@@ -1,7 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { SearchableMultiSelect } from '@/components/ui/searchable-multi-select';
 
 function PartnerInfo({ formData, setFormData }) {
+    const { t } = useTranslation();
     const [countries, setCountries] = useState([]);
     const [countryCodeToCities, setCountryCodeToCities] = useState({});
     const [selectedCountryCodes, setSelectedCountryCodes] = useState([]);
@@ -451,7 +453,7 @@ function PartnerInfo({ formData, setFormData }) {
                 {/* Description field - Profil recherché (à propos de lui) */}
                 <div>
                     <label htmlFor="profilRechercheDescription" className="mb-1 block text-sm font-medium text-gray-700">
-                        Profil recherché (à propos de lui)
+                        {t('profile.soughtProfileDescription', { defaultValue: 'Profil recherché (à propos de lui)' })}
                     </label>
                     <p className="text-sm font-medium text-gray-700 mb-1" dir="rtl">الملف الشخصي المطلوب (عنه)</p>
                     <textarea
@@ -459,11 +461,11 @@ function PartnerInfo({ formData, setFormData }) {
                         name="profilRechercheDescription"
                         value={formData.profilRechercheDescription || ''}
                         onChange={handleInputChange}
-                        placeholder="Décrivez le profil que vous recherchez..."
+                        placeholder={t('profile.soughtProfileDescriptionPlaceholder', { defaultValue: 'Décrivez le profil que vous recherchez...' })}
                         rows={5}
                         className="w-full rounded-lg border border-border px-4 py-3 transition-colors focus:border-info focus:ring-2 focus:ring-info"
                     />
-                    <p className="mt-1 text-xs text-gray-500">Optionnel - Décrivez les caractéristiques et qualités que vous recherchez chez votre futur conjoint</p>
+                    <p className="mt-1 text-xs text-gray-500">{t('profile.soughtProfileDescriptionHelp', { defaultValue: 'Optionnel - Décrivez les caractéristiques et qualités que vous recherchez chez votre futur conjoint' })}</p>
                 </div>
             </div>
         </div>

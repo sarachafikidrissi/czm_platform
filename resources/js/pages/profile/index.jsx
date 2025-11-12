@@ -18,6 +18,12 @@ export default function Profile({ auth, profile }) {
         secteur: profile?.secteur || '',
         revenu: profile?.revenu || '',
         religion: profile?.religion || '',
+        origine: profile?.origine || '',
+        paysResidence: profile?.paysResidence || '',
+        villeResidence: profile?.villeResidence || '',
+        paysOrigine: profile?.paysOrigine || '',
+        villeOrigine: profile?.villeOrigine || '',
+        aproposDescription: profile?.aproposDescription || '',
         heardAboutUs: profile?.heardAboutUs || '',
         heardAboutReference: profile?.heardAboutReference || '',
 
@@ -46,6 +52,7 @@ export default function Profile({ auth, profile }) {
         statutEmploiRecherche: profile?.statutEmploiRecherche || '',
         revenuMinimum: profile?.revenuMinimum || '',
         religionRecherche: profile?.religionRecherche || '',
+        profilRechercheDescription: profile?.profilRechercheDescription || '',
 
         // Step 4
         profilePicture: null,

@@ -183,6 +183,12 @@
         "hijabIdeaNiqab": "أفكر في النقاب",
         "hijabIdeaHijab": "أفكر في الحجاب",
         "hijabLabel": "حجاب / نقاب",
+        "aboutMeDescription": "عني",
+        "aboutMeDescriptionPlaceholder": "أخبرنا عن نفسك، هواياتك، شخصيتك...",
+        "aboutMeDescriptionHelp": "اختياري - اشرح نفسك، اهتماماتك، شخصيتك",
+        "soughtProfileDescription": "الملف الشخصي المطلوب (عنه/عنه)",
+        "soughtProfileDescriptionPlaceholder": "صف الملف الشخصي الذي تبحث عنه...",
+        "soughtProfileDescriptionHelp": "اختياري - اشرح الخصائص والصفات التي تبحث عنها في زوجك المستقبلي",
         "userProfile": {
             "basicInfo": "المعلومات الأساسية",
             "soughtProfile": "الملف المطلوب",

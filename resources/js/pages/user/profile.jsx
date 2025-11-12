@@ -223,11 +223,11 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                                     <div className="font-medium">{user?.profile?.secteur_activite || '—'}</div>
                                                 </div> */}
                                             </div>
-                                            {/* Description (Arabic) sur le profil recherché A ajouter plus tard */}
+                                            {/* Description sur le profil recherché */}
                                             <div>
                                                 <div className="mb-1 text-sm text-gray-500">{t('profile.userProfile.description')}</div>
                                                 <div className="rounded-md border border-border bg-muted p-3 leading-relaxed">
-                                                    {user?.description || '—'}
+                                                    {profile?.profil_recherche_description || '—'}
                                                 </div>
                                             </div>
                                         </CardContent>
@@ -241,11 +241,11 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                             </CardTitle>
                                         </CardHeader>
                                         <CardContent className="space-y-4">
-                                            {/* Parlez-nous de vous, vos loisirs, votre personnalité : A ajouter  plus tard */}
+                                            {/* À propos de moi - Description */}
                                             <div>
                                                 <div className="mb-1 text-sm text-gray-500">{t('profile.userProfile.description')}</div>
                                                 <div className="rounded-md border border-border bg-muted p-3 leading-relaxed">
-                                                    {apropos?.description || '—'}
+                                                    {profile?.apropos_description || '—'}
                                                 </div>
                                             </div>
                                             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -407,8 +407,8 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                         </Card>
                                     )}
 
-                                    {/* Donner votre avis */}
-                                    <Card>
+                                    {/* Donner votre avis  to be added later when the functionality of see proposition is implemented*/}
+                                    {/* <Card>
                                         <CardHeader>
                                             <CardTitle className="flex items-center gap-2">
                                                 <MessageSquareWarning className="h-5 w-5" color="green" />
@@ -462,7 +462,7 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                                 </button>
                                             </div>
                                         </CardContent>
-                                    </Card>
+                                    </Card> */}
                                 </div>
                             )}
 

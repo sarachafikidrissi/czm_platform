@@ -1,7 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 
 const PersonalInfo = ({ formData, setFormData, gender }) => {
+    const { t } = useTranslation();
     const [countries, setCountries] = useState([]);
     const [countryCodeToCities, setCountryCodeToCities] = useState({});
     const [selectedResidenceCountry, setSelectedResidenceCountry] = useState('');
@@ -477,6 +479,24 @@ const PersonalInfo = ({ formData, setFormData, gender }) => {
                             />
                         )}
                     </div>
+                </div>
+
+                {/* À propos de moi */}
+                <div>
+                    <label htmlFor="aproposDescription" className="mb-1 block text-sm font-medium text-gray-700">
+                        {t('profile.aboutMeDescription', { defaultValue: 'À propos de moi' })}
+                    </label>
+                    <p className="text-sm font-medium text-gray-700 mb-1" dir="rtl">عني</p>
+                    <textarea
+                        id="aproposDescription"
+                        name="aproposDescription"
+                        value={formData.aproposDescription || ''}
+                        onChange={handleInputChange}
+                        placeholder={t('profile.aboutMeDescriptionPlaceholder', { defaultValue: 'Parlez-nous de vous, vos loisirs, votre personnalité...' })}
+                        rows={5}
+                        className="w-full rounded-lg border border-border px-4 py-3 transition-colors focus:border-info focus:ring-2 focus:ring-info"
+                    />
+                    <p className="mt-1 text-xs text-gray-500">{t('profile.aboutMeDescriptionHelp', { defaultValue: 'Optionnel - Décrivez-vous, vos centres d\'intérêt, votre personnalité' })}</p>
                 </div>
             </div>
         </div>

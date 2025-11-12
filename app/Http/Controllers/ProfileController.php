@@ -39,6 +39,7 @@ class ProfileController extends Controller
                         'villeResidence' => $profile->ville_residence,
                         'paysOrigine' => $profile->pays_origine,
                         'villeOrigine' => $profile->ville_origine,
+                        'aproposDescription' => $profile->apropos_description,
                 'heardAboutUs' => $profile->heard_about_us,
                 'heardAboutReference' => $profile->heard_about_reference,
                 
@@ -291,6 +292,7 @@ class ProfileController extends Controller
         $profile->ville_residence = $request->villeResidence;
         $profile->pays_origine = $request->paysOrigine;
         $profile->ville_origine = $request->villeOrigine;
+        $profile->apropos_description = $request->aproposDescription;
         $profile->heard_about_us = $request->heardAboutUs;
     }
 

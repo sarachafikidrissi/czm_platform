@@ -28,6 +28,7 @@ export default function ProfileInfo() {
         villeResidence: profile?.villeResidence || '',
         paysOrigine: profile?.paysOrigine || '',
         villeOrigine: profile?.villeOrigine || '',
+        aproposDescription: profile?.aproposDescription || '',
         heardAboutUs: profile?.heardAboutUs || '',
         heardAboutReference: profile?.heardAboutReference || '',
 
@@ -260,6 +261,7 @@ export default function ProfileInfo() {
             villeResidence: profile?.villeResidence || '',
             paysOrigine: profile?.paysOrigine || '',
             villeOrigine: profile?.villeOrigine || '',
+            aproposDescription: profile?.aproposDescription || '',
             heardAboutUs: profile?.heardAboutUs || '',
             heardAboutReference: profile?.heardAboutReference || '',
 
