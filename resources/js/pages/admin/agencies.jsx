@@ -1,5 +1,6 @@
 import { Head, router, usePage, useForm } from '@inertiajs/react';
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import AppLayout from '@/layouts/app-layout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -12,6 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Pencil, Trash2, Users } from 'lucide-react';
 
 export default function AdminAgencies() {
+    const { t } = useTranslation();
     const { agencies = [] } = usePage().props;
     const [editingAgency, setEditingAgency] = useState(null);
     const [deletingAgency, setDeletingAgency] = useState(null);
@@ -116,14 +118,14 @@ export default function AdminAgencies() {
 
     return (
         <AppLayout>
-            <Head title="Manage Agencies" />
+            <Head title={t('staff.agencies.title')} />
             <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
                 <div className="flex flex-col gap-3">
                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                         <div>
-                            <h1 className="text-2xl font-bold">Manage Agencies</h1>
+                            <h1 className="text-2xl font-bold">{t('staff.agencies.title')}</h1>
                             <p className="text-sm text-muted-foreground mt-1">
-                                View, edit, and delete agencies
+                                {t('staff.agencies.description')}
                             </p>
                         </div>
                     </div>
@@ -132,21 +134,21 @@ export default function AdminAgencies() {
                 {/* Table View */}
                 <Card className="overflow-hidden">
                     <CardHeader>
-                        <CardTitle>Agencies</CardTitle>
-                        <CardDescription>Manage all agencies in the system</CardDescription>
+                        <CardTitle>{t('staff.agencies.agencies')}</CardTitle>
+                        <CardDescription>{t('staff.agencies.manageAllAgencies')}</CardDescription>
                     </CardHeader>
                     <CardContent className="p-0">
                         <div className="overflow-x-auto">
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead>Image</TableHead>
-                                        <TableHead>Name</TableHead>
-                                        <TableHead className="hidden md:table-cell">Country</TableHead>
-                                        <TableHead className="hidden lg:table-cell">City</TableHead>
-                                        <TableHead className="hidden lg:table-cell">Address</TableHead>
-                                        <TableHead>Staff</TableHead>
-                                        <TableHead>Actions</TableHead>
+                                        <TableHead>{t('staff.agencies.image')}</TableHead>
+                                        <TableHead>{t('staff.agencies.name')}</TableHead>
+                                        <TableHead className="hidden md:table-cell">{t('staff.agencies.country')}</TableHead>
+                                        <TableHead className="hidden lg:table-cell">{t('staff.agencies.city')}</TableHead>
+                                        <TableHead className="hidden lg:table-cell">{t('staff.agencies.address')}</TableHead>
+                                        <TableHead>{t('staff.agencies.staff')}</TableHead>
+                                        <TableHead>{t('staff.agencies.actions')}</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -163,11 +165,11 @@ export default function AdminAgencies() {
                                                 />
                                             </TableCell>
                                             <TableCell className="font-medium">{agency.name}</TableCell>
-                                            <TableCell className="hidden md:table-cell">{agency.country || 'N/A'}</TableCell>
-                                            <TableCell className="hidden lg:table-cell">{agency.city || 'N/A'}</TableCell>
+                                            <TableCell className="hidden md:table-cell">{agency.country || t('common.notAvailable')}</TableCell>
+                                            <TableCell className="hidden lg:table-cell">{agency.city || t('common.notAvailable')}</TableCell>
                                             <TableCell className="hidden lg:table-cell">
-                                                <div className="max-w-xs truncate" title={agency.address || 'N/A'}>
-                                                    {agency.address || 'N/A'}
+                                                <div className="max-w-xs truncate" title={agency.address || t('common.notAvailable')}>
+                                                    {agency.address || t('common.notAvailable')}
                                                 </div>
                                             </TableCell>
                                             <TableCell>
@@ -176,7 +178,7 @@ export default function AdminAgencies() {
                                                         <div className="flex items-center gap-1">
                                                             <Users className="w-3 h-3 text-muted-foreground" />
                                                             <span className="text-muted-foreground">
-                                                                {agency.managers_count} Manager{agency.managers_count !== 1 ? 's' : ''}
+                                                                {agency.managers_count} {agency.managers_count !== 1 ? t('staff.agencies.managers') : t('staff.agencies.manager')}
                                                             </span>
                                                         </div>
                                                     )}
@@ -184,12 +186,12 @@ export default function AdminAgencies() {
                                                         <div className="flex items-center gap-1">
                                                             <Users className="w-3 h-3 text-muted-foreground" />
                                                             <span className="text-muted-foreground">
-                                                                {agency.matchmakers_count} Matchmaker{agency.matchmakers_count !== 1 ? 's' : ''}
+                                                                {agency.matchmakers_count} {agency.matchmakers_count !== 1 ? t('staff.agencies.matchmakers') : t('staff.agencies.matchmaker')}
                                                             </span>
                                                         </div>
                                                     )}
                                                     {(!agency.managers_count && !agency.matchmakers_count) && (
-                                                        <span className="text-muted-foreground">No staff</span>
+                                                        <span className="text-muted-foreground">{t('staff.agencies.noStaff')}</span>
                                                     )}
                                                 </div>
                                             </TableCell>
@@ -201,7 +203,7 @@ export default function AdminAgencies() {
                                                         onClick={() => handleEdit(agency)}
                                                     >
                                                         <Pencil className="w-4 h-4 mr-1" />
-                                                        Edit
+                                                        {t('staff.agencies.edit')}
                                                     </Button>
                                                     <Button
                                                         size="sm"
@@ -209,7 +211,7 @@ export default function AdminAgencies() {
                                                         onClick={() => handleDelete(agency)}
                                                     >
                                                         <Trash2 className="w-4 h-4 mr-1" />
-                                                        Delete
+                                                        {t('staff.agencies.delete')}
                                                     </Button>
                                                 </div>
                                             </TableCell>
@@ -222,7 +224,7 @@ export default function AdminAgencies() {
                         {agencies.length === 0 && (
                             <div className="text-center py-8">
                                 <p className="text-muted-foreground">
-                                    No agencies found.
+                                    {t('staff.agencies.noAgenciesFound')}
                                 </p>
                             </div>
                         )}
@@ -233,62 +235,62 @@ export default function AdminAgencies() {
                 <Dialog open={!!editingAgency} onOpenChange={(open) => { if (!open) { setEditingAgency(null); reset(); } }}>
                     <DialogContent className="sm:max-w-[600px] sm:max-h-[90vh] overflow-y-auto">
                         <DialogHeader>
-                            <DialogTitle>Edit Agency</DialogTitle>
+                            <DialogTitle>{t('staff.agencies.editAgency')}</DialogTitle>
                             <DialogDescription>
-                                Update agency information for {editingAgency?.name}
+                                {t('staff.agencies.updateAgencyInfo', { name: editingAgency?.name })}
                             </DialogDescription>
                         </DialogHeader>
                         <div className="grid gap-4 py-4">
                             <div className="grid gap-2">
-                                <Label htmlFor="name">Name</Label>
+                                <Label htmlFor="name">{t('staff.agencies.name')}</Label>
                                 <Input
                                     id="name"
                                     value={data.name}
                                     onChange={(e) => setData('name', e.target.value)}
-                                    placeholder="Agency name"
+                                    placeholder={t('staff.agencies.agencyName')}
                                 />
                                 {errors.name && <p className="text-error text-sm">{errors.name}</p>}
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="grid gap-2">
-                                    <Label htmlFor="country">Country</Label>
+                                    <Label htmlFor="country">{t('staff.agencies.country')}</Label>
                                     <Input
                                         id="country"
                                         value={data.country}
                                         onChange={(e) => setData('country', e.target.value)}
-                                        placeholder="Country"
+                                        placeholder={t('staff.agencies.country')}
                                     />
                                     {errors.country && <p className="text-error text-sm">{errors.country}</p>}
                                 </div>
                                 <div className="grid gap-2">
-                                    <Label htmlFor="city">City</Label>
+                                    <Label htmlFor="city">{t('staff.agencies.city')}</Label>
                                     <Input
                                         id="city"
                                         value={data.city}
                                         onChange={(e) => setData('city', e.target.value)}
-                                        placeholder="City"
+                                        placeholder={t('staff.agencies.city')}
                                     />
                                     {errors.city && <p className="text-error text-sm">{errors.city}</p>}
                                 </div>
                             </div>
                             <div className="grid gap-2">
-                                <Label htmlFor="address">Address</Label>
+                                <Label htmlFor="address">{t('staff.agencies.address')}</Label>
                                 <Textarea
                                     id="address"
                                     value={data.address}
                                     onChange={(e) => setData('address', e.target.value)}
-                                    placeholder="Full address"
+                                    placeholder={t('staff.agencies.fullAddress')}
                                     rows={3}
                                 />
                                 {errors.address && <p className="text-error text-sm">{errors.address}</p>}
                             </div>
                             <div className="grid gap-2">
-                                <Label htmlFor="image">Image</Label>
+                                <Label htmlFor="image">{t('staff.agencies.image')}</Label>
                                 {editingAgency?.image && (
                                     <div className="mb-2">
                                         <img
                                             src={getImageUrl(editingAgency)}
-                                            alt="Current image"
+                                            alt={t('staff.agencies.currentImage')}
                                             className="w-32 h-32 rounded-lg object-cover border"
                                         />
                                     </div>
@@ -302,22 +304,22 @@ export default function AdminAgencies() {
                                 {errors.image && <p className="text-error text-sm">{errors.image}</p>}
                             </div>
                             <div className="grid gap-2">
-                                <Label htmlFor="map">Map (Embed URL)</Label>
+                                <Label htmlFor="map">{t('staff.agencies.mapEmbedUrl')}</Label>
                                 <Input
                                     id="map"
                                     value={data.map}
                                     onChange={(e) => setData('map', e.target.value)}
-                                    placeholder="Map embed URL"
+                                    placeholder={t('staff.agencies.mapEmbedUrlPlaceholder')}
                                 />
                                 {errors.map && <p className="text-error text-sm">{errors.map}</p>}
                             </div>
                         </div>
                         <DialogFooter>
                             <Button variant="outline" onClick={() => { setEditingAgency(null); reset(); }}>
-                                Cancel
+                                {t('common.cancel')}
                             </Button>
                             <Button onClick={handleUpdate} disabled={processing}>
-                                {processing ? 'Updating...' : 'Update Agency'}
+                                {processing ? t('staff.agencies.updating') : t('staff.agencies.updateAgency')}
                             </Button>
                         </DialogFooter>
                     </DialogContent>
@@ -327,30 +329,29 @@ export default function AdminAgencies() {
                 <Dialog open={!!deletingAgency} onOpenChange={(open) => { if (!open) { setDeletingAgency(null); } }}>
                     <DialogContent>
                         <DialogHeader>
-                            <DialogTitle>Delete Agency</DialogTitle>
+                            <DialogTitle>{t('staff.agencies.deleteAgency')}</DialogTitle>
                             <DialogDescription>
-                                Are you sure you want to delete "{deletingAgency?.name}"? This action cannot be undone.
+                                {t('staff.agencies.deleteConfirm', { name: deletingAgency?.name })}
                             </DialogDescription>
                         </DialogHeader>
                         {deletingAgency && (deletingAgency.managers_count > 0 || deletingAgency.matchmakers_count > 0) && (
                             <div className="bg-warning-light p-3 rounded-lg border border-warning">
-                                <p className="text-sm font-semibold mb-1">Warning:</p>
+                                <p className="text-sm font-semibold mb-1">{t('staff.agencies.warning')}</p>
                                 <p className="text-sm">
-                                    This agency has {deletingAgency.managers_count + deletingAgency.matchmakers_count} staff member(s) assigned to it.
-                                    You cannot delete an agency that has staff members.
+                                    {t('staff.agencies.hasStaffMembers', { count: deletingAgency.managers_count + deletingAgency.matchmakers_count })}
                                 </p>
                             </div>
                         )}
                         <DialogFooter>
                             <Button variant="outline" onClick={() => setDeletingAgency(null)}>
-                                Cancel
+                                {t('common.cancel')}
                             </Button>
                             <Button
                                 variant="destructive"
                                 onClick={confirmDelete}
                                 disabled={isDeleting || (deletingAgency && (deletingAgency.managers_count > 0 || deletingAgency.matchmakers_count > 0))}
                             >
-                                {isDeleting ? 'Deleting...' : 'Delete'}
+                                {isDeleting ? t('staff.agencies.deleting') : t('staff.agencies.delete')}
                             </Button>
                         </DialogFooter>
                     </DialogContent>

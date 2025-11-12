@@ -1,5 +1,6 @@
 import { Head, router, usePage, useForm } from '@inertiajs/react';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -14,6 +15,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import AppLayout from '@/layouts/app-layout';
 
 export default function AdminDashboard() {
+    const { t } = useTranslation();
     const { managers, matchmakers, agencies } = usePage().props;
     const url = usePage().url;
     const viewParam = (() => {
@@ -92,11 +94,11 @@ export default function AdminDashboard() {
     const getStatusBadge = (status) => {
         switch (status) {
             case 'approved':
-                return <Badge className="bg-success-bg text-success">Approved</Badge>;
+                return <Badge className="bg-success-bg text-success">{t('admin.dashboard.status.approved')}</Badge>;
             case 'pending':
-                return <Badge className="bg-warning-light text-warning-foreground">Pending</Badge>;
+                return <Badge className="bg-warning-light text-warning-foreground">{t('admin.dashboard.status.pending')}</Badge>;
             case 'rejected':
-                return <Badge className="bg-error-bg text-error">Rejected</Badge>;
+                return <Badge className="bg-error-bg text-error">{t('admin.dashboard.status.rejected')}</Badge>;
             default:
                 return <Badge className="bg-muted text-muted-foreground">{status}</Badge>;
         }
@@ -104,33 +106,33 @@ export default function AdminDashboard() {
 
     return (
         <AppLayout>
-            <Head title="Admin Dashboard" />
+            <Head title={t('admin.dashboard.title')} />
             <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
             <div className="flex flex-col gap-3">
                 <div className="flex items-center justify-between gap-3">
-                    <h1 className="text-2xl font-bold">Admin Dashboard</h1>
+                    <h1 className="text-2xl font-bold">{t('admin.dashboard.title')}</h1>
                     <div className="flex items-center gap-2">
                         <Dialog>
                             <DialogTrigger asChild>
-                                <Button variant="outline">Add Service</Button>
+                                <Button variant="outline">{t('admin.dashboard.addService')}</Button>
                             </DialogTrigger>
                             <DialogContent className="sm:max-w-[425px]">
                                 <DialogHeader>
-                                    <DialogTitle>Add Service</DialogTitle>
+                                    <DialogTitle>{t('admin.dashboard.addServiceTitle')}</DialogTitle>
                                     <DialogDescription>
-                                        Create a service that can be selected during prospect validation.
+                                        {t('admin.dashboard.addServiceDescription')}
                                     </DialogDescription>
                                 </DialogHeader>
                                 <div className="grid gap-4 py-4">
                                     <div className="grid gap-2">
-                                        <Label htmlFor="service-name">Service Name</Label>
-                                        <Input id="service-name" value={svcData.name} onChange={(e) => setSvcData('name', e.target.value)} placeholder="Ex: Consultation" />
+                                        <Label htmlFor="service-name">{t('admin.dashboard.serviceName')}</Label>
+                                        <Input id="service-name" value={svcData.name} onChange={(e) => setSvcData('name', e.target.value)} placeholder={t('admin.dashboard.serviceNamePlaceholder')} />
                                         {svcErrors.name && <p className="text-red-500 text-sm">{svcErrors.name}</p>}
                                     </div>
                                 </div>
                                 <DialogFooter>
-                                    <Button variant="outline" onClick={() => resetSvc()}>Cancel</Button>
-                                    <Button onClick={submitService} disabled={svcProcessing || !svcData.name.trim()}>Add</Button>
+                                    <Button variant="outline" onClick={() => resetSvc()}>{t('common.cancel')}</Button>
+                                    <Button onClick={submitService} disabled={svcProcessing || !svcData.name.trim()}>{t('admin.dashboard.add')}</Button>
                                 </DialogFooter>
                             </DialogContent>
                         </Dialog>
@@ -139,24 +141,24 @@ export default function AdminDashboard() {
                 </div>
                 <div className="flex flex-wrap items-center gap-3 bg-white rounded-lg p-3 border">
                     <div className="flex items-center gap-2">
-                        <Label className="text-sm text-muted-foreground">View</Label>
+                        <Label className="text-sm text-muted-foreground">{t('admin.dashboard.view')}</Label>
                         <Select value={viewParam} onValueChange={(v) => router.visit(`/admin/dashboard?view=${v}`, { preserveScroll: true, preserveState: true, replace: true })}>
                             <SelectTrigger className="h-9 w-[140px]"><SelectValue /></SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="managers">Managers</SelectItem>
-                                <SelectItem value="matchmakers">Matchmakers</SelectItem>
-                                <SelectItem value="pending">Pending</SelectItem>
+                                <SelectItem value="managers">{t('admin.dashboard.managers')}</SelectItem>
+                                <SelectItem value="matchmakers">{t('admin.dashboard.matchmakers')}</SelectItem>
+                                <SelectItem value="pending">{t('admin.dashboard.pending')}</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
                     <Separator orientation="vertical" className="h-6" />
-                    <Input placeholder="Search" className="h-9 w-[220px]" />
+                    <Input placeholder={t('admin.dashboard.search')} className="h-9 w-[220px]" />
                     <div className="ml-auto flex items-center gap-2">
                         <Button variant="outline" className="h-9">
-                            Date Range
+                            {t('admin.dashboard.dateRange')}
                         </Button>
                         <Button variant="outline" className="h-9">
-                            Filter
+                            {t('admin.dashboard.filter')}
                         </Button>
                     </div>
                 </div>
@@ -168,10 +170,10 @@ export default function AdminDashboard() {
                     <CardHeader>
                         <CardTitle className="flex items-center">
                             <Users className="w-5 h-5 mr-2" />
-                            Managers
+                            {t('admin.dashboard.managers')}
                         </CardTitle>
                         <CardDescription>
-                            Manage manager accounts and approvals
+                            {t('admin.dashboard.manageManagerAccounts')}
                         </CardDescription>
                     </CardHeader>
                     <CardContent className={viewParam !== 'managers' ? 'hidden' : ''}>
@@ -179,11 +181,11 @@ export default function AdminDashboard() {
                             <TableHeader>
                                 <TableRow>
                                     <TableHead className="w-10"></TableHead>
-                                    <TableHead>Name</TableHead>
-                                    <TableHead>Date</TableHead>
-                                    <TableHead>Agency</TableHead>
-                                    <TableHead>Role</TableHead>
-                                    <TableHead className="text-right">Actions</TableHead>
+                                    <TableHead>{t('admin.dashboard.name')}</TableHead>
+                                    <TableHead>{t('admin.dashboard.date')}</TableHead>
+                                    <TableHead>{t('admin.dashboard.agency')}</TableHead>
+                                    <TableHead>{t('admin.dashboard.role')}</TableHead>
+                                    <TableHead className="text-right">{t('admin.dashboard.actions')}</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -192,8 +194,8 @@ export default function AdminDashboard() {
                                         <TableCell><input type="checkbox" className="accent-neutral-800" /></TableCell>
                                         <TableCell className="font-medium">{manager.name}</TableCell>
                                         <TableCell className="text-muted-foreground">{new Date(manager.created_at ?? Date.now()).toLocaleDateString()}</TableCell>
-                                        <TableCell>{manager.agency?.name || manager.agency || 'No Agency'}</TableCell>
-                                        <TableCell><Badge className="bg-neutral-100 text-neutral-800 capitalize">manager</Badge></TableCell>
+                                        <TableCell>{manager.agency?.name || manager.agency || t('admin.dashboard.noAgency')}</TableCell>
+                                        <TableCell><Badge className="bg-neutral-100 text-neutral-800 capitalize">{t('admin.dashboard.manager')}</Badge></TableCell>
                                         <TableCell className="text-right">
                                             <div className="flex space-x-2 justify-end">
                                                 <Button
@@ -246,10 +248,10 @@ export default function AdminDashboard() {
                     <CardHeader>
                         <CardTitle className="flex items-center">
                             <UserCheck className="w-5 h-5 mr-2" />
-                            Matchmakers
+                            {t('admin.dashboard.matchmakers')}
                         </CardTitle>
                         <CardDescription>
-                            Manage matchmaker accounts and approvals
+                            {t('admin.dashboard.manageMatchmakerAccounts')}
                         </CardDescription>
                     </CardHeader>
                     <CardContent className={viewParam !== 'matchmakers' ? 'hidden' : ''}>
@@ -257,11 +259,11 @@ export default function AdminDashboard() {
                             <TableHeader>
                                 <TableRow>
                                     <TableHead className="w-10"></TableHead>
-                                    <TableHead>Name</TableHead>
-                                    <TableHead>Date</TableHead>
-                                    <TableHead>Agency</TableHead>
-                                    <TableHead>Role</TableHead>
-                                    <TableHead className="text-right">Actions</TableHead>
+                                    <TableHead>{t('admin.dashboard.name')}</TableHead>
+                                    <TableHead>{t('admin.dashboard.date')}</TableHead>
+                                    <TableHead>{t('admin.dashboard.agency')}</TableHead>
+                                    <TableHead>{t('admin.dashboard.role')}</TableHead>
+                                    <TableHead className="text-right">{t('admin.dashboard.actions')}</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -270,8 +272,8 @@ export default function AdminDashboard() {
                                         <TableCell><input type="checkbox" className="accent-neutral-800" /></TableCell>
                                         <TableCell className="font-medium">{matchmaker.name}</TableCell>
                                         <TableCell className="text-muted-foreground">{new Date(matchmaker.created_at ?? Date.now()).toLocaleDateString()}</TableCell>
-                                        <TableCell>{matchmaker.agency?.name || matchmaker.agency || 'No Agency'}</TableCell>
-                                        <TableCell><Badge className="bg-neutral-100 text-neutral-800 capitalize">matchmaker</Badge></TableCell>
+                                        <TableCell>{matchmaker.agency?.name || matchmaker.agency || t('admin.dashboard.noAgency')}</TableCell>
+                                        <TableCell><Badge className="bg-neutral-100 text-neutral-800 capitalize">{t('admin.dashboard.matchmaker')}</Badge></TableCell>
                                         <TableCell className="text-right">
                                             <div className="flex space-x-2 justify-end">
                                                 <Button
@@ -325,17 +327,17 @@ export default function AdminDashboard() {
             <Dialog open={!!editingUser} onOpenChange={() => setEditingUser(null)}>
                 <DialogContent className="sm:max-w-[425px]">
                     <DialogHeader>
-                        <DialogTitle>Edit Agency</DialogTitle>
+                        <DialogTitle>{t('admin.dashboard.editAgency')}</DialogTitle>
                         <DialogDescription>
-                            Change the agency for {editingUser?.name}
+                            {t('admin.dashboard.editAgencyDescription', { name: editingUser?.name })}
                         </DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
                         <div className="grid gap-2">
-                            <Label htmlFor="agency">Select Agency</Label>
+                            <Label htmlFor="agency">{t('admin.dashboard.selectAgency')}</Label>
                             <Select value={selectedAgency} onValueChange={setSelectedAgency}>
                                 <SelectTrigger>
-                                    <SelectValue placeholder="Select an agency" />
+                                    <SelectValue placeholder={t('admin.dashboard.selectAgencyPlaceholder')} />
                                 </SelectTrigger>
                                 <SelectContent>
                                     {agencies.map((agency) => (
@@ -349,10 +351,10 @@ export default function AdminDashboard() {
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setEditingUser(null)}>
-                            Cancel
+                            {t('common.cancel')}
                         </Button>
                         <Button onClick={handleUpdateAgency} disabled={!selectedAgency}>
-                            Update Agency
+                            {t('admin.dashboard.updateAgency')}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -362,14 +364,14 @@ export default function AdminDashboard() {
             <Dialog open={!!roleEditingUser} onOpenChange={() => setRoleEditingUser(null)}>
                 <DialogContent className="sm:max-w-[425px]">
                     <DialogHeader>
-                        <DialogTitle>Change Role</DialogTitle>
+                        <DialogTitle>{t('admin.dashboard.changeRole')}</DialogTitle>
                         <DialogDescription>
-                            Update role for {roleEditingUser?.name}
+                            {t('admin.dashboard.changeRoleDescription', { name: roleEditingUser?.name })}
                         </DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
                         <div className="grid gap-2">
-                            <Label>Select Roles</Label>
+                            <Label>{t('admin.dashboard.selectRoles')}</Label>
                             <label className="flex items-center gap-2">
                                 <input
                                     type="checkbox"
@@ -378,7 +380,7 @@ export default function AdminDashboard() {
                                         setSelectedRoles((prev) => e.target.checked ? Array.from(new Set([...prev, 'manager'])) : prev.filter(r => r !== 'manager'));
                                     }}
                                 />
-                                <span>Manager</span>
+                                <span>{t('admin.dashboard.manager')}</span>
                             </label>
                             <label className="flex items-center gap-2">
                                 <input
@@ -388,7 +390,7 @@ export default function AdminDashboard() {
                                         setSelectedRoles((prev) => e.target.checked ? Array.from(new Set([...prev, 'matchmaker'])) : prev.filter(r => r !== 'matchmaker'));
                                     }}
                                 />
-                                <span>Matchmaker</span>
+                                <span>{t('admin.dashboard.matchmaker')}</span>
                             </label>
                             <label className="flex items-center gap-2">
                                 <input
@@ -398,16 +400,16 @@ export default function AdminDashboard() {
                                         setSelectedRoles((prev) => e.target.checked ? Array.from(new Set([...prev, 'admin'])) : prev.filter(r => r !== 'admin'));
                                     }}
                                 />
-                                <span>Admin</span>
+                                <span>{t('admin.dashboard.admin')}</span>
                             </label>
                         </div>
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setRoleEditingUser(null)}>
-                            Cancel
+                            {t('common.cancel')}
                         </Button>
                         <Button onClick={handleUpdateRole} disabled={selectedRoles.length === 0}>
-                            Update Role
+                            {t('admin.dashboard.updateRole')}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

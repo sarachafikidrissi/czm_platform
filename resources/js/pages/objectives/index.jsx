@@ -1,5 +1,6 @@
 import { Head, router, usePage, useForm } from '@inertiajs/react';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import AppLayout from '@/layouts/app-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,6 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { CheckCircle, Edit, Target, TrendingUp, Loader2, Eye } from 'lucide-react';
 
 export default function ObjectivesIndex() {
+    const { t } = useTranslation();
     const { 
         objective, 
         realized, 
@@ -46,7 +48,7 @@ export default function ObjectivesIndex() {
     const metrics = [
         {
             key: 'ventes',
-            label: 'Ventes',
+            label: t('staff.objectives.sales'),
             target: parseFloat(objective?.target_ventes) || 0,
             realized: parseFloat(realized?.ventes) || 0,
             progress: parseFloat(progress?.ventes) || 0,
@@ -55,7 +57,7 @@ export default function ObjectivesIndex() {
         },
         {
             key: 'membres',
-            label: 'Membres',
+            label: t('staff.objectives.members'),
             target: parseInt(objective?.target_membres) || 0,
             realized: parseInt(realized?.membres) || 0,
             progress: parseFloat(progress?.membres) || 0,
@@ -64,7 +66,7 @@ export default function ObjectivesIndex() {
         },
         {
             key: 'rdv',
-            label: 'RDV',
+            label: t('staff.objectives.appointments'),
             target: parseInt(objective?.target_rdv) || 0,
             realized: parseInt(realized?.rdv) || 0,
             progress: parseFloat(progress?.rdv) || 0,
@@ -73,7 +75,7 @@ export default function ObjectivesIndex() {
         },
         {
             key: 'match',
-            label: 'Match',
+            label: t('staff.objectives.matches'),
             target: parseInt(objective?.target_match) || 0,
             realized: parseInt(realized?.match) || 0,
             progress: parseFloat(progress?.match) || 0,
@@ -147,7 +149,7 @@ export default function ObjectivesIndex() {
     };
 
     const handleMarkCommissionPaid = (objectiveId) => {
-        if (confirm('Mark commission as paid for this objective?')) {
+        if (confirm(t('staff.objectives.confirmMarkPaid'))) {
             router.post(`/objectives/${objectiveId}/mark-commission-paid`, {}, {
                 onSuccess: () => {
                     router.reload();
@@ -199,24 +201,34 @@ export default function ObjectivesIndex() {
     };
 
     const monthNames = [
-        'January', 'February', 'March', 'April', 'May', 'June',
-        'July', 'August', 'September', 'October', 'November', 'December'
+        t('staff.objectives.months.january'),
+        t('staff.objectives.months.february'),
+        t('staff.objectives.months.march'),
+        t('staff.objectives.months.april'),
+        t('staff.objectives.months.may'),
+        t('staff.objectives.months.june'),
+        t('staff.objectives.months.july'),
+        t('staff.objectives.months.august'),
+        t('staff.objectives.months.september'),
+        t('staff.objectives.months.october'),
+        t('staff.objectives.months.november'),
+        t('staff.objectives.months.december')
     ];
 
     return (
         <AppLayout>
-            <Head title="Monthly Objectives" />
+            <Head title={t('staff.objectives.title')} />
             <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
                 <div className="flex flex-col gap-3">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                             <Target className="w-6 h-6" />
-                            <h1 className="text-2xl font-bold">Monthly Objectives & Performance</h1>
+                            <h1 className="text-2xl font-bold">{t('staff.objectives.titleAndPerformance')}</h1>
                         </div>
                         {canEdit && (
                             <Button onClick={handleEdit} variant="outline">
                                 <Edit className="w-4 h-4 mr-2" />
-                                {objective ? 'Edit Objectives' : 'Set Objectives'}
+                                {objective ? t('staff.objectives.editObjectives') : t('staff.objectives.setObjectives')}
                             </Button>
                         )}
                     </div>
@@ -226,16 +238,16 @@ export default function ObjectivesIndex() {
                         {canEdit && users.length > 0 && (
                             <>
                                 <div className="flex items-center gap-2">
-                                    <Label className="text-sm text-muted-foreground">User</Label>
+                                    <Label className="text-sm text-muted-foreground">{t('staff.objectives.user')}</Label>
                                     <Select 
                                         value={selectedUserId?.toString() || 'all'} 
                                         onValueChange={(v) => handleUserChange(v === 'all' ? null : v)}
                                     >
                                         <SelectTrigger className="h-9 w-[200px]">
-                                            <SelectValue placeholder="Select user" />
+                                            <SelectValue placeholder={t('staff.objectives.selectUser')} />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="all">All Users</SelectItem>
+                                            <SelectItem value="all">{t('staff.objectives.allUsers')}</SelectItem>
                                             {users.map((user) => (
                                                 <SelectItem key={user.id} value={user.id.toString()}>
                                                     {user.name} ({user.roles?.[0]?.name || 'N/A'})
@@ -248,7 +260,7 @@ export default function ObjectivesIndex() {
                             </>
                         )}
                         <div className="flex items-center gap-2">
-                            <Label className="text-sm text-muted-foreground">Month</Label>
+                            <Label className="text-sm text-muted-foreground">{t('staff.objectives.month')}</Label>
                             <Select 
                                 value={month.toString()} 
                                 onValueChange={(v) => handleMonthYearChange(parseInt(v), year)}
@@ -266,7 +278,7 @@ export default function ObjectivesIndex() {
                             </Select>
                         </div>
                         <div className="flex items-center gap-2">
-                            <Label className="text-sm text-muted-foreground">Year</Label>
+                            <Label className="text-sm text-muted-foreground">{t('staff.objectives.year')}</Label>
                             <Input
                                 type="number"
                                 value={year}
@@ -282,14 +294,14 @@ export default function ObjectivesIndex() {
                 {/* Objectives Table */}
                 <Card>
                     <CardHeader>
-                        <CardTitle>Performance Tracking</CardTitle>
+                        <CardTitle>{t('staff.objectives.performanceTracking')}</CardTitle>
                         <CardDescription>
                             {monthNames[month - 1]} {year}
                             {selectedUserId && users.find(u => u.id === selectedUserId) && (
-                                <> - {users.find(u => u.id === selectedUserId).name} ({roleType === 'matchmaker' ? 'Matchmaker' : 'Manager'})</>
+                                <> - {users.find(u => u.id === selectedUserId).name} ({roleType === 'matchmaker' ? t('staff.matchmaker') : t('agencies.manager')})</>
                             )}
                             {!selectedUserId && currentUser?.role && (
-                                <> - {currentUser.name} ({roleType === 'matchmaker' ? 'Matchmaker' : 'Manager'})</>
+                                <> - {currentUser.name} ({roleType === 'matchmaker' ? t('staff.matchmaker') : t('agencies.manager')})</>
                             )}
                         </CardDescription>
                     </CardHeader>
@@ -298,13 +310,13 @@ export default function ObjectivesIndex() {
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead>Type</TableHead>
-                                        <TableHead>Objectif</TableHead>
-                                        <TableHead>Réalisé</TableHead>
-                                        <TableHead>Progress</TableHead>
-                                        <TableHead>Commission</TableHead>
+                                        <TableHead>{t('staff.objectives.type')}</TableHead>
+                                        <TableHead>{t('staff.objectives.objectif')}</TableHead>
+                                        <TableHead>{t('staff.objectives.realise')}</TableHead>
+                                        <TableHead>{t('staff.objectives.progress')}</TableHead>
+                                        <TableHead>{t('staff.objectives.commission')}</TableHead>
                                         {canEdit && objective && (
-                                            <TableHead>Actions</TableHead>
+                                            <TableHead>{t('staff.objectives.actions')}</TableHead>
                                         )}
                                     </TableRow>
                                 </TableHeader>
@@ -352,7 +364,7 @@ export default function ObjectivesIndex() {
                                                     <div className="flex flex-col gap-1">
                                                         <Badge className="bg-green-500 text-white w-fit">
                                                             <CheckCircle className="w-3 h-3 mr-1" />
-                                                            10% eligible
+                                                            10% {t('staff.objectives.eligible')}
                                                         </Badge>
                                                         {metric.key === 'ventes' && metric.commission.amount > 0 && (
                                                             <span className="text-xs text-muted-foreground">
@@ -361,7 +373,7 @@ export default function ObjectivesIndex() {
                                                         )}
                                                     </div>
                                                 ) : (
-                                                    <span className="text-sm text-muted-foreground">Not eligible</span>
+                                                    <span className="text-sm text-muted-foreground">{t('staff.objectives.notEligible')}</span>
                                                 )}
                                             </TableCell>
                                             {canEdit && objective && (
@@ -375,12 +387,12 @@ export default function ObjectivesIndex() {
                                                                 handleMarkCommissionPaid(objective.id);
                                                             }}
                                                         >
-                                                            Mark Paid
+                                                            {t('staff.objectives.markPaid')}
                                                         </Button>
                                                     )}
                                                     {objective.commission_paid && (
                                                         <Badge className="bg-blue-500 text-white">
-                                                            Paid
+                                                            {t('staff.objectives.paid')}
                                                         </Badge>
                                                     )}
                                                 </TableCell>
@@ -393,7 +405,7 @@ export default function ObjectivesIndex() {
 
                         {!objective && (
                             <div className="text-center py-8 text-muted-foreground">
-                                <p>No objectives set for this month. {canEdit && 'Click "Set Objectives" to create them.'}</p>
+                                <p>{t('staff.objectives.noObjectivesSet')} {canEdit && t('staff.objectives.setObjectives')}</p>
                             </div>
                         )}
                     </CardContent>
@@ -404,31 +416,34 @@ export default function ObjectivesIndex() {
                     <DialogContent className="sm:max-w-[500px]">
                         <DialogHeader>
                             <DialogTitle>
-                                {objective ? 'Edit Objectives' : 'Set Objectives'}
+                                {objective ? t('staff.objectives.editDialog.title') : t('staff.objectives.editDialog.setObjectivesTitle')}
                             </DialogTitle>
                             <DialogDescription>
-                                Set monthly objectives for {monthNames[data.month - 1]} {data.year}
+                                {t('staff.objectives.editDialog.setMonthlyObjectives', { month: monthNames[data.month - 1], year: data.year })}
                             </DialogDescription>
                         </DialogHeader>
                         <form onSubmit={handleSubmit}>
                             <div className="grid gap-4 py-4">
                                 {canEdit && (
                                     <div className="grid gap-2">
-                                        <Label htmlFor="role_type">Role Type *</Label>
+                                        <Label htmlFor="role_type">{t('staff.objectives.editDialog.roleType')}</Label>
                                         <Select 
                                             value={data.role_type} 
                                             onValueChange={(v) => setData('role_type', v)}
                                         >
                                             <SelectTrigger>
-                                                <SelectValue placeholder="Select role type" />
+                                                <SelectValue placeholder={t('staff.objectives.editDialog.selectRoleType')} />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                <SelectItem value="matchmaker">Matchmakers (All)</SelectItem>
-                                                <SelectItem value="manager">Managers (All)</SelectItem>
+                                                <SelectItem value="matchmaker">{t('staff.objectives.editDialog.matchmakersAll')}</SelectItem>
+                                                <SelectItem value="manager">{t('staff.objectives.editDialog.managersAll')}</SelectItem>
                                             </SelectContent>
                                         </Select>
                                         <p className="text-xs text-muted-foreground">
-                                            This objective will be shared by all {data.role_type === 'matchmaker' ? 'matchmakers' : 'managers'}. Each {data.role_type === 'matchmaker' ? 'matchmaker' : 'manager'} will see their own individual results.
+                                            {t('staff.objectives.editDialog.sharedObjective', { 
+                                                roleType: data.role_type === 'matchmaker' ? t('staff.matchmaker') + 's' : t('agencies.manager') + 's',
+                                                roleTypeSingular: data.role_type === 'matchmaker' ? t('staff.matchmaker') : t('agencies.manager')
+                                            })}
                                         </p>
                                         {errors.role_type && (
                                             <p className="text-sm text-red-500">{errors.role_type}</p>
@@ -436,7 +451,7 @@ export default function ObjectivesIndex() {
                                     </div>
                                 )}
                                 <div className="grid gap-2">
-                                    <Label htmlFor="target_ventes">Target Ventes (MAD)</Label>
+                                    <Label htmlFor="target_ventes">{t('staff.objectives.editDialog.targetSales')}</Label>
                                     <Input
                                         id="target_ventes"
                                         type="number"
@@ -450,7 +465,7 @@ export default function ObjectivesIndex() {
                                     )}
                                 </div>
                                 <div className="grid gap-2">
-                                    <Label htmlFor="target_membres">Target Membres</Label>
+                                    <Label htmlFor="target_membres">{t('staff.objectives.editDialog.targetMembers')}</Label>
                                     <Input
                                         id="target_membres"
                                         type="number"
@@ -463,7 +478,7 @@ export default function ObjectivesIndex() {
                                     )}
                                 </div>
                                 <div className="grid gap-2">
-                                    <Label htmlFor="target_rdv">Target RDV</Label>
+                                    <Label htmlFor="target_rdv">{t('staff.objectives.editDialog.targetAppointments')}</Label>
                                     <Input
                                         id="target_rdv"
                                         type="number"
@@ -476,7 +491,7 @@ export default function ObjectivesIndex() {
                                     )}
                                 </div>
                                 <div className="grid gap-2">
-                                    <Label htmlFor="target_match">Target Match</Label>
+                                    <Label htmlFor="target_match">{t('staff.objectives.editDialog.targetMatches')}</Label>
                                     <Input
                                         id="target_match"
                                         type="number"
@@ -491,10 +506,10 @@ export default function ObjectivesIndex() {
                             </div>
                             <DialogFooter>
                                 <Button type="button" variant="outline" onClick={() => setEditDialogOpen(false)}>
-                                    Cancel
+                                    {t('staff.objectives.cancel')}
                                 </Button>
                                 <Button type="submit" disabled={processing}>
-                                    {objective ? 'Update' : 'Create'}
+                                    {objective ? t('staff.objectives.update') : t('staff.objectives.create')}
                                 </Button>
                             </DialogFooter>
                         </form>
@@ -506,17 +521,17 @@ export default function ObjectivesIndex() {
                     <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
                         <DialogHeader>
                             <DialogTitle>
-                                {selectedMetric?.label} - History
+                                {selectedMetric?.label} - {t('staff.objectives.history')}
                             </DialogTitle>
                             <DialogDescription>
-                                {monthNames[month - 1]} {year} - Total: {detailData?.total || 0}
+                                {monthNames[month - 1]} {year} - {t('staff.objectives.total')}: {detailData?.total || 0}
                             </DialogDescription>
                         </DialogHeader>
                         <div className="py-4">
                             {loadingDetails ? (
                                 <div className="flex items-center justify-center py-8">
                                     <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-                                    <span className="ml-2 text-muted-foreground">Loading details...</span>
+                                    <span className="ml-2 text-muted-foreground">{t('staff.objectives.loadingDetails')}</span>
                                 </div>
                             ) : detailData?.error ? (
                                 <div className="text-center py-8 text-red-500">
@@ -524,21 +539,21 @@ export default function ObjectivesIndex() {
                                 </div>
                             ) : !detailData?.details || detailData.details.length === 0 ? (
                                 <div className="text-center py-8 text-muted-foreground">
-                                    No {selectedMetric?.label?.toLowerCase()} found for this period.
+                                    {t('staff.objectives.noDataFound', { type: selectedMetric?.label?.toLowerCase() })}
                                 </div>
                             ) : selectedMetric?.key === 'ventes' ? (
                                 <div className="overflow-x-auto">
                                     <Table>
                                         <TableHeader>
                                             <TableRow>
-                                                <TableHead>Bill Number</TableHead>
-                                                <TableHead>Client</TableHead>
-                                                <TableHead>Email</TableHead>
-                                                {roleType === 'manager' && <TableHead>Matchmaker</TableHead>}
-                                                <TableHead>Pack</TableHead>
-                                                <TableHead>Amount</TableHead>
-                                                <TableHead>Payment Method</TableHead>
-                                                <TableHead>Date</TableHead>
+                                                <TableHead>{t('staff.objectives.billNumber')}</TableHead>
+                                                <TableHead>{t('staff.objectives.client')}</TableHead>
+                                                <TableHead>{t('staff.objectives.email')}</TableHead>
+                                                {roleType === 'manager' && <TableHead>{t('staff.matchmaker')}</TableHead>}
+                                                <TableHead>{t('staff.objectives.pack')}</TableHead>
+                                                <TableHead>{t('staff.objectives.amount')}</TableHead>
+                                                <TableHead>{t('staff.objectives.paymentMethod')}</TableHead>
+                                                <TableHead>{t('staff.objectives.date')}</TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
@@ -564,12 +579,12 @@ export default function ObjectivesIndex() {
                                     <Table>
                                         <TableHeader>
                                             <TableRow>
-                                                <TableHead>Name</TableHead>
-                                                <TableHead>Email</TableHead>
-                                                <TableHead>Phone</TableHead>
-                                                {roleType === 'manager' && <TableHead>Matchmaker</TableHead>}
-                                                <TableHead>Status</TableHead>
-                                                <TableHead>Validated At</TableHead>
+                                                <TableHead>{t('staff.objectives.name')}</TableHead>
+                                                <TableHead>{t('staff.objectives.email')}</TableHead>
+                                                <TableHead>{t('staff.objectives.phone')}</TableHead>
+                                                {roleType === 'manager' && <TableHead>{t('staff.matchmaker')}</TableHead>}
+                                                <TableHead>{t('staff.objectives.status')}</TableHead>
+                                                <TableHead>{t('staff.objectives.validatedAt')}</TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
@@ -592,13 +607,13 @@ export default function ObjectivesIndex() {
                                 </div>
                             ) : (
                                 <div className="text-center py-8 text-muted-foreground">
-                                    Details for {selectedMetric?.label} will be available soon.
+                                    {t('staff.objectives.detailsAvailable', { type: selectedMetric?.label })}
                                 </div>
                             )}
                         </div>
                         <DialogFooter>
                             <Button variant="outline" onClick={() => setDetailDialogOpen(false)}>
-                                Close
+                                {t('staff.objectives.close')}
                             </Button>
                         </DialogFooter>
                     </DialogContent>

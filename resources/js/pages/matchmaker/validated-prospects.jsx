@@ -1,4 +1,5 @@
 import { Head, router, usePage } from '@inertiajs/react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -15,6 +16,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { LayoutGrid, Table2, Mail, MapPin, CheckCircle, Pencil, TestTube, Link as LinkIcon, Copy, Check, Search } from 'lucide-react';
 
 export default function ValidatedProspects() {
+    const { t } = useTranslation();
     const { prospects, status, assignedMatchmaker } = usePage().props;
     const [loading, setLoading] = useState({});
     const [subscriptionOpen, setSubscriptionOpen] = useState(false);
@@ -411,7 +413,7 @@ export default function ValidatedProspects() {
                                                     setActivateDialogOpen(true);
                                                 }}
                                             >
-                                                Activer
+                                                {t('staff.activate')}
                                             </Button>
                                         ) : (
                                             <Button
@@ -424,7 +426,7 @@ export default function ValidatedProspects() {
                                                     setDeactivateDialogOpen(true);
                                                 }}
                                             >
-                                                Désactiver
+                                                {t('staff.deactivate')}
                                             </Button>
                                         )}
                                         {(u.status === 'member' || u.status === 'client_expire') && !u.has_bill && (
@@ -434,7 +436,7 @@ export default function ValidatedProspects() {
                                                 className="w-full bg-info hover:opacity-90"
                                                 onClick={() => handleCreateSubscription(u)}
                                             >
-                                                Abonnement
+                                                {t('staff.validatedProspects.createSubscription')}
                                             </Button>
                                         )}
                                         {(u.status === 'member' || u.status === 'client_expire') && u.has_bill && (
@@ -445,7 +447,7 @@ export default function ValidatedProspects() {
                                                 onClick={() => handleMarkAsClient(u.id)}
                                                 disabled={loading[u.id]}
                                             >
-                                                {loading[u.id] ? 'Traitement...' : 'Mark as Client'}
+                                                {loading[u.id] ? t('staff.validatedProspects.processing') : t('staff.validatedProspects.markAsClient')}
                                             </Button>
                                         )}
                                         <Button
@@ -454,7 +456,7 @@ export default function ValidatedProspects() {
                                             className="w-full  hover:bg-[#096725]!  hover:text-white"
                                             onClick={() => router.visit(`/profile/${u.username || u.id}`)}
                                         >
-                                            Find Story
+                                            {t('staff.validatedProspects.findStory')}
                                         </Button>
                                     </div>
                                 </CardContent>
@@ -526,7 +528,7 @@ export default function ValidatedProspects() {
                                                                     setActivateDialogOpen(true);
                                                                 }}
                                                             >
-                                                                Activer
+                                                                {t('staff.activate')}
                                                             </Button>
                                                         ) : (
                                                             <Button
@@ -539,7 +541,7 @@ export default function ValidatedProspects() {
                                                                     setDeactivateDialogOpen(true);
                                                                 }}
                                                             >
-                                                                Désactiver
+                                                                {t('staff.deactivate')}
                                                             </Button>
                                                         )}
                                                         {(u.status === 'member' || u.status === 'client_expire') && !u.has_bill && (
@@ -552,7 +554,7 @@ export default function ValidatedProspects() {
                                                                     handleCreateSubscription(u);
                                                                 }}
                                                             >
-                                                                Abonnement
+                                                                {t('staff.validatedProspects.createSubscription')}
                                                             </Button>
                                                         )}
                                                         {(u.status === 'member' || u.status === 'client_expire') && u.has_bill && (
@@ -566,7 +568,7 @@ export default function ValidatedProspects() {
                                                                 }}
                                                                 disabled={loading[u.id]}
                                                             >
-                                                                {loading[u.id] ? 'Traitement...' : 'Mark as Client'}
+                                                                {loading[u.id] ? t('staff.validatedProspects.processing') : t('staff.validatedProspects.markAsClient')}
                                                             </Button>
                                                         )}
                                                         <Button
@@ -648,9 +650,9 @@ export default function ValidatedProspects() {
             <Dialog open={subscriptionOpen} onOpenChange={setSubscriptionOpen}>
                 <DialogContent className="max-w-2xl">
                     <DialogHeader>
-                        <DialogTitle>Créer une Facture</DialogTitle>
+                        <DialogTitle>{t('staff.validatedProspects.createInvoice')}</DialogTitle>
                         <DialogDescription>
-                            Créez une facture pour {selectedUser?.name}. L'abonnement sera créé après paiement.
+                            {t('staff.validatedProspects.createInvoiceDescription', { name: selectedUser?.name })}
                         </DialogDescription>
                     </DialogHeader>
                     
@@ -839,26 +841,26 @@ export default function ValidatedProspects() {
             <Dialog open={activateDialogOpen} onOpenChange={setActivateDialogOpen}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Activer le compte</DialogTitle>
+                        <DialogTitle>{t('staff.activateDialog.title')}</DialogTitle>
                         <DialogDescription>
-                            Motif d'activation pour {selectedUserForStatus?.name}
+                            {t('staff.activateDialog.description', { name: selectedUserForStatus?.name })}
                         </DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
                         <div className="grid gap-2">
-                            <Label htmlFor="activation-reason">Motif d'activation *</Label>
+                            <Label htmlFor="activation-reason">{t('staff.activateDialog.activationReason')}</Label>
                             <Textarea
                                 id="activation-reason"
                                 value={statusReason}
                                 onChange={(e) => setStatusReason(e.target.value)}
-                                placeholder="Expliquez pourquoi vous activez ce compte..."
+                                placeholder={t('staff.activateDialog.activationReasonPlaceholder')}
                                 rows={4}
                             />
                         </div>
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setActivateDialogOpen(false)}>
-                            Annuler
+                            {t('common.cancel')}
                         </Button>
                         <Button
                             onClick={() => {
@@ -880,7 +882,7 @@ export default function ValidatedProspects() {
                             }}
                             disabled={!statusReason.trim() || statusSubmitting}
                         >
-                            {statusSubmitting ? 'Envoi...' : 'Activer'}
+                            {statusSubmitting ? t('staff.activateDialog.activating') : t('staff.activateDialog.activateButton')}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -890,26 +892,26 @@ export default function ValidatedProspects() {
             <Dialog open={deactivateDialogOpen} onOpenChange={setDeactivateDialogOpen}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Désactiver le compte</DialogTitle>
+                        <DialogTitle>{t('staff.deactivateDialog.title')}</DialogTitle>
                         <DialogDescription>
-                            Motif de désactivation pour {selectedUserForStatus?.name}
+                            {t('staff.deactivateDialog.description', { name: selectedUserForStatus?.name })}
                         </DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
                         <div className="grid gap-2">
-                            <Label htmlFor="deactivation-reason">Motif de désactivation *</Label>
+                            <Label htmlFor="deactivation-reason">{t('staff.deactivateDialog.deactivationReason')}</Label>
                             <Textarea
                                 id="deactivation-reason"
                                 value={statusReason}
                                 onChange={(e) => setStatusReason(e.target.value)}
-                                placeholder="Expliquez pourquoi vous désactivez ce compte..."
+                                placeholder={t('staff.deactivateDialog.deactivationReasonPlaceholder')}
                                 rows={4}
                             />
                         </div>
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setDeactivateDialogOpen(false)}>
-                            Annuler
+                            {t('common.cancel')}
                         </Button>
                         <Button
                             variant="destructive"
@@ -932,7 +934,7 @@ export default function ValidatedProspects() {
                             }}
                             disabled={!statusReason.trim() || statusSubmitting}
                         >
-                            {statusSubmitting ? 'Envoi...' : 'Désactiver'}
+                            {statusSubmitting ? t('staff.deactivateDialog.deactivating') : t('staff.deactivateDialog.deactivateButton')}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

@@ -1,5 +1,6 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,6 +14,7 @@ import { XCircle, CheckCircle, Copy, Check, Mail, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 
 export default function ProspectsDispatch() {
+    const { t } = useTranslation();
     const { prospects = [], agencies = [], matchmakers = [], filters = {}, statusFilter = 'active' } = usePage().props;
     const [countries, setCountries] = useState([]);
     const [countryCodeToCities, setCountryCodeToCities] = useState({});
@@ -337,22 +339,22 @@ export default function ProspectsDispatch() {
 
     return (
         <AppLayout>
-            <Head title="Dispatch Prospects" />
+            <Head title={t('staff.prospectsDispatch')} />
             <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
                 <Card>
                     <CardHeader>
-                        <CardTitle>Prospects Dispatch</CardTitle>
+                        <CardTitle>{t('staff.prospectsDispatch')}</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <div className="flex flex-wrap items-end gap-4 mb-4">
                             <div className="grid gap-2 w-[220px]">
-                                <Label>Pays</Label>
+                                <Label>{t('staff.country')}</Label>
                                 <Select
                                     value={selectedCountryCode}
                                     onValueChange={(v) => setSelectedCountryCode(v)}
                                     disabled={loadingCountries}
                                 >
-                                    <SelectTrigger className="h-9"><SelectValue placeholder={loadingCountries ? 'Chargement…' : 'Sélectionner'} /></SelectTrigger>
+                                    <SelectTrigger className="h-9"><SelectValue placeholder={loadingCountries ? t('staff.userInfo.loading') : t('staff.userInfo.selectCountry')} /></SelectTrigger>
                                     <SelectContent>
                                         {countries.map((c) => (
                                             <SelectItem key={c.iso2} value={c.iso2}>{c.frenchName}</SelectItem>
@@ -361,13 +363,13 @@ export default function ProspectsDispatch() {
                                 </Select>
                             </div>
                             <div className="grid gap-2 w-[220px]">
-                                <Label>Ville</Label>
+                                <Label>{t('staff.city')}</Label>
                                 <Select
                                     value={prospectsCity}
                                     onValueChange={(v) => handleFilterProspects(selectedCountryCode ? (countries.find((c) => c.iso2 === selectedCountryCode)?.frenchName || '') : prospectsCountry, v, dispatchStatus)}
                                     disabled={!selectedCountryCode || availableCities.length === 0}
                                 >
-                                    <SelectTrigger className="h-9"><SelectValue placeholder={!selectedCountryCode ? 'Choisir pays d’abord' : (availableCities.length ? 'Sélectionner ville' : 'Aucune ville')} /></SelectTrigger>
+                                    <SelectTrigger className="h-9"><SelectValue placeholder={!selectedCountryCode ? t('staff.userInfo.chooseCountryFirst') : (availableCities.length ? t('staff.userInfo.selectCity') : t('staff.userInfo.noCity'))} /></SelectTrigger>
                                     <SelectContent>
                                         {availableCities.map((city) => (
                                             <SelectItem key={city} value={city}>{city}</SelectItem>
@@ -376,36 +378,36 @@ export default function ProspectsDispatch() {
                                 </Select>
                             </div>
                             <div className="grid gap-2 w-[220px]">
-                                <Label>Dispatch</Label>
+                                <Label>{t('staff.dispatch')}</Label>
                                 <Select
                                     value={dispatchStatus}
                                     onValueChange={(v) => { setDispatchStatus(v); handleFilterProspects(selectedCountryCode ? (countries.find((c) => c.iso2 === selectedCountryCode)?.frenchName || '') : prospectsCountry, prospectsCity, v); }}
                                 >
-                                    <SelectTrigger className="h-9"><SelectValue placeholder="All" /></SelectTrigger>
+                                    <SelectTrigger className="h-9"><SelectValue placeholder={t('staff.all')} /></SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="all">All</SelectItem>
-                                        <SelectItem value="not_dispatched">Not Dispatched</SelectItem>
-                                        <SelectItem value="dispatched">Dispatched</SelectItem>
+                                        <SelectItem value="all">{t('staff.all')}</SelectItem>
+                                        <SelectItem value="not_dispatched">{t('staff.notDispatched')}</SelectItem>
+                                        <SelectItem value="dispatched">{t('staff.dispatched')}</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
                             <div className="grid gap-2 w-[220px]">
-                                <Label>Status</Label>
+                                <Label>{t('common.status')}</Label>
                                 <Select
                                     value={statusFilter || 'active'}
                                     onValueChange={(v) => handleFilterProspects(selectedCountryCode ? (countries.find((c) => c.iso2 === selectedCountryCode)?.frenchName || '') : prospectsCountry, prospectsCity, dispatchStatus, v)}
                                 >
                                     <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="active">Actifs</SelectItem>
-                                        <SelectItem value="rejected">Rejetés</SelectItem>
+                                        <SelectItem value="active">{t('staff.userInfo.activeStatus')}</SelectItem>
+                                        <SelectItem value="rejected">{t('staff.userInfo.rejectedStatus')}</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
-                            <Button variant="outline" onClick={() => handleFilterProspects(selectedCountryCode ? (countries.find((c) => c.iso2 === selectedCountryCode)?.frenchName || '') : '', '', dispatchStatus, 'active')}>Réinitialiser</Button>
+                            <Button variant="outline" onClick={() => handleFilterProspects(selectedCountryCode ? (countries.find((c) => c.iso2 === selectedCountryCode)?.frenchName || '') : '', '', dispatchStatus, 'active')}>{t('staff.reset')}</Button>
                             <div className="ml-auto flex gap-2">
-                                <Button disabled={!hasValidDispatchSelection} onClick={handleDispatchClick}>Dispatch Prospects</Button>
-                                <Button disabled={!hasValidReassignSelection} variant="outline" onClick={handleReassignClick}>Reassign Prospects</Button>
+                                <Button disabled={!hasValidDispatchSelection} onClick={handleDispatchClick}>{t('staff.dispatchProspects')}</Button>
+                                <Button disabled={!hasValidReassignSelection} variant="outline" onClick={handleReassignClick}>{t('staff.reassignProspects')}</Button>
                             </div>
                         </div>
 
@@ -414,7 +416,7 @@ export default function ProspectsDispatch() {
                                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                                 <Input
                                     type="text"
-                                    placeholder="Rechercher par nom, email ou username..."
+                                    placeholder={t('staff.searchPlaceholder')}
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                     className="pl-10"
@@ -425,7 +427,7 @@ export default function ProspectsDispatch() {
                         {filteredProspects.length === 0 && searchQuery.trim() && (
                             <div className="mb-4 p-4 bg-info-light border border-info rounded-lg">
                                 <p className="text-info-foreground text-sm">
-                                    Aucun résultat trouvé pour "{searchQuery}". Veuillez essayer une autre recherche.
+                                    {t('staff.noResults', { query: searchQuery })}
                                 </p>
                             </div>
                         )}
@@ -440,15 +442,15 @@ export default function ProspectsDispatch() {
                                             onChange={(e) => handleToggleAll(e.target.checked)} 
                                         />
                                     </TableHead>
-                                    <TableHead>Name</TableHead>
-                                    <TableHead>Country</TableHead>
-                                    <TableHead>City</TableHead>
-                                    <TableHead>Phone</TableHead>
-                                    {statusFilter === 'active' && <TableHead>Dispatched To</TableHead>}
-                                    {statusFilter === 'rejected' && <TableHead>Raison du rejet</TableHead>}
-                                    <TableHead>Account Status</TableHead>
-                                    <TableHead>Date</TableHead>
-                                    <TableHead>Actions</TableHead>
+                                    <TableHead>{t('staff.tableHeaders.name')}</TableHead>
+                                    <TableHead>{t('staff.tableHeaders.country')}</TableHead>
+                                    <TableHead>{t('staff.tableHeaders.city')}</TableHead>
+                                    <TableHead>{t('staff.tableHeaders.phone')}</TableHead>
+                                    {statusFilter === 'active' && <TableHead>{t('staff.tableHeaders.dispatchedTo')}</TableHead>}
+                                    {statusFilter === 'rejected' && <TableHead>{t('staff.tableHeaders.rejectionReason')}</TableHead>}
+                                    <TableHead>{t('staff.tableHeaders.accountStatus')}</TableHead>
+                                    <TableHead>{t('staff.tableHeaders.date')}</TableHead>
+                                    <TableHead>{t('staff.tableHeaders.actions')}</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -476,15 +478,15 @@ export default function ProspectsDispatch() {
                                             <TableCell>
                                                 {p.assigned_matchmaker_id ? (
                                                     <div className="text-sm">
-                                                        <div className="font-medium text-success">Matchmaker: {p.assigned_matchmaker?.name || 'Unknown'}</div>
+                                                        <div className="font-medium text-success">{t('staff.matchmaker')}: {p.assigned_matchmaker?.name || t('staff.unknown')}</div>
                                                         {p.agency_id && (
-                                                            <div className="text-info">Agency: {p.agency?.name || 'Unknown'}</div>
+                                                            <div className="text-info">{t('staff.agency')}: {p.agency?.name || t('staff.unknown')}</div>
                                                         )}
                                                     </div>
                                                 ) : p.agency_id ? (
-                                                    <span className="text-info">Agency: {p.agency?.name || 'Unknown'}</span>
+                                                    <span className="text-info">{t('staff.agency')}: {p.agency?.name || t('staff.unknown')}</span>
                                                 ) : (
-                                                    <span className="text-muted-foreground">Not dispatched</span>
+                                                    <span className="text-muted-foreground">{t('staff.notDispatchedLabel')}</span>
                                                 )}
                                             </TableCell>
                                         ) : (
@@ -496,7 +498,7 @@ export default function ProspectsDispatch() {
                                         )}
                                         <TableCell>
                                             <Badge variant={p.profile?.account_status === 'desactivated' ? 'destructive' : 'default'}>
-                                                {p.profile?.account_status === 'desactivated' ? 'Désactivé' : 'Actif'}
+                                                {p.profile?.account_status === 'desactivated' ? t('staff.desactivated') : t('staff.active')}
                                             </Badge>
                                         </TableCell>
                                         <TableCell>{new Date(p.created_at ?? Date.now()).toLocaleDateString()}</TableCell>
@@ -514,7 +516,7 @@ export default function ProspectsDispatch() {
                                                                 }}
                                                             >
                                                                 <XCircle className="w-4 h-4 mr-1" />
-                                                                Rejeter
+                                                                {t('staff.reject')}
                                                             </Button>
                                                         )}
                                                         {p.profile?.account_status === 'desactivated' ? (
@@ -528,7 +530,7 @@ export default function ProspectsDispatch() {
                                                                     setActivateDialogOpen(true);
                                                                 }}
                                                             >
-                                                                Activer
+                                                                {t('staff.activate')}
                                                             </Button>
                                                         ) : (
                                                             <Button
@@ -541,7 +543,7 @@ export default function ProspectsDispatch() {
                                                                     setDeactivateDialogOpen(true);
                                                                 }}
                                                             >
-                                                                Désactiver
+                                                                {t('staff.deactivate')}
                                                             </Button>
                                                         )}
                                                     </>
@@ -558,7 +560,7 @@ export default function ProspectsDispatch() {
                                                                 }}
                                                             >
                                                                 <CheckCircle className="w-4 h-4 mr-1" />
-                                                                Accepter
+                                                                {t('staff.accept')}
                                                             </Button>
                                                         )}
                                                     </>
@@ -570,7 +572,7 @@ export default function ProspectsDispatch() {
                             {filteredProspects.length === 0 && !searchQuery.trim() && (
                                 <TableRow>
                                     <TableCell colSpan={statusFilter === 'active' ? 9 : 9} className="text-center py-8">
-                                        <p className="text-muted-foreground">Aucun prospect disponible.</p>
+                                        <p className="text-muted-foreground">{t('staff.noProspectsAvailable')}</p>
                                     </TableCell>
                                 </TableRow>
                             )}
@@ -583,31 +585,31 @@ export default function ProspectsDispatch() {
             <Dialog open={dispatchOpen} onOpenChange={setDispatchOpen}>
                 <DialogContent className="sm:max-w-[520px]">
                     <DialogHeader>
-                        <DialogTitle>Dispatch Prospects</DialogTitle>
+                        <DialogTitle>{t('staff.dispatchDialog.title')}</DialogTitle>
                         <DialogDescription>
-                            Select dispatch type: Agency only or Matchmaker (automatically assigns to both matchmaker and their agency).
+                            {t('staff.dispatchDialog.description')}
                         </DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-2">
                         <div className="grid gap-2">
-                            <Label>Dispatch Type</Label>
+                            <Label>{t('staff.dispatchDialog.dispatchType')}</Label>
                             <Select value={dispatchType} onValueChange={(value) => {
                                 setDispatchType(value);
                                 setSelectedAgencyId('');
                                 setSelectedMatchmakerId('');
                             }}>
-                                <SelectTrigger className="h-9"><SelectValue placeholder="Select dispatch type" /></SelectTrigger>
+                                <SelectTrigger className="h-9"><SelectValue placeholder={t('staff.dispatchDialog.selectDispatchType')} /></SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="agency">Agency</SelectItem>
-                                    <SelectItem value="matchmaker">Matchmaker</SelectItem>
+                                    <SelectItem value="agency">{t('staff.agency')}</SelectItem>
+                                    <SelectItem value="matchmaker">{t('staff.matchmaker')}</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
                         {dispatchType === 'agency' && (
                             <div className="grid gap-2">
-                                <Label>Agency</Label>
+                                <Label>{t('staff.agency')}</Label>
                                 <Select value={selectedAgencyId} onValueChange={setSelectedAgencyId}>
-                                    <SelectTrigger className="h-9"><SelectValue placeholder="Select agency" /></SelectTrigger>
+                                    <SelectTrigger className="h-9"><SelectValue placeholder={t('staff.dispatchDialog.selectAgency')} /></SelectTrigger>
                                     <SelectContent>
                                         {agencies.map((a) => (
                                             <SelectItem key={a.id} value={a.id.toString()}>{a.name}</SelectItem>
@@ -618,12 +620,12 @@ export default function ProspectsDispatch() {
                         )}
                         {dispatchType === 'matchmaker' && (
                             <div className="grid gap-2">
-                                <Label>Matchmaker</Label>
+                                <Label>{t('staff.matchmaker')}</Label>
                                 <Select value={selectedMatchmakerId} onValueChange={setSelectedMatchmakerId}>
-                                    <SelectTrigger className="h-9"><SelectValue placeholder="Select matchmaker" /></SelectTrigger>
+                                    <SelectTrigger className="h-9"><SelectValue placeholder={t('staff.dispatchDialog.selectMatchmaker')} /></SelectTrigger>
                                     <SelectContent>
                                         {matchmakers.map((m) => (
-                                            <SelectItem key={m.id} value={m.id.toString()}>{m.name} ({m.agency?.name || 'No Agency'})</SelectItem>
+                                            <SelectItem key={m.id} value={m.id.toString()}>{m.name} ({m.agency?.name || t('staff.noAgency')})</SelectItem>
                                         ))}
                                     </SelectContent>
                                 </Select>
@@ -631,12 +633,12 @@ export default function ProspectsDispatch() {
                         )}
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setDispatchOpen(false)}>Cancel</Button>
+                        <Button variant="outline" onClick={() => setDispatchOpen(false)}>{t('common.cancel')}</Button>
                         <Button onClick={submitDispatch} disabled={
                             selectedProspectIds.length === 0 || 
                             (dispatchType === 'agency' && !selectedAgencyId) || 
                             (dispatchType === 'matchmaker' && !selectedMatchmakerId)
-                        }>Submit</Button>
+                        }>{t('staff.dispatchDialog.submit')}</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -644,31 +646,31 @@ export default function ProspectsDispatch() {
             <Dialog open={reassignOpen} onOpenChange={setReassignOpen}>
                 <DialogContent className="sm:max-w-[520px]">
                     <DialogHeader>
-                        <DialogTitle>Reassign Prospects</DialogTitle>
+                        <DialogTitle>{t('staff.reassignDialog.title')}</DialogTitle>
                         <DialogDescription>
-                            Reassign prospects to a different agency or matchmaker. Original agency assignment is preserved for tracking purposes.
+                            {t('staff.reassignDialog.description')}
                         </DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-2">
                         <div className="grid gap-2">
-                            <Label>Reassign Type</Label>
+                            <Label>{t('staff.reassignDialog.reassignType')}</Label>
                             <Select value={reassignType} onValueChange={(value) => {
                                 setReassignType(value);
                                 setSelectedReassignAgencyId('');
                                 setSelectedReassignMatchmakerId('');
                             }}>
-                                <SelectTrigger className="h-9"><SelectValue placeholder="Select reassign type" /></SelectTrigger>
+                                <SelectTrigger className="h-9"><SelectValue placeholder={t('staff.reassignDialog.selectReassignType')} /></SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="agency">Agency</SelectItem>
-                                    <SelectItem value="matchmaker">Matchmaker</SelectItem>
+                                    <SelectItem value="agency">{t('staff.agency')}</SelectItem>
+                                    <SelectItem value="matchmaker">{t('staff.matchmaker')}</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
                         {reassignType === 'agency' && (
                             <div className="grid gap-2">
-                                <Label>Agency</Label>
+                                <Label>{t('staff.agency')}</Label>
                                 <Select value={selectedReassignAgencyId} onValueChange={setSelectedReassignAgencyId}>
-                                    <SelectTrigger className="h-9"><SelectValue placeholder="Select agency" /></SelectTrigger>
+                                    <SelectTrigger className="h-9"><SelectValue placeholder={t('staff.dispatchDialog.selectAgency')} /></SelectTrigger>
                                     <SelectContent>
                                         {agencies.map((a) => (
                                             <SelectItem key={a.id} value={a.id.toString()}>{a.name}</SelectItem>
@@ -679,12 +681,12 @@ export default function ProspectsDispatch() {
                         )}
                         {reassignType === 'matchmaker' && (
                             <div className="grid gap-2">
-                                <Label>Matchmaker</Label>
+                                <Label>{t('staff.matchmaker')}</Label>
                                 <Select value={selectedReassignMatchmakerId} onValueChange={setSelectedReassignMatchmakerId}>
-                                    <SelectTrigger className="h-9"><SelectValue placeholder="Select matchmaker" /></SelectTrigger>
+                                    <SelectTrigger className="h-9"><SelectValue placeholder={t('staff.dispatchDialog.selectMatchmaker')} /></SelectTrigger>
                                     <SelectContent>
                                         {matchmakers.map((m) => (
-                                            <SelectItem key={m.id} value={m.id.toString()}>{m.name} ({m.agency?.name || 'No Agency'})</SelectItem>
+                                            <SelectItem key={m.id} value={m.id.toString()}>{m.name} ({m.agency?.name || t('staff.noAgency')})</SelectItem>
                                         ))}
                                     </SelectContent>
                                 </Select>
@@ -692,12 +694,12 @@ export default function ProspectsDispatch() {
                         )}
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setReassignOpen(false)}>Cancel</Button>
+                        <Button variant="outline" onClick={() => setReassignOpen(false)}>{t('common.cancel')}</Button>
                         <Button onClick={submitReassign} disabled={
                             selectedProspectIds.length === 0 || 
                             (reassignType === 'agency' && !selectedReassignAgencyId) || 
                             (reassignType === 'matchmaker' && !selectedReassignMatchmakerId)
-                        }>Reassign</Button>
+                        }>{t('staff.reassignProspects')}</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -706,26 +708,26 @@ export default function ProspectsDispatch() {
             <Dialog open={activateDialogOpen} onOpenChange={setActivateDialogOpen}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Activer le compte</DialogTitle>
+                        <DialogTitle>{t('staff.activateDialog.title')}</DialogTitle>
                         <DialogDescription>
-                            Motif d'activation pour {selectedProspect?.name}
+                            {t('staff.activateDialog.description', { name: selectedProspect?.name })}
                         </DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
                         <div className="grid gap-2">
-                            <Label htmlFor="activation-reason">Motif d'activation *</Label>
+                            <Label htmlFor="activation-reason">{t('staff.activateDialog.activationReason')}</Label>
                             <Textarea
                                 id="activation-reason"
                                 value={reason}
                                 onChange={(e) => setReason(e.target.value)}
-                                placeholder="Expliquez pourquoi vous activez ce compte..."
+                                placeholder={t('staff.activateDialog.activationReasonPlaceholder')}
                                 rows={4}
                             />
                         </div>
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setActivateDialogOpen(false)}>
-                            Annuler
+                            {t('common.cancel')}
                         </Button>
                         <Button
                             onClick={() => {
@@ -747,7 +749,7 @@ export default function ProspectsDispatch() {
                             }}
                             disabled={!reason.trim() || submitting}
                         >
-                            {submitting ? 'Envoi...' : 'Activer'}
+                            {submitting ? t('staff.activateDialog.activating') : t('staff.activateDialog.activateButton')}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -757,26 +759,26 @@ export default function ProspectsDispatch() {
             <Dialog open={deactivateDialogOpen} onOpenChange={setDeactivateDialogOpen}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Désactiver le compte</DialogTitle>
+                        <DialogTitle>{t('staff.deactivateDialog.title')}</DialogTitle>
                         <DialogDescription>
-                            Motif de désactivation pour {selectedProspect?.name}
+                            {t('staff.deactivateDialog.description', { name: selectedProspect?.name })}
                         </DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
                         <div className="grid gap-2">
-                            <Label htmlFor="deactivation-reason">Motif de désactivation *</Label>
+                            <Label htmlFor="deactivation-reason">{t('staff.deactivateDialog.deactivationReason')}</Label>
                             <Textarea
                                 id="deactivation-reason"
                                 value={reason}
                                 onChange={(e) => setReason(e.target.value)}
-                                placeholder="Expliquez pourquoi vous désactivez ce compte..."
+                                placeholder={t('staff.deactivateDialog.deactivationReasonPlaceholder')}
                                 rows={4}
                             />
                         </div>
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setDeactivateDialogOpen(false)}>
-                            Annuler
+                            {t('common.cancel')}
                         </Button>
                         <Button
                             variant="destructive"
@@ -799,7 +801,7 @@ export default function ProspectsDispatch() {
                             }}
                             disabled={!reason.trim() || submitting}
                         >
-                            {submitting ? 'Envoi...' : 'Désactiver'}
+                            {submitting ? t('staff.deactivateDialog.deactivating') : t('staff.deactivateDialog.deactivateButton')}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -809,19 +811,19 @@ export default function ProspectsDispatch() {
             <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Rejeter le prospect</DialogTitle>
+                        <DialogTitle>{t('staff.rejectDialog.title')}</DialogTitle>
                         <DialogDescription>
-                            Veuillez fournir une raison pour le rejet de {selectedProspect?.name || 'ce prospect'}
+                            {t('staff.rejectDialog.description', { name: selectedProspect?.name || t('staff.prospectsDispatch') })}
                         </DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
                         <div className="grid gap-2">
-                            <Label htmlFor="rejection-reason">Raison du rejet *</Label>
+                            <Label htmlFor="rejection-reason">{t('staff.rejectDialog.rejectionReason')}</Label>
                             <Textarea
                                 id="rejection-reason"
                                 value={rejectionReason}
                                 onChange={(e) => setRejectionReason(e.target.value)}
-                                placeholder="Expliquez pourquoi vous rejetez ce prospect..."
+                                placeholder={t('staff.rejectDialog.rejectionReasonPlaceholder')}
                                 rows={4}
                                 required
                             />
@@ -829,14 +831,14 @@ export default function ProspectsDispatch() {
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setRejectDialogOpen(false)}>
-                            Annuler
+                            {t('common.cancel')}
                         </Button>
                         <Button
                             variant="destructive"
                             onClick={submitRejection}
                             disabled={!rejectionReason.trim() || rejecting}
                         >
-                            {rejecting ? 'Envoi...' : 'Rejeter'}
+                            {rejecting ? t('staff.rejectDialog.rejecting') : t('staff.rejectDialog.rejectButton')}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -875,7 +877,7 @@ export default function ProspectsDispatch() {
                                             className="flex items-center justify-center gap-2 w-full sm:w-auto"
                                         >
                                             <Copy className="w-4 h-4" />
-                                            Copy link
+                                            {t('staff.userInfo.copyLink')}
                                         </Button>
                                         <Button
                                             variant="outline"
@@ -883,7 +885,7 @@ export default function ProspectsDispatch() {
                                             onClick={handleViewProfile}
                                             className="flex items-center justify-center gap-2 w-full sm:w-auto"
                                         >
-                                            View profile
+                                            {t('staff.userInfo.viewProfile')}
                                         </Button>
                                     </div>
                                 </div>
@@ -894,30 +896,30 @@ export default function ProspectsDispatch() {
                                 {/* Name Fields */}
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div className="space-y-2">
-                                        <Label htmlFor="firstName">Name</Label>
+                                        <Label htmlFor="firstName">{t('staff.userInfo.firstName')}</Label>
                                         <Input
                                             id="firstName"
                                             value={(selectedUserForInfo.name || '').split(' ')[0] || ''}
                                             disabled
                                             className="bg-muted"
-                                            placeholder="First name"
+                                            placeholder={t('staff.userInfo.firstName')}
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label htmlFor="lastName" className="opacity-0">Name</Label>
+                                        <Label htmlFor="lastName" className="opacity-0">{t('staff.userInfo.lastName')}</Label>
                                         <Input
                                             id="lastName"
                                             value={(selectedUserForInfo.name || '').split(' ').slice(1).join(' ') || ''}
                                             disabled
                                             className="bg-muted"
-                                            placeholder="Last name"
+                                            placeholder={t('staff.userInfo.lastName')}
                                         />
                                     </div>
                                 </div>
 
                                 {/* Email Address */}
                                 <div className="space-y-2">
-                                    <Label htmlFor="email">Email address</Label>
+                                    <Label htmlFor="email">{t('staff.userInfo.email')}</Label>
                                     <div className="relative">
                                         <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                                         <Input
@@ -933,7 +935,7 @@ export default function ProspectsDispatch() {
 
                                 {/* Username */}
                                 <div className="space-y-2">
-                                    <Label htmlFor="username">Username</Label>
+                                    <Label htmlFor="username">{t('staff.userInfo.username')}</Label>
                                     <div className="relative">
                                         <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-xs sm:text-sm text-muted-foreground whitespace-nowrap">
                                             untitledui.com/
@@ -953,7 +955,7 @@ export default function ProspectsDispatch() {
 
                                 {/* Profile Photo */}
                                 <div className="space-y-2">
-                                    <Label>Profile photo</Label>
+                                    <Label>{t('profile.profilePicture')}</Label>
                                     <div className="flex items-center gap-4">
                                         <img
                                             src={getProfilePicture(selectedUserForInfo)}
@@ -973,7 +975,7 @@ export default function ProspectsDispatch() {
                                     variant="outline"
                                     onClick={() => setUserInfoModalOpen(false)}
                                 >
-                                    Cancel
+                                    {t('common.cancel')}
                                 </Button>
                             </DialogFooter>
                         </>

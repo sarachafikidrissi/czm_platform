@@ -1,5 +1,6 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -12,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { AlertCircle, CheckCircle, XCircle, User, Mail, Phone, Calendar, Search } from 'lucide-react';
 
 export default function ReactivationRequests() {
+    const { t } = useTranslation();
     const { requests = [], routePrefix = 'admin' } = usePage().props;
     const [selectedRequest, setSelectedRequest] = useState(null);
     const [actionType, setActionType] = useState(null); // 'approve' or 'reject'
@@ -51,7 +53,7 @@ export default function ReactivationRequests() {
     };
 
     const formatDate = (dateString) => {
-        if (!dateString) return 'N/A';
+        if (!dateString) return t('common.notAvailable');
         return new Date(dateString).toLocaleDateString('fr-FR', {
             year: 'numeric',
             month: 'long',
@@ -77,17 +79,21 @@ export default function ReactivationRequests() {
 
     return (
         <AppLayout>
-            <Head title="Demandes de Réactivation" />
+            <Head title={t('staff.reactivationRequests.title')} />
             <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-2xl font-bold">Demandes de Réactivation</h1>
+                        <h1 className="text-2xl font-bold">{t('staff.reactivationRequests.title')}</h1>
                         <p className="text-muted-foreground">
-                            Gérez les demandes de réactivation de compte envoyées par les utilisateurs
+                            {t('staff.reactivationRequests.description')}
                         </p>
                     </div>
                     <Badge variant="outline" className="text-lg px-3 py-1">
-                        {filteredRequests.length} demande{filteredRequests.length > 1 ? 's' : ''} {searchQuery.trim() ? 'trouvée(s)' : 'en attente'}
+                        {t('staff.reactivationRequests.requestsFound', { 
+                            count: filteredRequests.length, 
+                            plural: filteredRequests.length > 1 ? 's' : '',
+                            status: searchQuery.trim() ? t('staff.reactivationRequests.found') : t('staff.reactivationRequests.pending')
+                        })}
                     </Badge>
                 </div>
 
@@ -98,7 +104,7 @@ export default function ReactivationRequests() {
                             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                             <Input
                                 type="text"
-                                placeholder="Rechercher par nom, email ou username..."
+                                placeholder={t('staff.reactivationRequests.searchPlaceholder')}
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 className="pl-10"
@@ -110,7 +116,7 @@ export default function ReactivationRequests() {
                 {filteredRequests.length === 0 && searchQuery.trim() && (
                     <div className="mb-4 p-4 bg-info-light border border-info rounded-lg">
                         <p className="text-info-foreground text-sm">
-                            Aucun résultat trouvé pour "{searchQuery}". Veuillez essayer une autre recherche.
+                            {t('common.noResults', { query: searchQuery })}
                         </p>
                     </div>
                 )}
@@ -120,30 +126,30 @@ export default function ReactivationRequests() {
                         <CardContent className="flex flex-col items-center justify-center py-12">
                             <CheckCircle className="w-16 h-16 text-green-500 mb-4" />
                             <p className="text-lg font-semibold text-muted-foreground">
-                                Aucune demande de réactivation en attente
+                                {t('staff.reactivationRequests.noRequests')}
                             </p>
                         </CardContent>
                     </Card>
                 ) : (
                     <Card>
                         <CardHeader>
-                            <CardTitle>Demandes en attente</CardTitle>
+                            <CardTitle>{t('staff.reactivationRequests.title')}</CardTitle>
                             <CardDescription>
-                                Liste des demandes de réactivation soumises par les utilisateurs
+                                {t('staff.reactivationRequests.description')}
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead>Utilisateur</TableHead>
-                                        <TableHead>Email</TableHead>
-                                        <TableHead>Téléphone</TableHead>
-                                        <TableHead>Statut</TableHead>
-                                        <TableHead>Matchmaker</TableHead>
-                                        <TableHead>Date de demande</TableHead>
-                                        <TableHead>Raison</TableHead>
-                                        <TableHead className="text-right">Actions</TableHead>
+                                        <TableHead>{t('staff.reactivationRequests.user')}</TableHead>
+                                        <TableHead>{t('staff.userInfo.email')}</TableHead>
+                                        <TableHead>{t('staff.userInfo.phone')}</TableHead>
+                                        <TableHead>{t('common.status')}</TableHead>
+                                        <TableHead>{t('staff.matchmaker')}</TableHead>
+                                        <TableHead>{t('staff.reactivationRequests.requestDate')}</TableHead>
+                                        <TableHead>{t('staff.reactivationRequests.reason')}</TableHead>
+                                        <TableHead className="text-right">{t('staff.tableHeaders.actions')}</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -152,19 +158,19 @@ export default function ReactivationRequests() {
                                             <TableCell className="font-medium">
                                                 <div className="flex items-center gap-2">
                                                     <User className="w-4 h-4 text-muted-foreground" />
-                                                    {request.user?.name || 'N/A'}
+                                                    {request.user?.name || t('common.notAvailable')}
                                                 </div>
                                             </TableCell>
                                             <TableCell>
                                                 <div className="flex items-center gap-2">
                                                     <Mail className="w-4 h-4 text-muted-foreground" />
-                                                    {request.user?.email || 'N/A'}
+                                                    {request.user?.email || t('common.notAvailable')}
                                                 </div>
                                             </TableCell>
                                             <TableCell>
                                                 <div className="flex items-center gap-2">
                                                     <Phone className="w-4 h-4 text-muted-foreground" />
-                                                    {request.user?.phone || 'N/A'}
+                                                    {request.user?.phone || t('common.notAvailable')}
                                                 </div>
                                             </TableCell>
                                             <TableCell>
@@ -176,17 +182,17 @@ export default function ReactivationRequests() {
                                                         'outline'
                                                     }
                                                 >
-                                                    {request.user?.status === 'prospect' ? 'Prospect' :
-                                                     request.user?.status === 'member' ? 'Membre' :
-                                                     request.user?.status === 'client' ? 'Client' :
-                                                     request.user?.status || 'N/A'}
+                                                    {request.user?.status === 'prospect' ? t('staff.reactivationRequests.status.prospect') :
+                                                     request.user?.status === 'member' ? t('staff.reactivationRequests.status.member') :
+                                                     request.user?.status === 'client' ? t('staff.reactivationRequests.status.client') :
+                                                     request.user?.status || t('common.notAvailable')}
                                                 </Badge>
                                             </TableCell>
                                             <TableCell>
                                                 {request.user?.assigned_matchmaker?.name ? (
                                                     <span className="text-sm">{request.user.assigned_matchmaker.name}</span>
                                                 ) : (
-                                                    <span className="text-sm text-muted-foreground">Non assigné</span>
+                                                    <span className="text-sm text-muted-foreground">{t('staff.userInfo.noAgency')}</span>
                                                 )}
                                             </TableCell>
                                             <TableCell>
@@ -197,7 +203,7 @@ export default function ReactivationRequests() {
                                             </TableCell>
                                             <TableCell className="max-w-xs">
                                                 <p className="text-sm text-muted-foreground truncate" title={request.reason}>
-                                                    {request.reason || 'Aucune raison spécifiée'}
+                                                    {request.reason || t('staff.reactivationRequests.noReason')}
                                                 </p>
                                             </TableCell>
                                             <TableCell className="text-right">
@@ -209,7 +215,7 @@ export default function ReactivationRequests() {
                                                         className="bg-success hover:opacity-90"
                                                     >
                                                         <CheckCircle className="w-4 h-4 mr-1" />
-                                                        Approuver
+                                                        {t('staff.reactivationRequests.approve')}
                                                     </Button>
                                                     <Button
                                                         size="sm"
@@ -217,7 +223,7 @@ export default function ReactivationRequests() {
                                                         onClick={() => handleAction(request, 'reject')}
                                                     >
                                                         <XCircle className="w-4 h-4 mr-1" />
-                                                        Rejeter
+                                                        {t('staff.reactivationRequests.reject')}
                                                     </Button>
                                                 </div>
                                             </TableCell>
@@ -234,35 +240,35 @@ export default function ReactivationRequests() {
                     <DialogContent>
                         <DialogHeader>
                             <DialogTitle>
-                                {actionType === 'approve' ? 'Approuver la demande' : 'Rejeter la demande'}
+                                {actionType === 'approve' ? t('staff.reactivationRequests.approveDialog.title') : t('staff.reactivationRequests.rejectDialog.title')}
                             </DialogTitle>
                             <DialogDescription>
                                 {actionType === 'approve' 
-                                    ? `Approuver la demande de réactivation pour ${selectedRequest?.user?.name || 'cet utilisateur'} ?`
-                                    : `Rejeter la demande de réactivation pour ${selectedRequest?.user?.name || 'cet utilisateur'} ?`}
+                                    ? t('staff.reactivationRequests.approveDialog.description', { name: selectedRequest?.user?.name || t('staff.reactivationRequests.user') })
+                                    : t('staff.reactivationRequests.rejectDialog.description', { name: selectedRequest?.user?.name || t('staff.reactivationRequests.user') })}
                             </DialogDescription>
                         </DialogHeader>
                         <div className="grid gap-4 py-4">
                             <div className="bg-muted p-3 rounded-lg">
-                                <p className="text-sm font-semibold mb-2">Raison de la demande:</p>
-                                <p className="text-sm text-muted-foreground">{selectedRequest?.reason || 'Aucune raison spécifiée'}</p>
+                                <p className="text-sm font-semibold mb-2">{t('staff.reactivationRequests.reason')}:</p>
+                                <p className="text-sm text-muted-foreground">{selectedRequest?.reason || t('staff.reactivationRequests.noReason')}</p>
                             </div>
                             <div className="grid gap-2">
                                 <Label htmlFor="review-notes">
-                                    Notes (optionnel)
+                                    {t('staff.reactivationRequests.reviewNotes')} ({t('common.optional')})
                                 </Label>
                                 <Textarea
                                     id="review-notes"
                                     value={reviewNotes}
                                     onChange={(e) => setReviewNotes(e.target.value)}
-                                    placeholder="Ajouter des notes sur cette décision..."
+                                    placeholder={actionType === 'approve' ? t('staff.reactivationRequests.approveDialog.reviewNotesPlaceholder') : t('staff.reactivationRequests.rejectDialog.reviewNotesPlaceholder')}
                                     rows={3}
                                 />
                             </div>
                         </div>
                         <DialogFooter>
                             <Button variant="outline" onClick={() => setDialogOpen(false)}>
-                                Annuler
+                                {t('common.cancel')}
                             </Button>
                             <Button
                                 variant={actionType === 'approve' ? 'default' : 'destructive'}
@@ -270,7 +276,7 @@ export default function ReactivationRequests() {
                                 disabled={submitting}
                                 className={actionType === 'approve' ? 'bg-success hover:opacity-90' : ''}
                             >
-                                {submitting ? 'Traitement...' : (actionType === 'approve' ? 'Approuver' : 'Rejeter')}
+                                {submitting ? (actionType === 'approve' ? t('staff.reactivationRequests.approving') : t('staff.reactivationRequests.rejecting')) : (actionType === 'approve' ? t('staff.reactivationRequests.approveDialog.approveButton') : t('staff.reactivationRequests.rejectDialog.rejectButton'))}
                             </Button>
                         </DialogFooter>
                     </DialogContent>
