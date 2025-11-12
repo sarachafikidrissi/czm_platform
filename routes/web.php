@@ -397,6 +397,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/objectives/{objective}/mark-commission-paid', [\App\Http\Controllers\ObjectiveController::class, 'markCommissionPaid'])->name('objectives.mark-commission-paid');
     });
 
+    // Matchmaker Statistics routes - accessible to admin, manager, and matchmaker
+    Route::middleware(['role:admin|manager|matchmaker'])->group(function () {
+        Route::get('/admin/matchmaker-statistics', [\App\Http\Controllers\MatchmakerStatisticsController::class, 'index'])->name('admin.matchmaker-statistics');
+    });
+
     // User routes
     Route::middleware(['role:user'])->prefix('user')->name('user.')->group(function () {
         Route::get('/matchmakers', [\App\Http\Controllers\UserController::class, 'matchmakers'])->name('matchmakers');
