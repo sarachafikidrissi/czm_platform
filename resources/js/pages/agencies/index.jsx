@@ -5,10 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import AppLayout from '@/layouts/app-layout';
 import { Head, Link, router, usePage } from '@inertiajs/react';
+import { useTranslation } from 'react-i18next';
 import { Building2, Calendar, ExternalLink, MapPin, UserCheck, Users } from 'lucide-react';
 import { useState } from 'react';
 
 export default function AgenciesIndex() {
+    const { t } = useTranslation();
     const { agencies = [], selectedAgency } = usePage().props;
     const [activeTab, setActiveTab] = useState(selectedAgency?.id || null);
 
@@ -35,12 +37,12 @@ export default function AgenciesIndex() {
     };
     return (
         <AppLayout>
-            <Head title="Agencies" />
+            <Head title={t('common.agencies')} />
             <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
                 {/* Page Header */}
                 <div className="flex flex-col gap-3">
-                    <h1 className="text-foreground text-3xl font-bold">Agencies</h1>
-                    <p className="text-muted-foreground">Explore our agencies and their team members</p>
+                    <h1 className="text-foreground text-3xl font-bold">{t('common.agencies')}</h1>
+                    <p className="text-muted-foreground">{t('agencies.exploreAgencies')}</p>
                 </div>
 
                 {/* Horizontal Navigation Tabs */}
@@ -114,9 +116,9 @@ export default function AgenciesIndex() {
                                                     </div>
                                                     <p className="text-muted-foreground text-sm">{selectedAgency.address}</p>
                                                 </div>
-                                                <Badge style={{ backgroundColor: '#096725', color: '#ffffff' }}>
-                                                    {selectedAgency.matchmakers?.length || 0} Matchmakers
-                                                </Badge>
+                                <Badge style={{ backgroundColor: '#096725', color: '#ffffff' }}>
+                                    {selectedAgency.matchmakers?.length || 0} {t('agencies.matchmakers')}
+                                </Badge>
                                             </div>
                                         </div>
                                     </div>
@@ -124,12 +126,15 @@ export default function AgenciesIndex() {
 
                                 {/* About Section */}
                                 <CardContent className="p-6">
-                                    <h3 className="mb-3 text-lg font-bold">About the Agency</h3>
+                                    <h3 className="mb-3 text-lg font-bold">{t('agencies.aboutAgency')}</h3>
 
                                     <p className="text-muted-foreground">
                                         {selectedAgency.matchmakers?.length > 0
-                                            ? `This agency has ${selectedAgency.matchmakers.length} matchmaker(s) and ${selectedAgency.managers?.length || 0} manager(s) dedicated to helping you find your perfect match.`
-                                            : 'Agency information will be displayed here.'}
+                                            ? t('agencies.agencyDescription', { 
+                                                matchmakersCount: selectedAgency.matchmakers.length, 
+                                                managersCount: selectedAgency.managers?.length || 0 
+                                              })
+                                            : t('agencies.agencyInfoPlaceholder')}
                                     </p>
                                 </CardContent>
                             </Card>
@@ -139,7 +144,7 @@ export default function AgenciesIndex() {
                                 <CardHeader>
                                     <CardTitle className="flex items-center gap-2">
                                         <Users className="h-5 w-5" />
-                                        Team Members
+                                        {t('agencies.teamMembers')}
                                     </CardTitle>
                                 </CardHeader>
                                 <CardContent className="space-y-4">
@@ -148,7 +153,7 @@ export default function AgenciesIndex() {
                                         <div>
                                             <h4 className="mb-3 flex items-center gap-2 font-semibold">
                                                 <UserCheck className="h-4 w-4" />
-                                                Matchmakers ({selectedAgency.matchmakers.length})
+                                                {t('agencies.matchmakers')} ({selectedAgency.matchmakers.length})
                                             </h4>
                                             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                                                 {selectedAgency.matchmakers.map((matchmaker) => (
@@ -179,7 +184,7 @@ export default function AgenciesIndex() {
                                                                         className="flex items-center gap-1 hover:opacity-90"
                                                                         style={{ borderColor: '#890505', color: '#890505' }}
                                                                     >
-                                                                        View Profile
+                                                                        {t('common.view')} {t('common.profile')}
                                                                         <ExternalLink className="h-3 w-3" />
                                                                     </Button>
                                                                 </Link>
@@ -197,7 +202,7 @@ export default function AgenciesIndex() {
                                             <Separator className="my-4" />
                                             <h4 className="mb-3 flex items-center gap-2 font-semibold">
                                                 <Users className="h-4 w-4" />
-                                                Managers ({selectedAgency.managers.length})
+                                                {t('agencies.managers')} ({selectedAgency.managers.length})
                                             </h4>
                                             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                                                 {selectedAgency.managers.map((manager) => (
@@ -223,7 +228,7 @@ export default function AgenciesIndex() {
                                                                         className="flex items-center gap-1 hover:opacity-90"
                                                                         style={{ borderColor: '#890505', color: '#890505' }}
                                                                     >
-                                                                        View Profile
+                                                                        {t('common.view')} {t('common.profile')}
                                                                         <ExternalLink className="h-3 w-3" />
                                                                     </Button>
                                                                 </Link>
@@ -239,7 +244,7 @@ export default function AgenciesIndex() {
                                         (!selectedAgency.managers || selectedAgency.managers.length === 0) && (
                                             <div className="text-muted-foreground py-8 text-center">
                                                 <Users className="mx-auto mb-2 h-12 w-12 opacity-50" />
-                                                <p>No team members assigned to this agency yet.</p>
+                                                <p>{t('agencies.noTeamMembers')}</p>
                                             </div>
                                         )}
                                 </CardContent>
@@ -251,7 +256,7 @@ export default function AgenciesIndex() {
                                     <CardHeader>
                                         <CardTitle className="flex items-center gap-2">
                                             <Calendar className="h-5 w-5" />
-                                            Latest Posts from Matchmakers
+                                            {t('agencies.latestPostsFromMatchmakers')}
                                         </CardTitle>
                                     </CardHeader>
                                     <CardContent className=''>
@@ -270,7 +275,7 @@ export default function AgenciesIndex() {
                                     <CardHeader>
                                         <CardTitle className="flex items-center gap-2">
                                             <Calendar className="h-5 w-5" />
-                                            Agency Posts
+                                            {t('agencies.agencyPosts')}
                                         </CardTitle>
                                     </CardHeader>
                                     <CardContent>
@@ -291,7 +296,7 @@ export default function AgenciesIndex() {
                                 <CardHeader>
                                     <CardTitle className="flex items-center gap-2">
                                         <MapPin className="h-5 w-5" />
-                                        Location
+                                        {t('agencies.location')}
                                     </CardTitle>
                                 </CardHeader>
                                 <CardContent className="p-0">
@@ -312,7 +317,7 @@ export default function AgenciesIndex() {
                                         <div className="bg-muted flex h-64 w-full items-center justify-center rounded-lg">
                                             <div className="text-muted-foreground text-center">
                                                 <MapPin className="mx-auto mb-2 h-12 w-12 opacity-50" />
-                                                <p>Map not available</p>
+                                                <p>{t('agencies.mapNotAvailable')}</p>
                                             </div>
                                         </div>
                                     )}
@@ -336,9 +341,9 @@ export default function AgenciesIndex() {
                     <Card>
                         <CardContent className="py-12 text-center">
                             <Building2 className="text-muted-foreground mx-auto mb-4 h-16 w-16 opacity-50" />
-                            <h3 className="mb-2 text-lg font-semibold">Select an Agency</h3>
+                            <h3 className="mb-2 text-lg font-semibold">{t('agencies.selectAgency')}</h3>
                             <p className="text-muted-foreground">
-                                Click on an agency name above to view its details, team members, and latest posts.
+                                {t('agencies.selectAgencyDescription')}
                             </p>
                         </CardContent>
                     </Card>

@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import AppLayout from '@/layouts/app-layout';
 import { Button as HeadlessButton } from '@headlessui/react';
 import { Head, usePage, router } from '@inertiajs/react';
+import { useTranslation } from 'react-i18next';
 import { Heart, MapPin, MessageCircleWarning, MessageSquareWarning, User, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { FaUser } from 'react-icons/fa';
@@ -13,6 +14,7 @@ import CreatePost from '@/components/posts/CreatePost';
 import PostCard from '@/components/posts/PostCard';
 
 export default function UserProfile({ user, profile, agency, matchmakerNotes = [], matchmakerEvaluation = null }) {
+    const { t } = useTranslation();
     const { auth } = usePage().props;
     const isOwnProfile = auth?.user?.id === user?.id;
     console.log(auth.user);
@@ -112,7 +114,7 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
 
     return (
         <AppLayout>
-            <Head title={`${user?.name} - Profile`} />
+            <Head title={`${user?.name} - ${t('common.profile')}`} />
             <div className="min-h-screen bg-background">
                 {/* Profile Header */}
 
@@ -130,40 +132,40 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                         <CardHeader>
                                             <CardTitle className="flex items-center gap-2">
                                                 <User className="h-5 w-5" color="green" />
-                                                Infos de base
+                                                {t('profile.userProfile.basicInfo')}
                                             </CardTitle>
                                         </CardHeader>
                                         <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                             <div>
-                                                <div className="text-sm text-muted-foreground">Situation matrimoniale</div>
+                                                <div className="text-sm text-muted-foreground">{t('profile.userProfile.matrimonialSituation')}</div>
                                                 <div className="font-medium">{user?.profile?.etat_matrimonial || '—'}</div>
                                             </div>
                                             <div>
-                                                <div className="text-sm text-muted-foreground">Vous avez des enfants ?</div>
-                                                <div className="font-medium">{user?.profile?.has_children == 1 ? 'Oui' : 'Non' || '—'}</div>
+                                                <div className="text-sm text-muted-foreground">{t('profile.userProfile.haveChildren')}</div>
+                                                <div className="font-medium">{user?.profile?.has_children == 1 ? t('profile.yes') : t('profile.no') || '—'}</div>
                                             </div>
                                             <div>
-                                                <div className="text-sm text-muted-foreground">Niveau d’études</div>
+                                                <div className="text-sm text-muted-foreground">{t('profile.userProfile.educationLevel')}</div>
                                                 <div className="font-medium">{user?.profile?.niveau_etudes || '—'}</div>
                                             </div>
                                             <div>
-                                                <div className="text-sm text-muted-foreground">Situation professionnelle</div>
+                                                <div className="text-sm text-muted-foreground">{t('profile.userProfile.professionalSituation')}</div>
                                                 <div className="font-medium">{user?.profile?.situation_professionnelle || '—'}</div>
                                             </div>
                                             <div>
-                                                <div className="text-sm text-muted-foreground">Secteur d’activité</div>
+                                                <div className="text-sm text-muted-foreground">{t('profile.userProfile.activitySector')}</div>
                                                 <div className="font-medium">{user?.profile?.secteur || '—'}</div>
                                             </div>
                                             <div>
-                                                <div className="text-sm text-muted-foreground">Revenu mensuel</div>
+                                                <div className="text-sm text-muted-foreground">{t('profile.userProfile.monthlyIncome')}</div>
                                                 <div className="font-medium">{user?.profile?.revenu || '—'}</div>
                                             </div>
                                             <div>
-                                                <div className="text-sm text-muted-foreground">Poids</div>
+                                                <div className="text-sm text-muted-foreground">{t('profile.userProfile.weight')}</div>
                                                 <div className="font-medium">{user?.profile?.poids || '—'} kg</div>
                                             </div>
                                             <div>
-                                                <div className="text-sm text-muted-foreground">Taille</div>
+                                                <div className="text-sm text-muted-foreground">{t('profile.userProfile.height')}</div>
                                                 <div className="font-medium">{user?.profile?.taille || '—'} cm</div>
                                             </div>
                                         </CardContent>
@@ -174,25 +176,25 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                         <CardHeader>
                                             <CardTitle className="flex items-center gap-2">
                                                 <Heart className="h-5 w-5" color="red" />
-                                                Profil recherché
+                                                {t('profile.userProfile.soughtProfile')}
                                             </CardTitle>
                                         </CardHeader>
                                         <CardContent className="space-y-4">
                                             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                                 <div>
-                                                    <div className="text-sm text-muted-foreground">Âge minimum / maximum</div>
-                                                    <div className="font-medium">{user?.profile?.age_minimum + ' ans' ?? '—'}</div>
+                                                    <div className="text-sm text-muted-foreground">{t('profile.userProfile.minimumAge')}</div>
+                                                    <div className="font-medium">{user?.profile?.age_minimum ? `${user?.profile?.age_minimum} ${t('profile.years')}` : '—'}</div>
                                                 </div>
                                                 <div>
-                                                    <div className="text-sm text-muted-foreground">Situation matrimoniale</div>
+                                                    <div className="text-sm text-muted-foreground">{t('profile.userProfile.matrimonialSituation')}</div>
                                                     <div className="font-medium">{user?.profile?.situation_matrimoniale_recherche || '—'}</div>
                                                 </div>
                                                 <div>
-                                                    <div className="text-sm text-muted-foreground">Pays</div>
+                                                    <div className="text-sm text-muted-foreground">{t('common.country')}</div>
                                                     <div className="font-medium">{user?.profile?.pays_recherche || '—'}</div>
                                                 </div>
                                                 <div>
-                                                    <div className="text-sm text-muted-foreground">Lieu de résidence</div>
+                                                    <div className="text-sm text-muted-foreground">{t('profile.userProfile.residenceLocation')}</div>
                                                     {/* <div className="font-medium">{user?.profile?.lieu_residence || '—'}</div> */}
                                                     <div className="flex flex-wrap gap-2">
                                                         {user?.profile?.villes_recherche && user?.profile?.villes_recherche.length > 0
@@ -203,27 +205,27 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                                                           : user?.profile?.villes_recherche;
                                                                   return Array.isArray(villes) && villes.length > 0
                                                                       ? villes.join(', ')
-                                                                      : 'Non renseigné';
+                                                                      : t('profile.notSpecified');
                                                               })()
                                                             : '--'}
                                                     </div>
                                                 </div>
                                                 <div>
-                                                    <div className="text-sm text-muted-foreground">Niveau d’études</div>
+                                                    <div className="text-sm text-muted-foreground">{t('profile.userProfile.educationLevel')}</div>
                                                     <div className="font-medium">{user?.profile?.niveau_etudes_recherche || '—'}</div>
                                                 </div>
                                                 <div>
-                                                    <div className="text-sm text-muted-foreground">Statut d’emploi</div>
+                                                    <div className="text-sm text-muted-foreground">{t('profile.userProfile.employmentStatus')}</div>
                                                     <div className="font-medium">{user?.profile?.statut_emploi_recherche || '—'}</div>
                                                 </div>
                                                 {/* <div>
-                                                    <div className="text-sm text-muted-foreground">Secteur d’activité</div>
+                                                    <div className="text-sm text-muted-foreground">Secteur d'activité</div>
                                                     <div className="font-medium">{user?.profile?.secteur_activite || '—'}</div>
                                                 </div> */}
                                             </div>
                                             {/* Description (Arabic) sur le profil recherché A ajouter plus tard */}
                                             <div>
-                                                <div className="mb-1 text-sm text-gray-500">Description</div>
+                                                <div className="mb-1 text-sm text-gray-500">{t('profile.userProfile.description')}</div>
                                                 <div className="rounded-md border border-border bg-muted p-3 leading-relaxed">
                                                     {user?.description || '—'}
                                                 </div>
@@ -235,25 +237,25 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                     <Card>
                                         <CardHeader>
                                             <CardTitle className="flex items-center gap-2">
-                                                <MessageCircleWarning className="h-5 w-5" color="purple" />À propos de moi
+                                                <MessageCircleWarning className="h-5 w-5" color="purple" />{t('profile.userProfile.aboutMe')}
                                             </CardTitle>
                                         </CardHeader>
                                         <CardContent className="space-y-4">
                                             {/* Parlez-nous de vous, vos loisirs, votre personnalité : A ajouter  plus tard */}
                                             <div>
-                                                <div className="mb-1 text-sm text-gray-500">Description</div>
+                                                <div className="mb-1 text-sm text-gray-500">{t('profile.userProfile.description')}</div>
                                                 <div className="rounded-md border border-border bg-muted p-3 leading-relaxed">
                                                     {apropos?.description || '—'}
                                                 </div>
                                             </div>
                                             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                                 <div>
-                                                    <div className="text-sm text-muted-foreground">État de santé</div>
+                                                    <div className="text-sm text-muted-foreground">{t('profile.userProfile.healthStatus')}</div>
                                                     <div className="font-medium">{user?.profile?.etat_sante || '—'}</div>
                                                 </div>
                                                 {/* Votre travail, votre vie professionnelle A ajouter plus tard */}
                                                 <div>
-                                                    <div className="text-sm text-muted-foreground">Travail</div>
+                                                    <div className="text-sm text-muted-foreground">{t('profile.userProfile.work')}</div>
                                                     <div className="font-medium">{apropos?.travail || '—'}</div>
                                                 </div>
                                             </div>
@@ -265,13 +267,13 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                         <Card>
                                             <CardHeader>
                                                 <CardTitle className="flex items-center justify-between">
-                                                    <span>Notes et Évaluation du Matchmaker</span>
+                                                    <span>{t('profile.userProfile.notesAndEvaluation')}</span>
                                                 </CardTitle>
                                             </CardHeader>
                                             <CardContent className="space-y-6">
                                                 {/* Notes list */}
                                                 <div>
-                                                    <div className="mb-2 text-sm text-muted-foreground">Notes du matchmaker assigné</div>
+                                                    <div className="mb-2 text-sm text-muted-foreground">{t('profile.userProfile.assignedMatchmakerNotes')}</div>
                                                     <div className="space-y-3">
                                                         {Array.isArray(matchmakerNotes) && matchmakerNotes.length > 0 ? (
                                                             matchmakerNotes.map((n) => {
@@ -287,7 +289,7 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                                                                     type="button"
                                                                                     onClick={() => openDeleteDialog(n.id)}
                                                                                     className="text-error hover:text-error/80 transition-colors"
-                                                                                    title="Supprimer cette note"
+                                                                                    title={t('profile.userProfile.deleteNote')}
                                                                                 >
                                                                                     <Trash2 className="h-4 w-4" />
                                                                                 </button>
@@ -298,24 +300,24 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                                                 );
                                                             })
                                                         ) : (
-                                                            <div className="text-sm text-muted-foreground">Aucune note pour le moment.</div>
+                                                            <div className="text-sm text-muted-foreground">{t('profile.userProfile.noNotes')}</div>
                                                         )}
                                                     </div>
                                                 </div>
 
                                                 {/* Add note */}
                                                 <form onSubmit={addNote} className="space-y-2">
-                                                    <label className="text-sm text-muted-foreground">Ajouter une note</label>
+                                                    <label className="text-sm text-muted-foreground">{t('profile.userProfile.addNote')}</label>
                                                     <textarea
                                                         className="w-full rounded-md border border-border p-3 focus:border-error focus:ring-1 focus:ring-error focus:outline-none"
                                                         rows={3}
                                                         value={newNote}
                                                         onChange={(e) => setNewNote(e.target.value)}
-                                                        placeholder="Saisissez votre note..."
+                                                        placeholder={t('profile.userProfile.enterNote')}
                                                     />
                                                     <div>
                                                         <button type="submit" className="inline-flex items-center rounded-md bg-foreground px-4 py-2 text-background hover:opacity-90">
-                                                            Ajouter la note
+                                                            {t('profile.userProfile.addNoteButton')}
                                                         </button>
                                                     </div>
                                                 </form>
@@ -324,12 +326,12 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                                 <form onSubmit={saveEvaluation} className="space-y-4">
                                                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                                         <div>
-                                                            <div className="text-sm text-muted-foreground">Statut</div>
+                                                            <div className="text-sm text-muted-foreground">{t('profile.userProfile.status')}</div>
                                                             <div className="mt-2 flex gap-4 text-sm">
                                                                 {['prospect','member','client'].map((val) => (
                                                                     <label key={val} className="inline-flex items-center gap-2">
                                                                         <input type="radio" name="status" value={val} checked={evaluation?.status === val} onChange={(e)=>setEvaluation({...evaluation, status: e.target.value})} />
-                                                                        <span className="capitalize">{val === 'member' ? 'membre' : val}</span>
+                                                                        <span className="capitalize">{t(`profile.userProfile.${val}`)}</span>
                                                                     </label>
                                                                 ))}
                                                             </div>
@@ -337,14 +339,14 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                                     </div>
 
                                                     {[
-                                                        ['appearance','Apparence générale'],
-                                                        ['communication','Communication'],
-                                                        ['seriousness','Sérieux dans le projet'],
-                                                        ['emotional_psychological','Aspect émotionnel et psychologique'],
-                                                        ['values_principles','Valeurs et principes'],
-                                                        ['social_compatibility','Compatibilité sociale'],
-                                                        ['qualities','Qualités'],
-                                                        ['defects','Défauts'],
+                                                        ['appearance', t('profile.userProfile.generalAppearance')],
+                                                        ['communication', t('profile.userProfile.communication')],
+                                                        ['seriousness', t('profile.userProfile.seriousness')],
+                                                        ['emotional_psychological', t('profile.userProfile.emotionalPsychological')],
+                                                        ['values_principles', t('profile.userProfile.valuesPrinciples')],
+                                                        ['social_compatibility', t('profile.userProfile.socialCompatibility')],
+                                                        ['qualities', t('profile.userProfile.qualities')],
+                                                        ['defects', t('profile.userProfile.defects')],
                                                     ].map(([key,label]) => (
                                                         <div key={key}>
                                                             <label className="mb-1 block text-sm text-muted-foreground">{label}</label>
@@ -358,12 +360,12 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                                     ))}
 
                                                     <div>
-                                                        <div className="text-sm text-muted-foreground">Recommandation du matchmaker</div>
+                                                        <div className="text-sm text-muted-foreground">{t('profile.userProfile.matchmakerRecommendation')}</div>
                                                         <div className="mt-2 flex gap-6 text-sm">
                                                             {[
-                                                                ['ready','Profil prêt'],
-                                                                ['accompany','À accompagner'],
-                                                                ['not_ready','Non prêt'],
+                                                                ['ready', t('profile.userProfile.ready')],
+                                                                ['accompany', t('profile.userProfile.accompany')],
+                                                                ['not_ready', t('profile.userProfile.notReady')],
                                                             ].map(([val,label]) => (
                                                                 <label key={val} className="inline-flex items-center gap-2">
                                                                     <input type="radio" name="recommendation" value={val} checked={evaluation.recommendation === val} onChange={(e)=>setEvaluation({...evaluation, recommendation: e.target.value})} />
@@ -375,30 +377,30 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
 
                 
                                                     <div>
-                                                        <label className="mb-1 block text-sm text-muted-foreground">Remarques supplémentaires</label>
+                                                        <label className="mb-1 block text-sm text-muted-foreground">{t('profile.userProfile.additionalRemarks')}</label>
                                                         <textarea rows={2} className="w-full rounded-md border border-gray-300 p-3 focus:border-gray-900 focus:ring-1 focus:ring-gray-900 focus:outline-none" value={evaluation.remarks} onChange={(e)=>setEvaluation({...evaluation, remarks: e.target.value})} />
                                                     </div>
 
                                                     <div>
-                                                        <div className="mb-2 text-sm font-medium text-foreground">Feedback après rendez-vous</div>
+                                                        <div className="mb-2 text-sm font-medium text-foreground">{t('profile.userProfile.feedbackAfterAppointment')}</div>
                                                         <div className="space-y-3">
                                                             <div>
-                                                                <label className="mb-1 block text-sm text-muted-foreground">Comportement pendant le rendez-vous</label>
+                                                                <label className="mb-1 block text-sm text-muted-foreground">{t('profile.userProfile.behaviorDuringAppointment')}</label>
                                                                 <textarea rows={2} className="w-full rounded-md border border-gray-300 p-3 focus:border-gray-900 focus:ring-1 focus:ring-gray-900 focus:outline-none" value={evaluation.feedback_behavior} onChange={(e)=>setEvaluation({...evaluation, feedback_behavior: e.target.value})} />
                                                             </div>
                                                             <div>
-                                                                <label className="mb-1 block text-sm text-muted-foreground">Impression du partenaire</label>
+                                                                <label className="mb-1 block text-sm text-muted-foreground">{t('profile.userProfile.partnerImpression')}</label>
                                                                 <textarea rows={2} className="w-full rounded-md border border-gray-300 p-3 focus:border-gray-900 focus:ring-1 focus:ring-gray-900 focus:outline-none" value={evaluation.feedback_partner_impression} onChange={(e)=>setEvaluation({...evaluation, feedback_partner_impression: e.target.value})} />
                                                             </div>
                                                             <div>
-                                                                <label className="mb-1 block text-sm text-muted-foreground">Points positifs / négatifs</label>
+                                                                <label className="mb-1 block text-sm text-muted-foreground">{t('profile.userProfile.positiveNegativePoints')}</label>
                                                                 <textarea rows={2} className="w-full rounded-md border border-gray-300 p-3 focus:border-gray-900 focus:ring-1 focus:ring-gray-900 focus:outline-none" value={evaluation.feedback_pos_neg} onChange={(e)=>setEvaluation({...evaluation, feedback_pos_neg: e.target.value})} />
                                                             </div>
                                                         </div>
                                                     </div>
 
                                                     <div>
-                                                        <button type="submit" className="inline-flex items-center rounded-md bg-foreground px-4 py-2 text-background hover:opacity-90">Enregistrer l’évaluation</button>
+                                                        <button type="submit" className="inline-flex items-center rounded-md bg-foreground px-4 py-2 text-background hover:opacity-90">{t('profile.userProfile.saveEvaluation')}</button>
                                                     </div>
                                                 </form>
                                             </CardContent>
@@ -410,7 +412,7 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                         <CardHeader>
                                             <CardTitle className="flex items-center gap-2">
                                                 <MessageSquareWarning className="h-5 w-5" color="green" />
-                                                Donner votre avis
+                                                {t('profile.userProfile.giveYourOpinion')}
                                             </CardTitle>
                                         </CardHeader>
                                         <CardContent className="space-y-4">
@@ -424,7 +426,7 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                                         onChange={(e) => setAvis(e.target.value)}
                                                         className="text-red-600 focus:ring-red-500"
                                                     />
-                                                    <span>Intéressé</span>
+                                                    <span>{t('profile.userProfile.interested')}</span>
                                                 </label>
                                                 <label className="inline-flex items-center gap-2">
                                                     <input
@@ -435,12 +437,12 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                                         onChange={(e) => setAvis(e.target.value)}
                                                         className="text-red-600 focus:ring-red-500"
                                                     />
-                                                    <span>Pas intéressé</span>
+                                                    <span>{t('profile.userProfile.notInterested')}</span>
                                                 </label>
                                             </div>
                                             <div>
                                                 <label htmlFor="commentaire" className="mb-1 block text-sm text-gray-500">
-                                                    Commentaire
+                                                    {t('profile.userProfile.comment')}
                                                 </label>
                                                 <textarea
                                                     id="commentaire"
@@ -448,7 +450,7 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                                     value={commentaire}
                                                     onChange={(e) => setCommentaire(e.target.value)}
                                                     className="w-full rounded-md border border-gray-300 p-3 focus:border-red-500 focus:ring-1 focus:ring-red-500 focus:outline-none"
-                                                    placeholder="Ajoutez un commentaire..."
+                                                    placeholder={t('profile.userProfile.addComment')}
                                                 />
                                             </div>
                                             <div>
@@ -456,7 +458,7 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                                     type="button"
                                                     className="inline-flex items-center rounded-md bg-error px-4 py-2 font-medium text-error-foreground transition-colors hover:opacity-90"
                                                 >
-                                                    Envoyer l'avis
+                                                    {t('profile.userProfile.sendOpinion')}
                                                 </button>
                                             </div>
                                         </CardContent>
@@ -471,13 +473,13 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                     {
                                         auth.user?.roles?.[0]?.name === 'user' && (
                                             assignedMatchmakerId == user?.id ? (
-                                                <Button className='bg-success text-success-foreground px-4 py-2 rounded-md cursor-pointer'>Conatcter mon matchmaker</Button>
+                                                <Button className='bg-success text-success-foreground px-4 py-2 rounded-md cursor-pointer'>{t('profile.userProfile.contactMyMatchmaker')}</Button>
                                                 // <h1>this is my matchmaker</h1>
                                             ) : assignedMatchmakerId !== null && assignedMatchmakerId !== user?.id ? (
-                                                <Button className='bg-error text-error-foreground px-4 py-2 rounded-md cursor-pointer'>Choisir matchmaker</Button>
+                                                <Button className='bg-error text-error-foreground px-4 py-2 rounded-md cursor-pointer'>{t('profile.userProfile.chooseMatchmaker')}</Button>
     
                                             ) : (
-                                                <Button className='bg-error text-error-foreground px-4 py-2 rounded-md cursor-pointer'>Changer mon matchmaker</Button>
+                                                <Button className='bg-error text-error-foreground px-4 py-2 rounded-md cursor-pointer'>{t('profile.userProfile.changeMyMatchmaker')}</Button>
                                             )
                                         )
                                     }
@@ -486,7 +488,7 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                         <CardHeader>
                                             <CardTitle className="flex items-center gap-2">
                                                 <FaUser className="h-5 w-5 text-info" />
-                                                <span className="text-xl font-bold text-muted-foreground">Matchmaker Bio</span>
+                                                <span className="text-xl font-bold text-muted-foreground">{t('profile.userProfile.matchmakerBio')}</span>
                                             </CardTitle>
                                         </CardHeader>
                                         <CardContent className="space-y-4">
@@ -497,25 +499,25 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                     {/* Professional Stats */}
                                     <Card>
                                         <CardHeader>
-                                            <CardTitle>Professional Statistics</CardTitle>
+                                            <CardTitle>{t('profile.userProfile.professionalStatistics')}</CardTitle>
                                         </CardHeader>
                                         <CardContent>
                                             <div className="grid grid-cols-2 gap-4">
                                                 <div className="rounded-lg bg-info-light p-4 text-center">
                                                     <div className="text-2xl font-bold text-info">12</div>
-                                                    <div className="text-sm text-muted-foreground">Successful Matches</div>
+                                                    <div className="text-sm text-muted-foreground">{t('profile.userProfile.successfulMatches')}</div>
                                                 </div>
                                                 <div className="rounded-lg bg-success-bg p-4 text-center">
                                                     <div className="text-2xl font-bold text-success">8</div>
-                                                    <div className="text-sm text-muted-foreground">Happy Couples</div>
+                                                    <div className="text-sm text-muted-foreground">{t('profile.userProfile.happyCouples')}</div>
                                                 </div>
                                                 <div className="rounded-lg bg-accent p-4 text-center">
                                                     <div className="text-2xl font-bold text-accent-foreground">4.8</div>
-                                                    <div className="text-sm text-muted-foreground">Rating</div>
+                                                    <div className="text-sm text-muted-foreground">{t('profile.userProfile.rating')}</div>
                                                 </div>
                                                 <div className="rounded-lg bg-warning-light p-4 text-center">
                                                     <div className="text-2xl font-bold text-warning">2</div>
-                                                    <div className="text-sm text-muted-foreground">Years Experience</div>
+                                                    <div className="text-sm text-muted-foreground">{t('profile.userProfile.yearsExperience')}</div>
                                                 </div>
                                             </div>
                                         </CardContent>
@@ -526,7 +528,7 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                         <CardHeader>
                                             <CardTitle className="flex items-center gap-2">
                                                 <MessageSquareWarning className="h-5 w-5 text-blue-500" />
-                                                Posts
+                                                {t('profile.userProfile.posts')}
                                             </CardTitle>
                                         </CardHeader>
                                         <CardContent>
@@ -543,7 +545,7 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                                 </div>
                                             ) : (
                                                 <div className="text-center py-8 text-muted-foreground">
-                                                    {isOwnProfile ? 'No posts yet. Share your first post!' : 'No posts yet.'}
+                                                    {isOwnProfile ? t('profile.userProfile.shareFirstPost') : t('profile.userProfile.noPostsYet')}
                                                 </div>
                                             )}
                                         </CardContent>
@@ -557,7 +559,7 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                             {/* Basic Info Card */}
                             <Card>
                                 <CardHeader>
-                                    <CardTitle>Basic Information</CardTitle>
+                                    <CardTitle>{t('profile.userProfile.basicInformation')}</CardTitle>
                                 </CardHeader>
                                 <CardContent className="space-y-3">
                                     <div className="flex items-center gap-3">
@@ -568,12 +570,12 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                     </div>
                                     {age && (
                                         <div className="flex items-center gap-3">
-                                            <span className="text-sm text-muted-foreground">Age:</span>
-                                            <span>{age} ans</span>
+                                            <span className="text-sm text-muted-foreground">{t('profile.userProfile.age')}</span>
+                                            <span>{age} {t('profile.years')}</span>
                                         </div>
                                     )}
                                     <div className="flex items-center gap-3">
-                                        <span className="text-sm text-muted-foreground">Role:</span>
+                                        <span className="text-sm text-muted-foreground">{t('profile.userProfile.role')}</span>
                                         <Badge variant="outline" className="capitalize">
                                             {userRole}
                                         </Badge>
@@ -584,17 +586,17 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                             {/* Stats Card */}
                             <Card>
                                 <CardHeader>
-                                    <CardTitle>Statistics</CardTitle>
+                                    <CardTitle>{t('profile.userProfile.statistics')}</CardTitle>
                                 </CardHeader>
                                 <CardContent>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="text-center">
                                                     <div className="text-2xl font-bold text-info">{userRole === 'user' ? '0' : '12'}</div>
-                                            <div className="text-sm text-muted-foreground">{userRole === 'user' ? 'Posts' : 'Matches'}</div>
+                                            <div className="text-sm text-muted-foreground">{userRole === 'user' ? t('profile.userProfile.posts') : t('profile.userProfile.matches')}</div>
                                         </div>
                                         <div className="text-center">
                                             <div className="text-2xl font-bold text-success">{userRole === 'user' ? '0' : '8'}</div>
-                                            <div className="text-sm text-muted-foreground">{userRole === 'user' ? 'Followers' : 'Success'}</div>
+                                            <div className="text-sm text-muted-foreground">{userRole === 'user' ? t('profile.userProfile.followers') : t('profile.userProfile.success')}</div>
                                         </div>
                                     </div>
                                 </CardContent>
@@ -608,9 +610,9 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
             <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Supprimer la note</DialogTitle>
+                        <DialogTitle>{t('profile.userProfile.deleteNoteConfirm')}</DialogTitle>
                         <DialogDescription>
-                            Êtes-vous sûr de vouloir supprimer cette note ? Cette action est irréversible.
+                            {t('profile.userProfile.deleteNoteDescription')}
                         </DialogDescription>
                     </DialogHeader>
                     <DialogFooter>
@@ -621,13 +623,13 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                 setNoteToDelete(null);
                             }}
                         >
-                            Non
+                            {t('profile.userProfile.no')}
                         </Button>
                         <Button
                             variant="destructive"
                             onClick={deleteNote}
                         >
-                            Oui, supprimer
+                            {t('profile.userProfile.yesDelete')}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

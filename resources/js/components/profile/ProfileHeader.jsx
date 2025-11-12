@@ -1,10 +1,12 @@
 import { Button } from '@/components/ui/button';
 import { Link } from '@inertiajs/react';
+import { useTranslation } from 'react-i18next';
 import { Calendar, Edit, MapPin } from 'lucide-react';
 import { FaUser } from 'react-icons/fa';
 import SocialLinks from './SocialLinks';
 
 export default function ProfileHeader({ user, profile, isOwnProfile, age }) {
+    const { t } = useTranslation();
     const userRole = user?.roles?.[0]?.name || 'user';
 
     console.log(user);
@@ -68,7 +70,7 @@ export default function ProfileHeader({ user, profile, isOwnProfile, age }) {
                             {age && (
                                 <div className="flex items-center gap-2 text-gray-600">
                                     <Calendar className="h-4 w-4" />
-                                    <span>{age} years old</span>
+                                    <span>{age} {t('profile.years')}</span>
                                 </div>
                             )}
                             <div className="flex flex-col gap-2 text-gray-600 md:flex-row md:items-center">

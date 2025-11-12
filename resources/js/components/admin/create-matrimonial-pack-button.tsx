@@ -1,11 +1,14 @@
 import { useForm } from '@inertiajs/react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Plus } from 'lucide-react';
 
-export default function CreateMatrimonialPackButton({ buttonLabel = 'Create Matrimonial Pack', className = '' }: { buttonLabel?: string; className?: string }) {
+export default function CreateMatrimonialPackButton({ buttonLabel, className = '' }: { buttonLabel?: string; className?: string }) {
+    const { t } = useTranslation();
+    const defaultButtonLabel = buttonLabel || t('admin.createMatrimonialPack.newMatrimonialPack');
     const { data, setData, post, processing, reset, errors } = useForm({
         name: '',
         duration: '',
@@ -22,39 +25,39 @@ export default function CreateMatrimonialPackButton({ buttonLabel = 'Create Matr
             <DialogTrigger asChild>
                 <Button className={className}>
                     <Plus className="w-4 h-4 mr-2" />
-                    {buttonLabel}
+                    {defaultButtonLabel}
                 </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
-                    <DialogTitle>Create Matrimonial Pack</DialogTitle>
-                    <DialogDescription>Create a matrimonial pack selectable during validation.</DialogDescription>
+                    <DialogTitle>{t('admin.createMatrimonialPack.title')}</DialogTitle>
+                    <DialogDescription>{t('admin.createMatrimonialPack.description')}</DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-2">
                     <div className="grid gap-2">
-                        <Label htmlFor="pack-name">Pack Name</Label>
+                        <Label htmlFor="pack-name">{t('admin.createMatrimonialPack.packName')}</Label>
                         <Input 
                             id="pack-name" 
                             value={data.name} 
                             onChange={(e) => setData('name', e.target.value)} 
-                            placeholder="Ex: Pack Gold" 
+                            placeholder={t('admin.createMatrimonialPack.packNamePlaceholder')} 
                         />
                         {errors.name && <p className="text-red-500 text-sm">{errors.name}</p>}
                     </div>
                     <div className="grid gap-2">
-                        <Label htmlFor="pack-duration">Duration</Label>
+                        <Label htmlFor="pack-duration">{t('admin.createMatrimonialPack.duration')}</Label>
                         <Input 
                             id="pack-duration" 
                             value={data.duration} 
                             onChange={(e) => setData('duration', e.target.value)} 
-                            placeholder="Ex: 6 mois dont 1 mois intensif" 
+                            placeholder={t('admin.createMatrimonialPack.durationPlaceholder')} 
                         />
                         {errors.duration && <p className="text-red-500 text-sm">{errors.duration}</p>}
                     </div>
                 </div>
                 <DialogFooter>
-                    <Button variant="outline" onClick={() => reset()}>Cancel</Button>
-                    <Button onClick={submit} disabled={processing || !data.name.trim() || !data.duration.trim()}>Create</Button>
+                    <Button variant="outline" onClick={() => reset()}>{t('common.cancel')}</Button>
+                    <Button onClick={submit} disabled={processing || !data.name.trim() || !data.duration.trim()}>{processing ? t('admin.createMatrimonialPack.creating') : t('admin.createMatrimonialPack.create')}</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>

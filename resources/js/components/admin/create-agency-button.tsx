@@ -1,4 +1,5 @@
 import { useForm } from '@inertiajs/react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -8,7 +9,9 @@ import { Building } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
-export default function CreateAgencyButton({ buttonLabel = 'New Agency', className = '' }: { buttonLabel?: string; className?: string }) {
+export default function CreateAgencyButton({ buttonLabel, className = '' }: { buttonLabel?: string; className?: string }) {
+    const { t } = useTranslation();
+    const defaultButtonLabel = buttonLabel || t('admin.createAgency.newAgency');
     const [open, setOpen] = useState(false);
     const { data, setData, post, processing, reset, errors } = useForm({
         name: '',
@@ -53,7 +56,7 @@ export default function CreateAgencyButton({ buttonLabel = 'New Agency', classNa
                 setCountryCodeToCities(codeToCities);
             } catch (e) {
                 if (!isMounted) return;
-                setErrorCountries("Impossible de charger la liste des pays.");
+                setErrorCountries(t('admin.createAgency.errorLoadingCountries'));
             } finally {
                 if (isMounted) setLoadingCountries(false);
             }
@@ -101,29 +104,29 @@ export default function CreateAgencyButton({ buttonLabel = 'New Agency', classNa
             <DialogTrigger asChild>
                 <Button className={className}>
                     <Building className="w-4 h-4 mr-2" />
-                    {buttonLabel}
+                    {defaultButtonLabel}
                 </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[500px]">
                 <DialogHeader>
-                    <DialogTitle>Create New Agency</DialogTitle>
-                    <DialogDescription>Add a new agency to the system. Fill in all the required information.</DialogDescription>
+                    <DialogTitle>{t('admin.createAgency.title')}</DialogTitle>
+                    <DialogDescription>{t('admin.createAgency.description')}</DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                     <div className="grid gap-2">
-                        <Label htmlFor="name">Agency Name</Label>
+                        <Label htmlFor="name">{t('admin.createAgency.agencyName')}</Label>
                         <Input 
                             id="name" 
                             value={data.name} 
                             onChange={(e) => setData('name', e.target.value)}
-                            placeholder="Enter agency name"
+                            placeholder={t('admin.createAgency.enterAgencyName')}
                             required
                         />
                         {errors.name && <p className="text-red-500 text-sm">{errors.name}</p>}
                     </div>
                     
                     <div className="grid gap-2">
-                        <Label htmlFor="country">Country</Label>
+                        <Label htmlFor="country">{t('admin.createAgency.country')}</Label>
                         <Select
                             value={selectedCountryCode}
                             onValueChange={(value) => {
@@ -134,7 +137,7 @@ export default function CreateAgencyButton({ buttonLabel = 'New Agency', classNa
                             }}
                             disabled={processing || loadingCountries}
                         >
-                            <SelectTrigger className="h-9"><SelectValue placeholder={loadingCountries ? 'Chargement des pays…' : 'Select country'} /></SelectTrigger>
+                            <SelectTrigger className="h-9"><SelectValue placeholder={loadingCountries ? t('admin.createAgency.loadingCountries') : t('admin.createAgency.selectCountry')} /></SelectTrigger>
                             <SelectContent>
                                 {countries.map((c) => (
                                     <SelectItem key={c.iso2} value={c.iso2}>{c.frenchName}</SelectItem>
@@ -146,13 +149,13 @@ export default function CreateAgencyButton({ buttonLabel = 'New Agency', classNa
                     </div>
 
                     <div className="grid gap-2">
-                        <Label htmlFor="city">City</Label>
+                        <Label htmlFor="city">{t('admin.createAgency.city')}</Label>
                         <Select
                             value={data.city}
                             onValueChange={(v) => setData('city', v)}
                             disabled={processing || !selectedCountryCode || availableCities.length === 0}
                         >
-                            <SelectTrigger className="h-9"><SelectValue placeholder={!selectedCountryCode ? 'Select country first' : (availableCities.length ? 'Select city' : 'No cities available')} /></SelectTrigger>
+                            <SelectTrigger className="h-9"><SelectValue placeholder={!selectedCountryCode ? t('admin.createAgency.selectCountryFirst') : (availableCities.length ? t('admin.createAgency.selectCity') : t('admin.createAgency.noCitiesAvailable'))} /></SelectTrigger>
                             <SelectContent>
                                 {availableCities.map((city) => (
                                     <SelectItem key={city} value={city}>{city}</SelectItem>
@@ -163,19 +166,19 @@ export default function CreateAgencyButton({ buttonLabel = 'New Agency', classNa
                     </div>
 
                     <div className="grid gap-2">
-                        <Label htmlFor="address">Address</Label>
+                        <Label htmlFor="address">{t('admin.createAgency.address')}</Label>
                         <Textarea 
                             id="address" 
                             value={data.address} 
                             onChange={(e) => setData('address', e.target.value)}
-                            placeholder="Enter agency address"
+                            placeholder={t('admin.createAgency.enterAgencyAddress')}
                             required
                         />
                         {errors.address && <p className="text-red-500 text-sm">{errors.address}</p>}
                     </div>
                     
                     <div className="grid gap-2">
-                        <Label htmlFor="image">Agency Image</Label>
+                        <Label htmlFor="image">{t('admin.createAgency.agencyImage')}</Label>
                         <Input 
                             id="image" 
                             type="file"
@@ -186,20 +189,20 @@ export default function CreateAgencyButton({ buttonLabel = 'New Agency', classNa
                     </div>
                     
                     <div className="grid gap-2">
-                        <Label htmlFor="map">Map URL/Coordinates</Label>
+                        <Label htmlFor="map">{t('admin.createAgency.mapUrlCoordinates')}</Label>
                         <Input 
                             id="map" 
                             value={data.map} 
                             onChange={(e) => setData('map', e.target.value)}
-                            placeholder="Enter map URL or coordinates"
+                            placeholder={t('admin.createAgency.enterMapUrlOrCoordinates')}
                         />
                         {errors.map && <p className="text-red-500 text-sm">{errors.map}</p>}
                     </div>
                 </div>
                 <DialogFooter>
-                    <Button variant="outline" onClick={() => { reset(); setOpen(false); }}>Cancel</Button>
+                    <Button variant="outline" onClick={() => { reset(); setOpen(false); }}>{t('common.cancel')}</Button>
                     <Button disabled={processing} onClick={submit}>
-                        {processing ? 'Creating...' : 'Create Agency'}
+                        {processing ? t('admin.createAgency.creating') : t('admin.createAgency.createAgency')}
                     </Button>
                 </DialogFooter>
             </DialogContent>
