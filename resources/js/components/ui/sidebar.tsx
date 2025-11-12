@@ -304,12 +304,29 @@ function SidebarRail({ className, ...props }: React.ComponentProps<"button">) {
 }
 
 function SidebarInset({ className, ...props }: React.ComponentProps<"main">) {
+  const [isRTL, setIsRTL] = React.useState(false);
+  
+  React.useEffect(() => {
+    const checkRTL = () => {
+      setIsRTL(document.documentElement.getAttribute('dir') === 'rtl');
+    };
+    checkRTL();
+    // Watch for dir attribute changes
+    const observer = new MutationObserver(checkRTL);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['dir'] });
+    return () => observer.disconnect();
+  }, []);
+  
   return (
     <main
       data-slot="sidebar-inset"
       className={cn(
         "bg-background relative flex min-h-svh flex-1 flex-col",
-        "peer-data-[variant=inset]:min-h-[calc(100svh-(--spacing(4)))] md:peer-data-[variant=inset]:m-2 md:peer-data-[variant=inset]:ml-0 md:peer-data-[variant=inset]:rounded-xl md:peer-data-[variant=inset]:shadow-sm md:peer-data-[variant=inset]:peer-data-[state=collapsed]:ml-0",
+        "peer-data-[variant=inset]:min-h-[calc(100svh-(--spacing(4)))] md:peer-data-[variant=inset]:m-2 md:peer-data-[variant=inset]:rounded-xl md:peer-data-[variant=inset]:shadow-sm",
+        // LTR margins
+        !isRTL && "md:peer-data-[variant=inset]:ml-0 md:peer-data-[variant=inset]:mr-2 md:peer-data-[variant=inset]:peer-data-[state=collapsed]:ml-0",
+        // RTL margins (sidebar on right, content on left)
+        isRTL && "md:peer-data-[variant=inset]:mr-0 md:peer-data-[variant=inset]:ml-2 md:peer-data-[variant=inset]:peer-data-[state=collapsed]:mr-0",
         className
       )}
       {...props}

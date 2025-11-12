@@ -1,6 +1,7 @@
 import { Head, useForm } from '@inertiajs/react';
 import { LoaderCircle } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
@@ -11,6 +12,7 @@ import AppLayout from '@/layouts/app-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default function AddProspect() {
+    const { t } = useTranslation();
     const [countries, setCountries] = useState([]);
     const [countryCodeToCities, setCountryCodeToCities] = useState({});
     const [selectedCountryCode, setSelectedCountryCode] = useState('');
@@ -85,8 +87,8 @@ export default function AddProspect() {
     };
 
     return (
-        <AppLayout breadcrumbs={[{ title: 'Ajouter un prospect', href: '/staff/prospects/create' }]}>
-            <Head title="Ajouter un prospect" />
+        <AppLayout breadcrumbs={[{ title: t('breadcrumbs.addProspect'), href: '/staff/prospects/create' }]}>
+            <Head title={t('breadcrumbs.addProspect')} />
             
             <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
                 <Card>

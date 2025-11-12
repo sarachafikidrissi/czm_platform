@@ -1,6 +1,7 @@
 import AppLayout from '@/layouts/app-layout';
 import { Head, usePage, router } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import Details from './profile/details';
 import PartnerInfo from './profile/partnerInfo';
 import PersonalInfo from './profile/personalInfo';
@@ -8,6 +9,7 @@ import UploadPicture from './profile/uploadPicture';
 
 export default function ProfileInfo() {
     const { auth, profile } = usePage().props;
+    const { t } = useTranslation();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [currentStep, setCurrentStep] = useState(profile?.currentStep || 1);
     const [isEditing, setIsEditing] = useState(false);
@@ -72,10 +74,10 @@ export default function ProfileInfo() {
     }, [profile]);
 
     const steps = [
-        { number: 1, label: 'Info De Base' },
-        { number: 2, label: 'Mode de vie' },
-        { number: 3, label: 'Profil recherche' },
-        { number: 4, label: 'Telecharger photo de profile' },
+        { number: 1, label: t('profile.step1Label') },
+        { number: 2, label: t('profile.step2Label') },
+        { number: 3, label: t('profile.step3Label') },
+        { number: 4, label: t('profile.step4Label') },
     ];
 
     const validateStep = (step) => {
@@ -306,24 +308,24 @@ export default function ProfileInfo() {
     // If profile is not completed OR user is editing, show the multistep form
     if (!profile?.isCompleted || isEditing) {
         return (
-            <AppLayout breadcrumbs={[{ title: 'Mon Profil', href: '/profile-info' }]}>
-                <Head title="Mon Profil" />
+            <AppLayout breadcrumbs={[{ title: t('breadcrumbs.myProfile'), href: '/profile-info' }]}>
+                <Head title={t('breadcrumbs.myProfile')} />
                 <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
                     {/* Header */}
                     <div className="flex flex-col items-center justify-center rounded-md bg-card/10 px-2 shadow-2xs sm:flex-row">
                         <div className="mb-8 text-center">
                             <h1 className="mb-2 text-3xl font-bold text-foreground">
-                                {isEditing ? 'Modifier votre profil' : 'Construisons ensemble votre profil unique'}
+                                {isEditing ? t('profile.editProfile') : t('profile.buildProfile')}
                             </h1>
                             <p className="text-lg text-muted-foreground">
-                                {isEditing ? 'Modifiez les informations de votre profil' : 'Complétez votre demande en 4 étapes simples'}
+                                {isEditing ? t('profile.editDescription') : t('profile.completeInSteps')}
                             </p>
                             {isEditing && (
                                 <button
                                     onClick={handleCancelEdit}
                                     className="mt-2 text-sm text-blue-600 hover:underline"
                                 >
-                                    Annuler la modification
+                                    {t('profile.cancelEdit')}
                                 </button>
                             )}
                         </div>
@@ -331,7 +333,7 @@ export default function ProfileInfo() {
 
                     {/* Progress bar */}
                     <div className="rounded-lg bg-card p-6 shadow-md">
-                        <h2 className="mb-4 text-2xl font-bold text-foreground">Progression du profil</h2>
+                        <h2 className="mb-4 text-2xl font-bold text-foreground">{t('profile.profileProgress')}</h2>
                         <div className="mb-4 flex items-center justify-between">
                             {steps.map((step, index) => (
                                 <div key={step.number} className="flex flex-1 flex-col items-center">
@@ -366,7 +368,7 @@ export default function ProfileInfo() {
                             ))}
                         </div>
                         <div className="text-center text-sm text-muted-foreground">
-                            Étape {currentStep} sur 4 • {profile?.isCompleted ? '✓ Complété' : 'En cours'}
+                            {t('profile.step')} {currentStep} {t('profile.of')} 4 • {profile?.isCompleted ? `✓ ${t('profile.completed')}` : t('profile.inProgress')}
                         </div>
                     </div>
 
@@ -397,7 +399,7 @@ export default function ProfileInfo() {
                                     : 'text-button-primary hover:bg-button-primary transition-colors hover:text-primary-foreground'
                             }`}
                         >
-                            Précédent
+                            {t('profile.previous')}
                         </button>
 
                         <button
@@ -407,7 +409,7 @@ export default function ProfileInfo() {
                                 isSubmitting ? 'cursor-not-allowed opacity-50' : ''
                             }`}
                         >
-                            {isSubmitting ? 'Enregistrement...' : currentStep === 4 ? (isEditing ? 'Sauvegarder' : 'Terminer') : 'Suivant'}
+                            {isSubmitting ? t('profile.saving') : currentStep === 4 ? (isEditing ? t('common.save') : t('profile.finish')) : t('profile.next')}
                         </button>
                     </div>
                 </div>
@@ -417,23 +419,23 @@ export default function ProfileInfo() {
 
     // If profile is completed, show the profile information
     return (
-        <AppLayout breadcrumbs={[{ title: 'Mon Profil', href: '/profile-info' }]}>
+        <AppLayout breadcrumbs={[{ title: t('breadcrumbs.myProfile'), href: '/profile-info' }]}>
             <Head title="Mon Profil" />
             <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
                 <div className="flex flex-col items-center justify-between rounded-md bg-white/10 px-2 shadow-2xs sm:flex-row">
                     {/* Header */}
                     <div className="mb-8 text-center">
-                        <h1 className="mb-2 text-3xl font-bold text-gray-900">Votre Profil</h1>
-                        <p className="text-lg text-gray-600">Consultez les informations de votre profil</p>
+                        <h1 className="mb-2 text-3xl font-bold text-gray-900">{t('profile.yourProfile')}</h1>
+                        <p className="text-lg text-gray-600">{t('profile.viewProfileInfo')}</p>
                     </div>
 
                     {/* Profile Picture */}
                     {profile.profilePicturePath && (
                         <div className="mb-8 text-center">
-                            <div className="mb-4 text-lg font-semibold">Photo de profil</div>
+                            <div className="mb-4 text-lg font-semibold">{t('profile.profilePicture')}</div>
                             <img
                                 src={`/storage/${profile.profilePicturePath}`}
-                                alt="Photo de profil"
+                                alt={t('profile.profilePicture')}
                                 className="mx-auto h-32 w-32 rounded-full border-4 border-white object-cover shadow-lg"
                             />
                         </div>
@@ -442,7 +444,7 @@ export default function ProfileInfo() {
                     {/* Profile Status Banner */}
                     {profile?.isCompleted && (
                         <div className="mb-6 rounded-lg bg-green-50 p-4 text-center">
-                            <p className="text-green-700">✓ Votre profil est complété</p>
+                            <p className="text-green-700">{t('profile.profileCompleted')}</p>
                         </div>
                     )}
                 </div>
@@ -451,13 +453,13 @@ export default function ProfileInfo() {
                     {/* Personal Information */}
                     <div className="mb-8">
                         <div className="mb-6 rounded-lg bg-white p-6 shadow-md">
-                            <h2 className="mb-4 text-2xl font-bold text-foreground">Informations personnelles</h2>
+                            <h2 className="mb-4 text-2xl font-bold text-foreground">{t('profile.personalInformation')}</h2>
                             <div className="grid gap-6 md:grid-cols-2">
                                 <div>
                                     <label className="mb-1 block text-sm font-medium text-foreground">Nom</label>
                                     <input
                                         type="text"
-                                        value={profile.nom || 'Non renseigné'}
+                                        value={profile.nom || t('profile.notSpecified')}
                                         disabled
                                         className="w-full rounded-lg border border-border bg-muted px-4 py-3 text-foreground"
                                     />
@@ -466,7 +468,7 @@ export default function ProfileInfo() {
                                     <label className="mb-1 block text-sm font-medium text-foreground">Prénom</label>
                                     <input
                                         type="text"
-                                        value={profile.prenom || 'Non renseigné'}
+                                        value={profile.prenom || t('profile.notSpecified')}
                                         disabled
                                         className="w-full rounded-lg border border-border bg-muted px-4 py-3 text-foreground"
                                     />
@@ -475,7 +477,7 @@ export default function ProfileInfo() {
                                     <label className="mb-1 block text-sm font-medium text-foreground">Date de naissance</label>
                                     <input
                                         type="text"
-                                        value={profile.dateNaissance || 'Non renseigné'}
+                                        value={profile.dateNaissance || t('profile.notSpecified')}
                                         disabled
                                         className="w-full rounded-lg border border-border bg-muted px-4 py-3 text-foreground"
                                     />
@@ -484,7 +486,7 @@ export default function ProfileInfo() {
                                     <label className="mb-1 block text-sm font-medium text-foreground">Niveau d'études</label>
                                     <input
                                         type="text"
-                                        value={profile.niveauEtudes || 'Non renseigné'}
+                                        value={profile.niveauEtudes || t('profile.notSpecified')}
                                         disabled
                                         className="w-full rounded-lg border border-border bg-muted px-4 py-3 text-foreground"
                                     />
@@ -493,7 +495,7 @@ export default function ProfileInfo() {
                                     <label className="mb-1 block text-sm font-medium text-foreground">Situation professionnelle</label>
                                     <input
                                         type="text"
-                                        value={profile.situationProfessionnelle || 'Non renseigné'}
+                                        value={profile.situationProfessionnelle || t('profile.notSpecified')}
                                         disabled
                                         className="w-full rounded-lg border border-border bg-muted px-4 py-3 text-foreground"
                                     />
@@ -502,7 +504,7 @@ export default function ProfileInfo() {
                                     <label className="mb-1 block text-sm font-medium text-foreground">Secteur</label>
                                     <input
                                         type="text"
-                                        value={profile.secteur || 'Non renseigné'}
+                                        value={profile.secteur || t('profile.notSpecified')}
                                         disabled
                                         className="w-full rounded-lg border border-border bg-muted px-4 py-3 text-foreground"
                                     />
@@ -511,7 +513,7 @@ export default function ProfileInfo() {
                                     <label className="mb-1 block text-sm font-medium text-foreground">Revenu</label>
                                     <input
                                         type="text"
-                                        value={profile.revenu || 'Non renseigné'}
+                                        value={profile.revenu || t('profile.notSpecified')}
                                         disabled
                                         className="w-full rounded-lg border border-border bg-muted px-4 py-3 text-foreground"
                                     />
@@ -520,7 +522,7 @@ export default function ProfileInfo() {
                                     <label className="mb-1 block text-sm font-medium text-foreground">Religion</label>
                                     <input
                                         type="text"
-                                        value={profile.religion || 'Non renseigné'}
+                                        value={profile.religion || t('profile.notSpecified')}
                                         disabled
                                         className="w-full rounded-lg border border-border bg-muted px-4 py-3 text-foreground"
                                     />
@@ -529,7 +531,7 @@ export default function ProfileInfo() {
                                     <label className="mb-1 block text-sm font-medium text-foreground">Comment nous avez-vous connu</label>
                                     <input
                                         type="text"
-                                        value={profile.heardAboutUs || 'Non renseigné'}
+                                        value={profile.heardAboutUs || t('profile.notSpecified')}
                                         disabled
                                         className="w-full rounded-lg border border-border bg-muted px-4 py-3 text-foreground"
                                     />
@@ -538,7 +540,7 @@ export default function ProfileInfo() {
                                     <label className="mb-1 block text-sm font-medium text-foreground">Référence de l'inscription</label>
                                     <input
                                         type="text"
-                                        value={profile.heardAboutReference || 'Non renseigné'}
+                                        value={profile.heardAboutReference || t('profile.notSpecified')}
                                         disabled
                                         className="w-full rounded-lg border border-border bg-muted px-4 py-3 text-foreground"
                                     />
@@ -550,13 +552,13 @@ export default function ProfileInfo() {
                     {/* Lifestyle Information */}
                     <div className="mb-8">
                         <div className="mb-6 rounded-lg bg-white p-6 shadow-md">
-                            <h2 className="mb-4 text-2xl font-bold text-foreground">Mode de vie</h2>
+                            <h2 className="mb-4 text-2xl font-bold text-foreground">{t('profile.step2Label')}</h2>
                             <div className="grid gap-6 md:grid-cols-2">
                                 <div>
                                     <label className="mb-1 block text-sm font-medium text-foreground">État matrimonial</label>
                                     <input
                                         type="text"
-                                        value={profile.etatMatrimonial || 'Non renseigné'}
+                                        value={profile.etatMatrimonial || t('profile.notSpecified')}
                                         disabled
                                         className="w-full rounded-lg border border-border bg-muted px-4 py-3 text-foreground"
                                     />
@@ -565,7 +567,7 @@ export default function ProfileInfo() {
                                     <label className="mb-1 block text-sm font-medium text-foreground">Logement</label>
                                     <input
                                         type="text"
-                                        value={profile.logement || 'Non renseigné'}
+                                        value={profile.logement || t('profile.notSpecified')}
                                         disabled
                                         className="w-full rounded-lg border border-border bg-muted px-4 py-3 text-foreground"
                                     />
@@ -574,7 +576,7 @@ export default function ProfileInfo() {
                                     <label className="mb-1 block text-sm font-medium text-foreground">Taille</label>
                                     <input
                                         type="text"
-                                        value={profile.taille ? `${profile.taille} cm` : 'Non renseigné'}
+                                        value={profile.taille ? `${profile.taille} cm` : t('profile.notSpecified')}
                                         disabled
                                         className="w-full rounded-lg border border-border bg-muted px-4 py-3 text-foreground"
                                     />
@@ -583,7 +585,7 @@ export default function ProfileInfo() {
                                     <label className="mb-1 block text-sm font-medium text-foreground">Poids</label>
                                     <input
                                         type="text"
-                                        value={profile.poids ? `${profile.poids} kg` : 'Non renseigné'}
+                                        value={profile.poids ? `${profile.poids} kg` : t('profile.notSpecified')}
                                         disabled
                                         className="w-full rounded-lg border border-border bg-muted px-4 py-3 text-foreground"
                                     />
@@ -591,7 +593,7 @@ export default function ProfileInfo() {
                                 <div>
                                     <label className="mb-1 block text-sm font-medium text-foreground">État de santé</label>
                                     <textarea
-                                        value={profile.etatSante || 'Non renseigné'}
+                                        value={profile.etatSante || t('profile.notSpecified')}
                                         disabled
                                         rows={3}
                                         className="w-full rounded-lg border border-border bg-muted px-4 py-3 text-foreground"
@@ -601,7 +603,7 @@ export default function ProfileInfo() {
                                     <label className="mb-1 block text-sm font-medium text-foreground">Fumeur</label>
                                     <input
                                         type="text"
-                                        value={profile.fumeur || 'Non renseigné'}
+                                        value={profile.fumeur || t('profile.notSpecified')}
                                         disabled
                                         className="w-full rounded-lg border border-border bg-muted px-4 py-3 text-foreground"
                                     />
@@ -610,7 +612,7 @@ export default function ProfileInfo() {
                                     <label className="mb-1 block text-sm font-medium text-foreground">Buveur</label>
                                     <input
                                         type="text"
-                                        value={profile.buveur || 'Non renseigné'}
+                                        value={profile.buveur || t('profile.notSpecified')}
                                         disabled
                                         className="w-full rounded-lg border border-border bg-muted px-4 py-3 text-foreground"
                                     />
@@ -619,7 +621,7 @@ export default function ProfileInfo() {
                                     <label className="mb-1 block text-sm font-medium text-foreground">Sport</label>
                                     <input
                                         type="text"
-                                        value={profile.sport || 'Non renseigné'}
+                                        value={profile.sport || t('profile.notSpecified')}
                                         disabled
                                         className="w-full rounded-lg border border-border bg-muted px-4 py-3 text-foreground"
                                     />
@@ -628,7 +630,7 @@ export default function ProfileInfo() {
                                     <label className="mb-1 block text-sm font-medium text-foreground">Motorisé</label>
                                     <input
                                         type="text"
-                                        value={profile.motorise || 'Non renseigné'}
+                                        value={profile.motorise || t('profile.notSpecified')}
                                         disabled
                                         className="w-full rounded-lg border border-border bg-muted px-4 py-3 text-foreground"
                                     />
@@ -637,7 +639,7 @@ export default function ProfileInfo() {
                                     <label className="mb-1 block text-sm font-medium text-foreground">Enfants</label>
                                     <input
                                         type="text"
-                                        value={profile.hasChildren === true ? `Oui${profile.childrenCount ? `, ${profile.childrenCount}` : ''}` : (profile.hasChildren === false ? 'Non' : 'Non renseigné')}
+                                        value={profile.hasChildren === true ? `${t('profile.yes')}${profile.childrenCount ? `, ${profile.childrenCount}` : ''}` : (profile.hasChildren === false ? t('profile.no') : t('profile.notSpecified'))}
                                         disabled
                                         className="w-full rounded-lg border border-border bg-muted px-4 py-3 text-foreground"
                                     />
@@ -646,22 +648,22 @@ export default function ProfileInfo() {
                                     <label className="mb-1 block text-sm font-medium text-foreground">Tuteur des enfants</label>
                                     <input
                                         type="text"
-                                        value={profile.childrenGuardian === 'mother' ? 'La mère' : profile.childrenGuardian === 'father' ? 'Le père' : 'Non renseigné'}
+                                        value={profile.childrenGuardian === 'mother' ? t('profile.mother') : profile.childrenGuardian === 'father' ? t('profile.father') : t('profile.notSpecified')}
                                         disabled
                                         className="w-full rounded-lg border border-border bg-muted px-4 py-3 text-foreground"
                                     />
                                 </div>
                                 <div>
-                                    <label className="mb-1 block text-sm font-medium text-foreground">Voile / Niqab</label>
+                                    <label className="mb-1 block text-sm font-medium text-foreground">{t('profile.hijabLabel')}</label>
                                     <input
                                         type="text"
                                         value={{
-                                            voile: 'Voile',
-                                            non_voile: 'Non voile',
-                                            niqab: 'Niqab',
-                                            idea_niqab: 'Idée niqab',
-                                            idea_hijab: 'Idée hijab',
-                                        }[profile.hijabChoice] || 'Non renseigné'}
+                                            voile: t('profile.hijabVoile'),
+                                            non_voile: t('profile.hijabNonVoile'),
+                                            niqab: t('profile.hijabNiqab'),
+                                            idea_niqab: t('profile.hijabIdeaNiqab'),
+                                            idea_hijab: t('profile.hijabIdeaHijab'),
+                                        }[profile.hijabChoice] || t('profile.notSpecified')}
                                         disabled
                                         className="w-full rounded-lg border border-border bg-muted px-4 py-3 text-foreground"
                                     />
@@ -670,7 +672,7 @@ export default function ProfileInfo() {
                                     <label className="mb-1 block text-sm font-medium text-foreground">Loisirs</label>
                                     <input
                                         type="text"
-                                        value={profile.loisirs || 'Non renseigné'}
+                                        value={profile.loisirs || t('profile.notSpecified')}
                                         disabled
                                         className="w-full rounded-lg border border-border bg-muted px-4 py-3 text-foreground"
                                     />
@@ -682,13 +684,13 @@ export default function ProfileInfo() {
                     {/* Partner Preferences */}
                     <div className="mb-8">
                         <div className="mb-6 rounded-lg bg-white p-6 shadow-md">
-                            <h2 className="mb-4 text-2xl font-bold text-foreground">Préférences de partenaire</h2>
+                            <h2 className="mb-4 text-2xl font-bold text-foreground">{t('profile.step3Label')}</h2>
                             <div className="grid gap-6 md:grid-cols-2">
                                 <div>
                                     <label className="mb-1 block text-sm font-medium text-foreground">Âge minimum</label>
                                     <input
                                         type="text"
-                                        value={profile.ageMinimum ? `${profile.ageMinimum} ans` : 'Non renseigné'}
+                                        value={profile.ageMinimum ? `${profile.ageMinimum} ${t('profile.years')}` : t('profile.notSpecified')}
                                         disabled
                                         className="w-full rounded-lg border border-border bg-muted px-4 py-3 text-foreground"
                                     />
@@ -697,7 +699,7 @@ export default function ProfileInfo() {
                                     <label className="mb-1 block text-sm font-medium text-foreground">Situation matrimoniale recherchée</label>
                                     <input
                                         type="text"
-                                        value={profile.situationMatrimonialeRecherche || 'Non renseigné'}
+                                        value={profile.situationMatrimonialeRecherche || t('profile.notSpecified')}
                                         disabled
                                         className="w-full rounded-lg border border-border bg-muted px-4 py-3 text-foreground"
                                     />
@@ -706,7 +708,7 @@ export default function ProfileInfo() {
                                     <label className="mb-1 block text-sm font-medium text-foreground">Pays recherché</label>
                                     <input
                                         type="text"
-                                        value={profile.paysRecherche || 'Non renseigné'}
+                                        value={profile.paysRecherche || t('profile.notSpecified')}
                                         disabled
                                         className="w-full rounded-lg border border-border bg-muted px-4 py-3 text-foreground"
                                     />
@@ -722,9 +724,9 @@ export default function ProfileInfo() {
                                                           typeof profile.villesRecherche === 'string'
                                                               ? JSON.parse(profile.villesRecherche)
                                                               : profile.villesRecherche;
-                                                      return Array.isArray(villes) && villes.length > 0 ? villes.join(', ') : 'Non renseigné';
+                                                      return Array.isArray(villes) && villes.length > 0 ? villes.join(', ') : t('profile.notSpecified');
                                                   })()
-                                                : 'Non renseigné'
+                                                : t('profile.notSpecified')
                                         }
                                         disabled
                                         className="w-full rounded-lg border border-border bg-muted px-4 py-3 text-foreground"
@@ -734,7 +736,7 @@ export default function ProfileInfo() {
                                     <label className="mb-1 block text-sm font-medium text-foreground">Niveau d'études recherché</label>
                                     <input
                                         type="text"
-                                        value={profile.niveauEtudesRecherche || 'Non renseigné'}
+                                        value={profile.niveauEtudesRecherche || t('profile.notSpecified')}
                                         disabled
                                         className="w-full rounded-lg border border-border bg-muted px-4 py-3 text-foreground"
                                     />
@@ -743,7 +745,7 @@ export default function ProfileInfo() {
                                     <label className="mb-1 block text-sm font-medium text-foreground">Statut d'emploi recherché</label>
                                     <input
                                         type="text"
-                                        value={profile.statutEmploiRecherche || 'Non renseigné'}
+                                        value={profile.statutEmploiRecherche || t('profile.notSpecified')}
                                         disabled
                                         className="w-full rounded-lg border border-border bg-muted px-4 py-3 text-foreground"
                                     />
@@ -752,7 +754,7 @@ export default function ProfileInfo() {
                                     <label className="mb-1 block text-sm font-medium text-foreground">Revenu minimum</label>
                                     <input
                                         type="text"
-                                        value={profile.revenuMinimum || 'Non renseigné'}
+                                        value={profile.revenuMinimum || t('profile.notSpecified')}
                                         disabled
                                         className="w-full rounded-lg border border-border bg-muted px-4 py-3 text-foreground"
                                     />
@@ -761,7 +763,7 @@ export default function ProfileInfo() {
                                     <label className="mb-1 block text-sm font-medium text-foreground">Religion recherchée</label>
                                     <input
                                         type="text"
-                                        value={profile.religionRecherche || 'Non renseigné'}
+                                        value={profile.religionRecherche || t('profile.notSpecified')}
                                         disabled
                                         className="w-full rounded-lg border border-border bg-muted px-4 py-3 text-foreground"
                                     />
@@ -773,22 +775,22 @@ export default function ProfileInfo() {
                     {/* Profile Status */}
                     <div className="mb-8">
                         <div className="rounded-lg bg-card p-6 shadow-md">
-                            <h2 className="mb-4 text-2xl font-bold text-foreground">Statut du profil</h2>
+                            <h2 className="mb-4 text-2xl font-bold text-foreground">{t('profile.profileStatus')}</h2>
                             <div className="grid gap-4 md:grid-cols-2">
                                 <div>
-                                    <label className="mb-1 block text-sm font-medium text-foreground">Étape actuelle</label>
+                                    <label className="mb-1 block text-sm font-medium text-foreground">{t('profile.currentStep')}</label>
                                     <input
                                         type="text"
-                                        value={`${profile.currentStep || 1} sur 4`}
+                                        value={`${profile.currentStep || 1} ${t('profile.of')} 4`}
                                         disabled
                                         className="w-full rounded-lg border border-border bg-muted px-4 py-3 text-foreground"
                                     />
                                 </div>
                                 <div>
-                                    <label className="mb-1 block text-sm font-medium text-foreground">Profil complété</label>
+                                    <label className="mb-1 block text-sm font-medium text-foreground">{t('profile.profileCompletedLabel')}</label>
                                     <input
                                         type="text"
-                                        value={profile.isCompleted ? 'Oui' : 'Non'}
+                                        value={profile.isCompleted ? t('profile.yes') : t('profile.no')}
                                         disabled
                                         className={`w-full rounded-lg border px-4 py-3 font-medium ${
                                             profile.isCompleted
@@ -799,7 +801,7 @@ export default function ProfileInfo() {
                                 </div>
                                 {profile.isCompleted && profile.completedAt && (
                                     <div className="md:col-span-2">
-                                        <label className="mb-1 block text-sm font-medium text-foreground">Complété le</label>
+                                        <label className="mb-1 block text-sm font-medium text-foreground">{t('profile.completedOn')}</label>
                                         <input
                                             type="text"
                                             value={profile.completedAt}
@@ -818,7 +820,7 @@ export default function ProfileInfo() {
                             onClick={handleEditProfile}
                             className="rounded-lg bg-success text-white hover:bg-green-600! hover:text-black! cursor-pointer! px-6 py-2 font-medium text-info-foreground transition-colors hover:opacity-90"
                         >
-                            Modifier le profil
+                            {t('profile.editProfileButton')}
                         </button>
                         <a
                             href="/dashboard"

@@ -5,9 +5,11 @@ import { AppSidebarHeader } from '@/components/app-sidebar-header';
 import { type BreadcrumbItem } from '@/types';
 import { type PropsWithChildren, useEffect, useState } from 'react';
 import { usePage } from '@inertiajs/react';
+import { useTranslation } from 'react-i18next';
 
 export default function AppSidebarLayout({ children, breadcrumbs = [] }: PropsWithChildren<{ breadcrumbs?: BreadcrumbItem[] }>) {
     const { props } = usePage();
+    const { i18n } = useTranslation();
     const flash = (props as any)?.flash || {};
     const [message, setMessage] = useState<string | null>(null);
 
@@ -20,10 +22,13 @@ export default function AppSidebarLayout({ children, breadcrumbs = [] }: PropsWi
         }
     }, [flash.success, flash.error, flash.status]);
 
+    // Set direction based on language
+    const isRTL = i18n.language === 'ar';
+
     return (
         <AppShell variant="sidebar">
             <AppSidebar />
-            <AppContent variant="sidebar">
+            <AppContent variant="sidebar" dir={isRTL ? 'rtl' : 'ltr'}>
                 <AppSidebarHeader breadcrumbs={breadcrumbs} />
                 {message && (
                     <div className="mb-3 px-4">

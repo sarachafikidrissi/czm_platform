@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import AppLayout from '@/layouts/app-layout';
 import { Head, router, usePage } from '@inertiajs/react';
 import { Search, MoreVertical, Upload, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -121,15 +122,17 @@ export default function PhotosPage({
         }
     };
 
+    const { t } = useTranslation();
+    
     return (
-        <AppLayout breadcrumbs={[{ title: 'Photos', href: '/photos' }]}>
-            <Head title="Gallery" />
+        <AppLayout breadcrumbs={[{ title: t('breadcrumbs.photos'), href: '/photos' }]}>
+            <Head title={t('photos.title')} />
             <div className="min-h-screen  pb-8">
                 {/* Header Section */}
                 <div className="flex flex-col gap-4 mb-6 px-4 pt-4 max-md:flex-col ">
                     <div className="flex items-center justify-between  max-md:flex-col">
                         <div className="flex items-center gap-3">
-                            <h1 className="text-2xl font-bold text-gray-900">Gallery</h1>
+                            <h1 className="text-2xl font-bold text-gray-900">{t('photos.title')}</h1>
                             {pagination.total > 0 && (
                                 <span className="bg-gray-800 text-white text-sm font-medium px-3 py-1 rounded-full">
                                     {pagination.total}
@@ -157,7 +160,7 @@ export default function PhotosPage({
                                         className="bg-[#096725] hover:bg-[#096725]/90 text-white"
                                     >
                                         <Upload className="w-4 h-4 mr-2" />
-                                        {isUploading ? 'Uploading...' : 'Upload'}
+                                        {isUploading ? t('photos.uploading') : t('photos.upload')}
                                     </Button>
                                     <input
                                         ref={fileInputRef}
@@ -178,7 +181,7 @@ export default function PhotosPage({
                             {availableUsers.length > 0 && (
                                 <div className="flex flex-col gap-2 w-full max-w-md">
                                     <div className="flex items-center gap-2">
-                                        <label className="text-sm font-medium text-gray-700 ">View photos of: {targetUser?.name !== auth.user.name ? targetUser.name :  ''}</label>
+                                        <label className="text-sm font-medium text-gray-700 ">{t('photos.viewPhotosOf')} {targetUser?.name !== auth.user.name ? targetUser.name :  ''}</label>
                                     </div>
                                     <div className="flex max-md:flex-col gap-2">
                                         {/* Search Input for Users */}
@@ -186,7 +189,7 @@ export default function PhotosPage({
                                             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                                             <Input
                                                 type="text"
-                                                placeholder="Search by name or email..."
+                                                placeholder={t('photos.searchPlaceholder')}
                                                 value={userSearch}
                                                 onChange={(e) => setUserSearch(e.target.value)}
                                                 className="pl-10 w-full bg-gray-100 border-gray-200 rounded-lg"
@@ -198,7 +201,7 @@ export default function PhotosPage({
                                             onValueChange={handleUserChange}
                                         >
                                             <SelectTrigger className="max-md:w-full w-[30vw]">
-                                                <SelectValue placeholder="Select a user" />
+                                                <SelectValue placeholder={t('photos.selectUser')} />
                                             </SelectTrigger>
                                             <SelectContent>
                                                 {availableUsers
@@ -277,7 +280,7 @@ export default function PhotosPage({
                                                     className="bg-red-600! text-white! hover:bg-red-600/90! hover:text-white!"
                                                 >
                                                     <Trash2 className="w-4 h-4 mr-2" />
-                                                    Delete
+                                                    {t('photos.delete')}
                                                 </DropdownMenuItem>
                                             </DropdownMenuContent>
                                         </DropdownMenu>
@@ -291,7 +294,7 @@ export default function PhotosPage({
                         {pagination.last_page > 1 && (
                             <div className="flex items-center justify-between mt-8 px-4">
                                 <div className="text-sm text-gray-600">
-                                    Showing {pagination.from || 0} to {pagination.to || 0} of {pagination.total || 0} photos
+                                    {t('photos.showingPhotos', { from: pagination.from || 0, to: pagination.to || 0, total: pagination.total || 0 })}
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <Button
@@ -301,7 +304,7 @@ export default function PhotosPage({
                                         disabled={pagination.current_page <= 1}
                                     >
                                         <ChevronLeft className="w-4 h-4" />
-                                        Previous
+                                        {t('photos.previous')}
                                     </Button>
                                     
                                     <div className="flex items-center gap-1">
@@ -337,7 +340,7 @@ export default function PhotosPage({
                                         onClick={() => handlePageChange(pagination.current_page + 1)}
                                         disabled={pagination.current_page >= pagination.last_page}
                                     >
-                                        Next
+                                        {t('photos.next')}
                                         <ChevronRight className="w-4 h-4" />
                                     </Button>
                                 </div>
@@ -352,17 +355,17 @@ export default function PhotosPage({
                             </div>
                             <h3 className="text-lg font-semibold text-gray-900 mb-2">
                                 {!targetUser && availableUsers.length === 0 
-                                    ? 'No assigned users' 
+                                    ? t('photos.noAssignedUsers')
                                     : targetUser && targetUser.id !== auth?.user?.id
-                                    ? `No photos for ${targetUser.name}`
-                                    : 'No photos yet'}
+                                    ? t('photos.noPhotosForUser', { userName: targetUser.name })
+                                    : t('photos.noPhotosYet')}
                             </h3>
                             <p className="text-gray-500 mb-4">
                                 {!targetUser && availableUsers.length === 0
-                                    ? 'You don\'t have any assigned users to view photos for.'
+                                    ? t('photos.noAssignedUsersMessage')
                                     : targetUser && targetUser.id !== auth?.user?.id
-                                    ? 'This user hasn\'t uploaded any photos yet.'
-                                    : 'Upload your first photo to get started'}
+                                    ? t('photos.noPhotosForUserMessage')
+                                    : t('photos.noPhotosYetMessage')}
                             </p>
                             {canUpload && (
                                 <Button
@@ -370,7 +373,7 @@ export default function PhotosPage({
                                     className="bg-[#096725] hover:bg-[#096725]/90 text-white"
                                 >
                                     <Upload className="w-4 h-4 mr-2 " />
-                                    Upload Photos
+                                    {t('photos.uploadPhotos')}
                                 </Button>
                             )}
                         </div>
@@ -381,9 +384,9 @@ export default function PhotosPage({
                 <Dialog open={!!photoToDelete} onOpenChange={(open) => { if (!open) setPhotoToDelete(null); }}>
                     <DialogContent>
                         <DialogHeader>
-                            <DialogTitle>Delete Photo</DialogTitle>
+                            <DialogTitle>{t('photos.deletePhoto')}</DialogTitle>
                             <DialogDescription>
-                                Are you sure you want to delete "{photoToDelete?.file_name}"? This action cannot be undone.
+                                {t('photos.deleteConfirm', { fileName: photoToDelete?.file_name })}
                             </DialogDescription>
                         </DialogHeader>
                         <DialogFooter>
@@ -391,13 +394,13 @@ export default function PhotosPage({
                                 variant="outline"
                                 onClick={() => setPhotoToDelete(null)}
                             >
-                                Cancel
+                                {t('photos.cancel')}
                             </Button>
                             <Button
                                 variant="destructive"
                                 onClick={confirmDelete}
                             >
-                                Delete
+                                {t('photos.delete')}
                             </Button>
                         </DialogFooter>
                     </DialogContent>

@@ -9,9 +9,11 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { ShoppingCart, Package, CreditCard, CheckCircle, MoreHorizontal, Eye, Download, FileText, Mail } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from '@inertiajs/react';
+import { useTranslation } from 'react-i18next';
 
 export default function MesCommandes({ bills = [] }) {
     const { auth } = usePage().props;
+    const { t } = useTranslation();
     const [selectedInvoice, setSelectedInvoice] = useState(null);
     const [showInvoice, setShowInvoice] = useState(false);
     const [showMatchmakerDialog, setShowMatchmakerDialog] = useState(false);
@@ -38,11 +40,11 @@ export default function MesCommandes({ bills = [] }) {
     const handleSendEmail = (bill) => {
         router.post(`/user/bills/${bill.id}/send-email`, {}, {
             onSuccess: (response) => {
-                alert('Facture envoyée par email avec succès');
+                alert(t('orders.invoiceSentSuccess'));
             },
             onError: (errors) => {
                 console.error('Error sending email:', errors);
-                alert('Erreur lors de l\'envoi de l\'email');
+                alert(t('orders.errorSendingEmail'));
             }
         });
     };
@@ -57,14 +59,14 @@ export default function MesCommandes({ bills = [] }) {
 
     return (
         <AppLayout>
-            <Head title="Mes Commandes" />
+            <Head title={t('orders.title')} />
             <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
                 <div className="flex flex-col gap-3">
                     <div className="flex items-center justify-between">
-                        <h1 className="text-2xl font-bold">Mes Commandes</h1>
+                        <h1 className="text-2xl font-bold">{t('orders.title')}</h1>
                         <Badge variant="outline" className="flex items-center gap-2">
                             <ShoppingCart className="w-4 h-4" />
-                            Commandes
+                            {t('orders.orders')}
                         </Badge>
                     </div>
                 </div>
@@ -76,10 +78,10 @@ export default function MesCommandes({ bills = [] }) {
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2">
                                     <span className="text-2xl">🎁</span>
-                                    Avantages inclus dans vos packs
+                                    {t('orders.includedAdvantages')}
                                 </CardTitle>
                                 <CardDescription>
-                                    Découvrez tous les avantages inclus dans vos packs matrimoniaux
+                                    {t('orders.discoverAdvantages')}
                                 </CardDescription>
                             </CardHeader>
                             <CardContent>
@@ -101,7 +103,7 @@ export default function MesCommandes({ bills = [] }) {
                                                 </div>
                                                 <div className="mt-3 pt-3 border-t border-info">
                                                     <div className="flex justify-between items-center">
-                                                        <span className="text-xs text-muted-foreground">Commande:</span>
+                                                        <span className="text-xs text-muted-foreground">{t('orders.order')}</span>
                                                         <span className="text-xs font-medium text-info">{bill.order_number}</span>
                                                     </div>
                                                 </div>
@@ -118,10 +120,10 @@ export default function MesCommandes({ bills = [] }) {
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
                                 <Package className="w-5 h-5" />
-                                Vos Commandes
+                                {t('orders.yourOrders')}
                             </CardTitle>
                             <CardDescription>
-                                Gérez vos commandes et suivez leur statut
+                                {t('orders.manageOrders')}
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
@@ -129,13 +131,13 @@ export default function MesCommandes({ bills = [] }) {
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
-                                            <TableHead className="w-[120px]">Numéro de Commande</TableHead>
-                                            <TableHead>Date</TableHead>
-                                            <TableHead>Pack</TableHead>
-                                            <TableHead>Statut</TableHead>
-                                            <TableHead>Date d'échéance</TableHead>
-                                            <TableHead className="text-right">Montant</TableHead>
-                                            <TableHead className="w-[100px]">Actions</TableHead>
+                                            <TableHead className="w-[120px]">{t('orders.orderNumber')}</TableHead>
+                                            <TableHead>{t('common.date')}</TableHead>
+                                            <TableHead>{t('orders.pack')}</TableHead>
+                                            <TableHead>{t('common.status')}</TableHead>
+                                            <TableHead>{t('orders.dueDate')}</TableHead>
+                                            <TableHead className="text-right">{t('common.amount')}</TableHead>
+                                            <TableHead className="w-[100px]">{t('common.actions')}</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -152,7 +154,7 @@ export default function MesCommandes({ bills = [] }) {
                                                         <span className="font-medium text-info">{bill.pack_name}</span>
                                                         {bill.pack_advantages && bill.pack_advantages.length > 0 && (
                                                             <span className="text-xs text-muted-foreground">
-                                                                {bill.pack_advantages.length} avantage{bill.pack_advantages.length > 1 ? 's' : ''}
+                                                                {bill.pack_advantages.length} {t('orders.advantage')}{bill.pack_advantages.length > 1 ? 's' : ''}
                                                             </span>
                                                         )}
                                                     </div>
@@ -165,7 +167,7 @@ export default function MesCommandes({ bills = [] }) {
                                                                 : 'bg-warning-light text-warning-foreground'
                                                         }`}
                                                     >
-                                                        {bill.status === 'paid' ? 'Payé' : 'Impayé'}
+                                                        {bill.status === 'paid' ? t('common.paid') : t('common.unpaid')}
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell>
@@ -173,7 +175,7 @@ export default function MesCommandes({ bills = [] }) {
                                                         <span>{formatDate(bill.due_date)}</span>
                                                         {isOverdue(bill.due_date) && bill.status === 'unpaid' && (
                                                             <Badge variant="destructive" className="text-xs mt-1">
-                                                                Expirée
+                                                                {t('common.overdue')}
                                                             </Badge>
                                                         )}
                                                     </div>
@@ -191,15 +193,15 @@ export default function MesCommandes({ bills = [] }) {
                                                         <DropdownMenuContent align="end">
                                                             <DropdownMenuItem onClick={() => handleViewInvoice(bill)}>
                                                                 <Eye className="mr-2 h-4 w-4" />
-                                                                Voir facture
+                                                                {t('orders.viewInvoice')}
                                                             </DropdownMenuItem>
                                                             <DropdownMenuItem onClick={() => handleDownloadPDF(bill)}>
                                                                 <Download className="mr-2 h-4 w-4" />
-                                                                Télécharger PDF
+                                                                {t('orders.downloadPDF')}
                                                             </DropdownMenuItem>
                                                             <DropdownMenuItem onClick={() => handleSendEmail(bill)}>
                                                                 <Mail className="mr-2 h-4 w-4" />
-                                                                Envoyer par email
+                                                                {t('orders.sendEmail')}
                                                             </DropdownMenuItem>
                                                         </DropdownMenuContent>
                                                     </DropdownMenu>
@@ -212,17 +214,17 @@ export default function MesCommandes({ bills = [] }) {
                                 <div className="text-center py-8">
                                     <ShoppingCart className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
                                     <h3 className="text-lg font-semibold text-foreground mb-2">
-                                        Aucune commande pour le moment
+                                        {t('orders.noOrders')}
                                     </h3>
                                     <p className="text-muted-foreground mb-4">
-                                        Vous n'avez pas encore passé de commande. Découvrez nos services et devenez client pour accéder à nos offres.
+                                        {t('orders.noOrdersMessage')}
                                     </p>
                                     <Button 
                                         className="bg-[#890505]! hover:bg-[#096725]!"
                                         onClick={() => setShowMatchmakerDialog(true)}
                                     >
                                         <CreditCard className="w-4 h-4 mr-2" />
-                                        Devenir Client
+                                        {t('orders.becomeClient')}
                                     </Button>
                                 </div>
                             )}
@@ -262,12 +264,12 @@ export default function MesCommandes({ bills = [] }) {
                                 <div className="flex justify-between items-start mb-8">
                                     <div>
                                         <h1 className="text-2xl font-bold text-foreground mb-2">
-                                            Centre Zawaj Maroc
+                                            {t('common.centreZawajMaroc')}
                                         </h1>
-                                        <p className="text-muted-foreground">Service de mariage et accompagnement matrimonial</p>
+                                        <p className="text-muted-foreground">{t('orders.marriageService')}</p>
                                     </div>
                                     <div className="text-right">
-                                        <h2 className="text-xl font-bold text-foreground">FACTURE</h2>
+                                        <h2 className="text-xl font-bold text-foreground">{t('orders.invoice')}</h2>
                                         <p className="text-sm text-muted-foreground">N° {selectedInvoice.bill_number}</p>
                                     </div>
                                 </div>
@@ -275,23 +277,23 @@ export default function MesCommandes({ bills = [] }) {
                                 {/* Invoice Details */}
                                 <div className="grid grid-cols-2 gap-8 mb-8">
                                     <div>
-                                        <h3 className="font-semibold text-gray-900 mb-2">Détails de facturation</h3>
+                                        <h3 className="font-semibold text-gray-900 mb-2">{t('orders.billingDetails')}</h3>
                                         <div className="space-y-1 text-sm">
-                                            <p><strong>Nom:</strong> {selectedInvoice.user?.name}</p>
-                                            <p><strong>Email:</strong> {selectedInvoice.user?.email}</p>
-                                            <p><strong>Téléphone:</strong> {selectedInvoice.user?.phone}</p>
-                                            <p><strong>Ville:</strong> {selectedInvoice.user?.city}</p>
-                                            <p><strong>Pays:</strong> {selectedInvoice.user?.country}</p>
+                                            <p><strong>{t('common.name')}:</strong> {selectedInvoice.user?.name}</p>
+                                            <p><strong>{t('common.email')}:</strong> {selectedInvoice.user?.email}</p>
+                                            <p><strong>{t('common.phone')}:</strong> {selectedInvoice.user?.phone}</p>
+                                            <p><strong>{t('orders.city')}:</strong> {selectedInvoice.user?.city}</p>
+                                            <p><strong>{t('orders.country')}:</strong> {selectedInvoice.user?.country}</p>
                                         </div>
                                     </div>
                                     <div>
-                                        <h3 className="font-semibold text-gray-900 mb-2">Informations de la commande</h3>
+                                        <h3 className="font-semibold text-gray-900 mb-2">{t('orders.orderInformation')}</h3>
                                         <div className="space-y-1 text-sm">
-                                            <p><strong>Numéro de commande:</strong> {selectedInvoice.order_number}</p>
-                                            <p><strong>Date:</strong> {formatDate(selectedInvoice.bill_date)}</p>
-                                            <p><strong>Date d'échéance:</strong> {formatDate(selectedInvoice.due_date)}</p>
-                                            <p><strong>Mode de paiement:</strong> {selectedInvoice.payment_method}</p>
-                                            <p><strong>Pack choisi:</strong> {selectedInvoice.pack_name}</p>
+                                            <p><strong>{t('orders.orderNumber')}:</strong> {selectedInvoice.order_number}</p>
+                                            <p><strong>{t('common.date')}:</strong> {formatDate(selectedInvoice.bill_date)}</p>
+                                            <p><strong>{t('orders.dueDate')}:</strong> {formatDate(selectedInvoice.due_date)}</p>
+                                            <p><strong>{t('orders.paymentMethod')}:</strong> {selectedInvoice.payment_method}</p>
+                                            <p><strong>{t('orders.chosenPack')}:</strong> {selectedInvoice.pack_name}</p>
                                         </div>
                                     </div>
                                 </div>
@@ -302,8 +304,8 @@ export default function MesCommandes({ bills = [] }) {
                                         <div className="bg-primary text-primary-foreground p-6 rounded-xl mb-6 shadow-lg">
                                             <div className="text-center">
                                                 <div className="text-4xl mb-2">🎁</div>
-                                                <h3 className="text-xl font-bold mb-2">Avantages inclus dans votre pack</h3>
-                                                <p className="text-primary-foreground/80 text-sm">Profitez de tous ces avantages exclusifs</p>
+                                                <h3 className="text-xl font-bold mb-2">{t('orders.includedAdvantagesTitle')}</h3>
+                                                <p className="text-primary-foreground/80 text-sm">{t('orders.enjoyExclusive')}</p>
                                             </div>
                                         </div>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -320,7 +322,7 @@ export default function MesCommandes({ bills = [] }) {
                                             <div className="flex items-center gap-2">
                                                 <span className="text-2xl">💡</span>
                                                 <p className="text-warning-foreground font-medium">
-                                                    Ces avantages vous aideront à trouver votre âme sœur plus rapidement et efficacement !
+                                                    {t('orders.helpFindSoulmate')}
                                                 </p>
                                             </div>
                                         </div>
@@ -332,9 +334,9 @@ export default function MesCommandes({ bills = [] }) {
                                     <div className="flex items-center gap-2">
                                         <span className="text-2xl">⏰</span>
                                         <div>
-                                            <h3 className="font-semibold text-warning-foreground">Paiement en attente</h3>
+                                            <h3 className="font-semibold text-warning-foreground">{t('orders.paymentPending')}</h3>
                                             <p className="text-warning-foreground text-sm">
-                                                Veuillez effectuer le paiement avant le {formatDate(selectedInvoice.due_date)} pour activer votre pack matrimonial.
+                                                {t('orders.pleasePayBefore', { date: formatDate(selectedInvoice.due_date) })}
                                             </p>
                                         </div>
                                     </div>
@@ -345,10 +347,10 @@ export default function MesCommandes({ bills = [] }) {
                                     <table className="w-full border-collapse min-w-[640px]">
                                         <thead>
                                             <tr className="bg-muted">
-                                                <th className="border border-border px-2 sm:px-4 py-2 sm:py-3 text-left font-semibold text-xs sm:text-sm">Description</th>
-                                                <th className="border border-border px-2 sm:px-4 py-2 sm:py-3 text-center font-semibold text-xs sm:text-sm">Quantité</th>
-                                                <th className="border border-border px-2 sm:px-4 py-2 sm:py-3 text-right font-semibold text-xs sm:text-sm">Prix unitaire</th>
-                                                <th className="border border-border px-2 sm:px-4 py-2 sm:py-3 text-right font-semibold text-xs sm:text-sm">Montant</th>
+                                                <th className="border border-border px-2 sm:px-4 py-2 sm:py-3 text-left font-semibold text-xs sm:text-sm">{t('orders.description')}</th>
+                                                <th className="border border-border px-2 sm:px-4 py-2 sm:py-3 text-center font-semibold text-xs sm:text-sm">{t('orders.quantity')}</th>
+                                                <th className="border border-border px-2 sm:px-4 py-2 sm:py-3 text-right font-semibold text-xs sm:text-sm">{t('orders.unitPrice')}</th>
+                                                <th className="border border-border px-2 sm:px-4 py-2 sm:py-3 text-right font-semibold text-xs sm:text-sm">{t('common.amount')}</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -375,21 +377,21 @@ export default function MesCommandes({ bills = [] }) {
                                 <div className="flex justify-end mb-8">
                                     <div className="w-64 space-y-2">
                                         <div className="flex justify-between">
-                                            <span>Sous-total:</span>
+                                            <span>{t('orders.subtotal')}</span>
                                             <span>{parseFloat(selectedInvoice.amount).toLocaleString()} {selectedInvoice.currency}</span>
                                         </div>
                                         <div className="flex justify-between">
-                                            <span>TVA ({selectedInvoice.tax_rate}%):</span>
+                                            <span>{t('orders.vat', { rate: selectedInvoice.tax_rate })}</span>
                                             <span>{parseFloat(selectedInvoice.tax_amount).toLocaleString()} {selectedInvoice.currency}</span>
                                         </div>
                                         <div className="border-t pt-2">
                                             <div className="flex justify-between font-bold text-lg">
-                                                <span>Total TTC:</span>
+                                                <span>{t('orders.totalIncludingTax')}</span>
                                                 <span>{parseFloat(selectedInvoice.total_amount).toLocaleString()} {selectedInvoice.currency}</span>
                                             </div>
                                         </div>
                                         <div className="flex justify-between font-bold text-lg text-info">
-                                            <span>Montant dû:</span>
+                                            <span>{t('orders.amountDue')}</span>
                                             <span>{parseFloat(selectedInvoice.total_amount).toLocaleString()} {selectedInvoice.currency}</span>
                                         </div>
                                     </div>
@@ -399,7 +401,7 @@ export default function MesCommandes({ bills = [] }) {
                                 <div className="flex justify-between items-center pt-6 border-t">
                                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                                         <FileText className="w-4 h-4" />
-                                        <span>Document généré le {new Date().toLocaleDateString('fr-FR')}</span>
+                                        <span>{t('orders.documentGenerated')} {new Date().toLocaleDateString('fr-FR')}</span>
                                     </div>
                                     <div className="flex gap-3">
                                         <Button 
@@ -407,10 +409,10 @@ export default function MesCommandes({ bills = [] }) {
                                             onClick={() => handleDownloadPDF(selectedInvoice)}
                                         >
                                             <Download className="w-4 h-4 mr-2" />
-                                            Télécharger PDF
+                                            {t('orders.downloadPDF')}
                                         </Button>
                                         <Button onClick={() => setShowInvoice(false)}>
-                                            Fermer
+                                            {t('common.close')}
                                         </Button>
                                     </div>
                                 </div>
@@ -423,33 +425,33 @@ export default function MesCommandes({ bills = [] }) {
                 <Dialog open={showMatchmakerDialog} onOpenChange={setShowMatchmakerDialog}>
                     <DialogContent>
                         <DialogHeader>
-                            <DialogTitle>Devenir Client</DialogTitle>
+                            <DialogTitle>{t('orders.becomeClient')}</DialogTitle>
                             <DialogDescription>
-                                Contacter votre matchmaker pour plus de détails
+                                {t('orders.becomeClientDescription')}
                             </DialogDescription>
                         </DialogHeader>
                         {assignedMatchmaker ? (
                             <div className="flex flex-col gap-4">
                                 <p className="text-sm text-muted-foreground">
-                                    Pour devenir client, veuillez contacter votre matchmaker pour plus de détails.
+                                    {t('orders.becomeClientMessage')}
                                 </p>
                                 <Link 
                                     href={assignedMatchmaker.username ? `/profile/${assignedMatchmaker.username}` : '/matchmaker'}
                                     className="w-full"
                                 >
                                     <Button className="w-full">
-                                        Voir le profil de mon matchmaker
+                                        {t('orders.viewMatchmakerProfile')}
                                     </Button>
                                 </Link>
                             </div>
                         ) : (
                             <div className="flex flex-col gap-4">
                                 <p className="text-sm text-muted-foreground">
-                                    Pour devenir client, veuillez d'abord choisir un matchmaker.
+                                    {t('orders.becomeClientNoMatchmaker')}
                                 </p>
                                 <Link href="/user/matchmakers" className="w-full">
                                     <Button className="w-full">
-                                        Choisir un matchmaker
+                                        {t('orders.chooseMatchmakerButton')}
                                     </Button>
                                 </Link>
                             </div>

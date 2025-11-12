@@ -8,9 +8,11 @@ import { Heart, Check, X, Calendar, User, Crown } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { usePage } from '@inertiajs/react';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 export default function UserSubscription() {
     const { user, profile, subscription, subscriptionStatus } = usePage().props;
+    const { t } = useTranslation();
     const [showMatchmakerDialog, setShowMatchmakerDialog] = useState(false);
     const assignedMatchmaker = user?.assignedMatchmaker ?? user?.assigned_matchmaker ?? subscription?.assignedMatchmaker ?? subscription?.assigned_matchmaker ?? null;
     
@@ -33,11 +35,11 @@ export default function UserSubscription() {
     const getStatusBadge = (status) => {
         switch (status) {
             case 'active':
-                return <Badge className="bg-success-bg text-success">Actif</Badge>;
+                return <Badge className="bg-success-bg text-success">{t('common.active')}</Badge>;
             case 'expired':
-                return <Badge className="bg-error-bg text-error">Expiré</Badge>;
+                return <Badge className="bg-error-bg text-error">{t('common.expired')}</Badge>;
             case 'cancelled':
-                return <Badge className="bg-muted text-muted-foreground">Annulé</Badge>;
+                return <Badge className="bg-muted text-muted-foreground">{t('common.cancel')}</Badge>;
             default:
                 return <Badge className="bg-muted text-muted-foreground">N/A</Badge>;
         }
@@ -45,12 +47,12 @@ export default function UserSubscription() {
     
     return (
         <AppLayout>
-            <Head title="Mon abonnement" />
+            <Head title={t('subscription.title')} />
             <div className="flex h-full flex-1 flex-col gap-6 rounded-xl p-6">
                 {/* Page Header */}
                 <div className="flex flex-col gap-4">
                     <div className="flex items-center justify-between">
-                        <h1 className="text-3xl font-bold text-foreground">Mon abonnement</h1>
+                        <h1 className="text-3xl font-bold text-foreground">{t('subscription.title')}</h1>
                     </div>
                     
                     {/* Decorative line with heart */}
@@ -66,22 +68,22 @@ export default function UserSubscription() {
                             <div className="bg-warning-light border border-warning rounded-lg p-4 flex-1">
                                 <div className="flex items-center gap-2">
                                     <User className="w-5 h-5 text-warning" />
-                                    <span className="text-warning-foreground font-medium">Adhésion Gratuite : </span>
-                                    <span className="text-warning">membre passif</span>
+                                    <span className="text-warning-foreground font-medium">{t('subscription.freeMembership')}</span>
+                                    <span className="text-warning">{t('subscription.passiveMember')}</span>
                                 </div>
                             </div>
                         ) : isClient ? (
                             <div className="bg-success-bg border border-success rounded-lg p-4 flex-1">
                                 <div className="flex items-center gap-2">
                                     <Crown className="w-5 h-5 text-success" />
-                                    <span className="text-success font-medium">Client Actif</span>
+                                    <span className="text-success font-medium">{t('subscription.activeClient')}</span>
                                 </div>
                             </div>
                         ) : (
                             <div className="bg-info-light border border-info rounded-lg p-4 flex-1">
                                 <div className="flex items-center gap-2">
                                     <User className="w-5 h-5 text-info" />
-                                    <span className="text-info-foreground font-medium">Membre</span>
+                                    <span className="text-info-foreground font-medium">{t('subscription.member')}</span>
                                 </div>
                             </div>
                         )}
@@ -91,7 +93,7 @@ export default function UserSubscription() {
                                 className="bg-error hover:opacity-90 text-error-foreground rounded-lg px-6 py-2"
                                 onClick={() => setShowMatchmakerDialog(true)}
                             >
-                                Devenir Client
+                                {t('subscription.becomeClient')}
                             </Button>
                         )}
                     </div>
@@ -100,7 +102,7 @@ export default function UserSubscription() {
                 {/* Current Subscription Details */}
                 <Card>
                     <CardHeader>
-                        <CardTitle className="text-red-600 text-xl">Mon abonnement</CardTitle>
+                        <CardTitle className="text-red-600 text-xl">{t('subscription.currentSubscription')}</CardTitle>
                     </CardHeader>
                     <CardContent>
                         {subscription ? (
@@ -108,11 +110,11 @@ export default function UserSubscription() {
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
-                                            <TableHead>Plan</TableHead>
-                                            <TableHead>Commencer</TableHead>
-                                            <TableHead>Expirer</TableHead>
-                                            <TableHead>Statut</TableHead>
-                                            <TableHead>Matchmaker</TableHead>
+                                            <TableHead>{t('subscription.plan')}</TableHead>
+                                            <TableHead>{t('subscription.start')}</TableHead>
+                                            <TableHead>{t('subscription.expire')}</TableHead>
+                                            <TableHead>{t('common.status')}</TableHead>
+                                            <TableHead>{t('subscription.matchmaker')}</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -133,7 +135,7 @@ export default function UserSubscription() {
                                 {/* Pack Advantages */}
                                 {subscription.pack_advantages && subscription.pack_advantages.length > 0 && (
                                     <div className="mt-6">
-                                        <h4 className="text-lg font-semibold text-gray-800 mb-3">Avantages inclus :</h4>
+                                        <h4 className="text-lg font-semibold text-gray-800 mb-3">{t('subscription.includedAdvantages')}</h4>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                                             {subscription.pack_advantages.map((advantage, index) => (
                                                 <div key={index} className="flex items-center gap-2 text-sm text-gray-700">
@@ -148,8 +150,8 @@ export default function UserSubscription() {
                         ) : (
                             <div className="text-center py-8 text-gray-500">
                                 <Calendar className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-                                <p>Aucun abonnement trouvé</p>
-                                <p className="text-sm mt-2">Vous êtes actuellement un membre passif</p>
+                                <p>{t('subscription.noSubscription')}</p>
+                                <p className="text-sm mt-2">{t('subscription.currentlyPassiveMember')}</p>
                             </div>
                         )}
                     </CardContent>
@@ -159,9 +161,9 @@ export default function UserSubscription() {
                 <Card>
                     <CardContent className="pt-6">
                         <p className="text-gray-700 text-center">
-                            Choisissez le type d'abonnement qui vous convient, soit{' '}
-                            <span className="font-semibold text-green-600">membre passif</span>, ou{' '}
-                            <span className="font-semibold text-red-600">client actif</span>.
+                            {t('subscription.subscriptionTypeExplanation')}{' '}
+                            <span className="font-semibold text-green-600">{t('subscription.passiveMemberType')}</span>, {t('subscription.or')}{' '}
+                            <span className="font-semibold text-red-600">{t('subscription.activeClientType')}</span>.
                         </p>
                     </CardContent>
                 </Card>
@@ -169,15 +171,15 @@ export default function UserSubscription() {
                 {/* Advantages Comparison Table */}
                 <Card>
                     <CardHeader>
-                        <CardTitle className="text-info">Avantages</CardTitle>
+                        <CardTitle className="text-info">{t('subscription.advantages')}</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Avantages</TableHead>
-                                    <TableHead className="text-center">Client</TableHead>
-                                    <TableHead className="text-center">Membre</TableHead>
+                                    <TableHead>{t('subscription.advantages')}</TableHead>
+                                    <TableHead className="text-center">{t('subscription.client')}</TableHead>
+                                    <TableHead className="text-center">{t('subscription.member')}</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -200,11 +202,11 @@ export default function UserSubscription() {
                                     <>
                                         <TableRow>
                                             <TableCell colSpan={3} className="text-center text-gray-500 py-4">
-                                                Aucun avantage spécifique défini pour ce pack
+                                                {t('subscription.noSpecificAdvantages')}
                                             </TableCell>
                                         </TableRow>
                                         <TableRow>
-                                            <TableCell>Votre propre matchmaker</TableCell>
+                                            <TableCell>{t('subscription.ownMatchmaker')}</TableCell>
                                             <TableCell className="text-center">
                                                 <Check className="w-5 h-5 text-green-600 mx-auto" />
                                             </TableCell>
@@ -213,7 +215,7 @@ export default function UserSubscription() {
                                             </TableCell>
                                         </TableRow>
                                         <TableRow>
-                                            <TableCell>Un service complet en priorité</TableCell>
+                                            <TableCell>{t('subscription.fullServicePriority')}</TableCell>
                                             <TableCell className="text-center">
                                                 <Check className="w-5 h-5 text-green-600 mx-auto" />
                                             </TableCell>
@@ -222,7 +224,7 @@ export default function UserSubscription() {
                                             </TableCell>
                                         </TableRow>
                                         <TableRow>
-                                            <TableCell>Des propositions soigneusement sélectionnés</TableCell>
+                                            <TableCell>{t('subscription.carefullySelectedProposals')}</TableCell>
                                             <TableCell className="text-center">
                                                 <Check className="w-5 h-5 text-green-600 mx-auto" />
                                             </TableCell>
@@ -231,7 +233,7 @@ export default function UserSubscription() {
                                             </TableCell>
                                         </TableRow>
                                         <TableRow>
-                                            <TableCell>Des matchs personnellement choisis</TableCell>
+                                            <TableCell>{t('subscription.personallyChosenMatches')}</TableCell>
                                             <TableCell className="text-center">
                                                 <Check className="w-5 h-5 text-green-600 mx-auto" />
                                             </TableCell>
@@ -240,7 +242,7 @@ export default function UserSubscription() {
                                             </TableCell>
                                         </TableRow>
                                         <TableRow>
-                                            <TableCell>Organisation des rendez-vous rencontre pour vous et votre match</TableCell>
+                                            <TableCell>{t('subscription.appointmentOrganization')}</TableCell>
                                             <TableCell className="text-center">
                                                 <Check className="w-5 h-5 text-green-600 mx-auto" />
                                             </TableCell>
@@ -259,33 +261,33 @@ export default function UserSubscription() {
                 <Dialog open={showMatchmakerDialog} onOpenChange={setShowMatchmakerDialog}>
                     <DialogContent>
                         <DialogHeader>
-                            <DialogTitle>Devenir Client</DialogTitle>
+                            <DialogTitle>{t('subscription.becomeClientDialog')}</DialogTitle>
                             <DialogDescription>
-                                Contacter votre matchmaker pour plus de détails
+                                {t('subscription.becomeClientDescription')}
                             </DialogDescription>
                         </DialogHeader>
                         {assignedMatchmaker ? (
                             <div className="flex flex-col gap-4">
                                 <p className="text-sm text-muted-foreground">
-                                    Pour devenir client, veuillez contacter votre matchmaker pour plus de détails.
+                                    {t('subscription.becomeClientMessage')}
                                 </p>
                                 <Link 
                                     href={assignedMatchmaker.username ? `/profile/${assignedMatchmaker.username}` : '/matchmaker'}
                                     className="w-full"
                                 >
                                     <Button className="w-full">
-                                        Voir le profil de mon matchmaker
+                                        {t('subscription.viewMatchmakerProfile')}
                                     </Button>
                                 </Link>
                             </div>
                         ) : (
                             <div className="flex flex-col gap-4">
                                 <p className="text-sm text-muted-foreground">
-                                    Pour devenir client, veuillez d'abord choisir un matchmaker.
+                                    {t('subscription.becomeClientNoMatchmaker')}
                                 </p>
                                 <Link href="/user/matchmakers" className="w-full">
                                     <Button className="w-full">
-                                        Choisir un matchmaker
+                                        {t('subscription.chooseMatchmakerButton')}
                                     </Button>
                                 </Link>
                             </div>

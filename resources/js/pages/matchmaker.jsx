@@ -3,25 +3,27 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import AppLayout from '@/layouts/app-layout';
 import { Head, usePage } from '@inertiajs/react';
 import { Link, User } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 export default function MatchmakerPage() {
     const { auth } = usePage().props;
+    const { t } = useTranslation();
     const assignedMatchmaker = auth?.user?.assignedMatchmaker ?? auth?.user?.assigned_matchmaker ?? null;
     console.log(assignedMatchmaker);
 
     return (
-        <AppLayout breadcrumbs={[{ title: 'Mon Matchmaker', href: '/matchmaker' }]}>
-            <Head title="Mon Matchmaker" />
+        <AppLayout breadcrumbs={[{ title: t('breadcrumbs.myMatchmaker'), href: '/matchmaker' }]}>
+            <Head title={t('breadcrumbs.myMatchmaker')} />
 
             <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
-                <div className="text-lg font-semibold">Mon Matchmaker</div>
+                <div className="text-lg font-semibold">{t('pages.matchmaker.title')}</div>
                 {assignedMatchmaker && assignedMatchmaker?.approval_status === 'approved' ? (
                     <Card>
                         <ProfileHeader user={assignedMatchmaker} profile={assignedMatchmaker?.profile} isOwnProfile={false} age={assignedMatchmaker?.age} />
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
                                 <User className="h-5 w-5" color="red" />
-                                Votre Matchmaker
+                                {t('pages.matchmaker.yourMatchmaker')}
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
@@ -30,7 +32,7 @@ export default function MatchmakerPage() {
                                     <div className='flex items-center gap-2'>
                                         <Link />
                                         <a href={`/profile/${assignedMatchmaker?.username}`} target="_blank">
-                                            Voir Profil
+                                            {t('pages.matchmaker.viewProfile')}
                                         </a>
                                     </div>
                                 </div>
@@ -38,7 +40,7 @@ export default function MatchmakerPage() {
                                     {/* to be added later now it's 404 not found page */}
                                     <div className='flex items-center gap-2'>
                                         <Link />
-                                        <a href={`/user/${assignedMatchmaker?.username}/add-review`}>Ajouter mon avis</a>
+                                        <a href={`/user/${assignedMatchmaker?.username}/add-review`}>{t('pages.matchmaker.addReview')}</a>
                                     </div>
                                     <div>
 
@@ -47,7 +49,7 @@ export default function MatchmakerPage() {
                                 <div className="md:w-[50%] w-full rounded-full hover:bg-[#096725]!  border-error-dark cursor-pointer  hover:text-white border-2 px-4 py-1.5 font-semibold">
                                     <div className='flex items-center gap-2'>
                                         <Link />
-                                        <a href={`/user/matchmakers`}>Changer de matchmaker</a>
+                                        <a href={`/user/matchmakers`}>{t('pages.matchmaker.changeMatchmaker')}</a>
                                     </div>
                                 </div>
                             </div>
@@ -55,7 +57,7 @@ export default function MatchmakerPage() {
                     </Card>
                 ) : (
                     <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-6 text-sm text-neutral-700 dark:text-neutral-200">
-                        Aucun matchmaker assigné pour le moment.
+                        {t('pages.matchmaker.noMatchmakerAssigned')}
                     </div>
                 )}
             </div>

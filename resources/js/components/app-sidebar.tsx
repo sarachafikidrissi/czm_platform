@@ -6,162 +6,155 @@ import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, Sid
 import { type NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
 import { CalendarHeart, Flame, HeartHandshake, Images, LayoutGrid, User, UserRoundSearch, Users, UserCheck, Plus, ShoppingCart, CreditCard, RotateCcw, Building2, Target } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
-const mainNavItems: NavItem[] = [
+const getMainNavItems = (t: (key: string) => string, role: string): NavItem[] => [
     {
-        title: 'Dashboard',
+        title: t('common.dashboard'),
         url: '/dashboard',
         icon: LayoutGrid,
         roles: ['user', 'admin', 'matchmaker', 'manager'],
     },
     {
-        title: 'Mon Profil',
+        title: t('navigation.myProfile'),
         url: '/profile-info',
         icon: User,
         roles: ['user'],
     },
     {
-        title: 'Mon Profile',
+        title: t('navigation.myProfile'),
         url: '/user/profile/{username}',
         icon: User,
         roles: ['matchmaker'],
     },
     {
-        title: 'Mon Photos',
+        title: t('navigation.myPhotos'),
         url: '/photos',
         icon: Images,
         roles: ['user', 'matchmaker', 'manager', 'admin'],
     },
     {
-        title: 'Mon Matchmaker',
+        title: t('navigation.myMatchmaker'),
         url: '/matchmaker',
         icon: HeartHandshake,
         roles: ['user'],
     },
     {
-        title: 'Propositions',
+        title: t('navigation.propositions'),
         url: '/propositions',
         icon: Flame,
         roles: ['user'],
     },
     {
-        title: 'Mes Rendez-vous',
+        title: t('navigation.myAppointments'),
         url: '/appointments',
         icon: CalendarHeart,
         roles: ['user', 'admin'],
     },
     {
-        title: 'Mes Commandes',
+        title: t('navigation.myOrders'),
         url: '/mes-commandes',
         icon: ShoppingCart,
         roles: ['user'],
     },
     {
-        title: 'Mon Abonnement',
+        title: t('navigation.mySubscription'),
         url: '/user/subscription',
         icon: CreditCard,
         roles: ['user'],
     },
     {
-        title: 'Manage Staff',
+        title: t('navigation.manageStaff'),
         url: '/admin/dashboard?view=managers',
         icon: Users,
         roles: ['admin'],
         children: [
-            { title: 'Manage Managers', url: '/admin/dashboard?view=managers', roles: ['admin'] },
-            { title: 'Manage Matchmakers', url: '/admin/dashboard?view=matchmakers', roles: ['admin'] },
+            { title: t('navigation.manageManagers'), url: '/admin/dashboard?view=managers', roles: ['admin'] },
+            { title: t('navigation.manageMatchmakers'), url: '/admin/dashboard?view=matchmakers', roles: ['admin'] },
         ],
     },
     {
-        title: 'Manage Agencies',
+        title: t('navigation.manageAgencies'),
         url: '/admin/agencies',
         icon: Building2,
         roles: ['admin'],
     },
     {
-        title: 'Prospects',
+        title: t('navigation.prospects'),
         url: '/admin/prospects',
         icon: UserCheck,
         roles: ['admin'],
     },
     {
-        title: 'Prospects',
+        title: t('navigation.prospects'),
         url: '/staff/agency-prospects',
         icon: UserCheck,
         roles: ['matchmaker', 'manager'],
     },
     {
-        title: 'Ajouter un prospect',
+        title: t('navigation.addProspect'),
         url: '/staff/prospects/create',
         icon: Plus,
         roles: ['matchmaker', 'manager'],
     },
     {
-        title: 'Assignment Tracking',
+        title: t('navigation.assignmentTracking'),
         url: '/manager/tracking',
         icon: UserRoundSearch,
         roles: ['manager'],
     },
     {
-        title: 'Choose Matchmaker',
+        title: t('navigation.chooseMatchmaker'),
         url: '/user/matchmakers',
         icon: HeartHandshake,
         roles: ['user'],
     },
     {
-        title: 'Members/Client',
+        title: t('navigation.membersClient'),
         url: '/staff/validated-prospects',
         icon: HeartHandshake,
         roles: ['admin', 'matchmaker', 'manager'],
     },
     {
-        title: 'Monthly Objectives',
+        title: t('navigation.monthlyObjectives'),
         url: '/objectives',
         icon: Target,
         roles: ['admin', 'matchmaker', 'manager'],
     },
     {
-        title: 'Demandes de Réactivation',
+        title: t('navigation.reactivationRequests'),
         url: '/admin/reactivation-requests',
         icon: RotateCcw,
         roles: ['admin'],
     },
     {
-        title: 'Demandes de Réactivation',
+        title: t('navigation.reactivationRequests'),
         url: '/staff/reactivation-requests',
         icon: RotateCcw,
         roles: ['matchmaker'],
     },
     {
-        title: 'Agencies',
+        title: t('navigation.agencies'),
         url: '/agencies',
         icon: Building2,
         roles: ['user', 'admin', 'matchmaker', 'manager'],
     },
 ];
 
-const footerNavItems: NavItem[] = [
-    // {
-    //     title: 'Repository',
-    //     url: 'https://github.com/laravel/react-starter-kit',
-    //     icon: Folder,
-    // },
-    // {
-    //     title: 'Documentation',
-    //     url: 'https://laravel.com/docs/starter-kits',
-    //     icon: BookOpen,
-    // },
-];
-
+const footerNavItems: NavItem[] = [];
 
 const filterNavItemsByRole = (navItems: NavItem[], userRole: string): NavItem[] => {
     return navItems.filter(item => item.roles.includes(userRole));
-  };
+};
 
 export function AppSidebar() {
     const { props } = usePage();
     const role = typeof props?.role === 'string' ? props.role : '';
     const user = (props as any)?.auth?.user;
+    const { t, i18n } = useTranslation();
+    
+    // Get navigation items with translations
+    const mainNavItems = getMainNavItems(t, role);
     
     // Process nav items to handle dynamic URLs and conditional titles
     const processedNavItems = mainNavItems.map(item => {
@@ -174,18 +167,21 @@ export function AppSidebar() {
         
         // Handle Photos title based on role
         if (item.url === '/photos' && role !== 'user') {
-            updatedItem.title = 'Clients Photos';
+            updatedItem.title = t('common.clientsPhotos');
         }
         
         return updatedItem;
     });
     
     const navitems = filterNavItemsByRole(processedNavItems, role);
+    
+    // Determine sidebar side based on language (RTL for Arabic)
+    const sidebarSide = i18n.language === 'ar' ? 'right' : 'left';
 
     
     return (
         // sidebar container
-        <Sidebar collapsible="icon" variant="inset" className="bg-[#890505]">
+        <Sidebar collapsible="icon" variant="inset" side={sidebarSide} className="bg-[#890505]">
             <SidebarHeader>
                 <SidebarMenu className="">
                     <SidebarMenuItem>
@@ -194,7 +190,7 @@ export function AppSidebar() {
                                 {/* to be changed when user upload his picture */}
                                 <div className="flex w-full items-center justify-between gap-x-1">
                                     <img src="/images/Czm-white-logo.png" alt="profile-picture" className="size-10 fill-current object-cover" />
-                                    <span className="text-white">Centre Zawaj Maroc</span>
+                                    <span className="text-white">{t('common.centreZawajMaroc')}</span>
                                 </div>
                                 <div className="ml-1 grid flex-1 text-left text-sm">
                                     <span className="mb-0.5 truncate leading-none font-semibold">{}</span>
