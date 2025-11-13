@@ -39,18 +39,25 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('profiles', function (Blueprint $table) {
-            // Convert JSON arrays back to strings (take first element)
-            $profiles = \DB::table('profiles')->whereNotNull('pays_recherche')->get();
-            
-            foreach ($profiles as $profile) {
-                $decoded = json_decode($profile->pays_recherche, true);
-                if (is_array($decoded) && count($decoded) > 0) {
-                    \DB::table('profiles')->where('id', $profile->id)->update(['pays_recherche' => $decoded[0]]);
-                }
+            // Add a temporary string column
+            $table->string('pays_recherche_temp')->nullable()->after('pays_recherche');
+        });
+        
+        // Convert JSON arrays back to strings (take first element)
+        $profiles = \DB::table('profiles')->whereNotNull('pays_recherche')->get();
+        
+        foreach ($profiles as $profile) {
+            $decoded = json_decode($profile->pays_recherche, true);
+            if (is_array($decoded) && count($decoded) > 0) {
+                \DB::table('profiles')->where('id', $profile->id)->update(['pays_recherche_temp' => $decoded[0]]);
             }
-            
-            // Now change back to string
-            $table->string('pays_recherche')->nullable()->change();
+        }
+        
+        Schema::table('profiles', function (Blueprint $table) {
+            // Drop the JSON column
+            $table->dropColumn('pays_recherche');
+            // Rename temp column
+            $table->renameColumn('pays_recherche_temp', 'pays_recherche');
         });
     }
 };

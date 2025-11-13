@@ -27,7 +27,10 @@ return new class extends Migration
      */
     public function down(): void
     {
-        // Revert to enum without client_expire
+        // First, convert any existing 'client_expire' to 'client' before removing the enum value
+        DB::statement("UPDATE users SET status = 'client' WHERE status = 'client_expire'");
+        
+        // Then, revert to enum without client_expire
         DB::statement("ALTER TABLE users MODIFY COLUMN status ENUM('prospect', 'member', 'client') DEFAULT 'prospect'");
     }
 };

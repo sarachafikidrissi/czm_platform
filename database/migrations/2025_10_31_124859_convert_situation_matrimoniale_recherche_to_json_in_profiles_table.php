@@ -32,18 +32,25 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('profiles', function (Blueprint $table) {
-            // Convert JSON arrays back to strings (take first element)
-            $profiles = \DB::table('profiles')->whereNotNull('situation_matrimoniale_recherche')->get();
-            
-            foreach ($profiles as $profile) {
-                $decoded = json_decode($profile->situation_matrimoniale_recherche, true);
-                if (is_array($decoded) && count($decoded) > 0) {
-                    \DB::table('profiles')->where('id', $profile->id)->update(['situation_matrimoniale_recherche' => $decoded[0]]);
-                }
+            // Add a temporary string column
+            $table->string('situation_matrimoniale_recherche_temp')->nullable()->after('situation_matrimoniale_recherche');
+        });
+        
+        // Convert JSON arrays back to strings (take first element)
+        $profiles = \DB::table('profiles')->whereNotNull('situation_matrimoniale_recherche')->get();
+        
+        foreach ($profiles as $profile) {
+            $decoded = json_decode($profile->situation_matrimoniale_recherche, true);
+            if (is_array($decoded) && count($decoded) > 0) {
+                \DB::table('profiles')->where('id', $profile->id)->update(['situation_matrimoniale_recherche_temp' => $decoded[0]]);
             }
-            
-            // Now change back to string
-            $table->string('situation_matrimoniale_recherche')->nullable()->change();
+        }
+        
+        Schema::table('profiles', function (Blueprint $table) {
+            // Drop the JSON column
+            $table->dropColumn('situation_matrimoniale_recherche');
+            // Rename temp column
+            $table->renameColumn('situation_matrimoniale_recherche_temp', 'situation_matrimoniale_recherche');
         });
     }
 };

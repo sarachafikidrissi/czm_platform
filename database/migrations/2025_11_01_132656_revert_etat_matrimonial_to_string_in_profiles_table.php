@@ -56,16 +56,23 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('profiles', function (Blueprint $table) {
-            // Convert strings back to JSON arrays
-            $profiles = \DB::table('profiles')->whereNotNull('etat_matrimonial')->get();
-            
-            foreach ($profiles as $profile) {
-                $value = json_encode([$profile->etat_matrimonial]);
-                \DB::table('profiles')->where('id', $profile->id)->update(['etat_matrimonial' => $value]);
-            }
-            
-            // Change back to JSON
-            $table->json('etat_matrimonial')->nullable()->change();
+            // Add a temporary JSON column
+            $table->json('etat_matrimonial_temp')->nullable()->after('etat_matrimonial');
+        });
+        
+        // Convert strings back to JSON arrays
+        $profiles = \DB::table('profiles')->whereNotNull('etat_matrimonial')->get();
+        
+        foreach ($profiles as $profile) {
+            $value = json_encode([$profile->etat_matrimonial]);
+            \DB::table('profiles')->where('id', $profile->id)->update(['etat_matrimonial_temp' => $value]);
+        }
+        
+        Schema::table('profiles', function (Blueprint $table) {
+            // Drop the string column
+            $table->dropColumn('etat_matrimonial');
+            // Rename temp column
+            $table->renameColumn('etat_matrimonial_temp', 'etat_matrimonial');
         });
     }
 };
