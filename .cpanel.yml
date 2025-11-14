@@ -3,3 +3,4 @@ deployment:
   tasks:
     - export DEPLOYPATH=/home/czmma/public_html/platform.czm.ma
     - /bin/cp -r public/* $DEPLOYPATH
+    - 'npm run build'
