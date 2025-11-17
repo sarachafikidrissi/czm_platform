@@ -48,22 +48,22 @@ export default function UserSubscription() {
     return (
         <AppLayout>
             <Head title={t('subscription.title')} />
-            <div className="flex h-full flex-1 flex-col gap-6 rounded-xl p-6">
+            <div className="flex h-full flex-1 flex-col gap-4 sm:gap-6 rounded-xl p-4 sm:p-6">
                 {/* Page Header */}
                 <div className="flex flex-col gap-4">
                     <div className="flex items-center justify-between">
-                        <h1 className="text-3xl font-bold text-foreground">{t('subscription.title')}</h1>
+                        <h1 className="text-2xl sm:text-3xl font-bold text-foreground">{t('subscription.title')}</h1>
                     </div>
                     
                     {/* Decorative line with heart */}
                     <div className="flex items-center justify-center">
                         <div className="h-px bg-border flex-1"></div>
-                        <Heart className="w-4 h-4 text-error mx-4" />
+                        <Heart className="w-4 h-4 text-error mx-2 sm:mx-4" />
                         <div className="h-px bg-border flex-1"></div>
                     </div>
                     
                     {/* Status Banner */}
-                    <div className="flex items-center justify-between gap-4">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4">
                         {isPassiveMember ? (
                             <div className="bg-warning-light border border-warning rounded-lg p-4 flex-1">
                                 <div className="flex items-center gap-2">
@@ -90,7 +90,7 @@ export default function UserSubscription() {
                         
                         {isPassiveMember && (
                             <Button 
-                                className="bg-error hover:opacity-90 text-error-foreground rounded-lg px-6 py-2"
+                                className="bg-error hover:opacity-90 text-error-foreground rounded-lg px-4 sm:px-6 py-2 w-full sm:w-auto"
                                 onClick={() => setShowMatchmakerDialog(true)}
                             >
                                 {t('subscription.becomeClient')}
@@ -102,40 +102,73 @@ export default function UserSubscription() {
                 {/* Current Subscription Details */}
                 <Card>
                     <CardHeader>
-                        <CardTitle className="text-red-600 text-xl">{t('subscription.currentSubscription')}</CardTitle>
+                        <CardTitle className="text-red-600 text-lg sm:text-xl">{t('subscription.currentSubscription')}</CardTitle>
                     </CardHeader>
                     <CardContent>
                         {subscription ? (
                             <div className="space-y-4">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>{t('subscription.plan')}</TableHead>
-                                            <TableHead>{t('subscription.start')}</TableHead>
-                                            <TableHead>{t('subscription.expire')}</TableHead>
-                                            <TableHead>{t('common.status')}</TableHead>
-                                            <TableHead>{t('subscription.matchmaker')}</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        <TableRow>
-                                            <TableCell className="font-medium">
-                                                {subscription.matrimonial_pack?.name || 'N/A'}
-                                            </TableCell>
-                                            <TableCell>{formatDate(subscription.subscription_start)}</TableCell>
-                                            <TableCell>{formatDate(subscription.subscription_end)}</TableCell>
-                                            <TableCell>{getStatusBadge(subscription.status)}</TableCell>
-                                            <TableCell>
-                                                {subscription.assigned_matchmaker?.name || 'N/A'}
-                                            </TableCell>
-                                        </TableRow>
-                                    </TableBody>
-                                </Table>
+                                {/* Desktop Table View */}
+                                <div className="hidden md:block overflow-x-auto">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>{t('subscription.plan')}</TableHead>
+                                                <TableHead>{t('subscription.start')}</TableHead>
+                                                <TableHead>{t('subscription.expire')}</TableHead>
+                                                <TableHead>{t('common.status')}</TableHead>
+                                                <TableHead>{t('subscription.matchmaker')}</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            <TableRow>
+                                                <TableCell className="font-medium">
+                                                    {subscription.matrimonial_pack?.name || 'N/A'}
+                                                </TableCell>
+                                                <TableCell>{formatDate(subscription.subscription_start)}</TableCell>
+                                                <TableCell>{formatDate(subscription.subscription_end)}</TableCell>
+                                                <TableCell>{getStatusBadge(subscription.status)}</TableCell>
+                                                <TableCell>
+                                                    {subscription.assigned_matchmaker?.name || 'N/A'}
+                                                </TableCell>
+                                            </TableRow>
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                                
+                                {/* Mobile Card View */}
+                                <div className="md:hidden space-y-3">
+                                    <Card className="border">
+                                        <CardContent className="pt-4">
+                                            <div className="space-y-3">
+                                                <div>
+                                                    <span className="text-xs text-muted-foreground">{t('subscription.plan')}: </span>
+                                                    <span className="font-medium">{subscription.matrimonial_pack?.name || 'N/A'}</span>
+                                                </div>
+                                                <div>
+                                                    <span className="text-xs text-muted-foreground">{t('subscription.start')}: </span>
+                                                    <span>{formatDate(subscription.subscription_start)}</span>
+                                                </div>
+                                                <div>
+                                                    <span className="text-xs text-muted-foreground">{t('subscription.expire')}: </span>
+                                                    <span>{formatDate(subscription.subscription_end)}</span>
+                                                </div>
+                                                <div>
+                                                    <span className="text-xs text-muted-foreground">{t('common.status')}: </span>
+                                                    <div className="mt-1">{getStatusBadge(subscription.status)}</div>
+                                                </div>
+                                                <div>
+                                                    <span className="text-xs text-muted-foreground">{t('subscription.matchmaker')}: </span>
+                                                    <span>{subscription.assigned_matchmaker?.name || 'N/A'}</span>
+                                                </div>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                </div>
                                 
                                 {/* Pack Advantages */}
                                 {subscription.pack_advantages && subscription.pack_advantages.length > 0 && (
-                                    <div className="mt-6">
-                                        <h4 className="text-lg font-semibold text-gray-800 mb-3">{t('subscription.includedAdvantages')}</h4>
+                                    <div className="mt-4 sm:mt-6">
+                                        <h4 className="text-base sm:text-lg font-semibold text-gray-800 mb-3">{t('subscription.includedAdvantages')}</h4>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                                             {subscription.pack_advantages.map((advantage, index) => (
                                                 <div key={index} className="flex items-center gap-2 text-sm text-gray-700">
@@ -159,8 +192,8 @@ export default function UserSubscription() {
                 
                 {/* Subscription Type Explanation */}
                 <Card>
-                    <CardContent className="pt-6">
-                        <p className="text-gray-700 text-center">
+                    <CardContent className="pt-4 sm:pt-6">
+                        <p className="text-sm sm:text-base text-gray-700 text-center">
                             {t('subscription.subscriptionTypeExplanation')}{' '}
                             <span className="font-semibold text-green-600">{t('subscription.passiveMemberType')}</span>, {t('subscription.or')}{' '}
                             <span className="font-semibold text-red-600">{t('subscription.activeClientType')}</span>.
@@ -174,15 +207,17 @@ export default function UserSubscription() {
                         <CardTitle className="text-info">{t('subscription.advantages')}</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>{t('subscription.advantages')}</TableHead>
-                                    <TableHead className="text-center">{t('subscription.client')}</TableHead>
-                                    <TableHead className="text-center">{t('subscription.member')}</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
+                        {/* Desktop Table View */}
+                        <div className="hidden md:block overflow-x-auto">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>{t('subscription.advantages')}</TableHead>
+                                        <TableHead className="text-center">{t('subscription.client')}</TableHead>
+                                        <TableHead className="text-center">{t('subscription.member')}</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
                                 {/* Dynamic advantages from pack */}
                                 {(subscription?.pack_advantages && subscription.pack_advantages.length > 0) || 
                                  (profile?.pack_advantages && profile.pack_advantages.length > 0) ? (
@@ -252,8 +287,111 @@ export default function UserSubscription() {
                                         </TableRow>
                                     </>
                                 )}
-                            </TableBody>
-                        </Table>
+                                </TableBody>
+                            </Table>
+                        </div>
+                        
+                        {/* Mobile Card View */}
+                        <div className="md:hidden space-y-3">
+                            {((subscription?.pack_advantages && subscription.pack_advantages.length > 0) || 
+                              (profile?.pack_advantages && profile.pack_advantages.length > 0)) ? (
+                                (subscription?.pack_advantages || profile?.pack_advantages).map((advantage, index) => (
+                                    <Card key={index} className="border">
+                                        <CardContent className="pt-4">
+                                            <div className="space-y-3">
+                                                <div className="font-medium text-sm">{advantage}</div>
+                                                <div className="flex items-center justify-between pt-2 border-t">
+                                                    <span className="text-xs text-muted-foreground">{t('subscription.client')}</span>
+                                                    <Check className="w-5 h-5 text-green-600" />
+                                                </div>
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-xs text-muted-foreground">{t('subscription.member')}</span>
+                                                    <X className="w-5 h-5 text-gray-400" />
+                                                </div>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                ))
+                            ) : (
+                                <>
+                                    <Card className="border">
+                                        <CardContent className="pt-4">
+                                            <div className="space-y-3">
+                                                <div className="font-medium text-sm">{t('subscription.ownMatchmaker')}</div>
+                                                <div className="flex items-center justify-between pt-2 border-t">
+                                                    <span className="text-xs text-muted-foreground">{t('subscription.client')}</span>
+                                                    <Check className="w-5 h-5 text-green-600" />
+                                                </div>
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-xs text-muted-foreground">{t('subscription.member')}</span>
+                                                    <X className="w-5 h-5 text-gray-400" />
+                                                </div>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                    <Card className="border">
+                                        <CardContent className="pt-4">
+                                            <div className="space-y-3">
+                                                <div className="font-medium text-sm">{t('subscription.fullServicePriority')}</div>
+                                                <div className="flex items-center justify-between pt-2 border-t">
+                                                    <span className="text-xs text-muted-foreground">{t('subscription.client')}</span>
+                                                    <Check className="w-5 h-5 text-green-600" />
+                                                </div>
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-xs text-muted-foreground">{t('subscription.member')}</span>
+                                                    <X className="w-5 h-5 text-gray-400" />
+                                                </div>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                    <Card className="border">
+                                        <CardContent className="pt-4">
+                                            <div className="space-y-3">
+                                                <div className="font-medium text-sm">{t('subscription.carefullySelectedProposals')}</div>
+                                                <div className="flex items-center justify-between pt-2 border-t">
+                                                    <span className="text-xs text-muted-foreground">{t('subscription.client')}</span>
+                                                    <Check className="w-5 h-5 text-green-600" />
+                                                </div>
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-xs text-muted-foreground">{t('subscription.member')}</span>
+                                                    <X className="w-5 h-5 text-gray-400" />
+                                                </div>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                    <Card className="border">
+                                        <CardContent className="pt-4">
+                                            <div className="space-y-3">
+                                                <div className="font-medium text-sm">{t('subscription.personallyChosenMatches')}</div>
+                                                <div className="flex items-center justify-between pt-2 border-t">
+                                                    <span className="text-xs text-muted-foreground">{t('subscription.client')}</span>
+                                                    <Check className="w-5 h-5 text-green-600" />
+                                                </div>
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-xs text-muted-foreground">{t('subscription.member')}</span>
+                                                    <Check className="w-5 h-5 text-green-600" />
+                                                </div>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                    <Card className="border">
+                                        <CardContent className="pt-4">
+                                            <div className="space-y-3">
+                                                <div className="font-medium text-sm">{t('subscription.appointmentOrganization')}</div>
+                                                <div className="flex items-center justify-between pt-2 border-t">
+                                                    <span className="text-xs text-muted-foreground">{t('subscription.client')}</span>
+                                                    <Check className="w-5 h-5 text-green-600" />
+                                                </div>
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-xs text-muted-foreground">{t('subscription.member')}</span>
+                                                    <Check className="w-5 h-5 text-green-600" />
+                                                </div>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                </>
+                            )}
+                        </div>
                     </CardContent>
                 </Card>
 

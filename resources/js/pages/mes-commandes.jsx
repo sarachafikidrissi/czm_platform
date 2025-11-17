@@ -60,10 +60,10 @@ export default function MesCommandes({ bills = [] }) {
     return (
         <AppLayout>
             <Head title={t('orders.title')} />
-            <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
+            <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4 sm:p-6 min-w-0 overflow-x-hidden">
                 <div className="flex flex-col gap-3">
-                    <div className="flex items-center justify-between">
-                        <h1 className="text-2xl font-bold">{t('orders.title')}</h1>
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                        <h1 className="text-xl sm:text-2xl font-bold">{t('orders.title')}</h1>
                         <Badge variant="outline" className="flex items-center gap-2">
                             <ShoppingCart className="w-4 h-4" />
                             {t('orders.orders')}
@@ -71,40 +71,40 @@ export default function MesCommandes({ bills = [] }) {
                     </div>
                 </div>
 
-                <div className="grid gap-4">
+                <div className="grid gap-4 min-w-0">
                     {/* Pack Advantages Overview */}
                     {bills.length > 0 && bills.some(bill => bill.pack_advantages && bill.pack_advantages.length > 0) && (
-                        <Card>
+                        <Card className="min-w-0">
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2">
-                                    <span className="text-2xl">🎁</span>
-                                    {t('orders.includedAdvantages')}
+                                    <span className="text-xl sm:text-2xl">🎁</span>
+                                    <span className="text-base sm:text-lg">{t('orders.includedAdvantages')}</span>
                                 </CardTitle>
-                                <CardDescription>
+                                <CardDescription className="text-xs sm:text-sm">
                                     {t('orders.discoverAdvantages')}
                                 </CardDescription>
                             </CardHeader>
-                            <CardContent>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <CardContent className="min-w-0">
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 min-w-0">
                                     {bills.map((bill) => (
                                         bill.pack_advantages && bill.pack_advantages.length > 0 && (
-                                            <div key={bill.id} className="bg-info-light border border-info rounded-lg p-4">
-                                                <div className="flex items-center gap-2 mb-3">
-                                                    <Package className="w-5 h-5 text-info" />
-                                                    <h4 className="font-semibold text-info">{bill.pack_name}</h4>
+                                            <div key={bill.id} className="bg-info-light border border-info rounded-lg p-3 sm:p-4 min-w-0">
+                                                <div className="flex items-center gap-2 mb-3 min-w-0">
+                                                    <Package className="w-4 h-4 sm:w-5 sm:h-5 text-info flex-shrink-0" />
+                                                    <h4 className="font-semibold text-info text-sm sm:text-base break-words min-w-0">{bill.pack_name}</h4>
                                                 </div>
-                                                <div className="space-y-2">
+                                                <div className="space-y-2 min-w-0">
                                                     {bill.pack_advantages.map((advantage, index) => (
-                                                        <div key={index} className="flex items-start gap-2">
+                                                        <div key={index} className="flex items-start gap-2 min-w-0">
                                                             <CheckCircle className="w-4 h-4 text-success mt-0.5 flex-shrink-0" />
-                                                            <span className="text-sm text-foreground">{advantage}</span>
+                                                            <span className="text-xs sm:text-sm text-foreground break-words min-w-0">{advantage}</span>
                                                         </div>
                                                     ))}
                                                 </div>
                                                 <div className="mt-3 pt-3 border-t border-info">
-                                                    <div className="flex justify-between items-center">
-                                                        <span className="text-xs text-muted-foreground">{t('orders.order')}</span>
-                                                        <span className="text-xs font-medium text-info">{bill.order_number}</span>
+                                                    <div className="flex justify-between items-center min-w-0">
+                                                        <span className="text-xs text-muted-foreground flex-shrink-0">{t('orders.order')}</span>
+                                                        <span className="text-xs font-medium text-info break-all ml-2">{bill.order_number}</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -116,100 +116,197 @@ export default function MesCommandes({ bills = [] }) {
                     )}
 
                     {/* Orders Table */}
-                    <Card>
+                    <Card className="min-w-0">
                         <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <Package className="w-5 h-5" />
+                            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                                <Package className="w-4 h-4 sm:w-5 sm:h-5" />
                                 {t('orders.yourOrders')}
                             </CardTitle>
-                            <CardDescription>
+                            <CardDescription className="text-xs sm:text-sm">
                                 {t('orders.manageOrders')}
                             </CardDescription>
                         </CardHeader>
-                        <CardContent>
+                        <CardContent className="min-w-0">
                             {bills.length > 0 ? (
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead className="w-[120px]">{t('orders.orderNumber')}</TableHead>
-                                            <TableHead>{t('common.date')}</TableHead>
-                                            <TableHead>{t('orders.pack')}</TableHead>
-                                            <TableHead>{t('common.status')}</TableHead>
-                                            <TableHead>{t('orders.dueDate')}</TableHead>
-                                            <TableHead className="text-right">{t('common.amount')}</TableHead>
-                                            <TableHead className="w-[100px]">{t('common.actions')}</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {bills.map((bill) => (
-                                            <TableRow key={bill.id}>
-                                                <TableCell className="font-medium">
-                                                    {bill.order_number}
-                                                </TableCell>
-                                                <TableCell>
-                                                    {formatDate(bill.bill_date)}
-                                                </TableCell>
-                                                <TableCell>
-                                                    <div className="flex flex-col">
-                                                        <span className="font-medium text-info">{bill.pack_name}</span>
-                                                        {bill.pack_advantages && bill.pack_advantages.length > 0 && (
-                                                            <span className="text-xs text-muted-foreground">
-                                                                {bill.pack_advantages.length} {t('orders.advantage')}{bill.pack_advantages.length > 1 ? 's' : ''}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Badge 
-                                                        className={`capitalize ${
-                                                            bill.status === 'paid' 
-                                                                ? 'bg-success-bg text-success' 
-                                                                : 'bg-warning-light text-warning-foreground'
-                                                        }`}
-                                                    >
-                                                        {bill.status === 'paid' ? t('common.paid') : t('common.unpaid')}
-                                                    </Badge>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <div className="flex flex-col">
-                                                        <span>{formatDate(bill.due_date)}</span>
-                                                        {isOverdue(bill.due_date) && bill.status === 'unpaid' && (
-                                                            <Badge variant="destructive" className="text-xs mt-1">
-                                                                {t('common.overdue')}
+                                <>
+                                    {/* Desktop Table View */}
+                                    <div className="hidden md:block overflow-x-auto">
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow>
+                                                    <TableHead className="w-[120px]">{t('orders.orderNumber')}</TableHead>
+                                                    <TableHead>{t('common.date')}</TableHead>
+                                                    <TableHead>{t('orders.pack')}</TableHead>
+                                                    <TableHead>{t('common.status')}</TableHead>
+                                                    <TableHead>{t('orders.dueDate')}</TableHead>
+                                                    <TableHead className="text-right">{t('common.amount')}</TableHead>
+                                                    <TableHead className="w-[100px]">{t('common.actions')}</TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {bills.map((bill) => (
+                                                    <TableRow key={bill.id}>
+                                                        <TableCell className="font-medium">
+                                                            {bill.order_number}
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            {formatDate(bill.bill_date)}
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <div className="flex flex-col">
+                                                                <span className="font-medium text-info">{bill.pack_name}</span>
+                                                                {bill.pack_advantages && bill.pack_advantages.length > 0 && (
+                                                                    <span className="text-xs text-muted-foreground">
+                                                                        {bill.pack_advantages.length} {t('orders.advantage')}{bill.pack_advantages.length > 1 ? 's' : ''}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <Badge 
+                                                                className={`capitalize ${
+                                                                    bill.status === 'paid' 
+                                                                        ? 'bg-success-bg text-success' 
+                                                                        : 'bg-warning-light text-warning-foreground'
+                                                                }`}
+                                                            >
+                                                                {bill.status === 'paid' ? t('common.paid') : t('common.unpaid')}
                                                             </Badge>
-                                                        )}
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell className="text-right font-medium">
-                                                    {parseFloat(bill.total_amount).toLocaleString()} {bill.currency}
-                                                </TableCell>
-                                                <TableCell>
-                                                    <DropdownMenu>
-                                                        <DropdownMenuTrigger asChild>
-                                                            <Button variant="ghost" className="h-8 w-8 p-0">
-                                                                <MoreHorizontal className="h-4 w-4" />
-                                                            </Button>
-                                                        </DropdownMenuTrigger>
-                                                        <DropdownMenuContent align="end">
-                                                            <DropdownMenuItem onClick={() => handleViewInvoice(bill)}>
-                                                                <Eye className="mr-2 h-4 w-4" />
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <div className="flex flex-col">
+                                                                <span>{formatDate(bill.due_date)}</span>
+                                                                {isOverdue(bill.due_date) && bill.status === 'unpaid' && (
+                                                                    <Badge variant="destructive" className="text-xs mt-1">
+                                                                        {t('common.overdue')}
+                                                                    </Badge>
+                                                                )}
+                                                            </div>
+                                                        </TableCell>
+                                                        <TableCell className="text-right font-medium">
+                                                            {parseFloat(bill.total_amount).toLocaleString()} {bill.currency}
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <DropdownMenu>
+                                                                <DropdownMenuTrigger asChild>
+                                                                    <Button variant="ghost" className="h-8 w-8 p-0">
+                                                                        <MoreHorizontal className="h-4 w-4" />
+                                                                    </Button>
+                                                                </DropdownMenuTrigger>
+                                                                <DropdownMenuContent align="end">
+                                                                    <DropdownMenuItem onClick={() => handleViewInvoice(bill)}>
+                                                                        <Eye className="mr-2 h-4 w-4" />
+                                                                        {t('orders.viewInvoice')}
+                                                                    </DropdownMenuItem>
+                                                                    <DropdownMenuItem onClick={() => handleDownloadPDF(bill)}>
+                                                                        <Download className="mr-2 h-4 w-4" />
+                                                                        {t('orders.downloadPDF')}
+                                                                    </DropdownMenuItem>
+                                                                    <DropdownMenuItem onClick={() => handleSendEmail(bill)}>
+                                                                        <Mail className="mr-2 h-4 w-4" />
+                                                                        {t('orders.sendEmail')}
+                                                                    </DropdownMenuItem>
+                                                                </DropdownMenuContent>
+                                                            </DropdownMenu>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
+                                    </div>
+                                    
+                                    {/* Mobile Card View */}
+                                    <div className="md:hidden space-y-4 min-w-0">
+                                        {bills.map((bill) => (
+                                            <Card key={bill.id} className="border min-w-0">
+                                                <CardContent className="pt-4 sm:pt-6 px-3 sm:px-6">
+                                                    <div className="space-y-4 min-w-0">
+                                                        <div className="flex items-start justify-between gap-2 min-w-0">
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="flex items-center gap-2 mb-2 flex-wrap">
+                                                                    <Package className="w-4 h-4 text-info flex-shrink-0" />
+                                                                    <span className="font-semibold text-sm whitespace-nowrap">{t('orders.orderNumber')}</span>
+                                                                    <span className="font-medium text-sm break-all">{bill.order_number}</span>
+                                                                </div>
+                                                                <div className="text-xs sm:text-sm text-muted-foreground">
+                                                                    {formatDate(bill.bill_date)}
+                                                                </div>
+                                                            </div>
+                                                            <Badge 
+                                                                className={`capitalize flex-shrink-0 ${
+                                                                    bill.status === 'paid' 
+                                                                        ? 'bg-success-bg text-success' 
+                                                                        : 'bg-warning-light text-warning-foreground'
+                                                                }`}
+                                                            >
+                                                                {bill.status === 'paid' ? t('common.paid') : t('common.unpaid')}
+                                                            </Badge>
+                                                        </div>
+                                                        
+                                                        <div className="border-t pt-3 space-y-2 min-w-0">
+                                                            <div className="min-w-0">
+                                                                <span className="text-xs text-muted-foreground">{t('orders.pack')}: </span>
+                                                                <span className="font-medium text-info break-words">{bill.pack_name}</span>
+                                                                {bill.pack_advantages && bill.pack_advantages.length > 0 && (
+                                                                    <div className="text-xs text-muted-foreground mt-1">
+                                                                        {bill.pack_advantages.length} {t('orders.advantage')}{bill.pack_advantages.length > 1 ? 's' : ''}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                            
+                                                            <div className="min-w-0">
+                                                                <span className="text-xs text-muted-foreground">{t('orders.dueDate')}: </span>
+                                                                <span className="text-sm">{formatDate(bill.due_date)}</span>
+                                                                {isOverdue(bill.due_date) && bill.status === 'unpaid' && (
+                                                                    <Badge variant="destructive" className="text-xs mt-1 ml-2 inline-block">
+                                                                        {t('common.overdue')}
+                                                                    </Badge>
+                                                                )}
+                                                            </div>
+                                                            
+                                                            <div className="flex items-center justify-between pt-2 min-w-0">
+                                                                <span className="text-xs text-muted-foreground flex-shrink-0">{t('common.amount')}:</span>
+                                                                <span className="font-semibold text-base sm:text-lg break-all ml-2">
+                                                                    {parseFloat(bill.total_amount).toLocaleString()} {bill.currency}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        <div className="flex flex-col gap-2 pt-2 border-t">
+                                                            <Button 
+                                                                variant="outline" 
+                                                                size="sm" 
+                                                                className="w-full text-xs sm:text-sm"
+                                                                onClick={() => handleViewInvoice(bill)}
+                                                            >
+                                                                <Eye className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
                                                                 {t('orders.viewInvoice')}
-                                                            </DropdownMenuItem>
-                                                            <DropdownMenuItem onClick={() => handleDownloadPDF(bill)}>
-                                                                <Download className="mr-2 h-4 w-4" />
+                                                            </Button>
+                                                            <Button 
+                                                                variant="outline" 
+                                                                size="sm" 
+                                                                className="w-full text-xs sm:text-sm"
+                                                                onClick={() => handleDownloadPDF(bill)}
+                                                            >
+                                                                <Download className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
                                                                 {t('orders.downloadPDF')}
-                                                            </DropdownMenuItem>
-                                                            <DropdownMenuItem onClick={() => handleSendEmail(bill)}>
-                                                                <Mail className="mr-2 h-4 w-4" />
+                                                            </Button>
+                                                            <Button 
+                                                                variant="outline" 
+                                                                size="sm" 
+                                                                className="w-full text-xs sm:text-sm"
+                                                                onClick={() => handleSendEmail(bill)}
+                                                            >
+                                                                <Mail className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
                                                                 {t('orders.sendEmail')}
-                                                            </DropdownMenuItem>
-                                                        </DropdownMenuContent>
-                                                    </DropdownMenu>
-                                                </TableCell>
-                                            </TableRow>
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+                                                </CardContent>
+                                            </Card>
                                         ))}
-                                    </TableBody>
-                                </Table>
+                                    </div>
+                                </>
                             ) : (
                                 <div className="text-center py-8">
                                     <ShoppingCart className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
@@ -257,25 +354,25 @@ export default function MesCommandes({ bills = [] }) {
 
                 {/* Invoice Modal */}
                 {showInvoice && selectedInvoice && (
-                    <div className="fixed inset-0 bg-foreground/50 flex items-center justify-center z-50 p-4">
+                    <div className="fixed inset-0 bg-foreground/50 flex items-center justify-center z-50 p-2 sm:p-4">
                         <div className="bg-card rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-                            <div className="p-8">
+                            <div className="p-4 sm:p-6 lg:p-8">
                                 {/* Invoice Header */}
-                                <div className="flex justify-between items-start mb-8">
+                                <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-6 sm:mb-8">
                                     <div>
-                                        <h1 className="text-2xl font-bold text-foreground mb-2">
+                                        <h1 className="text-xl sm:text-2xl font-bold text-foreground mb-2">
                                             {t('common.centreZawajMaroc')}
                                         </h1>
-                                        <p className="text-muted-foreground">{t('orders.marriageService')}</p>
+                                        <p className="text-sm sm:text-base text-muted-foreground">{t('orders.marriageService')}</p>
                                     </div>
-                                    <div className="text-right">
-                                        <h2 className="text-xl font-bold text-foreground">{t('orders.invoice')}</h2>
-                                        <p className="text-sm text-muted-foreground">N° {selectedInvoice.bill_number}</p>
+                                    <div className="text-left sm:text-right">
+                                        <h2 className="text-lg sm:text-xl font-bold text-foreground">{t('orders.invoice')}</h2>
+                                        <p className="text-xs sm:text-sm text-muted-foreground">N° {selectedInvoice.bill_number}</p>
                                     </div>
                                 </div>
 
                                 {/* Invoice Details */}
-                                <div className="grid grid-cols-2 gap-8 mb-8">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-8 mb-6 sm:mb-8">
                                     <div>
                                         <h3 className="font-semibold text-gray-900 mb-2">{t('orders.billingDetails')}</h3>
                                         <div className="space-y-1 text-sm">
@@ -374,8 +471,8 @@ export default function MesCommandes({ bills = [] }) {
                                 </div>
 
                                 {/* Totals */}
-                                <div className="flex justify-end mb-8">
-                                    <div className="w-64 space-y-2">
+                                <div className="flex justify-end mb-6 sm:mb-8">
+                                    <div className="w-full sm:w-64 space-y-2">
                                         <div className="flex justify-between">
                                             <span>{t('orders.subtotal')}</span>
                                             <span>{parseFloat(selectedInvoice.amount).toLocaleString()} {selectedInvoice.currency}</span>
@@ -398,20 +495,24 @@ export default function MesCommandes({ bills = [] }) {
                                 </div>
 
                                 {/* Actions */}
-                                <div className="flex justify-between items-center pt-6 border-t">
-                                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pt-6 border-t">
+                                    <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
                                         <FileText className="w-4 h-4" />
                                         <span>{t('orders.documentGenerated')} {new Date().toLocaleDateString('fr-FR')}</span>
                                     </div>
-                                    <div className="flex gap-3">
+                                    <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
                                         <Button 
                                             variant="outline" 
+                                            className="w-full sm:w-auto"
                                             onClick={() => handleDownloadPDF(selectedInvoice)}
                                         >
                                             <Download className="w-4 h-4 mr-2" />
                                             {t('orders.downloadPDF')}
                                         </Button>
-                                        <Button onClick={() => setShowInvoice(false)}>
+                                        <Button 
+                                            className="w-full sm:w-auto"
+                                            onClick={() => setShowInvoice(false)}
+                                        >
                                             {t('common.close')}
                                         </Button>
                                     </div>
