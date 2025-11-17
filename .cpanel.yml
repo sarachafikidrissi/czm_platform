@@ -2,5 +2,22 @@
 deployment:
   tasks:
     - export DEPLOYPATH=/home/czmma/public_html/platform.czm.ma
-    - /bin/cp -r public/* $DEPLOYPATH
-    - 'npm run build'
+    - export REPODIR=/home/czmma/repositories/platform   # Git repo folder
+
+    # 1. Put site in maintenance mode
+    - php $DEPLOYPATH/artisan down --render="errors::503"
+
+    # 2. Sync all files from repo to live folder
+    - rsync -av --delete --exclude='.git' --exclude='node_modules' --exclude='vendor' $REPODIR/ $DEPLOYPATH/
+
+    # 3. Install PHP dependencies (if composer.lock changed)
+    - cd $DEPLOYPATH && composer install --no-dev -o
+
+    # 4. Run migrations (force in production)
+    - php $DEPLOYPATH/artisan migrate --force
+
+    # 5. Clear caches and optimize
+    - php $DEPLOYPATH/artisan optimize
+
+    # 6. Bring website back online
+    - php $DEPLOYPATH/artisan up
