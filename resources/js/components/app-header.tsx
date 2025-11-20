@@ -12,7 +12,7 @@ import { useInitials } from '@/hooks/use-initials';
 import { cn } from '@/lib/utils';
 import { type BreadcrumbItem, type NavItem, type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { BookOpen, Folder, LayoutGrid, Menu, Search } from 'lucide-react';
+import { BookOpen, Folder, LayoutGrid, Menu, Search, ArrowLeft } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import AppLogo from './app-logo';
 import AppLogoIcon from './app-logo-icon';
@@ -29,11 +29,16 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
     const getInitials = useInitials();
     const { t } = useTranslation();
 
+    const handleBack = () => {
+        window.history.back();
+    };
+
     const mainNavItems: NavItem[] = [
         {
             title: t('common.dashboard'),
             url: '/dashboard',
             icon: LayoutGrid,
+            roles: ['admin', 'user', 'matchmaker', 'manager'],
         },
     ];
 
@@ -42,11 +47,15 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
             title: t('navigation.repository'),
             url: 'https://github.com/laravel/react-starter-kit',
             icon: Folder,
+            roles: ['admin', 'user', 'matchmaker', 'manager'],
+
         },
         {
             title: t('navigation.documentation'),
             url: 'https://laravel.com/docs/starter-kits',
             icon: BookOpen,
+            roles: ['admin', 'user', 'matchmaker', 'manager'],
+
         },
     ];
 
@@ -101,9 +110,20 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
                         </Sheet>
                     </div>
 
-                    <Link href="/dashboard" prefetch className="flex items-center space-x-2">
-                        <AppLogo />
-                    </Link>
+                    <div className="flex items-center space-x-2">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={handleBack}
+                            className="h-9 w-9 mr-2"
+                            title="Go back"
+                        >
+                            <ArrowLeft className="h-5 w-5" />
+                        </Button>
+                        <Link href="/dashboard" prefetch className="flex items-center space-x-2">
+                            <AppLogo />
+                        </Link>
+                    </div>
 
                     {/* Desktop Navigation */}
                     <div className="ml-6 hidden h-full items-center space-x-6 lg:flex">
