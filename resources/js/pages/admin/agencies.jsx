@@ -43,7 +43,6 @@ export default function AdminAgencies() {
                 image: null,
                 map: editingAgency.map || '',
             };
-            console.log('Setting form data:', formData);
             setData(formData);
         } else {
             // Reset form when dialog closes
@@ -54,8 +53,6 @@ export default function AdminAgencies() {
 
     const handleUpdate = () => {
         if (!editingAgency) return;
-
-        console.log('Updating agency with data:', data);
         
         // Prepare the data to send
         // Note: Using POST route directly, no need for _method spoofing
@@ -71,10 +68,6 @@ export default function AdminAgencies() {
         if (data.image instanceof File) {
             updateData.image = data.image;
         }
-        
-        console.log('Prepared updateData:', updateData);
-        console.log('Data object:', data);
-        console.log('Editing agency ID:', editingAgency.id);
         
         // Use router.post with method spoofing for better compatibility with forceFormData
         router.post(`/admin/agencies/${editingAgency.id}`, updateData, {

@@ -74,8 +74,6 @@ export default function ValidatedProspects() {
     const paginatedProspects = filteredProspects.slice(startIndex, endIndex);
     const showingStart = filteredProspects.length > 0 ? startIndex + 1 : 0;
     const showingEnd = Math.min(endIndex, filteredProspects.length);
-    
-    console.log(prospects);
 
     const handleMarkAsClient = (userId) => {
         setLoading(prev => ({ ...prev, [userId]: true }));
@@ -1071,7 +1069,6 @@ export default function ValidatedProspects() {
                                                 input.accept = 'image/*';
                                                 input.onchange = (e) => {
                                                     // Handle file upload here
-                                                    console.log('File selected:', e.target.files[0]);
                                                 };
                                                 input.click();
                                             }}

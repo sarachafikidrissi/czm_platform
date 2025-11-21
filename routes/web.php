@@ -1,7 +1,6 @@
 <?php
 
 use App\Http\Controllers\ProfileController as MainProfileController;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -247,15 +246,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
                     }
                 }
             }
-
-            // Debug: Log the profile data
-            Log::info('Dashboard Profile Data:', [
-                'user_id' => $user->id,
-                'profile_exists' => $profile ? true : false,
-                'current_step' => $profile ? $profile->current_step : 'no profile',
-                'is_completed' => $profile ? $profile->is_completed : 'no profile',
-                'profile_data' => $profile ? $profile->toArray() : 'no profile'
-            ]);
 
             // Load recent posts from matchmakers and managers for user dashboard
             $matchmakerIds = \App\Models\User::role('matchmaker')

@@ -12,7 +12,6 @@ use App\Models\Agency;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Carbon\Carbon;
 
@@ -75,9 +74,6 @@ class MatchmakerStatisticsController extends Controller
                     'profile_insights' => $this->getProfileInsights($id, $startDate, $endDate),
                 ];
             } catch (\Exception $e) {
-                Log::error('Error getting statistics for matchmaker ' . $id . ': ' . $e->getMessage(), [
-                    'trace' => $e->getTraceAsString()
-                ]);
                 // Continue with next matchmaker instead of failing completely
                 continue;
             }
@@ -366,7 +362,6 @@ class MatchmakerStatisticsController extends Controller
             }
         } catch (\Exception $e) {
             // If join fails, just return empty array
-            Log::warning('Error getting pack distribution: ' . $e->getMessage());
             $packDistribution = [];
         }
 

@@ -9,8 +9,6 @@ export default function ProfileHeader({ user, profile, isOwnProfile, age }) {
     const { t } = useTranslation();
     const userRole = user?.roles?.[0]?.name || 'user';
 
-    console.log(user);
-
     return (
         <div className="relative">
             {/* Cover Image */}

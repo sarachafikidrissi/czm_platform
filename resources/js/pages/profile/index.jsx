@@ -133,7 +133,6 @@ export default function Profile({ auth, profile }) {
                     preserveScroll: true,
                     preserveState: true,
                     onSuccess: () => {
-                        console.log('Step saved successfully');
                         resolve(true);
                     },
                     onError: (errors) => {

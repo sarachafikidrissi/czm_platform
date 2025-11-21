@@ -17,11 +17,8 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
     const { t } = useTranslation();
     const { auth } = usePage().props;
     const isOwnProfile = auth?.user?.id === user?.id;
-    console.log(auth.user);
     
     const assignedMatchmakerId = auth.user['assigned_matchmaker']?.id;
-    console.log(user['id']);
-    
 
     // Get user role
     const userRole = user?.roles?.[0]?.name || 'user';

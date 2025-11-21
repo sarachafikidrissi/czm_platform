@@ -99,10 +99,6 @@ export default function Profile({ mustVerifyEmail, status }) {
     const submit = (e) => {
         e.preventDefault();
 
-        console.log('Form data before submission:', data);
-        console.log('Profile picture type:', typeof data.profile_picture);
-        console.log('Profile picture instanceof File:', data.profile_picture instanceof File);
-
         // For file uploads, we need to use a different approach with Inertia
         if (data.profile_picture && data.profile_picture instanceof File) {
             // Create a new form data object with all fields including the file
@@ -118,21 +114,12 @@ export default function Profile({ mustVerifyEmail, status }) {
                 profile_picture: data.profile_picture,
             };
 
-            console.log('Submitting with file using router:', submitData);
-
             // Use router.post directly for file uploads
             router.post(route('profile.update.post'), submitData, {
                 preserveScroll: true,
                 forceFormData: true,
-                onSuccess: () => {
-                    console.log('Upload successful');
-                },
-                onError: (errors) => {
-                    console.log('Upload errors:', errors);
-                },
             });
         } else {
-            console.log('Submitting without file');
             // No file, use regular form submission
             patch(route('profile.update'), {
                 preserveScroll: true,

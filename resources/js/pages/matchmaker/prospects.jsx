@@ -121,9 +121,6 @@ export default function MatchmakerProspects() {
         if (userRole === 'manager' && prospect.agency_id === userAgencyId) return true;
         return false;
     };
-    
-    console.log(prospects);
-    
 
     const handleValidate = (prospect) => {
         setSelectedProspect(prospect);

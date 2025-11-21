@@ -574,7 +574,6 @@ class MatchmakerController extends Controller
                 $user->assigned_matchmaker_id
             );
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error("Failed to create subscription for user {$user->id}: " . $e->getMessage());
             return redirect()->back()->with('error', 'Failed to create subscription. Please try again.');
         }
 
@@ -808,10 +807,7 @@ class MatchmakerController extends Controller
                 'email_sent' => true,
                 'email_sent_at' => now(),
             ]);
-            
-            \Illuminate\Support\Facades\Log::info("Bill email sent successfully to {$user->email} for bill {$bill->bill_number}");
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error("Failed to send bill email to {$user->email}: " . $e->getMessage());
             // Don't fail the bill process if email fails
         }
 
@@ -1077,8 +1073,7 @@ class MatchmakerController extends Controller
                 password: $password,
             ));
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error("Failed to send prospect credentials email to {$user->email}: " . $e->getMessage());
-            // Don't fail the creation if email fails, but log it
+            // Don't fail the creation if email fails
         }
 
         return redirect()->route('staff.agency-prospects')->with('success', 'Prospect créé avec succès. Les identifiants ont été envoyés par email.');

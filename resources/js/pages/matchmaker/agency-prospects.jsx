@@ -190,7 +190,6 @@ export default function AgencyProspects() {
         
         // Pre-fill from profile if user already provided
         const profile = prospect.profile;
-        console.log(profile);
         
         if (profile) {
             // Pre-fill CNI if user already provided it (show masked version)

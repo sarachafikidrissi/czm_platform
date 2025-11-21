@@ -146,7 +146,6 @@ class AdminController extends Controller
                     ]);
                 $message = "{$updated} prospects dispatched to matchmaker successfully.";
             } catch (\Exception $e) {
-                \Illuminate\Support\Facades\Log::error('Dispatch error: ' . $e->getMessage());
                 return redirect()->back()->with('error', 'An error occurred while dispatching prospects. Please try again.');
             }
         }
@@ -633,7 +632,6 @@ class AdminController extends Controller
 
             return redirect()->back()->with('success', $message);
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('Reassign error: ' . $e->getMessage());
             return redirect()->back()->with('error', 'An error occurred while reassigning prospects. Please try again.');
         }
     }

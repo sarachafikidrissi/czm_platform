@@ -9,7 +9,6 @@ export default function MatchmakerPage() {
     const { auth } = usePage().props;
     const { t } = useTranslation();
     const assignedMatchmaker = auth?.user?.assignedMatchmaker ?? auth?.user?.assigned_matchmaker ?? null;
-    console.log(assignedMatchmaker);
 
     return (
         <AppLayout breadcrumbs={[{ title: t('breadcrumbs.myMatchmaker'), href: '/matchmaker' }]}>

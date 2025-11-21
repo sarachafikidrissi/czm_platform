@@ -8,7 +8,6 @@ use App\Models\Bill;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Carbon\Carbon;
 
@@ -397,11 +396,6 @@ class ObjectiveController extends Controller
                 'details' => $details,
             ]);
         } catch (\Exception $e) {
-            \Log::error('Error fetching objective details: ' . $e->getMessage(), [
-                'trace' => $e->getTraceAsString(),
-                'request' => $request->all(),
-            ]);
-            
             return response()->json([
                 'error' => 'Failed to load details: ' . $e->getMessage(),
                 'type' => $request->input('type'),

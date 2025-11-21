@@ -21,7 +21,6 @@ export default function PostCard({ post }) {
 
     // Handle multiple images
     const imageUrls = post.media_urls || (post.media_url ? [post.media_url] : []);
-    console.log('matchmaker posts are ', post);
 
     const handleLike = () => {
         setIsLiking(true);

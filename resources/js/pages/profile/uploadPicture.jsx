@@ -81,8 +81,6 @@ function UploadPicture({ formData, setFormData }) {
         };
 
         img.src = objectUrl;
-        console.log(formData);
-        
     };
 
    
