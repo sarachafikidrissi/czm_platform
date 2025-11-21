@@ -370,7 +370,7 @@
     position: relative;
     min-height: 100vh;
     height: auto;
-    background-image: url('./images/Czm-arrière-site-web.jpg');
+    background-image: url('/images/Czm-arrière-site-web.jpg');
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
