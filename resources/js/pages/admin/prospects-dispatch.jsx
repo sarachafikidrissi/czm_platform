@@ -1,6 +1,7 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import axios from 'axios';
 import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -95,17 +96,17 @@ export default function ProspectsDispatch() {
             try {
                 setLoadingCountries(true);
                 setErrorCountries('');
-                const response = await fetch('https://countriesnow.space/api/v0.1/countries');
-                if (!response.ok) throw new Error('Failed to fetch countries');
-                const json = await response.json();
-                const list = Array.isArray(json?.data) ? json.data : [];
+                const response = await axios.get('/locations');
                 if (!isMounted) return;
-                const regionNamesFr = new Intl.DisplayNames(['fr'], { type: 'region' });
-                const normalized = list
+                
+                const countriesData = Array.isArray(response.data?.countries) ? response.data.countries : [];
+                
+                // Map: keep iso2 and cities; use existing frenchName from JSON
+                const normalized = countriesData
                     .filter((item) => item?.iso2)
                     .map((item) => ({
                         iso2: item.iso2,
-                        frenchName: regionNamesFr.of(item.iso2) || item.country,
+                        frenchName: item.frenchName || item.name,
                         cities: Array.isArray(item.cities) ? item.cities : [],
                     }))
                     .sort((a, b) => a.frenchName.localeCompare(b.frenchName, 'fr'));
@@ -113,8 +114,10 @@ export default function ProspectsDispatch() {
                     acc[item.iso2] = item.cities;
                     return acc;
                 }, {});
-                setCountries(normalized);
-                setCountryCodeToCities(codeToCities);
+                if (isMounted) {
+                    setCountries(normalized);
+                    setCountryCodeToCities(codeToCities);
+                }
             } catch (e) {
                 if (!isMounted) return;
                 setErrorCountries('Impossible de charger la liste des pays.');

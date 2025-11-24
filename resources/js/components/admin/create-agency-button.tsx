@@ -1,5 +1,6 @@
 import { useForm } from '@inertiajs/react';
 import { useTranslation } from 'react-i18next';
+import axios from 'axios';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -34,17 +35,17 @@ export default function CreateAgencyButton({ buttonLabel, className = '' }: { bu
             try {
                 setLoadingCountries(true);
                 setErrorCountries('');
-                const response = await fetch('https://countriesnow.space/api/v0.1/countries');
-                if (!response.ok) throw new Error('Failed to fetch countries');
-                const json = await response.json();
-                const list = Array.isArray(json?.data) ? json.data : [];
+                const response = await axios.get('/locations');
                 if (!isMounted) return;
-                const regionNamesFr = new Intl.DisplayNames(['fr'], { type: 'region' });
-                const normalized = list
+                
+                const countriesData = Array.isArray(response.data?.countries) ? response.data.countries : [];
+                
+                // Map: keep iso2 and cities; use existing frenchName from JSON
+                const normalized = countriesData
                     .filter((item: any) => item?.iso2)
                     .map((item: any) => ({
                         iso2: item.iso2 as string,
-                        frenchName: (regionNamesFr.of(item.iso2) as string) || (item.country as string),
+                        frenchName: item.frenchName || item.name,
                         cities: Array.isArray(item.cities) ? (item.cities as string[]) : [],
                     }))
                     .sort((a: any, b: any) => a.frenchName.localeCompare(b.frenchName, 'fr'));
@@ -52,8 +53,10 @@ export default function CreateAgencyButton({ buttonLabel, className = '' }: { bu
                     acc[item.iso2] = item.cities;
                     return acc;
                 }, {} as Record<string, string[]>);
-                setCountries(normalized);
-                setCountryCodeToCities(codeToCities);
+                if (isMounted) {
+                    setCountries(normalized);
+                    setCountryCodeToCities(codeToCities);
+                }
             } catch (e) {
                 if (!isMounted) return;
                 setErrorCountries(t('admin.createAgency.errorLoadingCountries'));

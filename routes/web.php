@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\LocationController;
 use App\Http\Controllers\ProfileController as MainProfileController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -7,6 +8,9 @@ use Inertia\Inertia;
 Route::get('/', function () {
     return Inertia::render('welcome');
 })->name('home');
+
+// Public route for locations data
+Route::get('/locations', [LocationController::class, 'getLocations'])->name('locations');
 // Route::get('/run-migrations', function () {
 //     // Run migrations
 //     Artisan::call('migrate', ['--force' => true]);

@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import axios from 'axios';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 
 const PersonalInfo = ({ formData, setFormData, gender }) => {
@@ -18,20 +19,19 @@ const PersonalInfo = ({ formData, setFormData, gender }) => {
             try {
                 setLoadingCountries(true);
                 setErrorCountries('');
-                const response = await fetch('https://countriesnow.space/api/v0.1/countries');
-                if (!response.ok) throw new Error('Failed to fetch countries');
-                const json = await response.json();
-                const list = Array.isArray(json?.data) ? json.data : [];
+                const response = await axios.get('/locations');
                 if (!isMounted) return;
                 
-                const regionNamesFr = new Intl.DisplayNames(['fr'], { type: 'region' });
-                const normalized = list
+                const countriesData = Array.isArray(response.data?.countries) ? response.data.countries : [];
+                
+                // Map: keep iso2 and cities; use existing frenchName from JSON
+                const normalized = countriesData
                     .filter((item) => item?.iso2)
                     .map((item) => ({
                         iso2: item.iso2,
                         iso3: item.iso3,
-                        englishName: item.country,
-                        frenchName: regionNamesFr.of(item.iso2) || item.country,
+                        englishName: item.name,
+                        frenchName: item.frenchName || item.name,
                         cities: Array.isArray(item.cities) ? item.cities : [],
                     }))
                     .sort((a, b) => a.frenchName.localeCompare(b.frenchName, 'fr'));
