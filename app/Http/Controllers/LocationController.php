@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\File;
+use App\Models\Secteur;
 
 class LocationController extends Controller
 {
@@ -46,6 +47,32 @@ class LocationController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'error' => 'Failed to load location data: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get all secteurs d'activité
+     *
+     * @return JsonResponse
+     */
+    public function getSecteurs(): JsonResponse
+    {
+        try {
+            if (!\Illuminate\Support\Facades\Schema::hasTable('secteurs')) {
+                return response()->json([
+                    'secteurs' => []
+                ]);
+            }
+
+            $secteurs = Secteur::orderBy('name')->get();
+            
+            return response()->json([
+                'secteurs' => $secteurs
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to load secteurs: ' . $e->getMessage()
             ], 500);
         }
     }

@@ -11,17 +11,8 @@ Route::get('/', function () {
 
 // Public route for locations data
 Route::get('/locations', [LocationController::class, 'getLocations'])->name('locations');
-// Route::get('/run-migrations', function () {
-//     // Run migrations
-//     Artisan::call('migrate', ['--force' => true]);
-
-//     // Run DatabaseSeeder
-//     Artisan::call('db:seed', ['--force' => true]);
-
-//     // Return output for debugging
-//     return Artisan::output();
-
-// });
+// Public route for secteurs data
+Route::get('/secteurs', [LocationController::class, 'getSecteurs'])->name('secteurs');
 Route::middleware(['auth'])->group(function () {
     Route::get('/profile', [MainProfileController::class, 'index'])->name('profile.index');
     Route::post('/profile', [MainProfileController::class, 'store'])->name('profile.store');
@@ -334,6 +325,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::put('/agencies/{agency}', [\App\Http\Controllers\AdminController::class, 'updateAgency'])->name('agencies.update.put');
         Route::delete('/agencies/{agency}', [\App\Http\Controllers\AdminController::class, 'deleteAgency'])->name('agencies.delete');
         Route::post('/services', [\App\Http\Controllers\AdminController::class, 'createService'])->name('services.create');
+        Route::post('/secteurs', [\App\Http\Controllers\AdminController::class, 'createSecteur'])->name('secteurs.create');
         Route::post('/matrimonial-packs', [\App\Http\Controllers\AdminController::class, 'createMatrimonialPack'])->name('matrimonial-packs.create');
         Route::post('/users/{user}/update-agency', [\App\Http\Controllers\AdminController::class, 'updateUserAgency'])->name('users.update-agency');
         Route::post('/users/{user}/update-role', [\App\Http\Controllers\AdminController::class, 'updateUserRole'])->name('users.update-role');

@@ -14,6 +14,7 @@ use App\Mail\StaffCredentialsMail;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use App\Models\Service;
+use App\Models\Secteur;
 
 class AdminController extends Controller
 {
@@ -39,12 +40,19 @@ class AdminController extends Controller
             $matrimonialPacks = MatrimonialPack::all();
         }
 
+        // Load secteurs
+        $secteurs = [];
+        if (\Illuminate\Support\Facades\Schema::hasTable('secteurs')) {
+            $secteurs = Secteur::orderBy('name')->get();
+        }
+
         return Inertia::render('admin/dashboard', [
             'managers' => $managers,
             'matchmakers' => $matchmakers,
             'agencies' => $agencies,
             'services' => $services,
             'matrimonialPacks' => $matrimonialPacks,
+            'secteurs' => $secteurs,
             'stats' => [
                 'totalUsers' => $totalUsers,
                 'pending' => $pendingCount,
@@ -255,6 +263,19 @@ class AdminController extends Controller
         Service::create(['name' => $request->name]);
 
         return redirect()->back()->with('success', 'Service created successfully.');
+    }
+
+    public function createSecteur(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255|unique:secteurs,name',
+        ]);
+
+        Secteur::create([
+            'name' => $request->name,
+        ]);
+
+        return redirect()->back()->with('success', 'Secteur d\'activité créé avec succès.');
     }
 
     public function createMatrimonialPack(Request $request)

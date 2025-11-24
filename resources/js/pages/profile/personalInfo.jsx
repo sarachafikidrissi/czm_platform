@@ -11,6 +11,8 @@ const PersonalInfo = ({ formData, setFormData, gender }) => {
     const [selectedOriginCountry, setSelectedOriginCountry] = useState('');
     const [loadingCountries, setLoadingCountries] = useState(false);
     const [errorCountries, setErrorCountries] = useState('');
+    const [secteurs, setSecteurs] = useState([]);
+    const [loadingSecteurs, setLoadingSecteurs] = useState(false);
 
     // Fetch countries and cities from API
     useEffect(() => {
@@ -53,6 +55,35 @@ const PersonalInfo = ({ formData, setFormData, gender }) => {
             }
         };
         fetchCountries();
+        return () => {
+            isMounted = false;
+        };
+    }, []);
+
+    // Fetch secteurs from API
+    useEffect(() => {
+        let isMounted = true;
+        const fetchSecteurs = async () => {
+            try {
+                setLoadingSecteurs(true);
+                const response = await axios.get('/secteurs');
+                if (!isMounted) return;
+                
+                const secteursData = Array.isArray(response.data?.secteurs) ? response.data.secteurs : [];
+                
+                if (isMounted) {
+                    setSecteurs(secteursData);
+                }
+            } catch (err) {
+                // Silently fail - we'll use hardcoded options as fallback
+                if (isMounted) {
+                    setSecteurs([]);
+                }
+            } finally {
+                if (isMounted) setLoadingSecteurs(false);
+            }
+        };
+        fetchSecteurs();
         return () => {
             isMounted = false;
         };
@@ -285,6 +316,7 @@ const PersonalInfo = ({ formData, setFormData, gender }) => {
                             className="w-full rounded-lg border border-border px-4 py-3 transition-colors focus:border-info focus:ring-2 focus:ring-info"
                         >
                             <option value="">Sélectionnez un secteur</option>
+                            {/* Default hardcoded options */}
                             <option value="agriculture">Agriculture</option>
                             <option value="artisanat">Artisanat</option>
                             <option value="assurance">Assurance</option>
@@ -310,6 +342,12 @@ const PersonalInfo = ({ formData, setFormData, gender }) => {
                             <option value="sante-social">Santé / Social</option>
                             <option value="services-entreprises">Services aux entreprises</option>
                             <option value="textile-habillement-cuir">Textile / Habillement / Cuir</option>
+                            {/* Dynamically loaded secteurs from database */}
+                            {secteurs.map((secteur) => (
+                                <option key={secteur.id} value={secteur.name}>
+                                    {secteur.name}
+                                </option>
+                            ))}
                         </select>
                     </div>
                 </div>

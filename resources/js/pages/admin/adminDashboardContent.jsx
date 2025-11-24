@@ -6,6 +6,7 @@ import { Users, UserCheck, Settings } from 'lucide-react';
 import CreateStaffButton from '@/components/admin/create-staff-button';
 import CreateAgencyButton from '@/components/admin/create-agency-button';
 import CreateServiceButton from '@/components/admin/create-service-button';
+import CreateSecteurButton from '@/components/admin/create-secteur-button';
 import CreateMatrimonialPackButton from '@/components/admin/create-matrimonial-pack-button';
 
 function AdminDashboardContent({ agencies = [], stats = { totalUsers: 0, pending: 0, approvedManagers: 0, approvedMatchmakers: 0 } }) {
@@ -88,6 +89,7 @@ function AdminDashboardContent({ agencies = [], stats = { totalUsers: 0, pending
                         <CreateStaffButton className="" agencies={agencies} />
                         <CreateAgencyButton className=" justify-start" />
                         <CreateServiceButton className=" justify-start" />
+                        <CreateSecteurButton className=" justify-start" />
                         <CreateMatrimonialPackButton className=" justify-start" />
                     </CardContent>
                 </Card>
