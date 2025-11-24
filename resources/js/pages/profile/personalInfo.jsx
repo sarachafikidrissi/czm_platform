@@ -304,6 +304,7 @@ const PersonalInfo = ({ formData, setFormData, gender }) => {
                     </div>
 
                     <div>
+                        <span className='text-red-500 capitalize'>hello</span>
                         <label htmlFor="secteur" className="mb-1 block text-sm font-medium text-gray-700">
                             Secteur d'activité
                         </label>
@@ -345,7 +346,7 @@ const PersonalInfo = ({ formData, setFormData, gender }) => {
                             {/* Dynamically loaded secteurs from database */}
                             {secteurs.map((secteur) => (
                                 <option key={secteur.id} value={secteur.name}>
-                                    {secteur.name}
+                                    {secteur.name.charAt(0).toUpperCase() + secteur.name.slice(1)}
                                 </option>
                             ))}
                         </select>

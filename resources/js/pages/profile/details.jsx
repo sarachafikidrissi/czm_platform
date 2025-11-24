@@ -297,7 +297,22 @@ function Details({ formData, setFormData, gender }) {
                             <span className="ml-2 text-sm text-gray-700">Pub</span>
                         </label>
                     </div>
-                        {formData.heardAboutUs === 'pub' && (
+                    {formData.heardAboutUs === 'recommande' && (
+                        <div className="mt-3">
+                            <label htmlFor="heardAboutReference" className="mb-1 block text-sm font-medium text-gray-700">D'où avez-vous été recommandé ? *</label>
+                            <p className="text-sm font-medium text-gray-700 mb-1" dir="rtl">من أين تم التوصية بك؟</p>
+                            <input
+                                type="text"
+                                id="heardAboutReference"
+                                name="heardAboutReference"
+                                value={formData.heardAboutReference || ''}
+                                onChange={handleInputChange}
+                                placeholder="Indiquez d'où vous avez été recommandé (nom de la personne, organisation, etc.)"
+                                className="w-full rounded-lg border border-gray-300 px-4 py-3 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                            />
+                        </div>
+                    )}
+                    {formData.heardAboutUs === 'pub' && (
                         <div className="mt-3">
                             <label htmlFor="heardAboutReference" className="mb-1 block text-sm font-medium text-gray-700">Référence de l'inscription</label>
                             <p className="text-sm font-medium text-gray-700 mb-1" dir="rtl">مرجع التسجيل</p>

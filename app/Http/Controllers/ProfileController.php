@@ -201,8 +201,8 @@ class ProfileController extends Controller
             }
         }
 
-        // If pub is selected, require reference
-        if ($request->string('heardAboutUs')->toString() === 'pub') {
+        // If pub or recommande is selected, require reference
+        if ($request->string('heardAboutUs')->toString() === 'pub' || $request->string('heardAboutUs')->toString() === 'recommande') {
             $rules['heardAboutReference'] = 'required|string|max:255';
         }
         $request->validate($rules);

@@ -537,15 +537,21 @@ export default function ProfileInfo() {
                                         className="w-full rounded-lg border border-border bg-muted px-4 py-3 text-foreground"
                                     />
                                 </div>
-                                <div>
-                                    <label className="mb-1 block text-sm font-medium text-foreground">Référence de l'inscription</label>
-                                    <input
-                                        type="text"
-                                        value={profile.heardAboutReference || t('profile.notSpecified')}
-                                        disabled
-                                        className="w-full rounded-lg border border-border bg-muted px-4 py-3 text-foreground"
-                                    />
-                                </div>
+                                {profile.heardAboutUs === 'recommande' || profile.heardAboutUs === 'pub' ? (
+                                    <div>
+                                        <label className="mb-1 block text-sm font-medium text-foreground">
+                                            {profile.heardAboutUs === 'recommande' 
+                                                ? "D'où avez-vous été recommandé ?" 
+                                                : "Référence de l'inscription"}
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={profile.heardAboutReference || t('profile.notSpecified')}
+                                            disabled
+                                            className="w-full rounded-lg border border-border bg-muted px-4 py-3 text-foreground"
+                                        />
+                                    </div>
+                                ) : null}
                             </div>
                         </div>
                     </div>
