@@ -735,6 +735,7 @@ export default function ValidatedProspects() {
                                     <SelectItem value="Caisse agence">Caisse agence</SelectItem>
                                     <SelectItem value="Chèque">Chèque</SelectItem>
                                     <SelectItem value="CMI">CMI</SelectItem>
+                                    <SelectItem value="TPE">TPE</SelectItem>
                                     <SelectItem value="Avance">Avance</SelectItem>
                                     <SelectItem value="Reliquat">Reliquat</SelectItem>
                                     <SelectItem value="RDV">RDV</SelectItem>

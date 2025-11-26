@@ -10,7 +10,7 @@ import { BookOpen, Camera, Facebook, Heart, Instagram, Linkedin, MapPin, Message
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-export default function UserProfile({ user, profile, agency, matchmakerNotes = [], matchmakerEvaluation = null }) {
+export default function UserProfile({ user, profile, agency, matchmakerNotes = [], matchmakerEvaluation = null, photos = [] }) {
     const { t } = useTranslation();
     const { auth } = usePage().props;
     const isOwnProfile = auth?.user?.id === user?.id;
@@ -53,6 +53,14 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
     
     // Write permissions: only assigned matchmaker can write/edit/delete
     const canWrite = viewerRole === 'matchmaker' && user?.assigned_matchmaker_id === auth?.user?.id;
+
+    // Visibility for photos: user themselves, assigned matchmaker, or manager of their agency
+    const canViewPhotos = 
+        isOwnProfile ||
+        (viewerRole === 'admin') ||
+        (viewerRole === 'matchmaker' && user?.assigned_matchmaker_id === auth?.user?.id) ||
+        (viewerRole === 'manager' && user?.agency_id && user?.agency_id === auth?.user?.agency_id);
+        (viewerRole === 'manager' && user?.agency_id && user?.agency_id === auth?.user?.agency_id);
 
     // Notes form
     const [newNote, setNewNote] = useState('');
@@ -536,7 +544,12 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                                 {/* Tabs for regular users */}
                             {userRole === 'user' && (
-                                    <TabsList className={`grid h-auto w-full rounded-none border-b bg-white p-0 ${canManage ? 'grid-cols-4' : 'grid-cols-3'}`}>
+                                    <TabsList className={`grid h-auto w-full rounded-none border-b bg-white p-0 ${
+                                        canManage && canViewPhotos ? 'grid-cols-5' : 
+                                        canManage ? 'grid-cols-4' : 
+                                        canViewPhotos ? 'grid-cols-4' : 
+                                        'grid-cols-3'
+                                    }`}>
                                         <TabsTrigger
                                             value="personal"
                                             className="rounded-none px-4 py-3 data-[state=active]:border-b-2 data-[state=active]:border-[#096725] data-[state=active]:text-[#096725]"
@@ -555,6 +568,14 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                         >
                                             Profil recherché
                                         </TabsTrigger>
+                                        {canViewPhotos && (
+                                            <TabsTrigger
+                                                value="photos"
+                                                className="rounded-none px-4 py-3 data-[state=active]:border-b-2 data-[state=active]:border-[#096725] data-[state=active]:text-[#096725]"
+                                            >
+                                                Photos
+                                            </TabsTrigger>
+                                        )}
                                         {canManage && (
                                             <TabsTrigger
                                                 value="notes"
@@ -1174,6 +1195,42 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                     </Card>
                                     </TabsContent>
                             )}
+
+                                {/* Tab: Photos - Only for users, visible to user, matchmaker, and manager */}
+                                {userRole === 'user' && canViewPhotos && (
+                                    <TabsContent value="photos" className="mt-6 space-y-6">
+                                        <Card className="border-gray-200 bg-white">
+                                            <CardContent className="p-6">
+                                                <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-gray-900">
+                                                    <Camera className="h-5 w-5 text-[#096725]" />
+                                                    Photos
+                                                </h3>
+                                                {photos && photos.length > 0 ? (
+                                                    <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
+                                                        {photos.map((photo) => (
+                                                            <div key={photo.id} className="aspect-square overflow-hidden rounded-lg border border-gray-200 bg-gray-100">
+                                                                <img
+                                                                    src={photo.url}
+                                                                    alt={photo.file_name || 'User photo'}
+                                                                    className="h-full w-full object-cover"
+                                                                    onError={(e) => {
+                                                                        e.target.onerror = null;
+                                                                        e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200"%3E%3Crect fill="%23e5e7eb" width="200" height="200"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dominant-baseline="middle" fill="%239ca3af" font-family="Arial" font-size="14"%3EImage non disponible%3C/text%3E%3C/svg%3E';
+                                                                    }}
+                                                                />
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    <div className="py-12 text-center text-gray-500">
+                                                        <Camera className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                                                        <p>Aucune photo téléchargée</p>
+                                                    </div>
+                                                )}
+                                            </CardContent>
+                                        </Card>
+                                    </TabsContent>
+                                )}
                             </Tabs>
                         </div>
                                     </div>

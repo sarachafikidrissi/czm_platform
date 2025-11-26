@@ -27,14 +27,15 @@ class StaffSeeder extends Seeder
                 'username' => 'admin',
                 'condition' => true,
                 'email_verified_at' => now(),
+                'approval_status' => 'approved',
             ]
         );
         $admin->assignRole('admin');
 
         // Create Manager User
         $manager = User::create(
-            ['email' => 'manager@matrimony.com',
-            
+            [
+                'email' => 'manager@matrimony.com',
                 'name' => 'Site Manager',
                 'password' => Hash::make('manager123'),
                 'phone' => '+212600000002',
@@ -44,14 +45,15 @@ class StaffSeeder extends Seeder
                 'username' => 'manager',
                 'condition' => true,
                 'email_verified_at' => now(),
+                'approval_status' => 'approved',
             ]
         );
         $manager->assignRole('manager');
 
         // Create Matchmaker User
         $matchmaker = User::create(
-            ['email' => 'matchmaker@matrimony.com',
-            
+            [
+                'email' => 'matchmaker@matrimony.com',
                 'name' => 'Professional Matchmaker',
                 'password' => Hash::make('matchmaker123'),
                 'phone' => '+212600000003',
@@ -61,6 +63,7 @@ class StaffSeeder extends Seeder
                 'username' => 'matchmaker',
                 'condition' => true,
                 'email_verified_at' => now(),
+                'approval_status' => 'approved',
             ]
         );
         $matchmaker->assignRole('matchmaker');

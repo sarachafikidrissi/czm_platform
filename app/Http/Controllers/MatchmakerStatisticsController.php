@@ -12,6 +12,7 @@ use App\Models\Agency;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Carbon\Carbon;
 
@@ -58,12 +59,19 @@ class MatchmakerStatisticsController extends Controller
                 $matchmaker = User::find($id);
                 if (!$matchmaker) continue;
 
+                // Always create statistics object, even if matchmaker has no data yet
+                // This ensures newly registered matchmakers see empty statistics instead of "no data" message
+                $agencyName = null;
+                if ($matchmaker->agency_id) {
+                    $agency = $matchmaker->agency()->first();
+                    $agencyName = $agency ? $agency->name : null;
+                }
                 $statistics[] = [
                     'matchmaker_id' => $id,
                     'matchmaker_name' => $matchmaker->name,
                     'matchmaker_email' => $matchmaker->email,
                     'agency_id' => $matchmaker->agency_id,
-                    'agency_name' => $matchmaker->agency ? $matchmaker->agency->name : null,
+                    'agency_name' => $agencyName,
                     'users' => $this->getUserStatistics($id, $startDate, $endDate),
                     'bills' => $this->getBillStatistics($id, $startDate, $endDate),
                     'subscriptions' => $this->getSubscriptionStatistics($id, $startDate, $endDate),
@@ -74,8 +82,32 @@ class MatchmakerStatisticsController extends Controller
                     'profile_insights' => $this->getProfileInsights($id, $startDate, $endDate),
                 ];
             } catch (\Exception $e) {
-                // Continue with next matchmaker instead of failing completely
-                continue;
+                // Log the exception for debugging but continue with next matchmaker
+                Log::error('Error generating statistics for matchmaker ' . $id . ': ' . $e->getMessage());
+                // Still create a basic stat object so the matchmaker sees something
+                $matchmaker = User::find($id);
+                if ($matchmaker) {
+                    $agencyName = null;
+                    if ($matchmaker->agency_id) {
+                        $agency = $matchmaker->agency()->first();
+                        $agencyName = $agency ? $agency->name : null;
+                    }
+                    $statistics[] = [
+                        'matchmaker_id' => $id,
+                        'matchmaker_name' => $matchmaker->name,
+                        'matchmaker_email' => $matchmaker->email,
+                        'agency_id' => $matchmaker->agency_id,
+                        'agency_name' => $agencyName,
+                        'users' => $this->getEmptyUserStatistics(),
+                        'bills' => $this->getEmptyBillStatistics(),
+                        'subscriptions' => $this->getEmptySubscriptionStatistics(),
+                        'evaluations' => $this->getEmptyEvaluationStatistics(),
+                        'notes' => $this->getEmptyNoteStatistics(),
+                        'objectives' => $this->getEmptyObjectiveStatistics(),
+                        'activity' => $this->getEmptyActivityStatistics(),
+                        'profile_insights' => $this->getEmptyProfileInsights(),
+                    ];
+                }
             }
         }
 
@@ -644,6 +676,125 @@ class MatchmakerStatisticsController extends Controller
             'country_distribution' => $countryDistribution,
             'city_distribution' => $cityDistribution,
             'pack_preferences' => $packPreferences,
+        ];
+    }
+
+    /**
+     * Get empty statistics structures for error handling
+     */
+    private function getEmptyUserStatistics()
+    {
+        return [
+            'total_assigned' => 0,
+            'by_status' => [],
+            'active' => 0,
+            'inactive' => 0,
+            'validated' => 0,
+            'validation_trends' => [],
+            'status_changes' => [],
+            'funnel' => [
+                'prospect' => 0,
+                'member' => 0,
+                'client' => 0,
+                'client_expire' => 0,
+            ],
+        ];
+    }
+
+    private function getEmptyBillStatistics()
+    {
+        return [
+            'total_sales' => 0.0,
+            'sales_count' => 0,
+            'by_status' => [],
+            'trends' => [],
+            'average_amount' => 0.0,
+            'payment_methods' => [],
+            'email_sent' => 0,
+            'email_not_sent' => 0,
+        ];
+    }
+
+    private function getEmptySubscriptionStatistics()
+    {
+        return [
+            'active_count' => 0,
+            'expired_count' => 0,
+            'average_duration' => 0.0,
+            'pack_distribution' => [],
+            'earliest_start' => null,
+            'latest_end' => null,
+        ];
+    }
+
+    private function getEmptyEvaluationStatistics()
+    {
+        return [
+            'total' => 0,
+            'by_status' => [],
+            'recommendations' => [],
+            'avg_scores' => [],
+        ];
+    }
+
+    private function getEmptyNoteStatistics()
+    {
+        return [
+            'total' => 0,
+            'notes_per_user' => [],
+            'trends' => [],
+            'average_per_user' => 0.0,
+        ];
+    }
+
+    private function getEmptyObjectiveStatistics()
+    {
+        return [
+            'target_ventes' => 0,
+            'target_membres' => 0,
+            'target_rdv' => 0,
+            'target_match' => 0,
+            'realized_ventes' => 0,
+            'realized_membres' => 0,
+            'realized_rdv' => 0,
+            'realized_match' => 0,
+            'progress' => [
+                'ventes' => 0,
+                'membres' => 0,
+                'rdv' => 0,
+                'match' => 0,
+            ],
+        ];
+    }
+
+    private function getEmptyActivityStatistics()
+    {
+        return [
+            'activity' => [
+                'bills_created' => 0,
+                'users_validated' => 0,
+                'notes_created' => 0,
+                'evaluations_created' => 0,
+            ],
+            'first_validation' => null,
+            'last_activity' => null,
+        ];
+    }
+
+    private function getEmptyProfileInsights()
+    {
+        return [
+            'gender_distribution' => [],
+            'age_distribution' => [
+                '18-25' => 0,
+                '26-35' => 0,
+                '36-45' => 0,
+                '46-55' => 0,
+                '56+' => 0,
+            ],
+            'country_distribution' => [],
+            'city_distribution' => [],
+            'pack_preferences' => [],
         ];
     }
 }

@@ -7,6 +7,7 @@ use App\Models\Post;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
 class UserController extends Controller
@@ -108,7 +109,7 @@ class UserController extends Controller
         $user = User::with(['profile', 'agency', 'roles', 'posts' => function($query) {
                 $query->with(['user.profile','user', 'likes', 'comments.user.roles', 'comments.user.profile'])
                       ->orderBy('created_at', 'desc');
-            }])
+            }, 'photos'])
             ->where('username', $username)
             ->firstOrFail();
         
@@ -159,12 +160,43 @@ class UserController extends Controller
 
         $evaluation = \App\Models\MatchmakerEvaluation::where('user_id', $user->id)->first();
 
+        // Format photos for frontend - ensure photos are loaded
+        $photos = collect([]);
+        if ($user->relationLoaded('photos') && $user->photos && $user->photos->isNotEmpty()) {
+            $photos = $user->photos->map(function ($photo) {
+                $filePath = $photo->file_path;
+                
+                // Generate URL - for public disk, use /storage/ prefix
+                $url = null;
+                if ($filePath) {
+                    // Remove any leading slashes or storage/ prefix if present
+                    $cleanPath = ltrim($filePath, '/');
+                    $cleanPath = preg_replace('#^storage/#', '', $cleanPath);
+                    
+                    // Build the correct storage URL
+                    $url = '/storage/' . $cleanPath;
+                }
+                
+                return [
+                    'id' => $photo->id,
+                    'file_path' => $filePath,
+                    'file_name' => $photo->file_name ?? 'photo',
+                    'url' => $url,
+                    'created_at' => $photo->created_at,
+                ];
+            })->filter(function ($photo) {
+                // Filter out photos with no file path or URL
+                return !empty($photo['file_path']) && !empty($photo['url']);
+            })->values();
+        }
+
         return Inertia::render('user/profile', [
             'user' => $user,
             'profile' => $user->profile,
             'agency' => $user->agency,
             'matchmakerNotes' => $notes,
             'matchmakerEvaluation' => $evaluation,
+            'photos' => $photos,
         ]);
     }
 

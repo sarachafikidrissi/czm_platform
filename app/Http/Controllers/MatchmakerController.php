@@ -154,7 +154,7 @@ class MatchmakerController extends Controller
             'pack_price' => 'required|numeric|min:0',
             'pack_advantages' => 'required|array|min:1',
             'pack_advantages.*' => 'string|in:Suivi et accompagnement personnalisé,Suivi et accompagnement approfondi,Suivi et accompagnement premium,Suivi et accompagnement exclusif avec assistance personnalisée,Rendez-vous avec des profils compatibles,Rendez-vous avec des profils correspondant à vos attentes,Rendez-vous avec des profils soigneusement sélectionnés,Rendez-vous illimités avec des profils rigoureusement sélectionnés,Formations pré-mariage avec le profil choisi,Formations pré-mariage avancées avec le profil choisi,Accès prioritaire aux nouveaux profils,Accès prioritaire aux profils VIP,Réduction à vie sur les séances de conseil conjugal et coaching familial (-10% à -25%)',
-            'payment_mode' => 'required|string|in:Virement,Caisse agence,Chèque,CMI,Avance,Reliquat,RDV',
+            'payment_mode' => 'required|string|in:Virement,Caisse agence,Chèque,CMI,TPE,Avance,Reliquat,RDV',
         ];
         
         // CNI is required only if user didn't provide it
@@ -770,7 +770,7 @@ class MatchmakerController extends Controller
             'pack_price' => 'required|numeric|min:0',
             'pack_advantages' => 'required|array|min:1',
             'pack_advantages.*' => 'string',
-            'payment_mode' => 'required|string|in:Virement,Caisse agence,Chèque,CMI,Avance,Reliquat,RDV',
+            'payment_mode' => 'required|string|in:Virement,Caisse agence,Chèque,CMI,TPE,Avance,Reliquat,RDV',
         ]);
 
         $me = Auth::user();
