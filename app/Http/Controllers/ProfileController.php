@@ -57,9 +57,13 @@ class ProfileController extends Controller
                 'childrenCount' => $profile->children_count,
                 'childrenGuardian' => $profile->children_guardian,
                 'hijabChoice' => $profile->hijab_choice,
+                'situationSante' => is_array($profile->situation_sante) 
+                    ? $profile->situation_sante 
+                    : ($profile->situation_sante ? [$profile->situation_sante] : []),
                 
                 // Step 3
                 'ageMinimum' => $profile->age_minimum,
+                'ageMaximum' => $profile->age_maximum,
                 'situationMatrimonialeRecherche' => is_array($profile->situation_matrimoniale_recherche) 
                     ? $profile->situation_matrimoniale_recherche 
                     : ($profile->situation_matrimoniale_recherche ? [$profile->situation_matrimoniale_recherche] : []),
@@ -166,7 +170,7 @@ class ProfileController extends Controller
             'dateNaissance' => 'required|date',
             'niveauEtudes' => 'required|string',
             'situationProfessionnelle' => 'required|string',
-            'heardAboutUs' => 'nullable|string|in:recommande,passage,pub',
+            'heardAboutUs' => 'nullable|string|in:recommande,passage,pub,online_ads,google_search,youtube_video,facebook_post,instagram_post,tiktok_video,collaboration,phone_call',
             'heardAboutReference' => 'nullable|string|max:255',
         ]);
     }
@@ -189,9 +193,26 @@ class ProfileController extends Controller
             'childrenCount' => 'nullable|integer|min:0|max:20',
             'childrenGuardian' => 'nullable|in:mother,father',
             'hijabChoice' => 'nullable|in:voile,non_voile,niqab,idea_niqab,idea_hijab',
-            'heardAboutUs' => 'required|string|in:recommande,passage,pub',
+            'situationSante' => 'nullable',
+            'heardAboutUs' => 'required|string|in:recommande,passage,pub,online_ads,google_search,youtube_video,facebook_post,instagram_post,tiktok_video,collaboration,phone_call',
             'heardAboutReference' => 'nullable|string|max:255',
         ];
+        
+        // Validate situationSante values if provided
+        if ($request->filled('situationSante')) {
+            $situationSante = $request->situationSante;
+            $situationArray = is_string($situationSante) ? json_decode($situationSante, true) : $situationSante;
+            if (is_array($situationArray)) {
+                $validValues = ['sante_tres_bonne', 'maladie_chronique', 'personne_handicap', 'non_voyant_malvoyant', 'cecite_totale', 'troubles_psychiques', 'autres'];
+                foreach ($situationArray as $value) {
+                    if (!in_array($value, $validValues)) {
+                        throw \Illuminate\Validation\ValidationException::withMessages([
+                            'situationSante' => ['Valeur invalide pour la situation de santé: ' . $value],
+                        ]);
+                    }
+                }
+            }
+        }
 
         // If divorced, require children details if hasChildren = true
         if ($request->etatMatrimonial === 'divorce') {
@@ -212,6 +233,7 @@ class ProfileController extends Controller
     {
         $rules = [
             'ageMinimum' => 'required|integer|min:18|max:100',
+            'ageMaximum' => 'required|integer|min:18|max:100|gt:ageMinimum',
             'situationMatrimonialeRecherche' => 'required',
             'paysRecherche' => 'required',
         ];
@@ -311,6 +333,17 @@ class ProfileController extends Controller
         $profile->children_count = $request->childrenCount;
         $profile->children_guardian = $request->childrenGuardian;
         $profile->hijab_choice = $request->hijabChoice;
+        
+        // Handle situationSante as array or string
+        $situationSante = $request->situationSante;
+        if (is_string($situationSante)) {
+            // Try to decode JSON, if fails use as single value
+            $decoded = json_decode($situationSante, true);
+            $profile->situation_sante = is_array($decoded) ? $decoded : ($decoded ? [$decoded] : []);
+        } else {
+            $profile->situation_sante = is_array($situationSante) ? $situationSante : ($situationSante ? [$situationSante] : []);
+        }
+        
         $profile->heard_about_us = $request->heardAboutUs;
         $profile->heard_about_reference = $request->heardAboutReference;
     }
@@ -318,6 +351,7 @@ class ProfileController extends Controller
     private function updateStep3Data(Profile $profile, Request $request)
     {
         $profile->age_minimum = $request->ageMinimum;
+        $profile->age_maximum = $request->ageMaximum;
         
         // Handle situationMatrimonialeRecherche as array or string
         $situationMatrimonialeRecherche = $request->situationMatrimonialeRecherche;

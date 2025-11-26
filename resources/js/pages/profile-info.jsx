@@ -9,6 +9,7 @@ import UploadPicture from './profile/uploadPicture';
 
 export default function ProfileInfo() {
     const { auth, profile } = usePage().props;
+    
     const { t } = useTranslation();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [currentStep, setCurrentStep] = useState(profile?.currentStep || 1);
@@ -47,9 +48,11 @@ export default function ProfileInfo() {
         childrenCount: profile?.childrenCount ?? '',
         childrenGuardian: profile?.childrenGuardian || '',
         hijabChoice: profile?.hijabChoice || '',
+        situationSante: profile?.situationSante ? (Array.isArray(profile.situationSante) ? profile.situationSante : [profile.situationSante]) : [],
 
         // Step 3
         ageMinimum: profile?.ageMinimum || '',
+        ageMaximum: profile?.ageMaximum || '',
         situationMatrimonialeRecherche: profile?.situationMatrimonialeRecherche || [],
         paysRecherche: profile?.paysRecherche || [],
         villesRecherche: profile?.villesRecherche || [],
@@ -88,7 +91,7 @@ export default function ProfileInfo() {
             case 2:
                 if (!formData.etatMatrimonial || !formData.logement) return false;
                 if (!formData.heardAboutUs) return false;
-                if (formData.heardAboutUs === 'pub' && !formData.heardAboutReference) return false;
+                // heardAboutReference is optional for all options
                 if (formData.etatMatrimonial === 'divorce' && formData.hasChildren === true) {
                     if (!formData.childrenCount || !formData.childrenGuardian) return false;
                 }
@@ -100,7 +103,9 @@ export default function ProfileInfo() {
                 const paysRechercheArray = Array.isArray(formData.paysRecherche) 
                     ? formData.paysRecherche 
                     : (formData.paysRecherche ? [formData.paysRecherche] : []);
-                return formData.ageMinimum && situationMatrimonialeArray.length > 0 && paysRechercheArray.length > 0;
+                const ageValid = formData.ageMinimum && formData.ageMaximum && 
+                    parseInt(formData.ageMaximum) > parseInt(formData.ageMinimum);
+                return ageValid && situationMatrimonialeArray.length > 0 && paysRechercheArray.length > 0;
             case 4:
                 // CNI and front picture are optional for prospects (will be filled by matchmaker if needed)
                 // Profile picture is also optional
@@ -143,6 +148,14 @@ export default function ProfileInfo() {
                             formDataToSend.append(key, JSON.stringify(formData[key]));
                         } else if (typeof formData[key] === 'string' && formData[key]) {
                             formDataToSend.append(key, formData[key]);
+                        }
+                    } else if (key === 'situationSante') {
+                        // Handle array for situationSante (multiple selections)
+                        if (Array.isArray(formData[key]) && formData[key].length > 0) {
+                            formDataToSend.append(key, JSON.stringify(formData[key]));
+                        } else if (typeof formData[key] === 'string' && formData[key]) {
+                            // Legacy: single value, convert to array
+                            formDataToSend.append(key, JSON.stringify([formData[key]]));
                         }
                     } else if (key === 'hasChildren') {
                         // Normalize boolean to 1/0 for backend boolean validation
@@ -282,6 +295,7 @@ export default function ProfileInfo() {
 
             // Step 3
             ageMinimum: profile?.ageMinimum || '',
+            ageMaximum: profile?.ageMaximum || '',
             situationMatrimonialeRecherche: profile?.situationMatrimonialeRecherche || [],
             paysRecherche: profile?.paysRecherche || [],
             villesRecherche: profile?.villesRecherche || [],
@@ -421,7 +435,7 @@ export default function ProfileInfo() {
     // If profile is completed, show the profile information
     return (
         <AppLayout breadcrumbs={[{ title: t('breadcrumbs.myProfile'), href: '/profile-info' }]}>
-            <Head title="Mon Profil" />
+            <Head title={t('profile.monProfileTitle')} />
             <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
                 <div className="flex flex-col items-center justify-between rounded-md bg-white/10 px-2 shadow-2xs sm:flex-row">
                     {/* Header */}
@@ -457,7 +471,7 @@ export default function ProfileInfo() {
                             <h2 className="mb-4 text-2xl font-bold text-foreground">{t('profile.personalInformation')}</h2>
                             <div className="grid gap-6 md:grid-cols-2">
                                 <div>
-                                    <label className="mb-1 block text-sm font-medium text-foreground">Nom</label>
+                                    <label className="mb-1 block text-sm font-medium text-foreground">{t('profile.lastName')}</label>
                                     <input
                                         type="text"
                                         value={profile.nom || t('profile.notSpecified')}
@@ -466,7 +480,7 @@ export default function ProfileInfo() {
                                     />
                                 </div>
                                 <div>
-                                    <label className="mb-1 block text-sm font-medium text-foreground">Prénom</label>
+                                    <label className="mb-1 block text-sm font-medium text-foreground">{t('profile.firstName')}</label>
                                     <input
                                         type="text"
                                         value={profile.prenom || t('profile.notSpecified')}
@@ -475,7 +489,7 @@ export default function ProfileInfo() {
                                     />
                                 </div>
                                 <div>
-                                    <label className="mb-1 block text-sm font-medium text-foreground">Date de naissance</label>
+                                    <label className="mb-1 block text-sm font-medium text-foreground">{t('profile.birthDate')}</label>
                                     <input
                                         type="text"
                                         value={profile.dateNaissance || t('profile.notSpecified')}
@@ -484,7 +498,7 @@ export default function ProfileInfo() {
                                     />
                                 </div>
                                 <div>
-                                    <label className="mb-1 block text-sm font-medium text-foreground">Niveau d'études</label>
+                                    <label className="mb-1 block text-sm font-medium text-foreground">{t('profile.educationLevel')}</label>
                                     <input
                                         type="text"
                                         value={profile.niveauEtudes || t('profile.notSpecified')}
@@ -493,7 +507,7 @@ export default function ProfileInfo() {
                                     />
                                 </div>
                                 <div>
-                                    <label className="mb-1 block text-sm font-medium text-foreground">Situation professionnelle</label>
+                                    <label className="mb-1 block text-sm font-medium text-foreground">{t('profile.professionalSituation')}</label>
                                     <input
                                         type="text"
                                         value={profile.situationProfessionnelle || t('profile.notSpecified')}
@@ -502,7 +516,7 @@ export default function ProfileInfo() {
                                     />
                                 </div>
                                 <div>
-                                    <label className="mb-1 block text-sm font-medium text-foreground">Secteur</label>
+                                    <label className="mb-1 block text-sm font-medium text-foreground">{t('profile.sector')}</label>
                                     <input
                                         type="text"
                                         value={profile.secteur || t('profile.notSpecified')}
@@ -511,7 +525,7 @@ export default function ProfileInfo() {
                                     />
                                 </div>
                                 <div>
-                                    <label className="mb-1 block text-sm font-medium text-foreground">Revenu</label>
+                                    <label className="mb-1 block text-sm font-medium text-foreground">{t('profile.income')}</label>
                                     <input
                                         type="text"
                                         value={profile.revenu || t('profile.notSpecified')}
@@ -520,7 +534,7 @@ export default function ProfileInfo() {
                                     />
                                 </div>
                                 <div>
-                                    <label className="mb-1 block text-sm font-medium text-foreground">Religion</label>
+                                    <label className="mb-1 block text-sm font-medium text-foreground">{t('profile.religion')}</label>
                                     <input
                                         type="text"
                                         value={profile.religion || t('profile.notSpecified')}
@@ -529,29 +543,59 @@ export default function ProfileInfo() {
                                     />
                                 </div>
                                 <div>
-                                    <label className="mb-1 block text-sm font-medium text-foreground">Comment nous avez-vous connu</label>
+                                    <label className="mb-1 block text-sm font-medium text-foreground">Origine</label>
                                     <input
                                         type="text"
-                                        value={profile.heardAboutUs || t('profile.notSpecified')}
+                                        value={profile.origine || t('profile.notSpecified')}
                                         disabled
                                         className="w-full rounded-lg border border-border bg-muted px-4 py-3 text-foreground"
                                     />
                                 </div>
-                                {profile.heardAboutUs === 'recommande' || profile.heardAboutUs === 'pub' ? (
-                                    <div>
-                                        <label className="mb-1 block text-sm font-medium text-foreground">
-                                            {profile.heardAboutUs === 'recommande' 
-                                                ? "D'où avez-vous été recommandé ?" 
-                                                : "Référence de l'inscription"}
-                                        </label>
-                                        <input
-                                            type="text"
-                                            value={profile.heardAboutReference || t('profile.notSpecified')}
-                                            disabled
-                                            className="w-full rounded-lg border border-border bg-muted px-4 py-3 text-foreground"
-                                        />
-                                    </div>
-                                ) : null}
+                                <div>
+                                    <label className="mb-1 block text-sm font-medium text-foreground">Pays de résidence</label>
+                                    <input
+                                        type="text"
+                                        value={profile.paysResidence || t('profile.notSpecified')}
+                                        disabled
+                                        className="w-full rounded-lg border border-border bg-muted px-4 py-3 text-foreground"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="mb-1 block text-sm font-medium text-foreground">Ville de résidence</label>
+                                    <input
+                                        type="text"
+                                        value={profile.villeResidence || t('profile.notSpecified')}
+                                        disabled
+                                        className="w-full rounded-lg border border-border bg-muted px-4 py-3 text-foreground"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="mb-1 block text-sm font-medium text-foreground">Pays d'origine</label>
+                                    <input
+                                        type="text"
+                                        value={profile.paysOrigine || t('profile.notSpecified')}
+                                        disabled
+                                        className="w-full rounded-lg border border-border bg-muted px-4 py-3 text-foreground"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="mb-1 block text-sm font-medium text-foreground">Ville d'origine</label>
+                                    <input
+                                        type="text"
+                                        value={profile.villeOrigine || t('profile.notSpecified')}
+                                        disabled
+                                        className="w-full rounded-lg border border-border bg-muted px-4 py-3 text-foreground"
+                                    />
+                                </div>
+                                <div className="md:col-span-2">
+                                    <label className="mb-1 block text-sm font-medium text-foreground">À propos de moi</label>
+                                    <textarea
+                                        value={profile.aproposDescription || t('profile.notSpecified')}
+                                        disabled
+                                        rows={4}
+                                        className="w-full rounded-lg border border-border bg-muted px-4 py-3 text-foreground"
+                                    />
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -562,7 +606,7 @@ export default function ProfileInfo() {
                             <h2 className="mb-4 text-2xl font-bold text-foreground">{t('profile.step2Label')}</h2>
                             <div className="grid gap-6 md:grid-cols-2">
                                 <div>
-                                    <label className="mb-1 block text-sm font-medium text-foreground">État matrimonial</label>
+                                    <label className="mb-1 block text-sm font-medium text-foreground">{t('profile.maritalStatus')}</label>
                                     <input
                                         type="text"
                                         value={profile.etatMatrimonial || t('profile.notSpecified')}
@@ -571,7 +615,7 @@ export default function ProfileInfo() {
                                     />
                                 </div>
                                 <div>
-                                    <label className="mb-1 block text-sm font-medium text-foreground">Logement</label>
+                                    <label className="mb-1 block text-sm font-medium text-foreground">{t('profile.housing')}</label>
                                     <input
                                         type="text"
                                         value={profile.logement || t('profile.notSpecified')}
@@ -580,7 +624,7 @@ export default function ProfileInfo() {
                                     />
                                 </div>
                                 <div>
-                                    <label className="mb-1 block text-sm font-medium text-foreground">Taille</label>
+                                    <label className="mb-1 block text-sm font-medium text-foreground">{t('profile.height')}</label>
                                     <input
                                         type="text"
                                         value={profile.taille ? `${profile.taille} cm` : t('profile.notSpecified')}
@@ -589,7 +633,7 @@ export default function ProfileInfo() {
                                     />
                                 </div>
                                 <div>
-                                    <label className="mb-1 block text-sm font-medium text-foreground">Poids</label>
+                                    <label className="mb-1 block text-sm font-medium text-foreground">{t('profile.weight')}</label>
                                     <input
                                         type="text"
                                         value={profile.poids ? `${profile.poids} kg` : t('profile.notSpecified')}
@@ -598,7 +642,32 @@ export default function ProfileInfo() {
                                     />
                                 </div>
                                 <div>
-                                    <label className="mb-1 block text-sm font-medium text-foreground">État de santé</label>
+                                    <label className="mb-1 block text-sm font-medium text-foreground">{t('profile.healthSituation', { defaultValue: 'Situation de santé' })}</label>
+                                    <input
+                                        type="text"
+                                        value={(() => {
+                                            const situationSante = profile.situationSante;
+                                            const situations = Array.isArray(situationSante) ? situationSante : (situationSante ? [situationSante] : []);
+                                            if (situations.length === 0) return t('profile.notSpecified');
+                                            
+                                            const translations = {
+                                                sante_tres_bonne: t('profile.healthSituationVeryGood', { defaultValue: 'Santé très bonne' }),
+                                                maladie_chronique: t('profile.healthSituationChronicDisease', { defaultValue: 'Maladie chronique' }),
+                                                personne_handicap: t('profile.healthSituationDisabled', { defaultValue: 'Personne en situation de handicap' }),
+                                                non_voyant_malvoyant: t('profile.healthSituationBlindLowVision', { defaultValue: 'Non voyant / Malvoyant' }),
+                                                cecite_totale: t('profile.healthSituationTotalBlindness', { defaultValue: 'مكفوف (Cécité totale)' }),
+                                                troubles_psychiques: t('profile.healthSituationMentalDisorder', { defaultValue: 'Troubles psychiques' }),
+                                                autres: t('profile.healthSituationOther', { defaultValue: 'Autres' }),
+                                            };
+                                            
+                                            return situations.map(s => translations[s] || s).join(', ');
+                                        })()}
+                                        disabled
+                                        className="w-full rounded-lg border border-border bg-muted px-4 py-3 text-foreground"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="mb-1 block text-sm font-medium text-foreground">{t('profile.generalHealthStatus')}</label>
                                     <textarea
                                         value={profile.etatSante || t('profile.notSpecified')}
                                         disabled
@@ -607,7 +676,7 @@ export default function ProfileInfo() {
                                     />
                                 </div>
                                 <div>
-                                    <label className="mb-1 block text-sm font-medium text-foreground">Fumeur</label>
+                                    <label className="mb-1 block text-sm font-medium text-foreground">{t('profile.smoker')}</label>
                                     <input
                                         type="text"
                                         value={profile.fumeur || t('profile.notSpecified')}
@@ -616,7 +685,7 @@ export default function ProfileInfo() {
                                     />
                                 </div>
                                 <div>
-                                    <label className="mb-1 block text-sm font-medium text-foreground">Buveur</label>
+                                    <label className="mb-1 block text-sm font-medium text-foreground">{t('profile.drinker')}</label>
                                     <input
                                         type="text"
                                         value={profile.buveur || t('profile.notSpecified')}
@@ -625,7 +694,7 @@ export default function ProfileInfo() {
                                     />
                                 </div>
                                 <div>
-                                    <label className="mb-1 block text-sm font-medium text-foreground">Sport</label>
+                                    <label className="mb-1 block text-sm font-medium text-foreground">{t('profile.sport')}</label>
                                     <input
                                         type="text"
                                         value={profile.sport || t('profile.notSpecified')}
@@ -634,7 +703,7 @@ export default function ProfileInfo() {
                                     />
                                 </div>
                                 <div>
-                                    <label className="mb-1 block text-sm font-medium text-foreground">Motorisé</label>
+                                    <label className="mb-1 block text-sm font-medium text-foreground">{t('profile.motorized')}</label>
                                     <input
                                         type="text"
                                         value={profile.motorise || t('profile.notSpecified')}
@@ -643,7 +712,7 @@ export default function ProfileInfo() {
                                     />
                                 </div>
                                 <div>
-                                    <label className="mb-1 block text-sm font-medium text-foreground">Enfants</label>
+                                    <label className="mb-1 block text-sm font-medium text-foreground">{t('profile.children')}</label>
                                     <input
                                         type="text"
                                         value={profile.hasChildren === true ? `${t('profile.yes')}${profile.childrenCount ? `, ${profile.childrenCount}` : ''}` : (profile.hasChildren === false ? t('profile.no') : t('profile.notSpecified'))}
@@ -652,7 +721,7 @@ export default function ProfileInfo() {
                                     />
                                 </div>
                                 <div>
-                                    <label className="mb-1 block text-sm font-medium text-foreground">Tuteur des enfants</label>
+                                    <label className="mb-1 block text-sm font-medium text-foreground">{t('profile.childrenGuardian')}</label>
                                     <input
                                         type="text"
                                         value={profile.childrenGuardian === 'mother' ? t('profile.mother') : profile.childrenGuardian === 'father' ? t('profile.father') : t('profile.notSpecified')}
@@ -676,7 +745,7 @@ export default function ProfileInfo() {
                                     />
                                 </div>
                                 <div className="md:col-span-2">
-                                    <label className="mb-1 block text-sm font-medium text-foreground">Loisirs</label>
+                                    <label className="mb-1 block text-sm font-medium text-foreground">{t('profile.hobbies')}</label>
                                     <input
                                         type="text"
                                         value={profile.loisirs || t('profile.notSpecified')}
@@ -694,16 +763,24 @@ export default function ProfileInfo() {
                             <h2 className="mb-4 text-2xl font-bold text-foreground">{t('profile.step3Label')}</h2>
                             <div className="grid gap-6 md:grid-cols-2">
                                 <div>
-                                    <label className="mb-1 block text-sm font-medium text-foreground">Âge minimum</label>
+                                    <label className="mb-1 block text-sm font-medium text-foreground">{t('profile.minimumAge')} / {t('profile.maximumAge')}</label>
                                     <input
                                         type="text"
-                                        value={profile.ageMinimum ? `${profile.ageMinimum} ${t('profile.years')}` : t('profile.notSpecified')}
+                                        value={
+                                            profile.ageMinimum && profile.ageMaximum
+                                                ? `${profile.ageMinimum} - ${profile.ageMaximum} ${t('profile.years')}`
+                                                : profile.ageMinimum && !profile.ageMaximum
+                                                    ? `${t('profile.minimumAge')}: ${profile.ageMinimum} ${t('profile.years')}`
+                                                    : !profile.ageMinimum && profile.ageMaximum
+                                                        ? `${t('profile.maximumAge')}: ${profile.ageMaximum} ${t('profile.years')}`
+                                                        : t('profile.notSpecified')
+                                        }
                                         disabled
                                         className="w-full rounded-lg border border-border bg-muted px-4 py-3 text-foreground"
                                     />
                                 </div>
                                 <div>
-                                    <label className="mb-1 block text-sm font-medium text-foreground">Situation matrimoniale recherchée</label>
+                                    <label className="mb-1 block text-sm font-medium text-foreground">{t('profile.soughtMaritalStatus')}</label>
                                     <input
                                         type="text"
                                         value={profile.situationMatrimonialeRecherche || t('profile.notSpecified')}
@@ -712,7 +789,7 @@ export default function ProfileInfo() {
                                     />
                                 </div>
                                 <div>
-                                    <label className="mb-1 block text-sm font-medium text-foreground">Pays recherché</label>
+                                    <label className="mb-1 block text-sm font-medium text-foreground">{t('profile.soughtCountry')}</label>
                                     <input
                                         type="text"
                                         value={profile.paysRecherche || t('profile.notSpecified')}
@@ -721,7 +798,7 @@ export default function ProfileInfo() {
                                     />
                                 </div>
                                 <div>
-                                    <label className="mb-1 block text-sm font-medium text-foreground">Villes recherchées</label>
+                                    <label className="mb-1 block text-sm font-medium text-foreground">{t('profile.soughtCities')}</label>
                                     <input
                                         type="text"
                                         value={
@@ -740,7 +817,7 @@ export default function ProfileInfo() {
                                     />
                                 </div>
                                 <div>
-                                    <label className="mb-1 block text-sm font-medium text-foreground">Niveau d'études recherché</label>
+                                    <label className="mb-1 block text-sm font-medium text-foreground">{t('profile.soughtEducationLevel')}</label>
                                     <input
                                         type="text"
                                         value={profile.niveauEtudesRecherche || t('profile.notSpecified')}
@@ -749,7 +826,7 @@ export default function ProfileInfo() {
                                     />
                                 </div>
                                 <div>
-                                    <label className="mb-1 block text-sm font-medium text-foreground">Statut d'emploi recherché</label>
+                                    <label className="mb-1 block text-sm font-medium text-foreground">{t('profile.soughtEmploymentStatus')}</label>
                                     <input
                                         type="text"
                                         value={profile.statutEmploiRecherche || t('profile.notSpecified')}
@@ -758,7 +835,7 @@ export default function ProfileInfo() {
                                     />
                                 </div>
                                 <div>
-                                    <label className="mb-1 block text-sm font-medium text-foreground">Revenu minimum</label>
+                                    <label className="mb-1 block text-sm font-medium text-foreground">{t('profile.minimumIncome')}</label>
                                     <input
                                         type="text"
                                         value={profile.revenuMinimum || t('profile.notSpecified')}
@@ -767,7 +844,7 @@ export default function ProfileInfo() {
                                     />
                                 </div>
                                 <div>
-                                    <label className="mb-1 block text-sm font-medium text-foreground">Religion recherchée</label>
+                                    <label className="mb-1 block text-sm font-medium text-foreground">{t('profile.soughtReligion')}</label>
                                     <input
                                         type="text"
                                         value={profile.religionRecherche || t('profile.notSpecified')}
@@ -775,6 +852,15 @@ export default function ProfileInfo() {
                                         className="w-full rounded-lg border border-border bg-muted px-4 py-3 text-foreground"
                                     />
                                 </div>
+                            </div>
+                            <div className="mt-6">
+                                <label className="mb-1 block text-sm font-medium text-foreground">Profil recherché (à propos de lui/elle)</label>
+                                <textarea
+                                    value={profile.profilRechercheDescription || t('profile.notSpecified')}
+                                    disabled
+                                    rows={4}
+                                    className="w-full rounded-lg border border-border bg-muted px-4 py-3 text-foreground"
+                                />
                             </div>
                         </div>
                     </div>
@@ -833,7 +919,7 @@ export default function ProfileInfo() {
                             href="/dashboard"
                             className="rounded-lg border border-gray-300 bg-white px-6 py-2 font-medium text-gray-700 transition-colors hover:bg-gray-50"
                         >
-                            Retour au tableau de bord
+                            {t('profile.backToDashboard')}
                         </a>
                     </div>
                 </div>

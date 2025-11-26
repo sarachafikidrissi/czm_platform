@@ -42,9 +42,11 @@ export default function Profile({ auth, profile }) {
         childrenCount: profile?.childrenCount ?? '',
         childrenGuardian: profile?.childrenGuardian || '',
         hijabChoice: profile?.hijabChoice || '',
+        situationSante: profile?.situationSante ? (Array.isArray(profile.situationSante) ? profile.situationSante : [profile.situationSante]) : [],
 
         // Step 3
         ageMinimum: profile?.ageMinimum || '',
+        ageMaximum: profile?.ageMaximum || '',
         situationMatrimonialeRecherche: profile?.situationMatrimonialeRecherche || '',
         paysRecherche: profile?.paysRecherche || 'maroc',
         villesRecherche: profile?.villesRecherche || [],
@@ -86,7 +88,9 @@ export default function Profile({ auth, profile }) {
                 }
                 return true;
             case 3:
-                return formData.ageMinimum && formData.situationMatrimonialeRecherche;
+                const ageValid = formData.ageMinimum && formData.ageMaximum && 
+                    parseInt(formData.ageMaximum) > parseInt(formData.ageMinimum);
+                return ageValid && formData.situationMatrimonialeRecherche;
             case 4:
                 return true; // Photo is optional for validation
             default:
@@ -111,6 +115,14 @@ export default function Profile({ auth, profile }) {
                     } else if (key === 'villesRecherche') {
                         if (Array.isArray(formData[key]) && formData[key].length > 0) {
                             formDataToSend.append(key, JSON.stringify(formData[key]));
+                        }
+                    } else if (key === 'situationSante') {
+                        // Handle array for situationSante (multiple selections)
+                        if (Array.isArray(formData[key]) && formData[key].length > 0) {
+                            formDataToSend.append(key, JSON.stringify(formData[key]));
+                        } else if (typeof formData[key] === 'string' && formData[key]) {
+                            // Legacy: single value, convert to array
+                            formDataToSend.append(key, JSON.stringify([formData[key]]));
                         }
                     } else if (key === 'hasChildren') {
                         // Normalize boolean to 1/0 for backend boolean validation

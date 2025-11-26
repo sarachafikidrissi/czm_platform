@@ -35,6 +35,7 @@ class Profile extends Model
         'children_count',
         'children_guardian',
         'hijab_choice',
+        'situation_sante',
         // Step3 extensions
         'profil_recherche_description',
         // Account status
@@ -48,6 +49,7 @@ class Profile extends Model
         'villes_recherche' => 'array',
         'situation_matrimoniale_recherche' => 'array', // Changed to array to support multiple selections
         'pays_recherche' => 'array', // Changed to array to support multiple selections
+        'situation_sante' => 'array', // Changed to array to support multiple selections
         'is_completed' => 'boolean',
         'has_children' => 'boolean',
         'current_step' => 'integer',

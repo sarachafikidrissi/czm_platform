@@ -304,7 +304,6 @@ const PersonalInfo = ({ formData, setFormData, gender }) => {
                     </div>
 
                     <div>
-                        <span className='text-red-500 capitalize'>hello</span>
                         <label htmlFor="secteur" className="mb-1 block text-sm font-medium text-gray-700">
                             Secteur d'activité
                         </label>

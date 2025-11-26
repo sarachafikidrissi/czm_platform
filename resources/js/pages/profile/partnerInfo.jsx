@@ -241,31 +241,66 @@ function PartnerInfo({ formData, setFormData }) {
                     </p>
                 </div>
 
-                {/* Age Minimum */}
-                <div>
-                    <label htmlFor="ageMinimum" className="mb-1 block text-sm font-medium text-gray-700">
-                        Son âge minimum *
-                    </label>
-                    <p className="text-sm font-medium text-gray-700 mb-1" dir="rtl">الحد الأدنى للعمر</p>
-                    <select
-                        id="ageMinimum"
-                        name="ageMinimum"
-                        value={formData.ageMinimum || ''}
-                        onChange={handleInputChange}
-                        className="w-full rounded-lg border border-border px-4 py-3 transition-colors focus:border-info focus:ring-2 focus:ring-info"
-                    >
-                        <option value="">Select an Option</option>
-                        {Array.from({ length: 50 - 18 + 1 }, (_, i) => 18 + i).map((age) => (
-                            <option key={age} value={age}>
-                                {age} ans
-                            </option>
-                        ))}
-                    </select>
+                {/* Age Minimum and Maximum */}
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <div>
+                        <label htmlFor="ageMinimum" className="mb-1 block text-sm font-medium text-gray-700">
+                            {t('profile.minimumAge')} *
+                        </label>
+                        <p className="text-sm font-medium text-gray-700 mb-1" dir="rtl">الحد الأدنى للعمر</p>
+                        <select
+                            id="ageMinimum"
+                            name="ageMinimum"
+                            value={formData.ageMinimum || ''}
+                            onChange={handleInputChange}
+                            className="w-full rounded-lg border border-border px-4 py-3 transition-colors focus:border-info focus:ring-2 focus:ring-info"
+                        >
+                            <option value="">Select an Option</option>
+                            {Array.from({ length: 100 - 18 + 1 }, (_, i) => 18 + i).map((age) => (
+                                <option key={age} value={age}>
+                                    {age} {t('profile.years')}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                    <div>
+                        <label htmlFor="ageMaximum" className="mb-1 block text-sm font-medium text-gray-700">
+                            {t('profile.maximumAge')} *
+                        </label>
+                        <p className="text-sm font-medium text-gray-700 mb-1" dir="rtl">الحد الأقصى للعمر</p>
+                        <select
+                            id="ageMaximum"
+                            name="ageMaximum"
+                            value={formData.ageMaximum || ''}
+                            onChange={handleInputChange}
+                            className={`w-full rounded-lg border px-4 py-3 transition-colors focus:ring-2 ${
+                                formData.ageMinimum && formData.ageMaximum && parseInt(formData.ageMaximum) <= parseInt(formData.ageMinimum)
+                                    ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
+                                    : 'border-border focus:border-info focus:ring-info'
+                            }`}
+                        >
+                            <option value="">Select an Option</option>
+                            {Array.from({ length: 100 - 18 + 1 }, (_, i) => 18 + i).map((age) => (
+                                <option 
+                                    key={age} 
+                                    value={age}
+                                    disabled={formData.ageMinimum && parseInt(age) < parseInt(formData.ageMinimum)}
+                                >
+                                    {age} {t('profile.years')}
+                                </option>
+                            ))}
+                        </select>
+                        {formData.ageMinimum && formData.ageMaximum && parseInt(formData.ageMaximum) <= parseInt(formData.ageMinimum) && (
+                            <p className="mt-1 text-xs text-red-500">
+                                {t('profile.maximumAgeMustBeGreater', { defaultValue: 'L\'âge maximum doit être supérieur à l\'âge minimum' })}
+                            </p>
+                        )}
+                    </div>
                 </div>
 
                 {/* Situation Matrimoniale - Multiple selection */}
                 <div>
-                    <label className="mb-2 block text-sm font-medium text-gray-700">Sa situation matrimoniale *</label>
+                    <label className="mb-2 block text-sm font-medium text-gray-700">{t('profile.soughtMatrimonialSituation')} *</label>
                     <div className="flex flex-wrap gap-6">
                         {['celibataire', 'marie', 'divorce', 'veuf'].map((option) => {
                             const currentValue = Array.isArray(formData.situationMatrimonialeRecherche) 
@@ -293,7 +328,7 @@ function PartnerInfo({ formData, setFormData }) {
                                         className="text-info focus:ring-info"
                                     />
                                     <span className="ml-2 text-sm text-foreground">
-                                        {option === 'celibataire' ? 'Célibataire' : option === 'marie' ? 'Marié(e)' : option === 'divorce' ? 'Divorcé(e)' : 'Veuf/Veuve'}
+                                        {option === 'celibataire' ? t('profile.matrimonialSituationSingle') : option === 'marie' ? t('profile.matrimonialSituationMarried') : option === 'divorce' ? t('profile.matrimonialSituationDivorced') : t('profile.matrimonialSituationWidowed')}
                                     </span>
                                 </label>
                             );

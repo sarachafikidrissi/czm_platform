@@ -60,11 +60,19 @@ Route::middleware(['auth'])->group(function () {
                 'childrenCount' => $profile->children_count,
                 'childrenGuardian' => $profile->children_guardian,
                 'hijabChoice' => $profile->hijab_choice,
+                'situationSante' => is_array($profile->situation_sante) 
+                    ? $profile->situation_sante 
+                    : ($profile->situation_sante ? [$profile->situation_sante] : []),
 
                 // Step 3
                 'ageMinimum' => $profile->age_minimum,
-                'situationMatrimonialeRecherche' => $profile->situation_matrimoniale_recherche,
-                'paysRecherche' => $profile->pays_recherche,
+                'ageMaximum' => $profile->age_maximum,
+                'situationMatrimonialeRecherche' => is_array($profile->situation_matrimoniale_recherche) 
+                    ? $profile->situation_matrimoniale_recherche 
+                    : ($profile->situation_matrimoniale_recherche ? [$profile->situation_matrimoniale_recherche] : []),
+                'paysRecherche' => is_array($profile->pays_recherche) 
+                    ? $profile->pays_recherche 
+                    : ($profile->pays_recherche ? [$profile->pays_recherche] : []),
                 'villesRecherche' => $profile->villes_recherche ?? [],
                 'niveauEtudesRecherche' => $profile->niveau_etudes_recherche,
                 'statutEmploiRecherche' => $profile->statut_emploi_recherche,

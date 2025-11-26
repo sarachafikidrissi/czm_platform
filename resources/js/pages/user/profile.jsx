@@ -1,23 +1,20 @@
-import ProfileHeader from '@/components/profile/ProfileHeader';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import AppLayout from '@/layouts/app-layout';
-import { Button as HeadlessButton } from '@headlessui/react';
-import { Head, usePage, router } from '@inertiajs/react';
-import { useTranslation } from 'react-i18next';
-import { Heart, MapPin, MessageCircleWarning, MessageSquareWarning, User, Trash2 } from 'lucide-react';
-import { useState } from 'react';
-import { FaUser } from 'react-icons/fa';
 import CreatePost from '@/components/posts/CreatePost';
 import PostCard from '@/components/posts/PostCard';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import AppLayout from '@/layouts/app-layout';
+import { Head, router, usePage } from '@inertiajs/react';
+import { BookOpen, Heart, MapPin, MessageSquareWarning, Share2, Trash2, User } from 'lucide-react';
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 export default function UserProfile({ user, profile, agency, matchmakerNotes = [], matchmakerEvaluation = null }) {
     const { t } = useTranslation();
     const { auth } = usePage().props;
     const isOwnProfile = auth?.user?.id === user?.id;
-    
+
     const assignedMatchmakerId = auth.user['assigned_matchmaker']?.id;
 
     // Get user role
@@ -49,18 +46,23 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
 
     // Visibility: who can manage notes/evaluation
     const viewerRole = auth?.user?.roles?.[0]?.name || 'user';
-    const canManage = viewerRole === 'admin'
-        || (viewerRole === 'matchmaker' && user?.assigned_matchmaker_id === auth?.user?.id)
-        || (viewerRole === 'manager' && user?.validated_by_manager_id === auth?.user?.id);
+    const canManage =
+        viewerRole === 'admin' ||
+        (viewerRole === 'matchmaker' && user?.assigned_matchmaker_id === auth?.user?.id) ||
+        (viewerRole === 'manager' && user?.validated_by_manager_id === auth?.user?.id);
 
     // Notes form
     const [newNote, setNewNote] = useState('');
     const addNote = (e) => {
         e.preventDefault();
         if (!newNote.trim()) return;
-        router.post(`/users/${user.id}/notes`, { content: newNote }, {
-            onSuccess: () => setNewNote('')
-        });
+        router.post(
+            `/users/${user.id}/notes`,
+            { content: newNote },
+            {
+                onSuccess: () => setNewNote(''),
+            },
+        );
     };
 
     // Delete note dialog state
@@ -109,91 +111,402 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
         router.post(`/users/${user.id}/evaluation`, evaluation);
     };
 
+    // Get profile picture
+    const getProfilePicture = () => {
+        if (userRole === 'user' && user?.profile?.profile_picture_path) {
+            return `/storage/${user.profile.profile_picture_path}`;
+        } else if (user?.profile_picture) {
+            return `/storage/${user.profile_picture}`;
+        }
+        return null;
+    };
+
+    const profilePictureSrc = getProfilePicture();
+
+    // Get skills/expertise tags (for matchmakers or based on profile data)
+    const getExpertiseTags = () => {
+        if (userRole === 'matchmaker') {
+            return ['Capital Raising', 'Marketing & Sales', 'Consulting', 'Asset Management', 'Business Development'];
+        }
+        // For users, use actual profile data
+        const tags = [];
+        if (user?.profile?.secteur) tags.push(user.profile.secteur);
+        if (user?.profile?.situation_professionnelle) tags.push(user.profile.situation_professionnelle);
+        if (user?.profile?.niveau_etudes) tags.push(user.profile.niveau_etudes);
+        if (user?.profile?.religion) tags.push(user.profile.religion);
+        if (user?.profile?.origine) tags.push(user.profile.origine);
+        return tags.slice(0, 5);
+    };
+
+    const expertiseTags = getExpertiseTags();
+
+    // Get skills tags from profile data
+    const getSkillsTags = () => {
+        const skills = [];
+        if (user?.profile?.sport && user.profile.sport !== 'non') skills.push('Sports');
+        if (user?.profile?.motorise === 'oui') skills.push('Motorized');
+        if (user?.profile?.loisirs) {
+            const hobbies = user.profile.loisirs.split(',').slice(0, 3);
+            skills.push(...hobbies.map((h) => h.trim()));
+        }
+        // Default skills if none available
+        if (skills.length === 0) {
+            return ['Communication', 'Interpersonal Skills', 'Team work'];
+        }
+        return skills.slice(0, 5);
+    };
+
+    const skillsTags = getSkillsTags();
+
+    // Get motivation tags from profile data
+    const getMotivationTags = () => {
+        const motivations = [];
+        if (user?.profile?.apropos_description) {
+            // Extract keywords or use default
+            motivations.push('Helping others', 'Impact', 'Learning');
+        }
+        if (motivations.length === 0) {
+            return ['Completing a task', 'Helping others', 'Impact', 'Learning'];
+        }
+        return motivations;
+    };
+
+    const motivationTags = getMotivationTags();
+
+    // Active tab state
+    const [activeTab, setActiveTab] = useState('personal');
+
     return (
         <AppLayout>
             <Head title={`${user?.name} - ${t('common.profile')}`} />
-            <div className="min-h-screen bg-background">
-                {/* Profile Header */}
+            <div className="min-h-screen bg-gray-50">
+                
 
-                <ProfileHeader user={user} profile={profile} isOwnProfile={isOwnProfile} age={age} />
+                <div className="mx-auto max-w-7xl px-4 py-6">
+                    <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+                        {/* Left Sidebar - Profile Card */}
+                        <div className="lg:col-span-3">
+                            <Card className="sticky top-6">
+                                <CardContent className="p-6">
+                                    {/* Profile Picture */}
+                                    <div className="mb-4 flex justify-center">
+                                        <div className="h-32 w-32 overflow-hidden rounded-full border-4 border-white shadow-lg">
+                                            {profilePictureSrc ? (
+                                                <img src={profilePictureSrc} alt={user?.name} className="h-full w-full object-cover" />
+                                            ) : (
+                                                <div className="flex h-full w-full items-center justify-center bg-gray-200">
+                                                    <span className="text-4xl font-bold text-gray-600">{user?.name?.charAt(0)}</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
 
-                <div className="mx-auto max-w-6xl px-4 py-6">
-                    <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-                        {/* Main Content */}
-                        <div className="space-y-6 lg:col-span-2">
-                            {/* Role-based Content */}
-                            {userRole === 'user' && (
-                                <div className="space-y-6">
-                                    {/* Infos de base */}
-                                    <Card>
-                                        <CardHeader>
-                                            <CardTitle className="flex items-center gap-2">
-                                                <User className="h-5 w-5" color="green" />
-                                                {t('profile.userProfile.basicInfo')}
-                                            </CardTitle>
-                                        </CardHeader>
-                                        <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                                            <div>
-                                                <div className="text-sm text-muted-foreground">{t('profile.userProfile.matrimonialSituation')}</div>
-                                                <div className="font-medium">{user?.profile?.etat_matrimonial || '—'}</div>
-                                            </div>
-                                            <div>
-                                                <div className="text-sm text-muted-foreground">{t('profile.userProfile.haveChildren')}</div>
-                                                <div className="font-medium">{user?.profile?.has_children == 1 ? t('profile.yes') : t('profile.no') || '—'}</div>
-                                            </div>
-                                            <div>
-                                                <div className="text-sm text-muted-foreground">{t('profile.userProfile.educationLevel')}</div>
-                                                <div className="font-medium">{user?.profile?.niveau_etudes || '—'}</div>
-                                            </div>
-                                            <div>
-                                                <div className="text-sm text-muted-foreground">{t('profile.userProfile.professionalSituation')}</div>
-                                                <div className="font-medium">{user?.profile?.situation_professionnelle || '—'}</div>
-                                            </div>
-                                            <div>
-                                                <div className="text-sm text-muted-foreground">{t('profile.userProfile.activitySector')}</div>
-                                                <div className="font-medium">{user?.profile?.secteur || '—'}</div>
-                                            </div>
-                                            <div>
-                                                <div className="text-sm text-muted-foreground">{t('profile.userProfile.monthlyIncome')}</div>
-                                                <div className="font-medium">{user?.profile?.revenu || '—'}</div>
-                                            </div>
-                                            <div>
-                                                <div className="text-sm text-muted-foreground">{t('profile.userProfile.weight')}</div>
-                                                <div className="font-medium">{user?.profile?.poids || '—'} kg</div>
-                                            </div>
-                                            <div>
-                                                <div className="text-sm text-muted-foreground">{t('profile.userProfile.height')}</div>
-                                                <div className="font-medium">{user?.profile?.taille || '—'} cm</div>
+                                    {/* Name & Title */}
+                                    <div className="mb-4 text-center">
+                                        <h2 className="text-xl font-bold text-gray-900">{user?.name}</h2>
+                                        <p className="mt-1 text-sm text-gray-600">
+                                            {userRole === 'matchmaker' ? 'Matchmaker' : user?.profile?.situation_professionnelle || 'Member'}
+                                        </p>
+                                        <div className="mt-2 flex items-center justify-center gap-1 text-sm text-gray-500">
+                                            <MapPin className="h-4 w-4" />
+                                            <span>
+                                                {user?.city}, {user?.country}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    {/* Action Buttons */}
+                                    <div className="mb-6 flex gap-3">
+                                        {!isOwnProfile && (
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="h-10 w-10 rounded-full border-pink-300 p-0 hover:bg-pink-50"
+                                            >
+                                                <User className="h-5 w-5 text-pink-600" />
+                                            </Button>
+                                        )}
+                                        {userRole === 'matchmaker' && !isOwnProfile && (
+                                            <Button className="flex-1 gap-2 bg-[#096725] text-white hover:bg-[#07501d]">
+                                                <BookOpen className="h-4 w-4" />
+                                                Book {user?.name?.split(' ')[0]}
+                                            </Button>
+                                        )}
+                                        {userRole === 'user' && !isOwnProfile && assignedMatchmakerId !== user?.id && (
+                                            <Button
+                                                className="flex-1 gap-2 bg-[#096725] text-white hover:bg-[#07501d]"
+                                                onClick={() => {
+                                                    if (userRole === 'matchmaker') {
+                                                        router.post(`/user/matchmakers/${user.id}/select`);
+                                                    }
+                                                }}
+                                            >
+                                                <BookOpen className="h-4 w-4" />
+                                                Select Matchmaker
+                                            </Button>
+                                        )}
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </div>
+
+                        {/* Main Content Area */}
+                        <div className="space-y-6 lg:col-span-9">
+                            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                                <TabsList className="grid h-auto w-full grid-cols-3 rounded-none border-b bg-white p-0">
+                                    <TabsTrigger
+                                        value="personal"
+                                        className="rounded-none px-4 py-3 data-[state=active]:border-b-2 data-[state=active]:border-[#096725] data-[state=active]:text-[#096725]"
+                                    >
+                                        Informations personnelles
+                                    </TabsTrigger>
+                                    <TabsTrigger
+                                        value="lifestyle"
+                                        className="rounded-none px-4 py-3 data-[state=active]:border-b-2 data-[state=active]:border-[#096725] data-[state=active]:text-[#096725]"
+                                    >
+                                        Mode de vie
+                                    </TabsTrigger>
+                                    <TabsTrigger
+                                        value="partner"
+                                        className="rounded-none px-4 py-3 data-[state=active]:border-b-2 data-[state=active]:border-[#096725] data-[state=active]:text-[#096725]"
+                                    >
+                                        Profil recherché
+                                    </TabsTrigger>
+                                </TabsList>
+
+                                {/* Tab 1: Informations personnelles */}
+                                <TabsContent value="personal" className="mt-6 space-y-6">
+                                    {/* About Me Description */}
+                                    {profile?.apropos_description && (
+                                        <Card className="border-gray-200 bg-white">
+                                            <CardContent className="p-6">
+                                                <h3 className="mb-3 text-lg font-semibold text-gray-900">
+                                                    {userRole === 'matchmaker' ? 'Why I Became A Mentor' : 'À propos de moi'}
+                                                </h3>
+                                                <p className="leading-relaxed text-gray-700">{profile.apropos_description}</p>
+                                            </CardContent>
+                                        </Card>
+                                    )}
+
+                                    {/* Basic Information */}
+                                    {userRole === 'user' && (
+                                        <Card className="border-gray-200 bg-white">
+                                            <CardContent className="p-6">
+                                                <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-gray-900">
+                                                    <User className="h-5 w-5 text-[#096725]" />
+                                                    {t('profile.userProfile.basicInfo')}
+                                                </h3>
+                                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                                    <div>
+                                                        <div className="mb-1 text-sm text-gray-600">
+                                                            {t('profile.userProfile.matrimonialSituation')}
+                                                        </div>
+                                                        <div className="font-medium text-gray-900">{user?.profile?.etat_matrimonial || '—'}</div>
+                                                    </div>
+                                                    <div>
+                                                        <div className="mb-1 text-sm text-gray-600">{t('profile.userProfile.haveChildren')}</div>
+                                                        <div className="font-medium text-gray-900">
+                                                            {user?.profile?.has_children == 1
+                                                                ? `${t('profile.yes')}${user?.profile?.children_count ? ` (${user.profile.children_count})` : ''}`
+                                                                : user?.profile?.has_children == 0
+                                                                  ? t('profile.no')
+                                                                  : '—'}
+                                                        </div>
+                                                    </div>
+                                                    <div>
+                                                        <div className="mb-1 text-sm text-gray-600">{t('profile.userProfile.educationLevel')}</div>
+                                                        <div className="font-medium text-gray-900">{user?.profile?.niveau_etudes || '—'}</div>
+                                                    </div>
+                                                    <div>
+                                                        <div className="mb-1 text-sm text-gray-600">
+                                                            {t('profile.userProfile.professionalSituation')}
+                                                        </div>
+                                                        <div className="font-medium text-gray-900">
+                                                            {user?.profile?.situation_professionnelle || '—'}
+                                                        </div>
+                                                    </div>
+                                                    <div>
+                                                        <div className="mb-1 text-sm text-gray-600">{t('profile.userProfile.activitySector')}</div>
+                                                        <div className="font-medium text-gray-900">{user?.profile?.secteur || '—'}</div>
+                                                    </div>
+                                                    <div>
+                                                        <div className="mb-1 text-sm text-gray-600">{t('profile.userProfile.monthlyIncome')}</div>
+                                                        <div className="font-medium text-gray-900">{user?.profile?.revenu || '—'}</div>
+                                                    </div>
+                                                    <div>
+                                                        <div className="mb-1 text-sm text-gray-600">{t('profile.userProfile.height')}</div>
+                                                        <div className="font-medium text-gray-900">
+                                                            {user?.profile?.taille ? `${user.profile.taille} cm` : '—'}
+                                                        </div>
+                                                    </div>
+                                                    <div>
+                                                        <div className="mb-1 text-sm text-gray-600">{t('profile.userProfile.weight')}</div>
+                                                        <div className="font-medium text-gray-900">
+                                                            {user?.profile?.poids ? `${user.profile.poids} kg` : '—'}
+                                                        </div>
+                                                    </div>
+                                                    <div>
+                                                        <div className="mb-1 text-sm text-gray-600">Origine</div>
+                                                        <div className="font-medium text-gray-900">{user?.profile?.origine || '—'}</div>
+                                                    </div>
+                                                    <div>
+                                                        <div className="mb-1 text-sm text-gray-600">Pays de résidence</div>
+                                                        <div className="font-medium text-gray-900">{user?.profile?.pays_residence || '—'}</div>
+                                                    </div>
+                                                    <div>
+                                                        <div className="mb-1 text-sm text-gray-600">Ville de résidence</div>
+                                                        <div className="font-medium text-gray-900">{user?.profile?.ville_residence || '—'}</div>
+                                                    </div>
+                                                    <div>
+                                                        <div className="mb-1 text-sm text-gray-600">Pays d'origine</div>
+                                                        <div className="font-medium text-gray-900">{user?.profile?.pays_origine || '—'}</div>
+                                                    </div>
+                                                    <div>
+                                                        <div className="mb-1 text-sm text-gray-600">Ville d'origine</div>
+                                                        <div className="font-medium text-gray-900">{user?.profile?.ville_origine || '—'}</div>
+                                                    </div>
+                                                    <div>
+                                                        <div className="mb-1 text-sm text-gray-600">Religion</div>
+                                                        <div className="font-medium text-gray-900">{user?.profile?.religion || '—'}</div>
+                                                    </div>
+                                                    <div>
+                                                        <div className="mb-1 text-sm text-gray-600">Logement</div>
+                                                        <div className="font-medium text-gray-900">{user?.profile?.logement || '—'}</div>
+                                                    </div>
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                    )}
+
+                                    {/* Matchmaker Bio */}
+                                    {userRole === 'matchmaker' && user?.matchmaker_bio && (
+                                        <Card className="border-gray-200 bg-white">
+                                            <CardContent className="p-6">
+                                                <h3 className="mb-3 text-lg font-semibold text-gray-900">Matchmaker Bio</h3>
+                                                <p className="leading-relaxed text-gray-700">{user.matchmaker_bio}</p>
+                                            </CardContent>
+                                        </Card>
+                                    )}
+                                </TabsContent>
+
+                                {/* Tab 2: Mode de vie */}
+                                <TabsContent value="lifestyle" className="mt-6 space-y-6">
+                                    {/* Lifestyle Information */}
+                                    <Card className="border-gray-200 bg-white">
+                                        <CardContent className="p-6">
+                                            <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-gray-900">
+                                                <Heart className="h-5 w-5 text-[#ff343a]" />
+                                                Mode de vie & Santé
+                                            </h3>
+                                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                                <div>
+                                                    <div className="mb-1 text-sm text-gray-600">
+                                                        {t('profile.healthSituation', { defaultValue: 'Situation de santé' })}
+                                                    </div>
+                                                    <div className="font-medium text-gray-900">
+                                                        {(() => {
+                                                            const situationSante = user?.profile?.situation_sante;
+                                                            if (!situationSante) return '—';
+
+                                                            const situations = Array.isArray(situationSante) ? situationSante : [situationSante];
+                                                            if (situations.length === 0) return '—';
+
+                                                            const translations = {
+                                                                sante_tres_bonne: t('profile.healthSituationVeryGood', {
+                                                                    defaultValue: 'Santé très bonne',
+                                                                }),
+                                                                maladie_chronique: t('profile.healthSituationChronicDisease', {
+                                                                    defaultValue: 'Maladie chronique',
+                                                                }),
+                                                                personne_handicap: t('profile.healthSituationDisabled', {
+                                                                    defaultValue: 'Personne en situation de handicap',
+                                                                }),
+                                                                non_voyant_malvoyant: t('profile.healthSituationBlindLowVision', {
+                                                                    defaultValue: 'Non voyant / Malvoyant',
+                                                                }),
+                                                                cecite_totale: t('profile.healthSituationTotalBlindness', {
+                                                                    defaultValue: 'مكفوف (Cécité totale)',
+                                                                }),
+                                                                troubles_psychiques: t('profile.healthSituationMentalDisorder', {
+                                                                    defaultValue: 'Troubles psychiques',
+                                                                }),
+                                                                autres: t('profile.healthSituationOther', { defaultValue: 'Autres' }),
+                                                            };
+
+                                                            return situations.map((s) => translations[s] || s).join(', ');
+                                                        })()}
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <div className="mb-1 text-sm text-gray-600">{t('profile.userProfile.healthStatus')}</div>
+                                                    <div className="font-medium text-gray-900">{user?.profile?.etat_sante || '—'}</div>
+                                                </div>
+                                                <div>
+                                                    <div className="mb-1 text-sm text-gray-600">{t('profile.smoker')}</div>
+                                                    <div className="font-medium text-gray-900">{user?.profile?.fumeur || '—'}</div>
+                                                </div>
+                                                <div>
+                                                    <div className="mb-1 text-sm text-gray-600">{t('profile.drinker')}</div>
+                                                    <div className="font-medium text-gray-900">{user?.profile?.buveur || '—'}</div>
+                                                </div>
+                                                <div>
+                                                    <div className="mb-1 text-sm text-gray-600">{t('profile.sport')}</div>
+                                                    <div className="font-medium text-gray-900">{user?.profile?.sport || '—'}</div>
+                                                </div>
+                                                <div>
+                                                    <div className="mb-1 text-sm text-gray-600">{t('profile.motorized')}</div>
+                                                    <div className="font-medium text-gray-900">{user?.profile?.motorise || '—'}</div>
+                                                </div>
+                                                <div className="md:col-span-2">
+                                                    <div className="mb-1 text-sm text-gray-600">{t('profile.hobbies')}</div>
+                                                    <div className="font-medium text-gray-900">{user?.profile?.loisirs || '—'}</div>
+                                                </div>
                                             </div>
                                         </CardContent>
                                     </Card>
+                                </TabsContent>
 
-                                    {/* Profil recherché */}
-                                    <Card>
-                                        <CardHeader>
-                                            <CardTitle className="flex items-center gap-2">
-                                                <Heart className="h-5 w-5" color="red" />
+                                {/* Tab 3: Profil recherché */}
+                                <TabsContent value="partner" className="mt-6 space-y-6">
+                                    {/* Partner Preferences */}
+                                    <Card className="border-gray-200 bg-white">
+                                        <CardContent className="p-6">
+                                            <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-gray-900">
+                                                <Heart className="h-5 w-5 text-[#ff343a]" />
                                                 {t('profile.userProfile.soughtProfile')}
-                                            </CardTitle>
-                                        </CardHeader>
-                                        <CardContent className="space-y-4">
+                                            </h3>
                                             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                                 <div>
-                                                    <div className="text-sm text-muted-foreground">{t('profile.userProfile.minimumAge')}</div>
-                                                    <div className="font-medium">{user?.profile?.age_minimum ? `${user?.profile?.age_minimum} ${t('profile.years')}` : '—'}</div>
+                                                    <div className="mb-1 text-sm text-gray-600">
+                                                        {t('profile.userProfile.minimumAge')} / {t('profile.maximumAge')}
+                                                    </div>
+                                                    <div className="font-medium text-gray-900">
+                                                        {user?.profile?.age_minimum && user?.profile?.age_maximum
+                                                            ? `${user.profile.age_minimum} - ${user.profile.age_maximum} ${t('profile.years')}`
+                                                            : user?.profile?.age_minimum
+                                                              ? `${user.profile.age_minimum} ${t('profile.years')}`
+                                                              : '—'}
+                                                    </div>
                                                 </div>
                                                 <div>
-                                                    <div className="text-sm text-muted-foreground">{t('profile.userProfile.matrimonialSituation')}</div>
-                                                    <div className="font-medium">{user?.profile?.situation_matrimoniale_recherche || '—'}</div>
+                                                    <div className="mb-1 text-sm text-gray-600">{t('profile.userProfile.matrimonialSituation')}</div>
+                                                    <div className="font-medium text-gray-900">
+                                                        {Array.isArray(user?.profile?.situation_matrimoniale_recherche)
+                                                            ? user.profile.situation_matrimoniale_recherche.join(', ')
+                                                            : user?.profile?.situation_matrimoniale_recherche || '—'}
+                                                    </div>
                                                 </div>
                                                 <div>
-                                                    <div className="text-sm text-muted-foreground">{t('common.country')}</div>
-                                                    <div className="font-medium">{user?.profile?.pays_recherche || '—'}</div>
+                                                    <div className="mb-1 text-sm text-gray-600">{t('common.country')}</div>
+                                                    <div className="font-medium text-gray-900">
+                                                        {Array.isArray(user?.profile?.pays_recherche)
+                                                            ? user.profile.pays_recherche.join(', ')
+                                                            : user?.profile?.pays_recherche || '—'}
+                                                    </div>
                                                 </div>
                                                 <div>
-                                                    <div className="text-sm text-muted-foreground">{t('profile.userProfile.residenceLocation')}</div>
-                                                    {/* <div className="font-medium">{user?.profile?.lieu_residence || '—'}</div> */}
-                                                    <div className="flex flex-wrap gap-2">
+                                                    <div className="mb-1 text-sm text-gray-600">{t('profile.userProfile.residenceLocation')}</div>
+                                                    <div className="font-medium text-gray-900">
                                                         {user?.profile?.villes_recherche && user?.profile?.villes_recherche.length > 0
                                                             ? (() => {
                                                                   const villes =
@@ -204,116 +517,375 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                                                       ? villes.join(', ')
                                                                       : t('profile.notSpecified');
                                                               })()
-                                                            : '--'}
+                                                            : '—'}
                                                     </div>
                                                 </div>
                                                 <div>
-                                                    <div className="text-sm text-muted-foreground">{t('profile.userProfile.educationLevel')}</div>
-                                                    <div className="font-medium">{user?.profile?.niveau_etudes_recherche || '—'}</div>
+                                                    <div className="mb-1 text-sm text-gray-600">{t('profile.userProfile.educationLevel')}</div>
+                                                    <div className="font-medium text-gray-900">{user?.profile?.niveau_etudes_recherche || '—'}</div>
                                                 </div>
                                                 <div>
-                                                    <div className="text-sm text-muted-foreground">{t('profile.userProfile.employmentStatus')}</div>
-                                                    <div className="font-medium">{user?.profile?.statut_emploi_recherche || '—'}</div>
+                                                    <div className="mb-1 text-sm text-gray-600">{t('profile.userProfile.employmentStatus')}</div>
+                                                    <div className="font-medium text-gray-900">{user?.profile?.statut_emploi_recherche || '—'}</div>
                                                 </div>
-                                                {/* <div>
-                                                    <div className="text-sm text-muted-foreground">Secteur d'activité</div>
-                                                    <div className="font-medium">{user?.profile?.secteur_activite || '—'}</div>
-                                                </div> */}
-                                            </div>
-                                            {/* Description sur le profil recherché */}
-                                            <div>
-                                                <div className="mb-1 text-sm text-gray-500">{t('profile.userProfile.description')}</div>
-                                                <div className="rounded-md border border-border bg-muted p-3 leading-relaxed">
-                                                    {profile?.profil_recherche_description || '—'}
+                                                <div>
+                                                    <div className="mb-1 text-sm text-gray-600">{t('profile.minimumIncome')}</div>
+                                                    <div className="font-medium text-gray-900">{user?.profile?.revenu_minimum || '—'}</div>
+                                                </div>
+                                                <div>
+                                                    <div className="mb-1 text-sm text-gray-600">{t('profile.soughtReligion')}</div>
+                                                    <div className="font-medium text-gray-900">{user?.profile?.religion_recherche || '—'}</div>
                                                 </div>
                                             </div>
+                                            {profile?.profil_recherche_description && (
+                                                <div className="mt-4">
+                                                    <div className="mb-1 text-sm text-gray-600">{t('profile.userProfile.description')}</div>
+                                                    <div className="rounded-md border border-gray-200 bg-gray-50 p-3 leading-relaxed text-gray-900">
+                                                        {profile.profil_recherche_description}
+                                                    </div>
+                                                </div>
+                                            )}
                                         </CardContent>
                                     </Card>
 
-                                    {/* À propos de moi */}
-                                    <Card>
-                                        <CardHeader>
-                                            <CardTitle className="flex items-center gap-2">
-                                                <MessageCircleWarning className="h-5 w-5" color="purple" />{t('profile.userProfile.aboutMe')}
-                                            </CardTitle>
-                                        </CardHeader>
-                                        <CardContent className="space-y-4">
-                                            {/* À propos de moi - Description */}
-                                            <div>
-                                                <div className="mb-1 text-sm text-gray-500">{t('profile.userProfile.description')}</div>
-                                                <div className="rounded-md border border-border bg-muted p-3 leading-relaxed">
-                                                    {profile?.apropos_description || '—'}
-                                                </div>
-                                            </div>
-                                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                                                <div>
-                                                    <div className="text-sm text-muted-foreground">{t('profile.userProfile.healthStatus')}</div>
-                                                    <div className="font-medium">{user?.profile?.etat_sante || '—'}</div>
-                                                </div>
-                                                {/* Votre travail, votre vie professionnelle A ajouter plus tard */}
-                                                <div>
-                                                    <div className="text-sm text-muted-foreground">{t('profile.userProfile.work')}</div>
-                                                    <div className="font-medium">{apropos?.travail || '—'}</div>
-                                                </div>
-                                            </div>
-                                        </CardContent>
-                                    </Card>
+                                    {/* An Ideal Relationship To Me */}
+                                    {profile?.profil_recherche_description && (
+                                        <Card className="border-gray-200 bg-white">
+                                            <CardContent className="p-6">
+                                                <h3 className="mb-3 text-lg font-semibold text-gray-900">Une relation idéale pour moi</h3>
+                                                <p className="leading-relaxed text-gray-700">{profile.profil_recherche_description}</p>
+                                            </CardContent>
+                                        </Card>
+                                    )}
+                                </TabsContent>
 
-                                    {/* Notes & Évaluation du Matchmaker */}
+                                {/* Additional Content Tab - Notes, Evaluation, Posts */}
+                                <TabsContent value="more" className="mt-6 space-y-6" style={{ display: 'none' }}>
+                                    {/* Basic Information - Detailed */}
+                                    {userRole === 'user' && (
+                                        <>
+                                            <Card className="border-gray-200 bg-white">
+                                                <CardContent className="p-6">
+                                                    <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-gray-900">
+                                                        <User className="h-5 w-5 text-[#096725]" />
+                                                        {t('profile.userProfile.basicInfo')}
+                                                    </h3>
+                                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                                        <div>
+                                                            <div className="mb-1 text-sm text-gray-600">
+                                                                {t('profile.userProfile.matrimonialSituation')}
+                                                            </div>
+                                                            <div className="font-medium text-gray-900">{user?.profile?.etat_matrimonial || '—'}</div>
+                                                        </div>
+                                                        <div>
+                                                            <div className="mb-1 text-sm text-gray-600">{t('profile.userProfile.haveChildren')}</div>
+                                                            <div className="font-medium text-gray-900">
+                                                                {user?.profile?.has_children == 1
+                                                                    ? `${t('profile.yes')}${user?.profile?.children_count ? ` (${user.profile.children_count})` : ''}`
+                                                                    : user?.profile?.has_children == 0
+                                                                      ? t('profile.no')
+                                                                      : '—'}
+                                                            </div>
+                                                        </div>
+                                                        <div>
+                                                            <div className="mb-1 text-sm text-gray-600">
+                                                                {t('profile.userProfile.educationLevel')}
+                                                            </div>
+                                                            <div className="font-medium text-gray-900">{user?.profile?.niveau_etudes || '—'}</div>
+                                                        </div>
+                                                        <div>
+                                                            <div className="mb-1 text-sm text-gray-600">
+                                                                {t('profile.userProfile.professionalSituation')}
+                                                            </div>
+                                                            <div className="font-medium text-gray-900">
+                                                                {user?.profile?.situation_professionnelle || '—'}
+                                                            </div>
+                                                        </div>
+                                                        <div>
+                                                            <div className="mb-1 text-sm text-gray-600">
+                                                                {t('profile.userProfile.activitySector')}
+                                                            </div>
+                                                            <div className="font-medium text-gray-900">{user?.profile?.secteur || '—'}</div>
+                                                        </div>
+                                                        <div>
+                                                            <div className="mb-1 text-sm text-gray-600">{t('profile.userProfile.monthlyIncome')}</div>
+                                                            <div className="font-medium text-gray-900">{user?.profile?.revenu || '—'}</div>
+                                                        </div>
+                                                        <div>
+                                                            <div className="mb-1 text-sm text-gray-600">{t('profile.userProfile.height')}</div>
+                                                            <div className="font-medium text-gray-900">
+                                                                {user?.profile?.taille ? `${user.profile.taille} cm` : '—'}
+                                                            </div>
+                                                        </div>
+                                                        <div>
+                                                            <div className="mb-1 text-sm text-gray-600">{t('profile.userProfile.weight')}</div>
+                                                            <div className="font-medium text-gray-900">
+                                                                {user?.profile?.poids ? `${user.profile.poids} kg` : '—'}
+                                                            </div>
+                                                        </div>
+                                                        <div>
+                                                            <div className="mb-1 text-sm text-gray-600">Origine</div>
+                                                            <div className="font-medium text-gray-900">{user?.profile?.origine || '—'}</div>
+                                                        </div>
+                                                        <div>
+                                                            <div className="mb-1 text-sm text-gray-600">Pays de résidence</div>
+                                                            <div className="font-medium text-gray-900">{user?.profile?.pays_residence || '—'}</div>
+                                                        </div>
+                                                        <div>
+                                                            <div className="mb-1 text-sm text-gray-600">Ville de résidence</div>
+                                                            <div className="font-medium text-gray-900">{user?.profile?.ville_residence || '—'}</div>
+                                                        </div>
+                                                        <div>
+                                                            <div className="mb-1 text-sm text-gray-600">Pays d'origine</div>
+                                                            <div className="font-medium text-gray-900">{user?.profile?.pays_origine || '—'}</div>
+                                                        </div>
+                                                        <div>
+                                                            <div className="mb-1 text-sm text-gray-600">Ville d'origine</div>
+                                                            <div className="font-medium text-gray-900">{user?.profile?.ville_origine || '—'}</div>
+                                                        </div>
+                                                        <div>
+                                                            <div className="mb-1 text-sm text-gray-600">Religion</div>
+                                                            <div className="font-medium text-gray-900">{user?.profile?.religion || '—'}</div>
+                                                        </div>
+                                                        <div>
+                                                            <div className="mb-1 text-sm text-gray-600">Logement</div>
+                                                            <div className="font-medium text-gray-900">{user?.profile?.logement || '—'}</div>
+                                                        </div>
+                                                    </div>
+                                                </CardContent>
+                                            </Card>
+
+                                            {/* Lifestyle Information */}
+                                            <Card className="border-gray-200 bg-white">
+                                                <CardContent className="p-6">
+                                                    <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-gray-900">
+                                                        <Heart className="h-5 w-5 text-[#ff343a]" />
+                                                        Lifestyle & Health
+                                                    </h3>
+                                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                                        <div>
+                                                            <div className="mb-1 text-sm text-gray-600">
+                                                                {t('profile.healthSituation', { defaultValue: 'Situation de santé' })}
+                                                            </div>
+                                                            <div className="font-medium text-gray-900">
+                                                                {(() => {
+                                                                    const situationSante = user?.profile?.situation_sante;
+                                                                    if (!situationSante) return '—';
+
+                                                                    const situations = Array.isArray(situationSante)
+                                                                        ? situationSante
+                                                                        : [situationSante];
+                                                                    if (situations.length === 0) return '—';
+
+                                                                    const translations = {
+                                                                        sante_tres_bonne: t('profile.healthSituationVeryGood', {
+                                                                            defaultValue: 'Santé très bonne',
+                                                                        }),
+                                                                        maladie_chronique: t('profile.healthSituationChronicDisease', {
+                                                                            defaultValue: 'Maladie chronique',
+                                                                        }),
+                                                                        personne_handicap: t('profile.healthSituationDisabled', {
+                                                                            defaultValue: 'Personne en situation de handicap',
+                                                                        }),
+                                                                        non_voyant_malvoyant: t('profile.healthSituationBlindLowVision', {
+                                                                            defaultValue: 'Non voyant / Malvoyant',
+                                                                        }),
+                                                                        cecite_totale: t('profile.healthSituationTotalBlindness', {
+                                                                            defaultValue: 'مكفوف (Cécité totale)',
+                                                                        }),
+                                                                        troubles_psychiques: t('profile.healthSituationMentalDisorder', {
+                                                                            defaultValue: 'Troubles psychiques',
+                                                                        }),
+                                                                        autres: t('profile.healthSituationOther', { defaultValue: 'Autres' }),
+                                                                    };
+
+                                                                    return situations.map((s) => translations[s] || s).join(', ');
+                                                                })()}
+                                                            </div>
+                                                        </div>
+                                                        <div>
+                                                            <div className="mb-1 text-sm text-gray-600">{t('profile.userProfile.healthStatus')}</div>
+                                                            <div className="font-medium text-gray-900">{user?.profile?.etat_sante || '—'}</div>
+                                                        </div>
+                                                        <div>
+                                                            <div className="mb-1 text-sm text-gray-600">{t('profile.smoker')}</div>
+                                                            <div className="font-medium text-gray-900">{user?.profile?.fumeur || '—'}</div>
+                                                        </div>
+                                                        <div>
+                                                            <div className="mb-1 text-sm text-gray-600">{t('profile.drinker')}</div>
+                                                            <div className="font-medium text-gray-900">{user?.profile?.buveur || '—'}</div>
+                                                        </div>
+                                                        <div>
+                                                            <div className="mb-1 text-sm text-gray-600">{t('profile.sport')}</div>
+                                                            <div className="font-medium text-gray-900">{user?.profile?.sport || '—'}</div>
+                                                        </div>
+                                                        <div>
+                                                            <div className="mb-1 text-sm text-gray-600">{t('profile.motorized')}</div>
+                                                            <div className="font-medium text-gray-900">{user?.profile?.motorise || '—'}</div>
+                                                        </div>
+                                                        <div className="md:col-span-2">
+                                                            <div className="mb-1 text-sm text-gray-600">{t('profile.hobbies')}</div>
+                                                            <div className="font-medium text-gray-900">{user?.profile?.loisirs || '—'}</div>
+                                                        </div>
+                                                    </div>
+                                                </CardContent>
+                                            </Card>
+
+                                            {/* Partner Preferences */}
+                                            <Card className="border-gray-200 bg-white">
+                                                <CardContent className="p-6">
+                                                    <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-gray-900">
+                                                        <Heart className="h-5 w-5 text-[#ff343a]" />
+                                                        {t('profile.userProfile.soughtProfile')}
+                                                    </h3>
+                                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                                        <div>
+                                                            <div className="mb-1 text-sm text-gray-600">
+                                                                {t('profile.userProfile.minimumAge')} / {t('profile.maximumAge')}
+                                                            </div>
+                                                            <div className="font-medium text-gray-900">
+                                                                {user?.profile?.age_minimum && user?.profile?.age_maximum
+                                                                    ? `${user.profile.age_minimum} - ${user.profile.age_maximum} ${t('profile.years')}`
+                                                                    : user?.profile?.age_minimum
+                                                                      ? `${user.profile.age_minimum} ${t('profile.years')}`
+                                                                      : '—'}
+                                                            </div>
+                                                        </div>
+                                                        <div>
+                                                            <div className="mb-1 text-sm text-gray-600">
+                                                                {t('profile.userProfile.matrimonialSituation')}
+                                                            </div>
+                                                            <div className="font-medium text-gray-900">
+                                                                {Array.isArray(user?.profile?.situation_matrimoniale_recherche)
+                                                                    ? user.profile.situation_matrimoniale_recherche.join(', ')
+                                                                    : user?.profile?.situation_matrimoniale_recherche || '—'}
+                                                            </div>
+                                                        </div>
+                                                        <div>
+                                                            <div className="mb-1 text-sm text-gray-600">{t('common.country')}</div>
+                                                            <div className="font-medium text-gray-900">
+                                                                {Array.isArray(user?.profile?.pays_recherche)
+                                                                    ? user.profile.pays_recherche.join(', ')
+                                                                    : user?.profile?.pays_recherche || '—'}
+                                                            </div>
+                                                        </div>
+                                                        <div>
+                                                            <div className="mb-1 text-sm text-gray-600">
+                                                                {t('profile.userProfile.residenceLocation')}
+                                                            </div>
+                                                            <div className="font-medium text-gray-900">
+                                                                {user?.profile?.villes_recherche && user?.profile?.villes_recherche.length > 0
+                                                                    ? (() => {
+                                                                          const villes =
+                                                                              typeof user?.profile?.villes_recherche === 'string'
+                                                                                  ? JSON.parse(user?.profile?.villes_recherche)
+                                                                                  : user?.profile?.villes_recherche;
+                                                                          return Array.isArray(villes) && villes.length > 0
+                                                                              ? villes.join(', ')
+                                                                              : t('profile.notSpecified');
+                                                                      })()
+                                                                    : '—'}
+                                                            </div>
+                                                        </div>
+                                                        <div>
+                                                            <div className="mb-1 text-sm text-gray-600">
+                                                                {t('profile.userProfile.educationLevel')}
+                                                            </div>
+                                                            <div className="font-medium text-gray-900">
+                                                                {user?.profile?.niveau_etudes_recherche || '—'}
+                                                            </div>
+                                                        </div>
+                                                        <div>
+                                                            <div className="mb-1 text-sm text-gray-600">
+                                                                {t('profile.userProfile.employmentStatus')}
+                                                            </div>
+                                                            <div className="font-medium text-gray-900">
+                                                                {user?.profile?.statut_emploi_recherche || '—'}
+                                                            </div>
+                                                        </div>
+                                                        <div>
+                                                            <div className="mb-1 text-sm text-gray-600">{t('profile.minimumIncome')}</div>
+                                                            <div className="font-medium text-gray-900">{user?.profile?.revenu_minimum || '—'}</div>
+                                                        </div>
+                                                        <div>
+                                                            <div className="mb-1 text-sm text-gray-600">{t('profile.soughtReligion')}</div>
+                                                            <div className="font-medium text-gray-900">
+                                                                {user?.profile?.religion_recherche || '—'}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    {profile?.profil_recherche_description && (
+                                                        <div className="mt-4">
+                                                            <div className="mb-1 text-sm text-gray-600">{t('profile.userProfile.description')}</div>
+                                                            <div className="rounded-md border border-gray-200 bg-gray-50 p-3 leading-relaxed text-gray-900">
+                                                                {profile.profil_recherche_description}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </CardContent>
+                                            </Card>
+                                        </>
+                                    )}
+
+                                    {/* Notes & Evaluation for Matchmakers */}
                                     {canManage && (
-                                        <Card>
-                                            <CardHeader>
-                                                <CardTitle className="flex items-center justify-between">
-                                                    <span>{t('profile.userProfile.notesAndEvaluation')}</span>
-                                                </CardTitle>
-                                            </CardHeader>
-                                            <CardContent className="space-y-6">
+                                        <Card className="border-gray-200 bg-white">
+                                            <CardContent className="p-6">
+                                                <h3 className="mb-4 text-lg font-semibold text-gray-900">
+                                                    {t('profile.userProfile.notesAndEvaluation')}
+                                                </h3>
+
                                                 {/* Notes list */}
-                                                <div>
-                                                    <div className="mb-2 text-sm text-muted-foreground">{t('profile.userProfile.assignedMatchmakerNotes')}</div>
+                                                <div className="mb-6">
+                                                    <div className="mb-2 text-sm text-gray-600">
+                                                        {t('profile.userProfile.assignedMatchmakerNotes')}
+                                                    </div>
                                                     <div className="space-y-3">
                                                         {Array.isArray(matchmakerNotes) && matchmakerNotes.length > 0 ? (
                                                             matchmakerNotes.map((n) => {
                                                                 const isAuthor = n.author_id === auth?.user?.id;
                                                                 return (
-                                                                    <div key={n.id} className="rounded-md border border-border bg-muted p-3">
+                                                                    <div key={n.id} className="rounded-md border border-gray-200 bg-gray-50 p-3">
                                                                         <div className="mb-1 flex items-center justify-between">
-                                                                            <div className="text-xs text-muted-foreground">
+                                                                            <div className="text-xs text-gray-500">
                                                                                 {n.author?.name} · {new Date(n.created_at).toLocaleString()}
                                                                             </div>
                                                                             {isAuthor && (
                                                                                 <button
                                                                                     type="button"
                                                                                     onClick={() => openDeleteDialog(n.id)}
-                                                                                    className="text-error hover:text-error/80 transition-colors"
+                                                                                    className="text-[#ff343a] transition-colors hover:text-[#cc2a2f]"
                                                                                     title={t('profile.userProfile.deleteNote')}
                                                                                 >
                                                                                     <Trash2 className="h-4 w-4" />
                                                                                 </button>
                                                                             )}
                                                                         </div>
-                                                                        <div className="text-sm">{n.content}</div>
+                                                                        <div className="text-sm text-gray-900">{n.content}</div>
                                                                     </div>
                                                                 );
                                                             })
                                                         ) : (
-                                                            <div className="text-sm text-muted-foreground">{t('profile.userProfile.noNotes')}</div>
+                                                            <div className="text-sm text-gray-500">{t('profile.userProfile.noNotes')}</div>
                                                         )}
                                                     </div>
                                                 </div>
 
                                                 {/* Add note */}
-                                                <form onSubmit={addNote} className="space-y-2">
-                                                    <label className="text-sm text-muted-foreground">{t('profile.userProfile.addNote')}</label>
+                                                <form onSubmit={addNote} className="mb-6 space-y-2">
+                                                    <label className="text-sm text-gray-600">{t('profile.userProfile.addNote')}</label>
                                                     <textarea
-                                                        className="w-full rounded-md border border-border p-3 focus:border-error focus:ring-1 focus:ring-error focus:outline-none"
+                                                        className="w-full rounded-md border border-gray-300 p-3 focus:border-[#ff343a] focus:ring-1 focus:ring-[#ff343a] focus:outline-none"
                                                         rows={3}
                                                         value={newNote}
                                                         onChange={(e) => setNewNote(e.target.value)}
                                                         placeholder={t('profile.userProfile.enterNote')}
                                                     />
                                                     <div>
-                                                        <button type="submit" className="inline-flex items-center rounded-md bg-foreground px-4 py-2 text-background hover:opacity-90">
+                                                        <button
+                                                            type="submit"
+                                                            className="inline-flex items-center rounded-md bg-[#096725] px-4 py-2 text-white hover:bg-[#07501d]"
+                                                        >
                                                             {t('profile.userProfile.addNoteButton')}
                                                         </button>
                                                     </div>
@@ -323,11 +895,18 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                                 <form onSubmit={saveEvaluation} className="space-y-4">
                                                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                                         <div>
-                                                            <div className="text-sm text-muted-foreground">{t('profile.userProfile.status')}</div>
-                                                            <div className="mt-2 flex gap-4 text-sm">
-                                                                {['prospect','member','client'].map((val) => (
+                                                            <div className="mb-2 text-sm text-gray-600">{t('profile.userProfile.status')}</div>
+                                                            <div className="flex gap-4 text-sm">
+                                                                {['prospect', 'member', 'client'].map((val) => (
                                                                     <label key={val} className="inline-flex items-center gap-2">
-                                                                        <input type="radio" name="status" value={val} checked={evaluation?.status === val} onChange={(e)=>setEvaluation({...evaluation, status: e.target.value})} />
+                                                                        <input
+                                                                            type="radio"
+                                                                            name="status"
+                                                                            value={val}
+                                                                            checked={evaluation?.status === val}
+                                                                            onChange={(e) => setEvaluation({ ...evaluation, status: e.target.value })}
+                                                                            className="text-[#096725] focus:ring-[#096725]"
+                                                                        />
                                                                         <span className="capitalize">{t(`profile.userProfile.${val}`)}</span>
                                                                     </label>
                                                                 ))}
@@ -344,260 +923,148 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                                         ['social_compatibility', t('profile.userProfile.socialCompatibility')],
                                                         ['qualities', t('profile.userProfile.qualities')],
                                                         ['defects', t('profile.userProfile.defects')],
-                                                    ].map(([key,label]) => (
+                                                    ].map(([key, label]) => (
                                                         <div key={key}>
-                                                            <label className="mb-1 block text-sm text-muted-foreground">{label}</label>
+                                                            <label className="mb-1 block text-sm text-gray-600">{label}</label>
                                                             <textarea
                                                                 rows={2}
-                                                                className="w-full rounded-md border border-border p-3 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
+                                                                className="w-full rounded-md border border-gray-300 p-3 focus:border-[#096725] focus:ring-1 focus:ring-[#096725] focus:outline-none"
                                                                 value={evaluation[key] || ''}
-                                                                onChange={(e)=>setEvaluation({...evaluation, [key]: e.target.value})}
+                                                                onChange={(e) => setEvaluation({ ...evaluation, [key]: e.target.value })}
                                                             />
                                                         </div>
                                                     ))}
 
                                                     <div>
-                                                        <div className="text-sm text-muted-foreground">{t('profile.userProfile.matchmakerRecommendation')}</div>
-                                                        <div className="mt-2 flex gap-6 text-sm">
+                                                        <div className="mb-2 text-sm text-gray-600">
+                                                            {t('profile.userProfile.matchmakerRecommendation')}
+                                                        </div>
+                                                        <div className="flex gap-6 text-sm">
                                                             {[
                                                                 ['ready', t('profile.userProfile.ready')],
                                                                 ['accompany', t('profile.userProfile.accompany')],
                                                                 ['not_ready', t('profile.userProfile.notReady')],
-                                                            ].map(([val,label]) => (
+                                                            ].map(([val, label]) => (
                                                                 <label key={val} className="inline-flex items-center gap-2">
-                                                                    <input type="radio" name="recommendation" value={val} checked={evaluation.recommendation === val} onChange={(e)=>setEvaluation({...evaluation, recommendation: e.target.value})} />
+                                                                    <input
+                                                                        type="radio"
+                                                                        name="recommendation"
+                                                                        value={val}
+                                                                        checked={evaluation.recommendation === val}
+                                                                        onChange={(e) =>
+                                                                            setEvaluation({ ...evaluation, recommendation: e.target.value })
+                                                                        }
+                                                                        className="text-[#096725] focus:ring-[#096725]"
+                                                                    />
                                                                     <span>{label}</span>
                                                                 </label>
                                                             ))}
                                                         </div>
                                                     </div>
 
-                
                                                     <div>
-                                                        <label className="mb-1 block text-sm text-muted-foreground">{t('profile.userProfile.additionalRemarks')}</label>
-                                                        <textarea rows={2} className="w-full rounded-md border border-gray-300 p-3 focus:border-gray-900 focus:ring-1 focus:ring-gray-900 focus:outline-none" value={evaluation.remarks} onChange={(e)=>setEvaluation({...evaluation, remarks: e.target.value})} />
+                                                        <label className="mb-1 block text-sm text-gray-600">
+                                                            {t('profile.userProfile.additionalRemarks')}
+                                                        </label>
+                                                        <textarea
+                                                            rows={2}
+                                                            className="w-full rounded-md border border-gray-300 p-3 focus:border-[#096725] focus:ring-1 focus:ring-[#096725] focus:outline-none"
+                                                            value={evaluation.remarks}
+                                                            onChange={(e) => setEvaluation({ ...evaluation, remarks: e.target.value })}
+                                                        />
                                                     </div>
 
                                                     <div>
-                                                        <div className="mb-2 text-sm font-medium text-foreground">{t('profile.userProfile.feedbackAfterAppointment')}</div>
+                                                        <div className="mb-2 text-sm font-medium text-gray-900">
+                                                            {t('profile.userProfile.feedbackAfterAppointment')}
+                                                        </div>
                                                         <div className="space-y-3">
                                                             <div>
-                                                                <label className="mb-1 block text-sm text-muted-foreground">{t('profile.userProfile.behaviorDuringAppointment')}</label>
-                                                                <textarea rows={2} className="w-full rounded-md border border-gray-300 p-3 focus:border-gray-900 focus:ring-1 focus:ring-gray-900 focus:outline-none" value={evaluation.feedback_behavior} onChange={(e)=>setEvaluation({...evaluation, feedback_behavior: e.target.value})} />
+                                                                <label className="mb-1 block text-sm text-gray-600">
+                                                                    {t('profile.userProfile.behaviorDuringAppointment')}
+                                                                </label>
+                                                                <textarea
+                                                                    rows={2}
+                                                                    className="w-full rounded-md border border-gray-300 p-3 focus:border-[#096725] focus:ring-1 focus:ring-[#096725] focus:outline-none"
+                                                                    value={evaluation.feedback_behavior}
+                                                                    onChange={(e) =>
+                                                                        setEvaluation({ ...evaluation, feedback_behavior: e.target.value })
+                                                                    }
+                                                                />
                                                             </div>
                                                             <div>
-                                                                <label className="mb-1 block text-sm text-muted-foreground">{t('profile.userProfile.partnerImpression')}</label>
-                                                                <textarea rows={2} className="w-full rounded-md border border-gray-300 p-3 focus:border-gray-900 focus:ring-1 focus:ring-gray-900 focus:outline-none" value={evaluation.feedback_partner_impression} onChange={(e)=>setEvaluation({...evaluation, feedback_partner_impression: e.target.value})} />
+                                                                <label className="mb-1 block text-sm text-gray-600">
+                                                                    {t('profile.userProfile.partnerImpression')}
+                                                                </label>
+                                                                <textarea
+                                                                    rows={2}
+                                                                    className="w-full rounded-md border border-gray-300 p-3 focus:border-[#096725] focus:ring-1 focus:ring-[#096725] focus:outline-none"
+                                                                    value={evaluation.feedback_partner_impression}
+                                                                    onChange={(e) =>
+                                                                        setEvaluation({ ...evaluation, feedback_partner_impression: e.target.value })
+                                                                    }
+                                                                />
                                                             </div>
                                                             <div>
-                                                                <label className="mb-1 block text-sm text-muted-foreground">{t('profile.userProfile.positiveNegativePoints')}</label>
-                                                                <textarea rows={2} className="w-full rounded-md border border-gray-300 p-3 focus:border-gray-900 focus:ring-1 focus:ring-gray-900 focus:outline-none" value={evaluation.feedback_pos_neg} onChange={(e)=>setEvaluation({...evaluation, feedback_pos_neg: e.target.value})} />
+                                                                <label className="mb-1 block text-sm text-gray-600">
+                                                                    {t('profile.userProfile.positiveNegativePoints')}
+                                                                </label>
+                                                                <textarea
+                                                                    rows={2}
+                                                                    className="w-full rounded-md border border-gray-300 p-3 focus:border-[#096725] focus:ring-1 focus:ring-[#096725] focus:outline-none"
+                                                                    value={evaluation.feedback_pos_neg}
+                                                                    onChange={(e) =>
+                                                                        setEvaluation({ ...evaluation, feedback_pos_neg: e.target.value })
+                                                                    }
+                                                                />
                                                             </div>
                                                         </div>
                                                     </div>
 
                                                     <div>
-                                                        <button type="submit" className="inline-flex items-center rounded-md bg-foreground px-4 py-2 text-background hover:opacity-90">{t('profile.userProfile.saveEvaluation')}</button>
+                                                        <button
+                                                            type="submit"
+                                                            className="inline-flex items-center rounded-md bg-[#096725] px-4 py-2 text-white hover:bg-[#07501d]"
+                                                        >
+                                                            {t('profile.userProfile.saveEvaluation')}
+                                                        </button>
                                                     </div>
                                                 </form>
                                             </CardContent>
                                         </Card>
                                     )}
 
-                                    {/* Donner votre avis  to be added later when the functionality of see proposition is implemented*/}
-                                    {/* <Card>
-                                        <CardHeader>
-                                            <CardTitle className="flex items-center gap-2">
-                                                <MessageSquareWarning className="h-5 w-5" color="green" />
-                                                {t('profile.userProfile.giveYourOpinion')}
-                                            </CardTitle>
-                                        </CardHeader>
-                                        <CardContent className="space-y-4">
-                                            <div className="flex items-center gap-6">
-                                                <label className="inline-flex items-center gap-2">
-                                                    <input
-                                                        type="radio"
-                                                        name="avis"
-                                                        value="interesse"
-                                                        checked={avis === 'interesse'}
-                                                        onChange={(e) => setAvis(e.target.value)}
-                                                        className="text-red-600 focus:ring-red-500"
-                                                    />
-                                                    <span>{t('profile.userProfile.interested')}</span>
-                                                </label>
-                                                <label className="inline-flex items-center gap-2">
-                                                    <input
-                                                        type="radio"
-                                                        name="avis"
-                                                        value="pas_interesse"
-                                                        checked={avis === 'pas_interesse'}
-                                                        onChange={(e) => setAvis(e.target.value)}
-                                                        className="text-red-600 focus:ring-red-500"
-                                                    />
-                                                    <span>{t('profile.userProfile.notInterested')}</span>
-                                                </label>
-                                            </div>
-                                            <div>
-                                                <label htmlFor="commentaire" className="mb-1 block text-sm text-gray-500">
-                                                    {t('profile.userProfile.comment')}
-                                                </label>
-                                                <textarea
-                                                    id="commentaire"
-                                                    rows={4}
-                                                    value={commentaire}
-                                                    onChange={(e) => setCommentaire(e.target.value)}
-                                                    className="w-full rounded-md border border-gray-300 p-3 focus:border-red-500 focus:ring-1 focus:ring-red-500 focus:outline-none"
-                                                    placeholder={t('profile.userProfile.addComment')}
-                                                />
-                                            </div>
-                                            <div>
-                                                <button
-                                                    type="button"
-                                                    className="inline-flex items-center rounded-md bg-error px-4 py-2 font-medium text-error-foreground transition-colors hover:opacity-90"
-                                                >
-                                                    {t('profile.userProfile.sendOpinion')}
-                                                </button>
-                                            </div>
-                                        </CardContent>
-                                    </Card> */}
-                                </div>
-                            )}
+                                    {/* Posts Section for Matchmakers */}
+                                    {userRole === 'matchmaker' && (
+                                        <Card className="border-gray-200 bg-white">
+                                            <CardContent className="p-6">
+                                                <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-gray-900">
+                                                    <MessageSquareWarning className="h-5 w-5 text-[#096725]" />
+                                                    {t('profile.userProfile.posts')}
+                                                </h3>
+                                                {isOwnProfile && userRole === 'matchmaker' && (
+                                                    <div className="mb-4">
+                                                        <CreatePost />
+                                                    </div>
+                                                )}
 
-                            {userRole === 'matchmaker' && (
-                                <div className="space-y-6">
-                                    {/* changer matchmaker ou contacter mon matchmaker  functionality must be added later */}
-                                    
-                                    {
-                                        auth.user?.roles?.[0]?.name === 'user' && (
-                                            assignedMatchmakerId == user?.id ? (
-                                                <Button className='bg-success text-success-foreground px-4 py-2 rounded-md cursor-pointer'>{t('profile.userProfile.contactMyMatchmaker')}</Button>
-                                                // <h1>this is my matchmaker</h1>
-                                            ) : assignedMatchmakerId !== null && assignedMatchmakerId !== user?.id ? (
-                                                <Button className='bg-error text-error-foreground px-4 py-2 rounded-md cursor-pointer'>{t('profile.userProfile.chooseMatchmaker')}</Button>
-    
-                                            ) : (
-                                                <Button className='bg-error text-error-foreground px-4 py-2 rounded-md cursor-pointer'>{t('profile.userProfile.changeMyMatchmaker')}</Button>
-                                            )
-                                        )
-                                    }
-                                    {/* Contact Information */}
-                                    <Card>
-                                        <CardHeader>
-                                            <CardTitle className="flex items-center gap-2">
-                                                <FaUser className="h-5 w-5 text-info" />
-                                                <span className="text-xl font-bold text-muted-foreground">{t('profile.userProfile.matchmakerBio')}</span>
-                                            </CardTitle>
-                                        </CardHeader>
-                                        <CardContent className="space-y-4">
-                                            <span className="text-sm">{user?.matchmaker_bio}</span>
-                                        </CardContent>
-                                    </Card>
-
-                                    {/* Professional Stats */}
-                                    <Card>
-                                        <CardHeader>
-                                            <CardTitle>{t('profile.userProfile.professionalStatistics')}</CardTitle>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div className="rounded-lg bg-info-light p-4 text-center">
-                                                    <div className="text-2xl font-bold text-info">12</div>
-                                                    <div className="text-sm text-muted-foreground">{t('profile.userProfile.successfulMatches')}</div>
-                                                </div>
-                                                <div className="rounded-lg bg-success-bg p-4 text-center">
-                                                    <div className="text-2xl font-bold text-success">8</div>
-                                                    <div className="text-sm text-muted-foreground">{t('profile.userProfile.happyCouples')}</div>
-                                                </div>
-                                                <div className="rounded-lg bg-accent p-4 text-center">
-                                                    <div className="text-2xl font-bold text-accent-foreground">4.8</div>
-                                                    <div className="text-sm text-muted-foreground">{t('profile.userProfile.rating')}</div>
-                                                </div>
-                                                <div className="rounded-lg bg-warning-light p-4 text-center">
-                                                    <div className="text-2xl font-bold text-warning">2</div>
-                                                    <div className="text-sm text-muted-foreground">{t('profile.userProfile.yearsExperience')}</div>
-                                                </div>
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-
-                                    {/* Posts Section */}
-                                    <Card>
-                                        <CardHeader>
-                                            <CardTitle className="flex items-center gap-2">
-                                                <MessageSquareWarning className="h-5 w-5 text-blue-500" />
-                                                {t('profile.userProfile.posts')}
-                                            </CardTitle>
-                                        </CardHeader>
-                                        <CardContent>
-                                            {isOwnProfile && userRole === 'matchmaker' && (
-                                                <CreatePost />
-                                            )}
-                                            
-                                            {/* Display Posts */}
-                                            {user.posts && user.posts.length > 0 ? (
-                                                <div className="space-y-4">
-                                                    {user.posts.map((post) => (
-                                                        <PostCard key={post.id} post={post} />
-                                                    ))}
-                                                </div>
-                                            ) : (
-                                                <div className="text-center py-8 text-muted-foreground">
-                                                    {isOwnProfile ? t('profile.userProfile.shareFirstPost') : t('profile.userProfile.noPostsYet')}
-                                                </div>
-                                            )}
-                                        </CardContent>
-                                    </Card>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Sidebar */}
-                        <div className="space-y-6">
-                            {/* Basic Info Card */}
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>{t('profile.userProfile.basicInformation')}</CardTitle>
-                                </CardHeader>
-                                <CardContent className="space-y-3">
-                                    <div className="flex items-center gap-3">
-                                        <MapPin className="h-4 w-4 text-muted-foreground" />
-                                        <span>
-                                            {user?.city}, {user?.country}
-                                        </span>
-                                    </div>
-                                    {age && (
-                                        <div className="flex items-center gap-3">
-                                            <span className="text-sm text-muted-foreground">{t('profile.userProfile.age')}</span>
-                                            <span>{age} {t('profile.years')}</span>
-                                        </div>
+                                                {/* Display Posts */}
+                                                {user.posts && user.posts.length > 0 ? (
+                                                    <div className="space-y-4">
+                                                        {user.posts.map((post) => (
+                                                            <PostCard key={post.id} post={post} />
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    <div className="py-8 text-center text-gray-500">
+                                                        {isOwnProfile ? t('profile.userProfile.shareFirstPost') : t('profile.userProfile.noPostsYet')}
+                                                    </div>
+                                                )}
+                                            </CardContent>
+                                        </Card>
                                     )}
-                                    <div className="flex items-center gap-3">
-                                        <span className="text-sm text-muted-foreground">{t('profile.userProfile.role')}</span>
-                                        <Badge variant="outline" className="capitalize">
-                                            {userRole}
-                                        </Badge>
-                                    </div>
-                                </CardContent>
-                            </Card>
-
-                            {/* Stats Card */}
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>{t('profile.userProfile.statistics')}</CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="text-center">
-                                                    <div className="text-2xl font-bold text-info">{userRole === 'user' ? '0' : '12'}</div>
-                                            <div className="text-sm text-muted-foreground">{userRole === 'user' ? t('profile.userProfile.posts') : t('profile.userProfile.matches')}</div>
-                                        </div>
-                                        <div className="text-center">
-                                            <div className="text-2xl font-bold text-success">{userRole === 'user' ? '0' : '8'}</div>
-                                            <div className="text-sm text-muted-foreground">{userRole === 'user' ? t('profile.userProfile.followers') : t('profile.userProfile.success')}</div>
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
+                                </TabsContent>
+                            </Tabs>
                         </div>
                     </div>
                 </div>
@@ -608,9 +1075,7 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>{t('profile.userProfile.deleteNoteConfirm')}</DialogTitle>
-                        <DialogDescription>
-                            {t('profile.userProfile.deleteNoteDescription')}
-                        </DialogDescription>
+                        <DialogDescription>{t('profile.userProfile.deleteNoteDescription')}</DialogDescription>
                     </DialogHeader>
                     <DialogFooter>
                         <Button
@@ -622,10 +1087,7 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                         >
                             {t('profile.userProfile.no')}
                         </Button>
-                        <Button
-                            variant="destructive"
-                            onClick={deleteNote}
-                        >
+                        <Button variant="destructive" onClick={deleteNote}>
                             {t('profile.userProfile.yesDelete')}
                         </Button>
                     </DialogFooter>
