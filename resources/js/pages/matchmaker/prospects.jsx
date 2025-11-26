@@ -9,7 +9,7 @@ import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { CheckCircle, User, XCircle } from 'lucide-react';
+import { CheckCircle, User, XCircle, Pencil } from 'lucide-react';
 import { useState } from 'react';
 import AppLayout from '@/layouts/app-layout';
 
@@ -200,9 +200,8 @@ export default function MatchmakerProspects() {
             fd.append('cin', cinValue);
         }
         
-        // Only send front if matchmaker needs to fill it (user didn't provide it)
-        // Backend will use existing path if user already provided it
-        if (needsFront && front) {
+        // Send front if matchmaker needs to fill it OR if matchmaker wants to replace existing one
+        if (front) {
             fd.append('identity_card_front', front);
         }
 
@@ -349,6 +348,14 @@ export default function MatchmakerProspects() {
                                                             Rejeter
                                                         </Button>
                                                     )}
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        onClick={() => router.visit(`/staff/prospects/${prospect.id}/profile/edit`)}
+                                                    >
+                                                        <Pencil className="w-4 h-4 mr-2" />
+                                                        Profil
+                                                    </Button>
                                                     <Dialog>
                                                         <DialogTrigger asChild>
                                                             <Button
@@ -487,30 +494,61 @@ export default function MatchmakerProspects() {
                                                             <Label htmlFor="front">
                                                                 Identity Card Front {!selectedProspect?.profile?.identity_card_front_path && '*'}
                                                                 {selectedProspect?.profile?.identity_card_front_path && (
-                                                                    <span className="text-xs text-muted-foreground ml-2">(Déjà téléchargée)</span>
+                                                                    <span className="text-xs text-muted-foreground ml-2">(Déjà téléchargée - vous pouvez la remplacer)</span>
                                                                 )}
                                                             </Label>
                                                             {selectedProspect?.profile?.identity_card_front_path ? (
                                                                 <div className="space-y-2">
                                                                     <div className="relative inline-block rounded-lg border-2 border-border overflow-hidden bg-muted">
-                                                                        <img 
-                                                                            src={`/storage/${selectedProspect.profile.identity_card_front_path}`}
-                                                                            alt="CNI Front Preview"
-                                                                            className="max-w-full h-auto max-h-48 object-contain"
-                                                                            onError={(e) => {
-                                                                                e.target.onerror = null;
-                                                                                e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="150"%3E%3Crect fill="%23e5e7eb" width="200" height="150"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dominant-baseline="middle" fill="%239ca3af" font-family="Arial" font-size="14"%3EImage non disponible%3C/text%3E%3C/svg%3E';
-                                                                            }}
-                                                                        />
+                                                                        {front ? (
+                                                                            <img 
+                                                                                src={URL.createObjectURL(front)}
+                                                                                alt="Nouvelle CNI Front Preview"
+                                                                                className="max-w-full h-auto max-h-48 object-contain"
+                                                                            />
+                                                                        ) : (
+                                                                            <img 
+                                                                                src={`/storage/${selectedProspect.profile.identity_card_front_path}`}
+                                                                                alt="CNI Front Preview"
+                                                                                className="max-w-full h-auto max-h-48 object-contain"
+                                                                                onError={(e) => {
+                                                                                    e.target.onerror = null;
+                                                                                    e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="150"%3E%3Crect fill="%23e5e7eb" width="200" height="150"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dominant-baseline="middle" fill="%239ca3af" font-family="Arial" font-size="14"%3EImage non disponible%3C/text%3E%3C/svg%3E';
+                                                                                }}
+                                                                            />
+                                                                        )}
                                                                     </div>
-                                                                    <a 
-                                                                        href={`/storage/${selectedProspect.profile.identity_card_front_path}`}
-                                                                        target="_blank"
-                                                                        rel="noopener noreferrer"
-                                                                        className="text-xs text-primary hover:underline inline-block"
-                                                                    >
-                                                                        Ouvrir dans un nouvel onglet
-                                                                    </a>
+                                                                    {!front && (
+                                                                        <a 
+                                                                            href={`/storage/${selectedProspect.profile.identity_card_front_path}`}
+                                                                            target="_blank"
+                                                                            rel="noopener noreferrer"
+                                                                            className="text-xs text-primary hover:underline inline-block"
+                                                                        >
+                                                                            Ouvrir dans un nouvel onglet
+                                                                        </a>
+                                                                    )}
+                                                                    {front && (
+                                                                        <p className="text-xs text-success">✓ Nouvelle image sélectionnée: {front.name}</p>
+                                                                    )}
+                                                                    <Input 
+                                                                        id="front" 
+                                                                        type="file" 
+                                                                        accept="image/*" 
+                                                                        onChange={(e) => e.target.files?.[0] && setFront(e.target.files[0])} 
+                                                                        className="mt-2"
+                                                                    />
+                                                                    {front && (
+                                                                        <Button
+                                                                            type="button"
+                                                                            variant="outline"
+                                                                            size="sm"
+                                                                            onClick={() => setFront(null)}
+                                                                            className="w-full"
+                                                                        >
+                                                                            Annuler le remplacement
+                                                                        </Button>
+                                                                    )}
                                                                 </div>
                                                             ) : (
                                                                 <Input id="front" type="file" accept="image/*" onChange={(e) => e.target.files?.[0] && setFront(e.target.files[0])} />

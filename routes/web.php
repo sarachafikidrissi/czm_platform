@@ -365,6 +365,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/prospects', [\App\Http\Controllers\MatchmakerController::class, 'prospects'])->name('prospects');
         Route::get('/prospects/create', [\App\Http\Controllers\MatchmakerController::class, 'createProspect'])->name('prospects.create');
         Route::post('/prospects/store', [\App\Http\Controllers\MatchmakerController::class, 'storeProspect'])->name('prospects.store');
+        Route::get('/prospects/{user}/profile/edit', [\App\Http\Controllers\MatchmakerController::class, 'editProspectProfile'])->name('prospects.profile.edit');
+        Route::post('/prospects/{user}/profile', [\App\Http\Controllers\MatchmakerController::class, 'updateProspectProfile'])->name('prospects.profile.update');
         Route::post('/prospects/{user}/validate', [\App\Http\Controllers\MatchmakerController::class, 'validateProspect'])->name('prospects.validate');
         Route::post('/prospects/{user}/reject', [\App\Http\Controllers\MatchmakerController::class, 'rejectProspect'])->name('prospects.reject');
         Route::post('/prospects/{user}/accept', [\App\Http\Controllers\MatchmakerController::class, 'acceptRejectedProspect'])->name('prospects.accept');

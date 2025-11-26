@@ -191,8 +191,12 @@ class MatchmakerController extends Controller
         }
         
         // Front is required only if user didn't provide it
+        // But matchmaker can optionally replace it even if user uploaded one
         if (!$hasExistingFront) {
             $rules['identity_card_front'] = 'required|image|mimes:jpeg,png,jpg,gif|max:4096';
+        } else {
+            // Allow optional upload to replace existing image
+            $rules['identity_card_front'] = 'nullable|image|mimes:jpeg,png,jpg,gif|max:4096';
         }
         
         $request->validate($rules);
@@ -228,8 +232,16 @@ class MatchmakerController extends Controller
         $cinValue = ($hasExistingCin && $profile) ? $profile->cin : null;
         $cinHash = ($hasExistingCin && $profile) ? $profile->cin_hash : null;
         
-        // Handle front upload if matchmaker needs to fill it
-        if (!$hasExistingFront && $request->hasFile('identity_card_front')) {
+        // Handle front upload if matchmaker needs to fill it OR wants to replace existing one
+        if ($request->hasFile('identity_card_front')) {
+            // Delete old file if it exists
+            if ($hasExistingFront && $profile && $profile->identity_card_front_path) {
+                $oldPath = storage_path('app/public/' . $profile->identity_card_front_path);
+                if (file_exists($oldPath)) {
+                    unlink($oldPath);
+                }
+            }
+            
             $frontFile = $request->file('identity_card_front');
             $frontPath = $frontFile->store('identity-cards', 'public');
             $frontContent = file_get_contents($frontFile->getRealPath());
@@ -1077,5 +1089,415 @@ class MatchmakerController extends Controller
         }
 
         return redirect()->route('staff.agency-prospects')->with('success', 'Prospect créé avec succès. Les identifiants ont été envoyés par email.');
+    }
+
+    /**
+     * Show edit profile form for a prospect
+     */
+    public function editProspectProfile($id)
+    {
+        $me = Auth::user();
+        if (!$me) {
+            abort(403, 'Unauthorized.');
+        }
+
+        $roleName = \Illuminate\Support\Facades\DB::table('model_has_roles')
+            ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+            ->where('model_has_roles.model_id', $me->id)
+            ->value('roles.name');
+
+        // Only matchmakers and managers can edit profiles
+        if (!in_array($roleName, ['matchmaker', 'manager', 'admin'])) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $prospect = User::findOrFail($id);
+        $profile = $prospect->profile;
+
+        // Check authorization
+        if ($roleName === 'matchmaker') {
+            // Matchmaker can only edit prospects from their agency or assigned to them
+            if ($prospect->agency_id !== $me->agency_id && $prospect->assigned_matchmaker_id !== $me->id) {
+                abort(403, 'You can only edit prospects from your agency or assigned to you.');
+            }
+        } elseif ($roleName === 'manager') {
+            // Manager can only edit prospects from their agency
+            if ($prospect->agency_id !== $me->agency_id) {
+                abort(403, 'You can only edit prospects from your agency.');
+            }
+        }
+
+        // Format profile data for frontend (similar to ProfileController)
+        $profileData = $profile ? [
+            'nom' => $profile->nom,
+            'prenom' => $profile->prenom,
+            'dateNaissance' => $profile->date_naissance,
+            'niveauEtudes' => $profile->niveau_etudes,
+            'situationProfessionnelle' => $profile->situation_professionnelle,
+            'secteur' => $profile->secteur,
+            'revenu' => $profile->revenu,
+            'religion' => $profile->religion,
+            'origine' => $profile->origine,
+            'paysResidence' => $profile->pays_residence,
+            'villeResidence' => $profile->ville_residence,
+            'paysOrigine' => $profile->pays_origine,
+            'villeOrigine' => $profile->ville_origine,
+            'aproposDescription' => $profile->apropos_description,
+            'heardAboutUs' => $profile->heard_about_us,
+            'heardAboutReference' => $profile->heard_about_reference,
+            'etatMatrimonial' => $profile->etat_matrimonial,
+            'logement' => $profile->logement,
+            'taille' => $profile->taille,
+            'poids' => $profile->poids,
+            'etatSante' => $profile->etat_sante,
+            'fumeur' => $profile->fumeur,
+            'buveur' => $profile->buveur,
+            'sport' => $profile->sport,
+            'motorise' => $profile->motorise,
+            'loisirs' => $profile->loisirs,
+            'hasChildren' => $profile->has_children,
+            'childrenCount' => $profile->children_count,
+            'childrenGuardian' => $profile->children_guardian,
+            'hijabChoice' => $profile->hijab_choice,
+            'situationSante' => $profile->situation_sante,
+            'ageMinimum' => $profile->age_minimum,
+            'ageMaximum' => $profile->age_maximum,
+            'situationMatrimonialeRecherche' => $profile->situation_matrimoniale_recherche,
+            'paysRecherche' => $profile->pays_recherche,
+            'villesRecherche' => $profile->villes_recherche,
+            'niveauEtudesRecherche' => $profile->niveau_etudes_recherche,
+            'statutEmploiRecherche' => $profile->statut_emploi_recherche,
+            'revenuMinimum' => $profile->revenu_minimum,
+            'religionRecherche' => $profile->religion_recherche,
+            'profilRechercheDescription' => $profile->profil_recherche_description,
+            'profilePicturePath' => $profile->profile_picture_path,
+            'identityCardFrontPath' => $profile->identity_card_front_path,
+            'currentStep' => $profile->current_step,
+            'isCompleted' => $profile->is_completed,
+        ] : null;
+
+        return Inertia::render('matchmaker/edit-prospect-profile', [
+            'prospect' => $prospect,
+            'profile' => $profileData,
+        ]);
+    }
+
+    /**
+     * Update prospect profile (staff can fill/edit)
+     */
+    public function updateProspectProfile(Request $request, $id)
+    {
+        $me = Auth::user();
+        if (!$me) {
+            abort(403, 'Unauthorized.');
+        }
+
+        $roleName = \Illuminate\Support\Facades\DB::table('model_has_roles')
+            ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+            ->where('model_has_roles.model_id', $me->id)
+            ->value('roles.name');
+
+        // Only matchmakers and managers can update profiles
+        if (!in_array($roleName, ['matchmaker', 'manager', 'admin'])) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $prospect = User::findOrFail($id);
+
+        // Check authorization
+        if ($roleName === 'matchmaker') {
+            if ($prospect->agency_id !== $me->agency_id && $prospect->assigned_matchmaker_id !== $me->id) {
+                abort(403, 'You can only update prospects from your agency or assigned to you.');
+            }
+        } elseif ($roleName === 'manager') {
+            if ($prospect->agency_id !== $me->agency_id) {
+                abort(403, 'You can only update prospects from your agency.');
+            }
+        }
+
+        $request->validate([
+            'currentStep' => 'required|integer|between:1,4',
+        ]);
+
+        $profile = \App\Models\Profile::where('user_id', $prospect->id)->first();
+
+        if (!$profile) {
+            $profile = new \App\Models\Profile();
+            $profile->user_id = $prospect->id;
+        }
+
+        // Validate and update fields based on current step
+        switch ($request->currentStep) {
+            case 1:
+                $this->validateStep1ForStaff($request);
+                $this->updateStep1DataForStaff($profile, $request);
+                $profile->current_step = 2;
+                break;
+                
+            case 2:
+                $this->validateStep2ForStaff($request);
+                $this->updateStep2DataForStaff($profile, $request);
+                $profile->current_step = 3;
+                break;
+                
+            case 3:
+                $this->validateStep3ForStaff($request);
+                $this->updateStep3DataForStaff($profile, $request);
+                $profile->current_step = 4;
+                break;
+                
+            case 4:
+                $this->validateStep4ForStaff($request);
+                $this->updateStep4DataForStaff($profile, $request);
+                $profile->current_step = 4;
+                $profile->is_completed = true;
+                $profile->completed_at = now();
+                break;
+        }
+
+        $profile->save();
+
+        return redirect()->back()->with('success', 'Profil mis à jour avec succès');
+    }
+
+    // Validation methods for each step (similar to ProfileController)
+    private function validateStep1ForStaff(Request $request)
+    {
+        $request->validate([
+            'nom' => 'required|string|max:255',
+            'prenom' => 'required|string|max:255',
+            'dateNaissance' => 'required|date',
+            'niveauEtudes' => 'required|string',
+            'situationProfessionnelle' => 'required|string',
+            'heardAboutUs' => 'nullable|string|in:recommande,passage,pub,online_ads,google_search,youtube_video,facebook_post,instagram_post,tiktok_video,collaboration,phone_call',
+            'heardAboutReference' => 'nullable|string|max:255',
+        ]);
+    }
+
+    private function validateStep2ForStaff(Request $request)
+    {
+        $rules = [
+            'etatMatrimonial' => 'required|string',
+            'logement' => 'required|string',
+            'taille' => 'nullable|integer|min:100|max:250',
+            'poids' => 'nullable|integer|min:30|max:200',
+            'etatSante' => 'nullable|string|max:1000',
+            'fumeur' => 'nullable|string',
+            'buveur' => 'nullable|string',
+            'sport' => 'nullable|string',
+            'motorise' => 'nullable|string',
+            'loisirs' => 'nullable|string|max:1000',
+            'hasChildren' => 'nullable|in:true,false,1,0',
+            'childrenCount' => 'nullable|integer|min:0|max:20',
+            'childrenGuardian' => 'nullable|in:mother,father',
+            'hijabChoice' => 'nullable|in:voile,non_voile,niqab,idea_niqab,idea_hijab',
+            'situationSante' => 'nullable',
+            'heardAboutUs' => 'required|string|in:recommande,passage,pub,online_ads,google_search,youtube_video,facebook_post,instagram_post,tiktok_video,collaboration,phone_call',
+            'heardAboutReference' => 'nullable|string|max:255',
+        ];
+        
+        if ($request->filled('situationSante')) {
+            $situationSante = $request->situationSante;
+            $situationArray = is_string($situationSante) ? json_decode($situationSante, true) : $situationSante;
+            if (is_array($situationArray)) {
+                $validValues = ['sante_tres_bonne', 'maladie_chronique', 'personne_handicap', 'non_voyant_malvoyant', 'cecite_totale', 'troubles_psychiques', 'autres'];
+                foreach ($situationArray as $value) {
+                    if (!in_array($value, $validValues)) {
+                        throw \Illuminate\Validation\ValidationException::withMessages([
+                            'situationSante' => ['Valeur invalide pour la situation de santé: ' . $value],
+                        ]);
+                    }
+                }
+            }
+        }
+
+        if ($request->etatMatrimonial === 'divorce') {
+            if ($request->boolean('hasChildren')) {
+                $rules['childrenCount'] = 'required|integer|min:1|max:20';
+                $rules['childrenGuardian'] = 'required|in:mother,father';
+            }
+        }
+
+        if ($request->string('heardAboutUs')->toString() === 'pub' || $request->string('heardAboutUs')->toString() === 'recommande') {
+            $rules['heardAboutReference'] = 'required|string|max:255';
+        }
+        $request->validate($rules);
+    }
+
+    private function validateStep3ForStaff(Request $request)
+    {
+        $rules = [
+            'ageMinimum' => 'required|integer|min:18|max:100',
+            'ageMaximum' => 'required|integer|min:18|max:100|gt:ageMinimum',
+            'situationMatrimonialeRecherche' => 'required',
+            'paysRecherche' => 'required',
+        ];
+        $request->validate($rules);
+        
+        $situationMatrimonialeRecherche = $request->situationMatrimonialeRecherche;
+        $situationArray = is_string($situationMatrimonialeRecherche) ? json_decode($situationMatrimonialeRecherche, true) : $situationMatrimonialeRecherche;
+        if (!is_array($situationArray) || count($situationArray) === 0) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'situationMatrimonialeRecherche' => ['Au moins une situation matrimoniale doit être sélectionnée.'],
+            ]);
+        }
+        
+        $paysRecherche = $request->paysRecherche;
+        $paysArray = is_string($paysRecherche) ? json_decode($paysRecherche, true) : $paysRecherche;
+        if (!is_array($paysArray) || count($paysArray) === 0) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'paysRecherche' => ['Au moins un pays doit être sélectionné.'],
+            ]);
+        }
+    }
+
+    private function validateStep4ForStaff(Request $request)
+    {
+        $rules = [];
+        
+        if ($request->filled('cin')) {
+            $rules['cin'] = [
+                'string',
+                'regex:/^[A-Za-z]{1,2}\d{4,6}$/',
+                function ($attribute, $value, $fail) use ($request) {
+                    $cinUpper = strtoupper($value);
+                    $existingProfile = \App\Models\Profile::where('cin', $cinUpper)
+                        ->where('user_id', '!=', $request->route('user'))
+                        ->first();
+                    
+                    if ($existingProfile) {
+                        $fail('Ce numéro de CNI est déjà utilisé par un autre utilisateur.');
+                    }
+                },
+            ];
+        }
+        
+        if ($request->hasFile('identityCardFront')) {
+            $rules['identityCardFront'] = 'file|mimes:jpeg,png,jpg,pdf|max:5120';
+        }
+        
+        if ($request->hasFile('profilePicture')) {
+            $rules['profilePicture'] = 'image|mimes:jpeg,png,jpg|max:2048';
+        }
+        
+        if (!empty($rules)) {
+            $request->validate($rules);
+        }
+    }
+
+    // Helper methods for updating profile data (similar to ProfileController but for staff)
+    private function updateStep1DataForStaff(\App\Models\Profile $profile, Request $request)
+    {
+        $profile->nom = $request->nom;
+        $profile->prenom = $request->prenom;
+        $profile->date_naissance = $request->dateNaissance;
+        $profile->niveau_etudes = $request->niveauEtudes;
+        $profile->situation_professionnelle = $request->situationProfessionnelle;
+        $profile->secteur = $request->secteur;
+        $profile->revenu = $request->revenu;
+        $profile->religion = $request->religion;
+        $profile->origine = $request->origine;
+        $profile->pays_residence = $request->paysResidence;
+        $profile->ville_residence = $request->villeResidence;
+        $profile->pays_origine = $request->paysOrigine;
+        $profile->ville_origine = $request->villeOrigine;
+        $profile->apropos_description = $request->aproposDescription;
+        $profile->heard_about_us = $request->heardAboutUs;
+        $profile->heard_about_reference = $request->heardAboutReference;
+    }
+
+    private function updateStep2DataForStaff(\App\Models\Profile $profile, Request $request)
+    {
+        $profile->etat_matrimonial = $request->etatMatrimonial;
+        $profile->logement = $request->logement;
+        $profile->taille = $request->taille;
+        $profile->poids = $request->poids;
+        $profile->etat_sante = $request->etatSante;
+        $profile->fumeur = $request->fumeur;
+        $profile->buveur = $request->buveur;
+        $profile->sport = $request->sport;
+        $profile->motorise = $request->motorise;
+        $profile->loisirs = $request->loisirs;
+        $profile->has_children = $request->boolean('hasChildren');
+        $profile->children_count = $request->childrenCount;
+        $profile->children_guardian = $request->childrenGuardian;
+        $profile->hijab_choice = $request->hijabChoice;
+        
+        $situationSante = $request->situationSante;
+        if (is_string($situationSante)) {
+            $decoded = json_decode($situationSante, true);
+            $profile->situation_sante = is_array($decoded) ? $decoded : ($decoded ? [$decoded] : []);
+        } else {
+            $profile->situation_sante = is_array($situationSante) ? $situationSante : ($situationSante ? [$situationSante] : []);
+        }
+        
+        $profile->heard_about_us = $request->heardAboutUs;
+        $profile->heard_about_reference = $request->heardAboutReference;
+    }
+
+    private function updateStep3DataForStaff(\App\Models\Profile $profile, Request $request)
+    {
+        $profile->age_minimum = $request->ageMinimum;
+        $profile->age_maximum = $request->ageMaximum;
+        
+        $situationMatrimonialeRecherche = $request->situationMatrimonialeRecherche;
+        if (is_string($situationMatrimonialeRecherche)) {
+            $decoded = json_decode($situationMatrimonialeRecherche, true);
+            $profile->situation_matrimoniale_recherche = is_array($decoded) ? $decoded : [$situationMatrimonialeRecherche];
+        } else {
+            $profile->situation_matrimoniale_recherche = is_array($situationMatrimonialeRecherche) ? $situationMatrimonialeRecherche : [$situationMatrimonialeRecherche];
+        }
+        
+        $paysRecherche = $request->paysRecherche;
+        if (is_string($paysRecherche)) {
+            $decoded = json_decode($paysRecherche, true);
+            $profile->pays_recherche = is_array($decoded) ? $decoded : [$paysRecherche];
+        } else {
+            $profile->pays_recherche = is_array($paysRecherche) ? $paysRecherche : [$paysRecherche];
+        }
+        
+        $villesRecherche = $request->villesRecherche;
+        if (is_string($villesRecherche)) {
+            $decoded = json_decode($villesRecherche, true);
+            $profile->villes_recherche = is_array($decoded) ? $decoded : [];
+        } else {
+            $profile->villes_recherche = is_array($villesRecherche) ? $villesRecherche : [];
+        }
+        
+        $profile->niveau_etudes_recherche = $request->niveauEtudesRecherche;
+        $profile->statut_emploi_recherche = $request->statutEmploiRecherche;
+        $profile->revenu_minimum = $request->revenuMinimum;
+        $profile->religion_recherche = $request->religionRecherche;
+        $profile->profil_recherche_description = $request->profilRechercheDescription;
+    }
+
+    private function updateStep4DataForStaff(\App\Models\Profile $profile, Request $request)
+    {
+        if ($request->hasFile('profilePicture')) {
+            if ($profile->profile_picture_path) {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($profile->profile_picture_path);
+            }
+            $path = $request->file('profilePicture')->store('profile-pictures', 'public');
+            $profile->profile_picture_path = $path;
+        }
+        
+        if ($request->hasFile('identityCardFront')) {
+            if ($profile->identity_card_front_path) {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($profile->identity_card_front_path);
+            }
+            $file = $request->file('identityCardFront');
+            $path = $file->store('identity-cards', 'public');
+            $profile->identity_card_front_path = $path;
+            
+            $appKey = (string) config('app.key');
+            if (str_starts_with($appKey, 'base64:')) {
+                $decoded = base64_decode(substr($appKey, 7));
+                if ($decoded !== false) {
+                    $appKey = $decoded;
+                }
+            }
+            $fileContent = file_get_contents($file->getRealPath());
+            $profile->identity_card_front_hash = hash_hmac('sha256', $fileContent, $appKey);
+        }
     }
 }

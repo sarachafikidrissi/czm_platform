@@ -208,24 +208,6 @@ function UploadPicture({ formData, setFormData }) {
                     <p className="text-sm font-medium text-foreground mb-1" dir="rtl">بطاقة الهوية الوطنية</p>
                     <p className="mb-4 text-xs text-muted-foreground">Veuillez télécharger la face avant de votre CNI (optionnel - peut être rempli par votre matchmaker)</p>
 
-                    {/* CIN Number */}
-                    <div className="mb-4">
-                        <label htmlFor="cin" className="mb-1 block text-sm font-medium text-foreground">
-                            Numéro de CNI
-                        </label>
-                        <p className="text-sm font-medium text-foreground mb-1" dir="rtl">رقم بطاقة الهوية الوطنية</p>
-                        <input
-                            type="text"
-                            id="cin"
-                            name="cin"
-                            value={formData.cin || ''}
-                            onChange={(e) => setFormData((prev) => ({ ...prev, cin: e.target.value }))}
-                            placeholder="Ex: A123456 ou AB1234"
-                            className="w-full rounded-lg border border-border px-4 py-3 transition-colors focus:border-info focus:ring-2 focus:ring-info"
-                        />
-                        <p className="mt-1 text-xs text-muted-foreground">Format: 1-2 lettres suivies de 4-6 chiffres</p>
-                    </div>
-
                     {/* CNI Front Upload */}
                     <div className="rounded-lg border-2 border-dashed border-border p-6">
                         {formData.identityCardFrontPath && !formData.identityCardFront ? (

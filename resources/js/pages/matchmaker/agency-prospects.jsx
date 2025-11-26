@@ -390,7 +390,16 @@ export default function AgencyProspects() {
                                                 <Button
                                                     variant="outline"
                                                     size="sm"
-                                                    className={canRejectProspect(p) ? "flex-1" : "w-full"}
+                                                    className="flex-1"
+                                                    onClick={() => router.visit(`/staff/prospects/${p.id}/profile/edit`)}
+                                                >
+                                                    <Pencil className="w-4 h-4 mr-1" />
+                                                    Profil
+                                                </Button>
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="flex-1"
                                                     onClick={() => handleValidateClick(p)}
                                                 >
                                                     Validate
@@ -473,6 +482,14 @@ export default function AgencyProspects() {
                                                                 Rejeter
                                                             </Button>
                                                         )}
+                                                        <Button 
+                                                            size="sm" 
+                                                            variant="outline"
+                                                            onClick={() => router.visit(`/staff/prospects/${p.id}/profile/edit`)}
+                                                        >
+                                                            <Pencil className="w-4 h-4 mr-1" />
+                                                            Profil
+                                                        </Button>
                                                         <Button size="sm" onClick={() => handleValidateClick(p)}>Validate</Button>
                                                     </div>
                                                 </TableCell>
@@ -579,30 +596,61 @@ export default function AgencyProspects() {
                             <Label htmlFor="front">
                                 Identity Card Front {!validatingProspect?.profile?.identity_card_front_path && '*'}
                                 {validatingProspect?.profile?.identity_card_front_path && (
-                                    <span className="text-xs text-muted-foreground ml-2">(Déjà téléchargée)</span>
+                                    <span className="text-xs text-muted-foreground ml-2">(Déjà téléchargée - vous pouvez la remplacer)</span>
                                 )}
                             </Label>
                             {validatingProspect?.profile?.identity_card_front_path ? (
                                 <div className="space-y-2">
                                     <div className="relative rounded-lg border-2 border-border overflow-hidden bg-muted">
-                                        <img 
-                                            src={`/storage/${validatingProspect.profile.identity_card_front_path}`}
-                                            alt="CNI Front Preview"
-                                            className="w-full h-auto max-h-48 object-cover"
-                                            onError={(e) => {
-                                                e.target.onerror = null;
-                                                e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="150"%3E%3Crect fill="%23e5e7eb" width="200" height="150"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dominant-baseline="middle" fill="%239ca3af" font-family="Arial" font-size="14"%3EImage non disponible%3C/text%3E%3C/svg%3E';
-                                            }}
-                                        />
+                                        {data.identity_card_front ? (
+                                            <img 
+                                                src={URL.createObjectURL(data.identity_card_front)}
+                                                alt="Nouvelle CNI Front Preview"
+                                                className="w-full h-auto max-h-48 object-cover"
+                                            />
+                                        ) : (
+                                            <img 
+                                                src={`/storage/${validatingProspect.profile.identity_card_front_path}`}
+                                                alt="CNI Front Preview"
+                                                className="w-full h-auto max-h-48 object-cover"
+                                                onError={(e) => {
+                                                    e.target.onerror = null;
+                                                    e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="150"%3E%3Crect fill="%23e5e7eb" width="200" height="150"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dominant-baseline="middle" fill="%239ca3af" font-family="Arial" font-size="14"%3EImage non disponible%3C/text%3E%3C/svg%3E';
+                                                }}
+                                            />
+                                        )}
                                     </div>
-                                    <a 
-                                        href={`/storage/${validatingProspect.profile.identity_card_front_path}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="text-xs text-primary hover:underline inline-block"
-                                    >
-                                        Ouvrir dans un nouvel onglet
-                                    </a>
+                                    {!data.identity_card_front && (
+                                        <a 
+                                            href={`/storage/${validatingProspect.profile.identity_card_front_path}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-xs text-primary hover:underline inline-block"
+                                        >
+                                            Ouvrir dans un nouvel onglet
+                                        </a>
+                                    )}
+                                    {data.identity_card_front && (
+                                        <p className="text-xs text-success">✓ Nouvelle image sélectionnée: {data.identity_card_front.name}</p>
+                                    )}
+                                    <Input 
+                                        id="front" 
+                                        type="file" 
+                                        accept="image/*" 
+                                        onChange={(e) => e.target.files?.[0] && setData('identity_card_front', e.target.files[0])} 
+                                        className="mt-2"
+                                    />
+                                    {data.identity_card_front && (
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => setData('identity_card_front', null)}
+                                            className="w-full"
+                                        >
+                                            Annuler le remplacement
+                                        </Button>
+                                    )}
                                 </div>
                             ) : (
                                 <Input 
@@ -713,6 +761,8 @@ export default function AgencyProspects() {
                                     const needsFront = !hasExistingFront;
                                     
                                     // Basic validation
+                                    // Note: identity_card_front is only required if user didn't upload one
+                                    // If user uploaded one, matchmaker can optionally replace it
                                     if ((needsCin && !data.cin) || (needsFront && !data.identity_card_front) || !data.service_id || !data.matrimonial_pack_id || !data.pack_price || !data.payment_mode || data.pack_advantages.length === 0) {
                                         alert('Please fill in all required fields');
                                         return;
