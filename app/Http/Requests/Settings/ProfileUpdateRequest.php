@@ -25,6 +25,7 @@ class ProfileUpdateRequest extends FormRequest
             'youtube_url' => ['nullable', 'url', 'max:255'],
             'matchmaker_bio' => ['nullable', 'string', 'max:500'],
             'profile_picture' => ['nullable', 'image', 'mimes:jpeg,png,jpg,webp', 'max:2048'],
+            'banner_image' => ['nullable', 'image', 'mimes:jpeg,png,jpg,webp', 'max:5120'],
 
             'email' => [
                 'nullable',

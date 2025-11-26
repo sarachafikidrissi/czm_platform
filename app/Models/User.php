@@ -38,6 +38,7 @@ class User extends Authenticatable
         'agency',
         'agency_id',
         'profile_picture',
+        'banner_image_path',
         'identity_card_front_hash',
         'identity_card_back_hash',
         'cin_hash',

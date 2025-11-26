@@ -16,6 +16,7 @@ class Profile extends Model
         'identity_card_front_path',
         'identity_card_front_hash',
         'profile_picture_path',
+        'banner_image_path',
         'notes',
         'recommendations',
         'service_id',

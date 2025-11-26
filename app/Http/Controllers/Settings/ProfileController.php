@@ -66,6 +66,46 @@ class ProfileController extends Controller
             }
         }
 
+        // Handle banner image upload or deletion
+        if ($request->hasFile('banner_image')) {
+            $bannerImagePath = $request->file('banner_image')->store('banner-images', 'public');
+            
+            if ($userRole === 'user') {
+                // For regular users, store in profiles table
+                $profile = $user->profile;
+                if (!$profile) {
+                    $profile = $user->profile()->create([]);
+                }
+                
+                // Delete old banner image if exists
+                if ($profile->banner_image_path) {
+                    Storage::disk('public')->delete($profile->banner_image_path);
+                }
+                
+                $profile->update(['banner_image_path' => $bannerImagePath]);
+            } else {
+                // For staff (admin, manager, matchmaker), store in users table
+                if ($user->banner_image_path) {
+                    Storage::disk('public')->delete($user->banner_image_path);
+                }
+                $validated['banner_image_path'] = $bannerImagePath;
+            }
+        } elseif ($request->has('delete_banner') && $request->input('delete_banner') === '1') {
+            // Handle banner deletion
+            if ($userRole === 'user') {
+                $profile = $user->profile;
+                if ($profile && $profile->banner_image_path) {
+                    Storage::disk('public')->delete($profile->banner_image_path);
+                    $profile->update(['banner_image_path' => null]);
+                }
+            } else {
+                if ($user->banner_image_path) {
+                    Storage::disk('public')->delete($user->banner_image_path);
+                }
+                $validated['banner_image_path'] = null;
+            }
+        }
+
         // Remove profile_picture from validated data if it's null (no file uploaded)
         // But only if no file was actually uploaded
         if (!isset($validated['profile_picture']) || $validated['profile_picture'] === null) {
@@ -93,6 +133,11 @@ class ProfileController extends Controller
             }
 
             $user->save();
+        }
+
+        // If request comes from profile page (uploading images only), redirect back to profile
+        if ($request->has('from_profile_page') && $request->input('from_profile_page') === '1') {
+            return redirect()->route('profile.show', ['username' => $user->username]);
         }
 
         return to_route('profile.edit');
