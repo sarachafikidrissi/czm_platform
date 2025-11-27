@@ -37,6 +37,7 @@ class ProfileInsightsController extends Controller
     {
         $request->validate([
             'content' => 'required|string|max:5000',
+            'contact_type' => 'nullable|in:distance,presentiel',
         ]);
 
         $target = User::findOrFail($userId);
@@ -49,6 +50,7 @@ class ProfileInsightsController extends Controller
             'user_id' => $target->id,
             'author_id' => Auth::id(),
             'content' => $request->string('content')->toString(),
+            'contact_type' => $request->input('contact_type'),
         ]);
 
         return redirect()->back()->with('success', 'Note added successfully.');

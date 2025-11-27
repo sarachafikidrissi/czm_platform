@@ -153,6 +153,8 @@ class UserController extends Controller
                     'id' => $note->id,
                     'author_id' => $note->author_id,
                     'content' => $note->content,
+                    'contact_type' => $note->contact_type,
+                    'created_during_validation' => $note->created_during_validation,
                     'created_at' => $note->created_at,
                     'author' => $note->author,
                 ];

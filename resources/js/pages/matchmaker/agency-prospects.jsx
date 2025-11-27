@@ -17,6 +17,7 @@ export default function AgencyProspects() {
     const { prospects = [], statusFilter = 'active', services = [], matrimonialPacks = [], auth } = usePage().props;
     const { data, setData, post, processing, errors, reset } = useForm({
         notes: '',
+        contact_type: '',
         cin: '',
         identity_card_front: null,
         service_id: '',
@@ -749,6 +750,18 @@ export default function AgencyProspects() {
                             <Label htmlFor="notes">Notes</Label>
                             <Textarea id="notes" value={data.notes} onChange={(e) => setData('notes', e.target.value)} placeholder="Add your notes about this prospect..." />
                             {errors.notes && <p className="text-red-500 text-sm">{errors.notes}</p>}
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="contact_type">Type de contact</Label>
+                            <Select value={data.contact_type} onValueChange={(v) => setData('contact_type', v)}>
+                                <SelectTrigger className="h-9 w-full">
+                                    <SelectValue placeholder="Sélectionnez le type de contact (optionnel)" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="distance">À distance</SelectItem>
+                                    <SelectItem value="presentiel">Présentiel</SelectItem>
+                                </SelectContent>
+                            </Select>
                         </div>
                     </div>
                     <DialogFooter>

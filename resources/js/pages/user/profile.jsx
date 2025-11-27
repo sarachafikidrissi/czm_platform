@@ -3,6 +3,7 @@ import PostCard from '@/components/posts/PostCard';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AppLayout from '@/layouts/app-layout';
 import { Head, router, usePage } from '@inertiajs/react';
@@ -72,14 +73,24 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
 
     // Notes form
     const [newNote, setNewNote] = useState('');
+    const [contactType, setContactType] = useState('');
+    const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
+    
     const addNote = (e) => {
         e.preventDefault();
         if (!newNote.trim()) return;
         router.post(
             `/users/${user.id}/notes`,
-            { content: newNote },
+            { 
+                content: newNote,
+                contact_type: contactType || null,
+            },
             {
-                onSuccess: () => setNewNote(''),
+                onSuccess: () => {
+                    setNewNote('');
+                    setContactType('');
+                    setIsNoteModalOpen(false);
+                },
             },
         );
     };
@@ -1011,9 +1022,31 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                                                         <div className="mb-1 flex items-center justify-between">
                                                                             <div className="text-xs text-gray-500">
                                                                                 {n.author?.name} · {new Date(n.created_at).toLocaleString()}
+                                                                                {n.contact_type && (
+                                                                                    <span className="ml-2 inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">
+                                                                                        {n.contact_type === 'distance' ? 'À distance' : 'Présentiel'}
+                                                                                    </span>
+                                                                                )}
+                                                                                {n.created_during_validation && (
+                                                                                    <span className="ml-2 inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
+                                                                                        Prise lors de la validation
+                                                                                    </span>
+                                                                                )}
                                                                             </div>
                                                                         </div>
                                                                         <div className="text-sm text-gray-900">{n.content}</div>
+                                                                        <div className="mt-2 space-y-1">
+                                                                            {n.contact_type && (
+                                                                                <div className="text-xs text-gray-600">
+                                                                                    <span className="font-medium">Type de contact:</span> {n.contact_type === 'distance' ? 'À distance' : 'Présentiel'}
+                                                                                </div>
+                                                                            )}
+                                                                            {n.created_during_validation && (
+                                                                                <div className="text-xs text-gray-600">
+                                                                                    <span className="font-medium">Contexte:</span> Cette note a été prise lors de la validation du prospect
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
                                                                     </div>
                                                                 );
                                                             })
@@ -1025,21 +1058,75 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
 
                                                 {/* Add note - Only for assigned matchmaker */}
                                                 {canWrite && (
-                                                    <form onSubmit={addNote} className="mb-6 space-y-2">
-                                                        <label className="text-sm text-gray-600">{t('profile.userProfile.addNote')}</label>
-                                                    <textarea
-                                                            className="w-full rounded-md border border-gray-300 p-3 focus:border-[#ff343a] focus:outline-none focus:ring-1 focus:ring-[#ff343a]"
-                                                        rows={3}
-                                                        value={newNote}
-                                                        onChange={(e) => setNewNote(e.target.value)}
-                                                        placeholder={t('profile.userProfile.enterNote')}
-                                                    />
-                                                    <div>
-                                                            <button type="submit" className="inline-flex items-center rounded-md bg-[#096725] px-4 py-2 text-white hover:bg-[#07501d]">
+                                                    <div className="mb-6">
+                                                        <button 
+                                                            type="button"
+                                                            onClick={() => setIsNoteModalOpen(true)}
+                                                            className="inline-flex items-center rounded-md bg-[#096725] px-4 py-2 text-white hover:bg-[#07501d]"
+                                                        >
                                                             {t('profile.userProfile.addNoteButton')}
                                                         </button>
+                                                        
+                                                        <Dialog open={isNoteModalOpen} onOpenChange={setIsNoteModalOpen}>
+                                                            <DialogContent>
+                                                                <DialogHeader>
+                                                                    <DialogTitle>{t('profile.userProfile.addNote')}</DialogTitle>
+                                                                    <DialogDescription>
+                                                                        {t('profile.userProfile.addNoteDescription', { defaultValue: 'Ajoutez une note pour ce prospect' })}
+                                                                    </DialogDescription>
+                                                                </DialogHeader>
+                                                                <form onSubmit={addNote} className="space-y-4">
+                                                                    <div>
+                                                                        <label className="mb-2 block text-sm font-medium text-gray-700">
+                                                                            {t('profile.userProfile.noteContent', { defaultValue: 'Contenu de la note' })}
+                                                                        </label>
+                                                                        <textarea
+                                                                            className="w-full rounded-md border border-gray-300 p-3 focus:border-[#096725] focus:outline-none focus:ring-1 focus:ring-[#096725]"
+                                                                            rows={4}
+                                                                            value={newNote}
+                                                                            onChange={(e) => setNewNote(e.target.value)}
+                                                                            placeholder={t('profile.userProfile.enterNote')}
+                                                                            required
+                                                                        />
+                                                                    </div>
+                                                                    <div>
+                                                                        <label className="mb-2 block text-sm font-medium text-gray-700">
+                                                                            {t('profile.userProfile.contactType', { defaultValue: 'Type de contact' })}
+                                                                        </label>
+                                                                        <Select value={contactType} onValueChange={setContactType}>
+                                                                            <SelectTrigger className="w-full">
+                                                                                <SelectValue placeholder={t('profile.userProfile.selectContactType', { defaultValue: 'Sélectionnez le type de contact' })} />
+                                                                            </SelectTrigger>
+                                                                            <SelectContent>
+                                                                                <SelectItem value="distance">À distance</SelectItem>
+                                                                                <SelectItem value="presentiel">Présentiel</SelectItem>
+                                                                            </SelectContent>
+                                                                        </Select>
+                                                                    </div>
+                                                                    <DialogFooter>
+                                                                        <Button
+                                                                            type="button"
+                                                                            variant="outline"
+                                                                            onClick={() => {
+                                                                                setIsNoteModalOpen(false);
+                                                                                setNewNote('');
+                                                                                setContactType('');
+                                                                            }}
+                                                                        >
+                                                                            {t('common.cancel', { defaultValue: 'Annuler' })}
+                                                                        </Button>
+                                                                        <Button
+                                                                            type="submit"
+                                                                            className="bg-[#096725] hover:bg-[#07501d]"
+                                                                            disabled={!newNote.trim()}
+                                                                        >
+                                                                            {t('profile.userProfile.addNoteButton')}
+                                                                        </Button>
+                                                                    </DialogFooter>
+                                                                </form>
+                                                            </DialogContent>
+                                                        </Dialog>
                                                     </div>
-                                                </form>
                                                 )}
 
                                                 {/* Evaluation - Read-only for admin/manager, editable for assigned matchmaker */}

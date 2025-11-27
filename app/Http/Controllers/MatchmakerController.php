@@ -325,6 +325,8 @@ class MatchmakerController extends Controller
                 'user_id' => $prospect->id,
                 'author_id' => Auth::id(),
                 'content' => trim($request->notes),
+                'contact_type' => $request->input('contact_type'),
+                'created_during_validation' => true,
             ]);
         }
 

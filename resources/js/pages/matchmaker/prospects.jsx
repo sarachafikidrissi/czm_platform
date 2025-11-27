@@ -17,6 +17,7 @@ export default function MatchmakerProspects() {
     const { prospects = [], filter, statusFilter = 'active', services = [], matrimonialPacks = [], auth } = usePage().props;
     const [selectedProspect, setSelectedProspect] = useState(null);
     const [notes, setNotes] = useState('');
+    const [contactType, setContactType] = useState('');
     const [serviceId, setServiceId] = useState('');
     const [matrimonialPackId, setMatrimonialPackId] = useState('');
     const [packPrice, setPackPrice] = useState('');
@@ -125,6 +126,7 @@ export default function MatchmakerProspects() {
     const handleValidate = (prospect) => {
         setSelectedProspect(prospect);
         setNotes(prospect.profile?.notes || '');
+        setContactType('');
         setServiceId(prospect.profile?.service_id || '');
         setMatrimonialPackId(prospect.profile?.matrimonial_pack_id || '');
         setPackPrice(prospect.profile?.pack_price || '');
@@ -188,6 +190,9 @@ export default function MatchmakerProspects() {
 
         const fd = new FormData();
         fd.append('notes', notes);
+        if (contactType) {
+            fd.append('contact_type', contactType);
+        }
         fd.append('service_id', serviceId);
         fd.append('matrimonial_pack_id', matrimonialPackId);
         fd.append('pack_price', packPrice);
@@ -224,6 +229,7 @@ export default function MatchmakerProspects() {
                 setSubmitting(false);
                 setSelectedProspect(null);
                 setNotes('');
+                setContactType('');
                 setServiceId('');
                 setMatrimonialPackId('');
                 setPackPrice('');
@@ -382,6 +388,18 @@ export default function MatchmakerProspects() {
                                                             onChange={(e) => setNotes(e.target.value)}
                                                             placeholder="Add your notes about this prospect..."
                                                         />
+                                                    </div>
+                                                    <div className="grid gap-2">
+                                                        <Label htmlFor="contact_type">Type de contact</Label>
+                                                        <Select value={contactType} onValueChange={setContactType}>
+                                                            <SelectTrigger className="h-9 w-full">
+                                                                <SelectValue placeholder="Sélectionnez le type de contact (optionnel)" />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="distance">À distance</SelectItem>
+                                                                <SelectItem value="presentiel">Présentiel</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
                                                     </div>
                                                     <div className="grid gap-2">
                                                         <Label htmlFor="service">Service</Label>

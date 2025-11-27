@@ -11,6 +11,8 @@ class MatchmakerNote extends Model
         'user_id',        // Target user (prospect/member/client)
         'author_id',      // The staff who wrote the note (matchmaker/admin/manager)
         'content',
+        'contact_type',   // 'distance' or 'presentiel'
+        'created_during_validation', // true if note was created during prospect validation
     ];
 
     public function user(): BelongsTo
