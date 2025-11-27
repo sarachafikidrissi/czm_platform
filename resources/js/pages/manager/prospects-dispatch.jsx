@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, Search } from 'lucide-react';
+import { CheckCircle, Search, Copy, Check, Mail } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 
@@ -21,6 +21,8 @@ export default function ManagerProspectsDispatch() {
     const [dispatchOpen, setDispatchOpen] = useState(false);
     const [selectedMatchmakerId, setSelectedMatchmakerId] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
+    const [userInfoModalOpen, setUserInfoModalOpen] = useState(false);
+    const [selectedUserForInfo, setSelectedUserForInfo] = useState(null);
 
     // Filter prospects based on search query
     const filteredProspects = useMemo(() => {
@@ -98,6 +100,37 @@ export default function ManagerProspectsDispatch() {
                 setSelectAll(false);
             }
         });
+    };
+
+    // Helper function to get profile picture URL
+    const getProfilePicture = (user) => {
+        if (user.profile?.profile_picture_path) {
+            return `/storage/${user.profile.profile_picture_path}`;
+        }
+        return `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=random`;
+    };
+
+    // Handle user info modal
+    const handleUserInfoClick = (user) => {
+        setSelectedUserForInfo(user);
+        setUserInfoModalOpen(true);
+    };
+
+    // Handle copy link
+    const handleCopyLink = () => {
+        if (selectedUserForInfo) {
+            const profileUrl = `${window.location.origin}/profile/${selectedUserForInfo.username || selectedUserForInfo.id}`;
+            navigator.clipboard.writeText(profileUrl).then(() => {
+                // You could add a toast notification here
+            });
+        }
+    };
+
+    // Handle view profile
+    const handleViewProfile = () => {
+        if (selectedUserForInfo) {
+            router.visit(`/profile/${selectedUserForInfo.username || selectedUserForInfo.id}`);
+        }
     };
 
     return (
@@ -181,8 +214,12 @@ export default function ManagerProspectsDispatch() {
                                         </TableRow>
                                     ) : (
                                         filteredProspects.map((p) => (
-                                            <TableRow key={p.id}>
-                                                <TableCell>
+                                            <TableRow 
+                                                key={p.id}
+                                                className="cursor-pointer hover:bg-muted/50"
+                                                onClick={() => handleUserInfoClick(p)}
+                                            >
+                                                <TableCell onClick={(e) => e.stopPropagation()}>
                                                     <Checkbox
                                                         checked={selectedProspectIds.includes(p.id)}
                                                         onCheckedChange={() => toggleProspect(p.id)}
@@ -264,6 +301,145 @@ export default function ManagerProspectsDispatch() {
                                 Dispatch
                             </Button>
                         </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+
+                {/* User Info Modal - Read Only */}
+                <Dialog open={userInfoModalOpen} onOpenChange={setUserInfoModalOpen}>
+                    <DialogContent className="w-[95vw] sm:w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+                        {selectedUserForInfo && (
+                            <>
+                                {/* Header Section with Profile Picture */}
+                                <div className="flex flex-col items-center gap-4 pb-6 border-b">
+                                    <div className="relative">
+                                        <img
+                                            src={getProfilePicture(selectedUserForInfo)}
+                                            alt={selectedUserForInfo.name}
+                                            className="w-24 h-24 sm:w-32 sm:h-32 rounded-full object-cover"
+                                            onError={(e) => {
+                                                e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedUserForInfo.name)}&background=random`;
+                                            }}
+                                        />
+                                        <div className="absolute bottom-0 right-0 bg-blue-600 rounded-full p-1.5 border-2 border-white">
+                                            <Check className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
+                                        </div>
+                                    </div>
+                                    <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 w-full px-2 sm:px-0">
+                                        <div className="text-center sm:text-left flex-1">
+                                            <h2 className="text-lg sm:text-xl font-semibold break-words">{selectedUserForInfo.name}</h2>
+                                            <p className="text-xs sm:text-sm text-muted-foreground break-all">{selectedUserForInfo.email}</p>
+                                        </div>
+                                        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={handleCopyLink}
+                                                className="flex items-center justify-center gap-2 w-full sm:w-auto"
+                                            >
+                                                <Copy className="w-4 h-4" />
+                                                {t('staff.userInfo.copyLink')}
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={handleViewProfile}
+                                                className="flex items-center justify-center gap-2 w-full sm:w-auto"
+                                            >
+                                                {t('staff.userInfo.viewProfile')}
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Form Fields Section - Read Only */}
+                                <div className="space-y-6 py-4 px-2 sm:px-0">
+                                    {/* Name Fields */}
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="firstName">{t('staff.userInfo.firstName')}</Label>
+                                            <Input
+                                                id="firstName"
+                                                value={(selectedUserForInfo.name || '').split(' ')[0] || ''}
+                                                disabled
+                                                className="bg-muted"
+                                                placeholder={t('staff.userInfo.firstName')}
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="lastName" className="opacity-0">{t('staff.userInfo.lastName')}</Label>
+                                            <Input
+                                                id="lastName"
+                                                value={(selectedUserForInfo.name || '').split(' ').slice(1).join(' ') || ''}
+                                                disabled
+                                                className="bg-muted"
+                                                placeholder={t('staff.userInfo.lastName')}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* Email Address */}
+                                    <div className="space-y-2">
+                                        <Label htmlFor="email">{t('staff.userInfo.email')}</Label>
+                                        <div className="relative">
+                                            <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                            <Input
+                                                id="email"
+                                                type="email"
+                                                value={selectedUserForInfo.email || ''}
+                                                disabled
+                                                className="pl-10 bg-muted"
+                                                placeholder="Email address"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* Username */}
+                                    <div className="space-y-2">
+                                        <Label htmlFor="username">{t('staff.userInfo.username')}</Label>
+                                        <div className="relative">
+                                            <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-xs sm:text-sm text-muted-foreground whitespace-nowrap">
+                                                untitledui.com/
+                                            </div>
+                                            <Input
+                                                id="username"
+                                                value={selectedUserForInfo.username || ''}
+                                                disabled
+                                                className="pl-[120px] sm:pl-[140px] pr-10 bg-muted text-sm sm:text-base"
+                                                placeholder="username"
+                                            />
+                                            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                                                <Check className="w-4 h-4 text-blue-600" />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Profile Photo */}
+                                    <div className="space-y-2">
+                                        <Label>{t('profile.profilePicture')}</Label>
+                                        <div className="flex items-center gap-4">
+                                            <img
+                                                src={getProfilePicture(selectedUserForInfo)}
+                                                alt={selectedUserForInfo.name}
+                                                className="w-16 h-16 rounded-full object-cover flex-shrink-0"
+                                                onError={(e) => {
+                                                    e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedUserForInfo.name)}&background=random`;
+                                                }}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Footer Buttons */}
+                                <DialogFooter className="flex justify-end">
+                                    <Button
+                                        variant="outline"
+                                        onClick={() => setUserInfoModalOpen(false)}
+                                    >
+                                        {t('common.cancel')}
+                                    </Button>
+                                </DialogFooter>
+                            </>
+                        )}
                     </DialogContent>
                 </Dialog>
             </div>
