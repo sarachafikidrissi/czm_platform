@@ -17,7 +17,7 @@ import { LayoutGrid, Table2, Mail, MapPin, CheckCircle, Pencil, TestTube, Link a
 
 export default function ValidatedProspects() {
     const { t } = useTranslation();
-    const { prospects, status, assignedMatchmaker } = usePage().props;
+    const { prospects, status, assignedMatchmaker, auth } = usePage().props;
     const [loading, setLoading] = useState({});
     const [subscriptionOpen, setSubscriptionOpen] = useState(false);
     const [selectedUser, setSelectedUser] = useState(null);
@@ -220,6 +220,40 @@ export default function ValidatedProspects() {
             default:
                 return { label: userStatus || 'Unknown', variant: 'default', className: 'bg-gray-500 text-white' };
         }
+    };
+
+    // Helper function to check if current user can edit profile (for incomplete profiles)
+    const canEditProfile = (user) => {
+        if (!auth?.user || !user) {
+            return false;
+        }
+
+        // Only allow editing if profile is incomplete
+        if (user.profile?.is_completed) {
+            return false;
+        }
+
+        const viewerRole = auth?.user?.roles?.[0]?.name || 'user';
+        const userId = auth?.user?.id;
+
+        // Admin should NOT see edit profile button
+        if (viewerRole === 'admin') {
+            return false;
+        }
+
+        // Matchmaker can edit if:
+        // 1. User is assigned to them, OR
+        // 2. User was approved by them
+        if (viewerRole === 'matchmaker') {
+            return user.assigned_matchmaker_id === userId || user.approved_by === userId;
+        }
+
+        // Manager can edit ONLY if they are the one that validated/approved the member/client
+        if (viewerRole === 'manager') {
+            return user.validated_by_manager_id === userId;
+        }
+
+        return false;
     };
 
     // Handle user info modal
@@ -456,6 +490,17 @@ export default function ValidatedProspects() {
                                         >
                                             {t('staff.validatedProspects.findStory')}
                                         </Button>
+                                        {canEditProfile(u) && (
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="w-full border-blue-500 text-blue-600 hover:bg-blue-50"
+                                                onClick={() => router.visit(`/staff/prospects/${u.id}/profile/edit`)}
+                                            >
+                                                <Pencil className="w-4 h-4 mr-1" />
+                                                {t('staff.editProfile', { defaultValue: 'Edit Profile' })}
+                                            </Button>
+                                        )}
                                     </div>
                                 </CardContent>
                             </Card>
@@ -579,6 +624,20 @@ export default function ValidatedProspects() {
                                                         >
                                                             <Pencil className="w-4 h-4" />
                                                         </Button>
+                                                        {canEditProfile(u) && (
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                className="border-blue-500 text-blue-600 hover:bg-blue-50"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    router.visit(`/staff/prospects/${u.id}/profile/edit`);
+                                                                }}
+                                                            >
+                                                                <Pencil className="w-4 h-4 mr-1" />
+                                                                {t('staff.editProfile', { defaultValue: 'Edit Profile' })}
+                                                            </Button>
+                                                        )}
                                                     </div>
                                                 </TableCell>
                                             </TableRow>
