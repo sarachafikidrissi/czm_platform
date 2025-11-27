@@ -136,8 +136,16 @@ class ProfileController extends Controller
         }
 
         // If request comes from profile page (uploading images only), redirect back to profile
+        // Note: Frontend will handle the reload via router.reload(), but we still redirect for consistency
         if ($request->has('from_profile_page') && $request->input('from_profile_page') === '1') {
-            return redirect()->route('profile.show', ['username' => $user->username]);
+            // Use username if available, otherwise redirect back
+            if ($user->username) {
+                return redirect()->route('profile.show', ['username' => $user->username]);
+            } else {
+                // If username is not set, redirect back to the previous page
+                // This ensures the upload succeeds even if username is missing
+                return redirect()->back()->with('success', 'Banner image uploaded successfully.');
+            }
         }
 
         return to_route('profile.edit');

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Models\Bill;
 use App\Models\MatrimonialPack;
+use App\Models\MatchmakerNote;
 use App\Mail\BillEmail;
 use App\Mail\ProspectCredentialsMail;
 use Illuminate\Http\Request;
@@ -317,6 +318,15 @@ class MatchmakerController extends Controller
             'validated_by_manager_id' => $validatedByManagerId,
             // Note: agency_id is preserved to maintain original agency tracking
         ]);
+
+        // Save notes to MatchmakerNote table if provided
+        if ($request->filled('notes') && trim($request->notes) !== '') {
+            MatchmakerNote::create([
+                'user_id' => $prospect->id,
+                'author_id' => Auth::id(),
+                'content' => trim($request->notes),
+            ]);
+        }
 
         return redirect()->back()->with('success', 'Prospect validated and assigned successfully. You can now create a subscription using the "Abonnement" button.');
     }

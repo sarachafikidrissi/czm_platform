@@ -6,16 +6,24 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AppLayout from '@/layouts/app-layout';
 import { Head, router, usePage } from '@inertiajs/react';
-import { BookOpen, Camera, Facebook, Heart, Instagram, Linkedin, MapPin, MessageSquareWarning, Share2, Trash2, User, X, Youtube } from 'lucide-react';
+import { BookOpen, Camera, Facebook, Heart, Instagram, Linkedin, MapPin, MessageSquareWarning, Share2, User, X, Youtube } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 export default function UserProfile({ user, profile, agency, matchmakerNotes = [], matchmakerEvaluation = null, photos = [] }) {
     const { t } = useTranslation();
     const { auth } = usePage().props;
-    const isOwnProfile = auth?.user?.id === user?.id;
     
-    const assignedMatchmakerId = auth.user['assigned_matchmaker']?.id;
+    // Use Number conversion to handle string/number type differences in IDs
+    // Also check with string comparison as fallback
+    const authUserId = auth?.user?.id;
+    const profileUserId = user?.id;
+    const isOwnProfile = authUserId != null && profileUserId != null && (
+        Number(authUserId) === Number(profileUserId) || 
+        String(authUserId) === String(profileUserId)
+    );
+    
+    const assignedMatchmakerId = auth?.user?.['assigned_matchmaker']?.id;
 
     // Get user role
     const userRole = user?.roles?.[0]?.name || 'user';
@@ -51,7 +59,7 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
         (viewerRole === 'matchmaker' && user?.assigned_matchmaker_id === auth?.user?.id) ||
         (viewerRole === 'manager' && user?.validated_by_manager_id === auth?.user?.id);
     
-    // Write permissions: only assigned matchmaker can write/edit/delete
+    // Write permissions: only assigned matchmaker can write/edit
     const canWrite = viewerRole === 'matchmaker' && user?.assigned_matchmaker_id === auth?.user?.id;
 
     // Visibility for photos: user themselves, assigned matchmaker, or manager of their agency
@@ -76,28 +84,6 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
         );
     };
 
-    // Delete note dialog state
-    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-    const [noteToDelete, setNoteToDelete] = useState(null);
-
-    // Open delete confirmation dialog
-    const openDeleteDialog = (noteId) => {
-        setNoteToDelete(noteId);
-        setDeleteDialogOpen(true);
-    };
-
-    // Delete note handler
-    const deleteNote = () => {
-        if (noteToDelete) {
-            router.delete(`/users/${user.id}/notes/${noteToDelete}`, {
-                preserveScroll: true,
-                onSuccess: () => {
-                    setDeleteDialogOpen(false);
-                    setNoteToDelete(null);
-                },
-            });
-        }
-    };
 
     // Evaluation form state
     const [evaluation, setEvaluation] = useState({
@@ -1026,16 +1012,6 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                                                             <div className="text-xs text-gray-500">
                                                                                 {n.author?.name} · {new Date(n.created_at).toLocaleString()}
                                                                             </div>
-                                                                            {isAuthor && canWrite && (
-                                                                                <button
-                                                                                    type="button"
-                                                                                    onClick={() => openDeleteDialog(n.id)}
-                                                                                    className="text-[#ff343a] transition-colors hover:text-[#cc2a2f]"
-                                                                                    title={t('profile.userProfile.deleteNote')}
-                                                                                >
-                                                                                    <Trash2 className="h-4 w-4" />
-                                                                                </button>
-                                                                            )}
                                                                         </div>
                                                                         <div className="text-sm text-gray-900">{n.content}</div>
                                                                     </div>
@@ -1237,29 +1213,6 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                         </div>
             </div>
 
-            {/* Delete Note Confirmation Dialog */}
-            <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>{t('profile.userProfile.deleteNoteConfirm')}</DialogTitle>
-                        <DialogDescription>{t('profile.userProfile.deleteNoteDescription')}</DialogDescription>
-                    </DialogHeader>
-                    <DialogFooter>
-                        <Button
-                            variant="outline"
-                            onClick={() => {
-                                setDeleteDialogOpen(false);
-                                setNoteToDelete(null);
-                            }}
-                        >
-                            {t('profile.userProfile.no')}
-                        </Button>
-                        <Button variant="destructive" onClick={deleteNote}>
-                            {t('profile.userProfile.yesDelete')}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
         </AppLayout>
     );
 }
