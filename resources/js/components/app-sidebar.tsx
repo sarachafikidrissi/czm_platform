@@ -2,6 +2,7 @@ import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { NavUser } from '@/components/nav-user';
+import { GlobalSearch } from '@/components/global-search';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
@@ -202,6 +203,7 @@ export function AppSidebar() {
             </SidebarHeader>
 
             <SidebarContent className="">
+                <GlobalSearch role={role} />
                 <NavMain items={navitems} />
             </SidebarContent>
 

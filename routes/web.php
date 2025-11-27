@@ -383,6 +383,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/reactivation-requests', [\App\Http\Controllers\ReactivationRequestController::class, 'index'])->name('reactivation-requests');
         Route::post('/reactivation-requests/{request}/approve', [\App\Http\Controllers\ReactivationRequestController::class, 'approve'])->name('reactivation-requests.approve');
         Route::post('/reactivation-requests/{request}/reject', [\App\Http\Controllers\ReactivationRequestController::class, 'reject'])->name('reactivation-requests.reject');
+        // Global search
+        Route::get('/search', [\App\Http\Controllers\SearchController::class, 'searchUsers'])->name('search');
     });
 
     // Objectives routes - accessible to admin, manager, and matchmaker
