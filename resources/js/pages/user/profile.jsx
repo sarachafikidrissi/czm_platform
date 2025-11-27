@@ -55,13 +55,40 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
 
     // Visibility: who can see notes/evaluation
     const viewerRole = auth?.user?.roles?.[0]?.name || 'user';
+    
+    // Helper function to check if matchmaker belongs to manager's agency
+    const isMatchmakerFromManagerAgency = () => {
+        if (!user?.assigned_matchmaker_id || !auth?.user?.agency_id) {
+            return false;
+        }
+        // Handle both naming conventions (camelCase and snake_case)
+        const matchmaker = user?.assignedMatchmaker || user?.assigned_matchmaker;
+        if (!matchmaker || !matchmaker.agency_id) {
+            return false;
+        }
+        // Ensure type-safe comparison (convert both to numbers or strings)
+        const matchmakerAgencyId = Number(matchmaker.agency_id);
+        const managerAgencyId = Number(auth.user.agency_id);
+        // Check for NaN (in case of null/undefined conversion)
+        if (isNaN(matchmakerAgencyId) || isNaN(managerAgencyId)) {
+            return false;
+        }
+        return matchmakerAgencyId === managerAgencyId;
+    };
+    
     const canManage =
         viewerRole === 'admin' ||
         (viewerRole === 'matchmaker' && user?.assigned_matchmaker_id === auth?.user?.id) ||
-        (viewerRole === 'manager' && user?.validated_by_manager_id === auth?.user?.id);
+        (viewerRole === 'manager' && (
+            user?.validated_by_manager_id === auth?.user?.id ||
+            // Manager can view if prospect was validated by a matchmaker from their agency
+            isMatchmakerFromManagerAgency()
+        ));
     
-    // Write permissions: only assigned matchmaker can write/edit
-    const canWrite = viewerRole === 'matchmaker' && user?.assigned_matchmaker_id === auth?.user?.id;
+    // Write permissions: only assigned matchmaker OR manager who validated the prospect can write/edit (NOT admin)
+    const canWrite = 
+        (viewerRole === 'matchmaker' && user?.assigned_matchmaker_id === auth?.user?.id) ||
+        (viewerRole === 'manager' && user?.validated_by_manager_id === auth?.user?.id);
 
     // Visibility for photos: user themselves, assigned matchmaker, or manager of their agency
     const canViewPhotos = 
@@ -1056,7 +1083,7 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                                     </div>
                                                 </div>
 
-                                                {/* Add note - Only for assigned matchmaker */}
+                                                {/* Add note - For assigned matchmaker or manager who validated the prospect */}
                                                 {canWrite && (
                                                     <div className="mb-6">
                                                         <button 
@@ -1129,7 +1156,7 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                                     </div>
                                                 )}
 
-                                                {/* Evaluation - Read-only for admin/manager, editable for assigned matchmaker */}
+                                                {/* Evaluation - Editable for assigned matchmaker or manager who validated the prospect */}
                                                 <form onSubmit={canWrite ? saveEvaluation : (e) => e.preventDefault()} className="space-y-4">
                                                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                                         <div>

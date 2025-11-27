@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Auth;
 
 class ProfileInsightsController extends Controller
 {
-    private function canManage(User $target): bool
+    private function canView(User $target): bool
     {
         /** @var User|null $me */
         $me = Auth::user();
@@ -18,14 +18,54 @@ class ProfileInsightsController extends Controller
             return false;
         }
 
+        // Admin can always view
         if ($me->hasRole('admin')) {
             return true;
         }
 
+        // Matchmaker can view if assigned
         if ($me->hasRole('matchmaker') && $target->assigned_matchmaker_id === $me->id) {
             return true;
         }
 
+        // Manager can view if they validated OR if prospect was validated by a matchmaker from their agency
+        if ($me->hasRole('manager')) {
+            // Manager can view if they validated the prospect
+            if ($target->validated_by_manager_id === $me->id) {
+                return true;
+            }
+            
+            // Manager can view if prospect was validated by a matchmaker from their agency
+            if ($target->assigned_matchmaker_id) {
+                $assignedMatchmaker = User::find($target->assigned_matchmaker_id);
+                if ($assignedMatchmaker && $assignedMatchmaker->agency_id === $me->agency_id) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private function canWrite(User $target): bool
+    {
+        /** @var User|null $me */
+        $me = Auth::user();
+        if (!$me) {
+            return false;
+        }
+
+        // Admin cannot write (view only)
+        if ($me->hasRole('admin')) {
+            return false;
+        }
+
+        // Matchmaker can write if assigned
+        if ($me->hasRole('matchmaker') && $target->assigned_matchmaker_id === $me->id) {
+            return true;
+        }
+
+        // Manager can write only if they validated the prospect
         if ($me->hasRole('manager') && $target->validated_by_manager_id === $me->id) {
             return true;
         }
@@ -42,7 +82,7 @@ class ProfileInsightsController extends Controller
 
         $target = User::findOrFail($userId);
 
-        if (!$this->canManage($target)) {
+        if (!$this->canWrite($target)) {
             abort(403);
         }
 
@@ -60,7 +100,7 @@ class ProfileInsightsController extends Controller
     {
         $target = User::findOrFail($userId);
 
-        if (!$this->canManage($target)) {
+        if (!$this->canWrite($target)) {
             abort(403);
         }
 

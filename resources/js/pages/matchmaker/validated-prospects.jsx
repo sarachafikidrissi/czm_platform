@@ -396,7 +396,7 @@ export default function ValidatedProspects() {
                                     
                                     <div className="flex items-start gap-2 text-sm">
                                         <CheckCircle className="w-4 h-4 mt-0.5 flex-shrink-0 text-green-600" />
-                                        <span>Approved by {u.assigned_matchmaker?.name || 'Unknown'}</span>
+                                        <span>Approved by {u.approvedBy?.name || u.approved_by?.name || 'Unknown'}</span>
                                     </div>
                                     
                                     <div className="pt-2 space-y-2">

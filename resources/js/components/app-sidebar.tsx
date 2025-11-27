@@ -105,6 +105,12 @@ const getMainNavItems = (t: (key: string) => string, role: string): NavItem[] =>
         roles: ['manager'],
     },
     {
+        title: t('navigation.dispatchProspects'),
+        url: '/manager/prospects-dispatch',
+        icon: UserCheck,
+        roles: ['manager'],
+    },
+    {
         title: t('navigation.chooseMatchmaker'),
         url: '/user/matchmakers',
         icon: HeartHandshake,

@@ -69,17 +69,27 @@ class SearchController extends Controller
                     ->toArray();
                 
                 $usersQuery->where(function($q) use ($user, $matchmakerIds, $otherManagerIds) {
-                    // Users from their agency
-                    $q->where('agency_id', $user->agency_id)
-                      ->where(function($subQ) use ($user, $matchmakerIds) {
+                    // Users validated by this manager
+                    $q->where('validated_by_manager_id', $user->id)
+                      // OR users from their agency
+                      ->orWhere(function($subQ) use ($user, $matchmakerIds) {
+                          $subQ->where('agency_id', $user->agency_id)
+                            ->where(function($subSubQ) use ($user, $matchmakerIds) {
                           // Users assigned to matchmakers in their agency
+                                if (!empty($matchmakerIds)) {
+                                    $subSubQ->whereIn('assigned_matchmaker_id', $matchmakerIds);
+                                }
+                                // OR users assigned to them (prospects they created)
+                                $subSubQ->orWhere('assigned_matchmaker_id', $user->id);
+                                // OR unassigned users from their agency
+                                $subSubQ->orWhereNull('assigned_matchmaker_id');
+                            });
+                      })
+                      // OR users assigned to matchmakers in their agency (even if agency_id doesn't match)
+                      ->orWhere(function($subQ) use ($matchmakerIds) {
                           if (!empty($matchmakerIds)) {
                               $subQ->whereIn('assigned_matchmaker_id', $matchmakerIds);
                           }
-                          // OR users assigned to them (prospects they created)
-                          $subQ->orWhere('assigned_matchmaker_id', $user->id);
-                          // OR unassigned users from their agency
-                          $subQ->orWhereNull('assigned_matchmaker_id');
                       });
                     
                     // Exclude users assigned to other managers in the same agency

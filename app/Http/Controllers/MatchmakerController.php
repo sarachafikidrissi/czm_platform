@@ -227,9 +227,10 @@ class MatchmakerController extends Controller
                     return redirect()->back()->with('error', 'You can only validate prospects assigned to you.');
                 }
             } elseif ($roleName === 'manager') {
-                // Manager can only validate prospects assigned to them
-                if ($prospect->assigned_matchmaker_id !== $me->id) {
-                    return redirect()->back()->with('error', 'You can only validate prospects assigned to you.');
+                // Manager can validate prospects that are NOT dispatched to matchmakers
+                // (i.e., assigned_matchmaker_id is null) OR assigned to them
+                if ($prospect->assigned_matchmaker_id !== null && $prospect->assigned_matchmaker_id !== $me->id) {
+                    return redirect()->back()->with('error', 'You cannot validate prospects that are dispatched to matchmakers.');
                 }
             }
         }
@@ -301,20 +302,8 @@ class MatchmakerController extends Controller
             
             if ($actorRole === 'matchmaker') {
                 $assignedId = $actor->id;
-                
-                // Find the manager of the agency at the time of validation
-                // Use prospect's agency_id if available, otherwise use matchmaker's agency_id
-                $agencyId = $prospect->agency_id ?? $actor->agency_id;
-                
-                if ($agencyId) {
-                    $manager = User::role('manager')
-                        ->where('agency_id', $agencyId)
-                        ->where('approval_status', 'approved')
-                        ->first();
-                    if ($manager) {
-                        $validatedByManagerId = $manager->id;
-                    }
-                }
+                // When a matchmaker validates, only they can add notes/evaluation
+                // validated_by_manager_id remains null unless a manager validates directly
             } elseif ($actorRole === 'manager') {
                 // If a manager validates directly, set validated_by_manager_id to themselves
                 $validatedByManagerId = $actor->id;
@@ -503,8 +492,11 @@ class MatchmakerController extends Controller
                       ->orWhere('assigned_matchmaker_id', $me->id);
                 });
             } elseif ($roleName === 'manager') {
-                // Manager: see all members/clients from their agency (including those assigned to matchmakers in their agency)
-                // but excluding users created by other managers in the same agency
+                // Manager: see all members/clients validated from prospects assigned to their agency
+                // This includes:
+                // 1. Members validated when they were the manager (validated_by_manager_id = manager.id)
+                // 2. Members from prospects that were dispatched to their agency (agency_id = manager.agency_id)
+                // 3. Members assigned to matchmakers in their agency
                 // Get all matchmaker IDs in the manager's agency
                 $matchmakerIds = User::role('matchmaker')
                     ->where('agency_id', $me->agency_id)
@@ -519,17 +511,28 @@ class MatchmakerController extends Controller
                     ->toArray();
                 
                 $query->where(function($q) use ($me, $matchmakerIds, $otherManagerIds) {
-                    // Users from their agency
-                    $q->where('agency_id', $me->agency_id)
-                      ->where(function($subQ) use ($me, $matchmakerIds) {
-                          // Users assigned to matchmakers in their agency
+                    // Members validated when this manager was in charge
+                    $q->where('validated_by_manager_id', $me->id)
+                      // OR members from prospects that were dispatched to their agency
+                      ->orWhere(function($subQ) use ($me, $matchmakerIds) {
+                          // Users from their agency
+                          $subQ->where('agency_id', $me->agency_id)
+                            ->where(function($subSubQ) use ($me, $matchmakerIds) {
+                                // Users assigned to matchmakers in their agency
+                                if (!empty($matchmakerIds)) {
+                                    $subSubQ->whereIn('assigned_matchmaker_id', $matchmakerIds);
+                                }
+                                // OR users assigned to them (prospects they created)
+                                $subSubQ->orWhere('assigned_matchmaker_id', $me->id);
+                                // OR unassigned users from their agency
+                                $subSubQ->orWhereNull('assigned_matchmaker_id');
+                            });
+                      })
+                      // OR members assigned to matchmakers in their agency (even if agency_id is null)
+                      ->orWhere(function($subQ) use ($matchmakerIds) {
                           if (!empty($matchmakerIds)) {
                               $subQ->whereIn('assigned_matchmaker_id', $matchmakerIds);
                           }
-                          // OR users assigned to them (prospects they created)
-                          $subQ->orWhere('assigned_matchmaker_id', $me->id);
-                          // OR unassigned users from their agency
-                          $subQ->orWhereNull('assigned_matchmaker_id');
                       });
                     
                     // Exclude users assigned to other managers in the same agency
@@ -550,7 +553,8 @@ class MatchmakerController extends Controller
             'profile', 
             'profile.matrimonialPack', 
             'agency', 
-            'validatedByManager', 
+            'validatedByManager',
+            'approvedBy',
             'bills', 
             'subscriptions' => function($q) {
                 $q->orderBy('created_at', 'desc');
@@ -653,27 +657,23 @@ class MatchmakerController extends Controller
         if ($roleName === 'matchmaker' && !$me->agency_id) {
             abort(403, 'You must be linked to an agency to access prospects.');
         }
+        
+        // Restrict manager access: must be linked to an agency
+        if ($roleName === 'manager' && !$me->agency_id) {
+            abort(403, 'You must be linked to an agency to access prospects.');
+        }
 
         $statusFilter = $request->string('status_filter')->toString(); // active | rejected
         $query = User::role('user')
             ->where('status', 'prospect')
             ->with(['profile', 'assignedMatchmaker', 'agency']);
-        
-        // Filter by rejection status
-        if ($statusFilter === 'rejected') {
-            $query->whereNotNull('rejection_reason');
-        } else {
-            // Default to active (non-rejected) prospects
-            $query->whereNull('rejection_reason');
-        }
 
         // Role-based filtering
         if ($roleName === 'matchmaker') {
             // Matchmaker: see only prospects assigned to them
             $query->where('assigned_matchmaker_id', $me->id);
         } elseif ($roleName === 'manager') {
-            // Manager: see all prospects from their agency (including those assigned to matchmakers in their agency)
-            // but excluding prospects created by other managers in the same agency
+            // Manager: see all prospects from their agency (including those assigned to matchmakers)
             // Get all matchmaker IDs in the manager's agency
             $matchmakerIds = User::role('matchmaker')
                 ->where('agency_id', $me->agency_id)
@@ -688,22 +688,29 @@ class MatchmakerController extends Controller
                 ->toArray();
             
             $query->where(function($q) use ($me, $matchmakerIds, $otherManagerIds) {
-                // Prospects from their agency
-                $q->where('agency_id', $me->agency_id)
-                  ->where(function($subQ) use ($me, $matchmakerIds) {
-                      // Prospects assigned to matchmakers in their agency
-                      if (!empty($matchmakerIds)) {
-                          $subQ->whereIn('assigned_matchmaker_id', $matchmakerIds);
-                      }
-                      // OR prospects assigned to them (prospects they created)
-                      $subQ->orWhere('assigned_matchmaker_id', $me->id);
-                      // OR unassigned prospects from their agency
-                      $subQ->orWhereNull('assigned_matchmaker_id');
-                  });
+                // Option 1: Prospects from their agency (normal case)
+                $q->where(function($subQ) use ($me, $otherManagerIds) {
+                    $subQ->where('agency_id', $me->agency_id);
+                    
+                    // Exclude prospects assigned to other managers in the same agency
+                    if (!empty($otherManagerIds)) {
+                        $subQ->where(function($subSubQ) use ($otherManagerIds) {
+                            $subSubQ->whereNotIn('assigned_matchmaker_id', $otherManagerIds)
+                                    ->orWhereNull('assigned_matchmaker_id');
+                        });
+                    }
+                });
                 
-                // Exclude prospects assigned to other managers in the same agency
-                if (!empty($otherManagerIds)) {
-                    $q->whereNotIn('assigned_matchmaker_id', $otherManagerIds);
+                // Option 2: Prospects dispatched to matchmakers in their agency (even if agency_id is null)
+                if (!empty($matchmakerIds)) {
+                    $q->orWhere(function($subQ) use ($matchmakerIds, $otherManagerIds) {
+                        $subQ->whereIn('assigned_matchmaker_id', $matchmakerIds);
+                        
+                        // Exclude prospects assigned to other managers
+                        if (!empty($otherManagerIds)) {
+                            $subQ->whereNotIn('assigned_matchmaker_id', $otherManagerIds);
+                        }
+                    });
                 }
             });
         }
@@ -1253,9 +1260,10 @@ class MatchmakerController extends Controller
                 abort(403, 'You can only update prospects assigned to you.');
             }
         } elseif ($roleName === 'manager') {
-            // Manager can only update prospects assigned to them
-            if ($prospect->assigned_matchmaker_id !== $me->id) {
-                abort(403, 'You can only update prospects assigned to you.');
+            // Manager can update prospects that are NOT dispatched to matchmakers
+            // (i.e., assigned_matchmaker_id is null) OR assigned to them
+            if ($prospect->assigned_matchmaker_id !== null && $prospect->assigned_matchmaker_id !== $me->id) {
+                abort(403, 'You cannot edit prospects that are dispatched to matchmakers.');
             }
         }
 

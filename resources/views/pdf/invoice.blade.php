@@ -212,7 +212,7 @@
         <div class="receipt-title">Facture</div>
         <div class="logo-container">
             @if(file_exists(public_path('images/CENTRE-ZAWAJ-PNG-LOGO.png')))
-            <img src="{{ public_path('images/CENTRE-ZAWAJ-PNG-LOGO.png') }}" alt="CZM Logo" class="logo">
+            <img src="{{ public_path('images/czm_Logo.png') }}" alt="CZM Logo" class="logo">
             @endif
         </div>
     </div>

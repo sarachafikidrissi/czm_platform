@@ -656,4 +656,127 @@ class AdminController extends Controller
             return redirect()->back()->with('error', 'An error occurred while reassigning prospects. Please try again.');
         }
     }
+
+    public function managerProspectsDispatch(Request $request)
+    {
+        $me = Auth::user();
+        $roleName = null;
+        if ($me) {
+            $roleName = \Illuminate\Support\Facades\DB::table('model_has_roles')
+                ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+                ->where('model_has_roles.model_id', $me->id)
+                ->value('roles.name');
+        }
+
+        // Only managers can access this
+        if ($roleName !== 'manager') {
+            abort(403, 'Only managers can access prospect dispatch.');
+        }
+
+        // Check approval status
+        if ($me->approval_status !== 'approved') {
+            abort(403, 'Your account is not validated yet.');
+        }
+
+        // Manager must have an agency
+        if (!$me->agency_id) {
+            abort(403, 'You must be linked to an agency to dispatch prospects.');
+        }
+
+        $statusFilter = $request->string('status_filter')->toString(); // active | rejected
+        $query = User::role('user')
+            ->where('status', 'prospect')
+            ->where('agency_id', $me->agency_id) // Only prospects dispatched to manager's agency
+            ->whereNull('assigned_matchmaker_id') // Only prospects not yet assigned to a matchmaker
+            ->with(['profile', 'agency']);
+
+        // Filter by rejection status
+        if ($statusFilter === 'rejected') {
+            $query->whereNotNull('rejection_reason');
+        } else {
+            // Default to active (non-rejected) prospects
+            $query->whereNull('rejection_reason');
+        }
+
+        $prospects = $query->get(['id','name','email','username','phone','country','city','status','agency_id','assigned_matchmaker_id','rejection_reason','rejected_by','rejected_at','created_at']);
+        
+        // Get matchmakers from the manager's agency
+        $matchmakers = User::role('matchmaker')
+            ->where('agency_id', $me->agency_id)
+            ->where('approval_status', 'approved')
+            ->get(['id','name','email','agency_id']);
+
+        return Inertia::render('manager/prospects-dispatch', [
+            'prospects' => $prospects,
+            'matchmakers' => $matchmakers,
+            'statusFilter' => $statusFilter ?: 'active',
+        ]);
+    }
+
+    public function managerDispatchProspects(Request $request)
+    {
+        $me = Auth::user();
+        $roleName = null;
+        if ($me) {
+            $roleName = \Illuminate\Support\Facades\DB::table('model_has_roles')
+                ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+                ->where('model_has_roles.model_id', $me->id)
+                ->value('roles.name');
+        }
+
+        // Only managers can access this
+        if ($roleName !== 'manager') {
+            abort(403, 'Only managers can dispatch prospects.');
+        }
+
+        // Check approval status
+        if ($me->approval_status !== 'approved') {
+            abort(403, 'Your account is not validated yet.');
+        }
+
+        // Manager must have an agency
+        if (!$me->agency_id) {
+            abort(403, 'You must be linked to an agency to dispatch prospects.');
+        }
+
+        $validated = $request->validate([
+            'prospect_ids' => ['required','array','min:1'],
+            'prospect_ids.*' => ['required', 'integer', 'exists:users,id'],
+            'matchmaker_id' => ['required','integer', 'exists:users,id'],
+        ]);
+
+        try {
+            $matchmaker = User::findOrFail($validated['matchmaker_id']);
+            
+            // Ensure matchmaker is approved, has a role, and is linked to the same agency
+            if (!$matchmaker->hasRole('matchmaker') || $matchmaker->approval_status !== 'approved') {
+                return redirect()->back()->with('error', 'Selected matchmaker is not valid or not approved.');
+            }
+            
+            if ($matchmaker->agency_id !== $me->agency_id) {
+                return redirect()->back()->with('error', 'Selected matchmaker must be from your agency.');
+            }
+            
+            // Assign prospects ONLY to the specific matchmaker
+            // Only prospects that are dispatched to manager's agency and not yet assigned to a matchmaker
+            $updated = User::whereIn('id', $validated['prospect_ids'])
+                ->where('status', 'prospect')
+                ->where('agency_id', $me->agency_id) // Must be from manager's agency
+                ->whereNull('assigned_matchmaker_id') // Not yet assigned
+                ->update([
+                    'assigned_matchmaker_id' => $matchmaker->id,
+                    'agency_id' => null  // Set to null so only this specific matchmaker sees it
+                ]);
+            
+            $message = "{$updated} prospects dispatched to matchmaker successfully.";
+            
+            if ($updated === 0) {
+                return redirect()->back()->with('warning', 'No prospects were dispatched. They might already be assigned or not belong to your agency.');
+            }
+
+            return redirect()->back()->with('success', $message);
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'An error occurred while dispatching prospects. Please try again.');
+        }
+    }
 }

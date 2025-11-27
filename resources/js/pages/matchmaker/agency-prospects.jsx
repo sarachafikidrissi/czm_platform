@@ -77,6 +77,64 @@ export default function AgencyProspects() {
         return false;
     };
     
+    // Check if current user can validate a prospect
+    const canValidateProspect = (prospect) => {
+        if (!prospect || prospect.status !== 'prospect') {
+            return false;
+        }
+        if (!userRole || !userId) {
+            return false;
+        }
+        // Admin can validate any prospect
+        if (userRole === 'admin') {
+            return true;
+        }
+        // Matchmaker can validate if assigned to them
+        if (userRole === 'matchmaker') {
+            return prospect.assigned_matchmaker_id === userId;
+        }
+        // Manager can validate only if prospect is NOT dispatched to a matchmaker
+        // (i.e., assigned_matchmaker_id is null or assigned to them)
+        if (userRole === 'manager') {
+            // If prospect is dispatched to a matchmaker (and not to the manager), cannot validate
+            if (prospect.assigned_matchmaker_id && prospect.assigned_matchmaker_id !== userId) {
+                return false;
+            }
+            // Can validate if from their agency and not dispatched to another matchmaker
+            return prospect.agency_id === userAgencyId;
+        }
+        return false;
+    };
+    
+    // Check if current user can edit a prospect's profile
+    const canEditProspectProfile = (prospect) => {
+        if (!prospect || prospect.status !== 'prospect') {
+            return false;
+        }
+        if (!userRole || !userId) {
+            return false;
+        }
+        // Admin can edit any prospect
+        if (userRole === 'admin') {
+            return true;
+        }
+        // Matchmaker can edit if assigned to them
+        if (userRole === 'matchmaker') {
+            return prospect.assigned_matchmaker_id === userId;
+        }
+        // Manager can edit only if prospect is NOT dispatched to a matchmaker
+        // (i.e., assigned_matchmaker_id is null or assigned to them)
+        if (userRole === 'manager') {
+            // If prospect is dispatched to a matchmaker (and not to the manager), cannot edit
+            if (prospect.assigned_matchmaker_id && prospect.assigned_matchmaker_id !== userId) {
+                return false;
+            }
+            // Can edit if from their agency and not dispatched to another matchmaker
+            return prospect.agency_id === userAgencyId;
+        }
+        return false;
+    };
+    
     const handleReject = (prospect) => {
         setSelectedProspectForReject(prospect);
         setRejectionReason('');
@@ -388,23 +446,27 @@ export default function AgencyProspects() {
                                                         Rejeter
                                                     </Button>
                                                 )}
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    className="flex-1"
-                                                    onClick={() => router.visit(`/staff/prospects/${p.id}/profile/edit`)}
-                                                >
-                                                    <Pencil className="w-4 h-4 mr-1" />
-                                                    Profil
-                                                </Button>
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    className="flex-1"
-                                                    onClick={() => handleValidateClick(p)}
-                                                >
-                                                    Validate
-                                                </Button>
+                                                {canEditProspectProfile(p) && (
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="flex-1"
+                                                        onClick={() => router.visit(`/staff/prospects/${p.id}/profile/edit`)}
+                                                    >
+                                                        <Pencil className="w-4 h-4 mr-1" />
+                                                        Profil
+                                                    </Button>
+                                                )}
+                                                {canValidateProspect(p) && (
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="flex-1"
+                                                        onClick={() => handleValidateClick(p)}
+                                                    >
+                                                        Validate
+                                                    </Button>
+                                                )}
                                             </>
                                         ) : (
                                             <>
@@ -483,15 +545,19 @@ export default function AgencyProspects() {
                                                                 Rejeter
                                                             </Button>
                                                         )}
-                                                        <Button 
-                                                            size="sm" 
-                                                            variant="outline"
-                                                            onClick={() => router.visit(`/staff/prospects/${p.id}/profile/edit`)}
-                                                        >
-                                                            <Pencil className="w-4 h-4 mr-1" />
-                                                            Profil
-                                                        </Button>
-                                                        <Button size="sm" onClick={() => handleValidateClick(p)}>Validate</Button>
+                                                        {canEditProspectProfile(p) && (
+                                                            <Button 
+                                                                size="sm" 
+                                                                variant="outline"
+                                                                onClick={() => router.visit(`/staff/prospects/${p.id}/profile/edit`)}
+                                                            >
+                                                                <Pencil className="w-4 h-4 mr-1" />
+                                                                Profil
+                                                            </Button>
+                                                        )}
+                                                        {canValidateProspect(p) && (
+                                                            <Button size="sm" onClick={() => handleValidateClick(p)}>Validate</Button>
+                                                        )}
                                                     </div>
                                                 </TableCell>
                                             </TableRow>
