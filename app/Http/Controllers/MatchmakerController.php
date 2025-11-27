@@ -1187,11 +1187,15 @@ class MatchmakerController extends Controller
             }
         } elseif ($roleName === 'manager') {
             // Manager can edit if:
-            // 1. Prospect/member/client is assigned to them, OR
-            // 2. User is a member/client with incomplete profile and was validated by them (ONLY them, not their agency)
+            // 1. Prospect is not dispatched yet (assigned_matchmaker_id is null) and from their agency, OR
+            // 2. Prospect/member/client is assigned to them, OR
+            // 3. User is a member/client with incomplete profile and was validated by them
             $canEdit = false;
             
-            if ($prospect->assigned_matchmaker_id === $me->id) {
+            // If prospect is not dispatched and from manager's agency, manager can edit
+            if ($prospect->status === 'prospect' && !$prospect->assigned_matchmaker_id && $prospect->agency_id === $me->agency_id) {
+                $canEdit = true;
+            } elseif ($prospect->assigned_matchmaker_id === $me->id) {
                 $canEdit = true;
             } elseif (in_array($prospect->status, ['member', 'client', 'client_expire'])) {
                 // For members/clients, allow if profile is incomplete and they validated them
@@ -1203,7 +1207,7 @@ class MatchmakerController extends Controller
             }
             
             if (!$canEdit) {
-                abort(403, 'You can only edit prospects assigned to you or members/clients with incomplete profiles that you validated.');
+                abort(403, 'You can only edit prospects that are not dispatched (from your agency), prospects assigned to you, or members/clients with incomplete profiles that you validated.');
             }
         } elseif ($roleName === 'admin') {
             // Admin should not be able to edit profiles through this route

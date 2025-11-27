@@ -248,8 +248,15 @@ export default function ValidatedProspects() {
             return user.assigned_matchmaker_id === userId || user.approved_by === userId;
         }
 
-        // Manager can edit ONLY if they are the one that validated/approved the member/client
+        // Manager can edit if:
+        // 1. Prospect is not dispatched yet (assigned_matchmaker_id is null) and from their agency, OR
+        // 2. They are the one that validated/approved the member/client
         if (viewerRole === 'manager') {
+            // If prospect is not dispatched and from manager's agency, manager can edit
+            if (user.status === 'prospect' && !user.assigned_matchmaker_id && user.agency_id === auth?.user?.agency_id) {
+                return true;
+            }
+            // For members/clients, only if they validated them
             return user.validated_by_manager_id === userId;
         }
 
