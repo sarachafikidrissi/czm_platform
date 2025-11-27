@@ -52,9 +52,41 @@ class SearchController extends Controller
             // Matchmaker can only see users assigned to them
             $usersQuery->where('assigned_matchmaker_id', $user->id);
         } elseif ($roleName === 'manager') {
-            // Manager can only see users from their agency
+            // Manager can see all users from their agency (including those assigned to matchmakers in their agency)
+            // but excluding users assigned to other managers in the same agency
             if ($user->agency_id) {
-                $usersQuery->where('agency_id', $user->agency_id);
+                // Get all matchmaker IDs in the manager's agency
+                $matchmakerIds = User::role('matchmaker')
+                    ->where('agency_id', $user->agency_id)
+                    ->pluck('id')
+                    ->toArray();
+                
+                // Get all manager IDs in the manager's agency (excluding themselves)
+                $otherManagerIds = User::role('manager')
+                    ->where('agency_id', $user->agency_id)
+                    ->where('id', '!=', $user->id)
+                    ->pluck('id')
+                    ->toArray();
+                
+                $usersQuery->where(function($q) use ($user, $matchmakerIds, $otherManagerIds) {
+                    // Users from their agency
+                    $q->where('agency_id', $user->agency_id)
+                      ->where(function($subQ) use ($user, $matchmakerIds) {
+                          // Users assigned to matchmakers in their agency
+                          if (!empty($matchmakerIds)) {
+                              $subQ->whereIn('assigned_matchmaker_id', $matchmakerIds);
+                          }
+                          // OR users assigned to them (prospects they created)
+                          $subQ->orWhere('assigned_matchmaker_id', $user->id);
+                          // OR unassigned users from their agency
+                          $subQ->orWhereNull('assigned_matchmaker_id');
+                      });
+                    
+                    // Exclude users assigned to other managers in the same agency
+                    if (!empty($otherManagerIds)) {
+                        $q->whereNotIn('assigned_matchmaker_id', $otherManagerIds);
+                    }
+                });
             } else {
                 // If manager has no agency, return empty results
                 return response()->json(['users' => []]);

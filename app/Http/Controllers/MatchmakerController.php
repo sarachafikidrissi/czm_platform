@@ -56,8 +56,40 @@ class MatchmakerController extends Controller
             // Matchmaker: see only prospects assigned to them
             $query->where('assigned_matchmaker_id', $me->id);
         } elseif ($roleName === 'manager') {
-            // Manager: see only prospects they created (assigned to them)
-            $query->where('assigned_matchmaker_id', $me->id);
+            // Manager: see all prospects from their agency (including those assigned to matchmakers in their agency)
+            // but excluding prospects created by other managers in the same agency
+            // Get all matchmaker IDs in the manager's agency
+            $matchmakerIds = User::role('matchmaker')
+                ->where('agency_id', $me->agency_id)
+                ->pluck('id')
+                ->toArray();
+            
+            // Get all manager IDs in the manager's agency (excluding themselves)
+            $otherManagerIds = User::role('manager')
+                ->where('agency_id', $me->agency_id)
+                ->where('id', '!=', $me->id)
+                ->pluck('id')
+                ->toArray();
+            
+            $query->where(function($q) use ($me, $matchmakerIds, $otherManagerIds) {
+                // Prospects from their agency
+                $q->where('agency_id', $me->agency_id)
+                  ->where(function($subQ) use ($me, $matchmakerIds) {
+                      // Prospects assigned to matchmakers in their agency
+                      if (!empty($matchmakerIds)) {
+                          $subQ->whereIn('assigned_matchmaker_id', $matchmakerIds);
+                      }
+                      // OR prospects assigned to them (prospects they created)
+                      $subQ->orWhere('assigned_matchmaker_id', $me->id);
+                      // OR unassigned prospects from their agency
+                      $subQ->orWhereNull('assigned_matchmaker_id');
+                  });
+                
+                // Exclude prospects assigned to other managers in the same agency
+                if (!empty($otherManagerIds)) {
+                    $q->whereNotIn('assigned_matchmaker_id', $otherManagerIds);
+                }
+            });
         }
 
         // Filter by rejection status (after role-based filtering)
@@ -471,8 +503,40 @@ class MatchmakerController extends Controller
                       ->orWhere('assigned_matchmaker_id', $me->id);
                 });
             } elseif ($roleName === 'manager') {
-                // Manager: see only users assigned to them (prospects they created)
-                $query->where('assigned_matchmaker_id', $me->id);
+                // Manager: see all members/clients from their agency (including those assigned to matchmakers in their agency)
+                // but excluding users created by other managers in the same agency
+                // Get all matchmaker IDs in the manager's agency
+                $matchmakerIds = User::role('matchmaker')
+                    ->where('agency_id', $me->agency_id)
+                    ->pluck('id')
+                    ->toArray();
+                
+                // Get all manager IDs in the manager's agency (excluding themselves)
+                $otherManagerIds = User::role('manager')
+                    ->where('agency_id', $me->agency_id)
+                    ->where('id', '!=', $me->id)
+                    ->pluck('id')
+                    ->toArray();
+                
+                $query->where(function($q) use ($me, $matchmakerIds, $otherManagerIds) {
+                    // Users from their agency
+                    $q->where('agency_id', $me->agency_id)
+                      ->where(function($subQ) use ($me, $matchmakerIds) {
+                          // Users assigned to matchmakers in their agency
+                          if (!empty($matchmakerIds)) {
+                              $subQ->whereIn('assigned_matchmaker_id', $matchmakerIds);
+                          }
+                          // OR users assigned to them (prospects they created)
+                          $subQ->orWhere('assigned_matchmaker_id', $me->id);
+                          // OR unassigned users from their agency
+                          $subQ->orWhereNull('assigned_matchmaker_id');
+                      });
+                    
+                    // Exclude users assigned to other managers in the same agency
+                    if (!empty($otherManagerIds)) {
+                        $q->whereNotIn('assigned_matchmaker_id', $otherManagerIds);
+                    }
+                });
             }
             // Admin: no additional filtering (sees all)
         }
@@ -608,8 +672,40 @@ class MatchmakerController extends Controller
             // Matchmaker: see only prospects assigned to them
             $query->where('assigned_matchmaker_id', $me->id);
         } elseif ($roleName === 'manager') {
-            // Manager: see only prospects they created (assigned to them)
-            $query->where('assigned_matchmaker_id', $me->id);
+            // Manager: see all prospects from their agency (including those assigned to matchmakers in their agency)
+            // but excluding prospects created by other managers in the same agency
+            // Get all matchmaker IDs in the manager's agency
+            $matchmakerIds = User::role('matchmaker')
+                ->where('agency_id', $me->agency_id)
+                ->pluck('id')
+                ->toArray();
+            
+            // Get all manager IDs in the manager's agency (excluding themselves)
+            $otherManagerIds = User::role('manager')
+                ->where('agency_id', $me->agency_id)
+                ->where('id', '!=', $me->id)
+                ->pluck('id')
+                ->toArray();
+            
+            $query->where(function($q) use ($me, $matchmakerIds, $otherManagerIds) {
+                // Prospects from their agency
+                $q->where('agency_id', $me->agency_id)
+                  ->where(function($subQ) use ($me, $matchmakerIds) {
+                      // Prospects assigned to matchmakers in their agency
+                      if (!empty($matchmakerIds)) {
+                          $subQ->whereIn('assigned_matchmaker_id', $matchmakerIds);
+                      }
+                      // OR prospects assigned to them (prospects they created)
+                      $subQ->orWhere('assigned_matchmaker_id', $me->id);
+                      // OR unassigned prospects from their agency
+                      $subQ->orWhereNull('assigned_matchmaker_id');
+                  });
+                
+                // Exclude prospects assigned to other managers in the same agency
+                if (!empty($otherManagerIds)) {
+                    $q->whereNotIn('assigned_matchmaker_id', $otherManagerIds);
+                }
+            });
         }
 
         // Filter by rejection status (after role-based filtering)
