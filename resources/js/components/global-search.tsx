@@ -171,7 +171,7 @@ export function GlobalSearch({ role }: GlobalSearchProps) {
     const getStatusColor = (status: string) => {
         switch (status) {
             case 'client':
-                return 'bg-green-500';
+                return 'bg-[#096725]';
             case 'member':
                 return 'bg-blue-500';
             case 'prospect':
@@ -187,14 +187,10 @@ export function GlobalSearch({ role }: GlobalSearchProps) {
             <div className="px-2 mb-2">
                 <button
                     onClick={() => setIsOpen(true)}
-                    className="w-full flex items-center gap-2 px-3 py-2 rounded-md bg-white/10 hover:bg-white/20 text-white transition-colors text-sm"
+                    className="w-full flex items-center justify-center px-3 py-2 rounded-md bg-white/10 hover:bg-white/20 text-white transition-colors"
                     title="Search users (⌘K)"
                 >
-                    <Search className="h-4 w-4" />
-                    <span className="flex-1 text-left">Search users...</span>
-                    <kbd className="hidden sm:inline-flex h-5 select-none items-center gap-1 rounded border bg-white/10 px-1.5 font-mono text-[10px] font-medium opacity-100">
-                        ⌘K
-                    </kbd>
+                    <Search className="h-5 w-5" />
                 </button>
             </div>
 
@@ -214,19 +210,19 @@ export function GlobalSearch({ role }: GlobalSearchProps) {
                     {/* Search Container */}
                     <div 
                         data-search-container
-                        className="relative z-50 w-full max-w-2xl mx-4 bg-gray-900 rounded-lg shadow-2xl overflow-hidden"
+                        className="relative z-50 w-full max-w-2xl mx-4 bg-white rounded-lg shadow-2xl overflow-hidden border-2 border-[#096725]"
                     >
                         {/* Search Input */}
-                        <div className="p-4 border-b border-gray-700">
+                        <div className="p-4 border-b border-[#096725]">
                             <div className="relative">
-                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-[#096725]" />
                                 <Input
                                     ref={searchInputRef}
                                     type="text"
                                     placeholder="Search for users by name, username, phone, or email..."
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="pl-10 pr-10 bg-gray-800 border-gray-700 text-white placeholder:text-gray-400 focus:border-gray-600 h-12 text-base"
+                                    className="pl-10 pr-10 bg-white border-[#096725] text-black placeholder:text-gray-500 focus:border-[#096725] focus:ring-[#096725] h-12 text-base"
                                 />
                                 {searchQuery && (
                                     <button
@@ -234,7 +230,7 @@ export function GlobalSearch({ role }: GlobalSearchProps) {
                                             setSearchQuery('');
                                             setUsers([]);
                                         }}
-                                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
+                                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-[#ff343a] hover:text-red-700"
                                     >
                                         <X className="h-4 w-4" />
                                     </button>
@@ -245,29 +241,29 @@ export function GlobalSearch({ role }: GlobalSearchProps) {
                         {/* Results */}
                         <div className="max-h-[60vh] overflow-y-auto">
                             {isLoading ? (
-                                <div className="p-8 text-center text-gray-400">
-                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto"></div>
-                                    <p className="mt-2">Searching...</p>
+                                <div className="p-8 text-center text-black">
+                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#096725] mx-auto"></div>
+                                    <p className="mt-2 text-black">Searching...</p>
                                 </div>
                             ) : searchQuery.trim().length < 2 ? (
-                                <div className="p-8 text-center text-gray-400">
-                                    <Search className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                                    <p>Type at least 2 characters to search</p>
+                                <div className="p-8 text-center text-black">
+                                    <Search className="h-12 w-12 mx-auto mb-2 opacity-50 text-[#096725]" />
+                                    <p className="text-black">Type at least 2 characters to search</p>
                                 </div>
                             ) : users.length === 0 ? (
-                                <div className="p-8 text-center text-gray-400">
-                                    <User className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                                    <p>No users found</p>
+                                <div className="p-8 text-center text-black">
+                                    <User className="h-12 w-12 mx-auto mb-2 opacity-50 text-[#096725]" />
+                                    <p className="text-black">No users found</p>
                                 </div>
                             ) : (
-                                <div ref={resultsRef} className="divide-y divide-gray-800">
+                                <div ref={resultsRef} className="divide-y divide-gray-200">
                                     {users.map((user, index) => (
                                         <button
                                             key={user.id}
                                             onClick={() => handleUserClick(user)}
                                             className={cn(
-                                                "w-full p-4 text-left hover:bg-gray-800 transition-colors",
-                                                selectedIndex === index && "bg-gray-800"
+                                                "w-full p-4 text-left hover:bg-green-50 transition-colors",
+                                                selectedIndex === index && "bg-green-50"
                                             )}
                                         >
                                             <div className="flex items-center gap-3">
@@ -276,35 +272,35 @@ export function GlobalSearch({ role }: GlobalSearchProps) {
                                                         <img
                                                             src={`/storage/${user.profile_picture}`}
                                                             alt={user.name}
-                                                            className="h-10 w-10 rounded-full object-cover"
+                                                            className="h-10 w-10 rounded-full object-cover border-2 border-[#096725]"
                                                         />
                                                     ) : (
-                                                        <div className="h-10 w-10 rounded-full bg-gray-700 flex items-center justify-center">
-                                                            <User className="h-5 w-5 text-gray-400" />
+                                                        <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center border-2 border-[#096725]">
+                                                            <User className="h-5 w-5 text-gray-500" />
                                                         </div>
                                                     )}
                                                     <div className={cn(
-                                                        "absolute -bottom-1 -right-1 h-3 w-3 rounded-full border-2 border-gray-900",
+                                                        "absolute -bottom-1 -right-1 h-3 w-3 rounded-full border-2 border-white",
                                                         getStatusColor(user.status)
                                                     )} />
                                                 </div>
                                                 <div className="flex-1 min-w-0">
                                                     <div className="flex items-center gap-2">
-                                                        <p className="font-medium text-white truncate">
+                                                        <p className="font-medium text-black truncate">
                                                             {user.name}
                                                         </p>
                                                         {user.status && (
                                                             <span className={cn(
                                                                 "px-2 py-0.5 rounded-full text-xs font-medium",
-                                                                user.status === 'client' && "bg-green-500/20 text-green-400",
-                                                                user.status === 'member' && "bg-blue-500/20 text-blue-400",
-                                                                user.status === 'prospect' && "bg-yellow-500/20 text-yellow-400"
+                                                                user.status === 'client' && "bg-[#096725]/20 text-[#096725]",
+                                                                user.status === 'member' && "bg-blue-500/20 text-blue-600",
+                                                                user.status === 'prospect' && "bg-yellow-500/20 text-yellow-600"
                                                             )}>
                                                                 {user.status}
                                                             </span>
                                                         )}
                                                     </div>
-                                                    <p className="text-sm text-gray-400 truncate">
+                                                    <p className="text-sm text-gray-600 truncate">
                                                         @{user.username}
                                                     </p>
                                                     <div className="flex items-center gap-4 mt-1 text-xs text-gray-500">
@@ -334,10 +330,10 @@ export function GlobalSearch({ role }: GlobalSearchProps) {
                         </div>
 
                         {/* Footer */}
-                        <div className="p-3 border-t border-gray-800 bg-gray-900/50 flex items-center justify-between text-xs text-gray-500">
+                        <div className="p-3 border-t border-[#096725] bg-white flex items-center justify-between text-xs text-gray-600">
                             <div className="flex items-center gap-4">
                                 <span className="flex items-center gap-1">
-                                    <ArrowUpDown className="h-3 w-3" />
+                                    <ArrowUpDown className="h-3 w-3 text-[#096725]" />
                                     Navigate
                                 </span>
                                 <span>Enter to open</span>
