@@ -123,6 +123,12 @@ const getMainNavItems = (t: (key: string) => string, role: string): NavItem[] =>
         roles: ['admin', 'matchmaker', 'manager'],
     },
     {
+        title: t('navigation.evaluatedUsers', { defaultValue: 'Evaluated Users' }),
+        url: '/staff/evaluated-users',
+        icon: UserCheck,
+        roles: ['admin', 'matchmaker', 'manager'],
+    },
+    {
         title: t('navigation.monthlyObjectives'),
         url: '/objectives',
         icon: Target,

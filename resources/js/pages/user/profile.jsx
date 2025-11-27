@@ -7,23 +7,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AppLayout from '@/layouts/app-layout';
 import { Head, router, usePage } from '@inertiajs/react';
-import { BookOpen, Camera, Facebook, Heart, Instagram, Linkedin, MapPin, MessageSquareWarning, Share2, User, X, Youtube } from 'lucide-react';
+import { BookOpen, Camera, Facebook, Heart, Instagram, Linkedin, MapPin, MessageSquareWarning, User, X, Youtube } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 export default function UserProfile({ user, profile, agency, matchmakerNotes = [], matchmakerEvaluation = null, photos = [] }) {
     const { t } = useTranslation();
     const { auth } = usePage().props;
-    
+
     // Use Number conversion to handle string/number type differences in IDs
     // Also check with string comparison as fallback
     const authUserId = auth?.user?.id;
     const profileUserId = user?.id;
-    const isOwnProfile = authUserId != null && profileUserId != null && (
-        Number(authUserId) === Number(profileUserId) || 
-        String(authUserId) === String(profileUserId)
-    );
-    
+    const isOwnProfile =
+        authUserId != null && profileUserId != null && (Number(authUserId) === Number(profileUserId) || String(authUserId) === String(profileUserId));
+
     const assignedMatchmakerId = auth?.user?.['assigned_matchmaker']?.id;
 
     // Get user role
@@ -55,7 +53,7 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
 
     // Visibility: who can see notes/evaluation
     const viewerRole = auth?.user?.roles?.[0]?.name || 'user';
-    
+
     // Helper function to check if matchmaker belongs to manager's agency
     const isMatchmakerFromManagerAgency = () => {
         if (!user?.assigned_matchmaker_id || !auth?.user?.agency_id) {
@@ -75,40 +73,39 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
         }
         return matchmakerAgencyId === managerAgencyId;
     };
-    
+
     const canManage =
         viewerRole === 'admin' ||
         (viewerRole === 'matchmaker' && user?.assigned_matchmaker_id === auth?.user?.id) ||
-        (viewerRole === 'manager' && (
-            user?.validated_by_manager_id === auth?.user?.id ||
-            // Manager can view if prospect was validated by a matchmaker from their agency
-            isMatchmakerFromManagerAgency()
-        ));
-    
+        (viewerRole === 'manager' &&
+            (user?.validated_by_manager_id === auth?.user?.id ||
+                // Manager can view if prospect was validated by a matchmaker from their agency
+                isMatchmakerFromManagerAgency()));
+
     // Write permissions: only assigned matchmaker OR manager who validated the prospect can write/edit (NOT admin)
-    const canWrite = 
+    const canWrite =
         (viewerRole === 'matchmaker' && user?.assigned_matchmaker_id === auth?.user?.id) ||
         (viewerRole === 'manager' && user?.validated_by_manager_id === auth?.user?.id);
 
     // Visibility for photos: user themselves, assigned matchmaker, or manager of their agency
-    const canViewPhotos = 
+    const canViewPhotos =
         isOwnProfile ||
-        (viewerRole === 'admin') ||
+        viewerRole === 'admin' ||
         (viewerRole === 'matchmaker' && user?.assigned_matchmaker_id === auth?.user?.id) ||
         (viewerRole === 'manager' && user?.agency_id && user?.agency_id === auth?.user?.agency_id);
-        (viewerRole === 'manager' && user?.agency_id && user?.agency_id === auth?.user?.agency_id);
+    viewerRole === 'manager' && user?.agency_id && user?.agency_id === auth?.user?.agency_id;
 
     // Notes form
     const [newNote, setNewNote] = useState('');
     const [contactType, setContactType] = useState('');
     const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
-    
+
     const addNote = (e) => {
         e.preventDefault();
         if (!newNote.trim()) return;
         router.post(
             `/users/${user.id}/notes`,
-            { 
+            {
                 content: newNote,
                 contact_type: contactType || null,
             },
@@ -121,7 +118,6 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
             },
         );
     };
-
 
     // Evaluation form state
     const [evaluation, setEvaluation] = useState({
@@ -300,26 +296,22 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                     {isOwnProfile && (
                         <div className="absolute top-4 right-4 z-20 flex gap-2">
                             <label htmlFor="banner-upload-input" className="cursor-pointer">
-                                <input
-                                    type="file"
-                                    accept="image/*"
-                                    onChange={handleBannerUpload}
-                                    className="hidden"
-                                    id="banner-upload-input"
-                                />
+                                <input type="file" accept="image/*" onChange={handleBannerUpload} className="hidden" id="banner-upload-input" />
                                 <Button
                                     type="button"
                                     variant="secondary"
                                     size="sm"
-                                    className="bg-white hover:bg-gray-50 text-gray-700 shadow-lg border border-gray-200"
+                                    className="border border-gray-200 bg-white text-gray-700 shadow-lg hover:bg-gray-50"
                                     onClick={(e) => {
                                         e.preventDefault();
                                         e.stopPropagation();
                                         document.getElementById('banner-upload-input')?.click();
                                     }}
                                 >
-                                    <Camera className="h-4 w-4 mr-2" />
-                                    {bannerImageSrc ? t('profile.changeBanner', { defaultValue: 'Change' }) : t('profile.uploadBanner', { defaultValue: 'Upload' })}
+                                    <Camera className="mr-2 h-4 w-4" />
+                                    {bannerImageSrc
+                                        ? t('profile.changeBanner', { defaultValue: 'Change' })
+                                        : t('profile.uploadBanner', { defaultValue: 'Upload' })}
                                 </Button>
                             </label>
                             {bannerImageSrc && (
@@ -327,14 +319,14 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                     type="button"
                                     variant="destructive"
                                     size="sm"
-                                    className="bg-white hover:bg-gray-50 text-red-600 shadow-lg border border-gray-200"
+                                    className="border border-gray-200 bg-white text-red-600 shadow-lg hover:bg-gray-50"
                                     onClick={(e) => {
                                         e.preventDefault();
                                         e.stopPropagation();
                                         handleBannerDelete();
                                     }}
                                 >
-                                    <X className="h-4 w-4 mr-2" />
+                                    <X className="mr-2 h-4 w-4" />
                                     {t('profile.removeBanner', { defaultValue: 'Remove' })}
                                 </Button>
                             )}
@@ -372,13 +364,19 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
 
                                                             // Validate file type
                                                             if (!file.type.startsWith('image/')) {
-                                                                alert(t('profile.invalidImageType', { defaultValue: 'Please select a valid image file.' }));
+                                                                alert(
+                                                                    t('profile.invalidImageType', {
+                                                                        defaultValue: 'Please select a valid image file.',
+                                                                    }),
+                                                                );
                                                                 return;
                                                             }
 
                                                             // Validate file size (max 2MB)
                                                             if (file.size > 2 * 1024 * 1024) {
-                                                                alert(t('profile.imageTooLarge', { defaultValue: 'Image size must be less than 2MB.' }));
+                                                                alert(
+                                                                    t('profile.imageTooLarge', { defaultValue: 'Image size must be less than 2MB.' }),
+                                                                );
                                                                 return;
                                                             }
 
@@ -396,7 +394,12 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                                                     if (errors.profile_picture) {
                                                                         alert(errors.profile_picture);
                                                                     } else {
-                                                                        alert(t('profile.uploadError', { defaultValue: 'An error occurred while uploading the profile picture.' }));
+                                                                        alert(
+                                                                            t('profile.uploadError', {
+                                                                                defaultValue:
+                                                                                    'An error occurred while uploading the profile picture.',
+                                                                            }),
+                                                                        );
                                                                     }
                                                                 },
                                                             });
@@ -431,70 +434,70 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                             <span>
                                                 {user?.city}, {user?.country}
                                             </span>
+                                        </div>
+
+                                        {/* Agency - Only for matchmaker/admin/manager */}
+                                        {(userRole === 'matchmaker' || userRole === 'admin' || userRole === 'manager') && user?.agency && (
+                                            <div className="mt-3">
+                                                <a
+                                                    href={`/agencies/${user.agency.id}`}
+                                                    className="text-sm font-medium text-[#096725] transition-colors hover:text-[#07501d] hover:underline"
+                                                >
+                                                    {user.agency.name}
+                                                </a>
                                             </div>
-                                            
-                                            {/* Agency - Only for matchmaker/admin/manager */}
-                                            {(userRole === 'matchmaker' || userRole === 'admin' || userRole === 'manager') && user?.agency && (
-                                                <div className="mt-3">
-                                                    <a
-                                                        href={`/agencies/${user.agency.id}`}
-                                                        className="text-sm font-medium text-[#096725] hover:text-[#07501d] hover:underline transition-colors"
-                                                    >
-                                                        {user.agency.name}
-                                                    </a>
-                                                </div>
+                                        )}
+                                    </div>
+
+                                    {/* Social Networks - Only for matchmaker/admin/manager */}
+                                    {(userRole === 'matchmaker' || userRole === 'admin' || userRole === 'manager') && (
+                                        <div className="mb-4 flex justify-center gap-3">
+                                            {user?.facebook_url && (
+                                                <a
+                                                    href={user.facebook_url}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="text-[#1877F2] transition-colors"
+                                                    title="Facebook"
+                                                >
+                                                    <Facebook className="h-5 w-5" />
+                                                </a>
                                             )}
-                                            </div>
-                                            
-                                            {/* Social Networks - Only for matchmaker/admin/manager */}
-                                            {(userRole === 'matchmaker' || userRole === 'admin' || userRole === 'manager') && (
-                                                <div className="mb-4 flex justify-center gap-3">
-                                                    {user?.facebook_url && (
-                                                        <a
-                                                            href={user.facebook_url}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className=" text-[#1877F2] transition-colors"
-                                                            title="Facebook"
-                                                        >
-                                                            <Facebook className="h-5 w-5" />
-                                                        </a>
-                                                    )}
-                                                    {user?.instagram_url && (
-                                                        <a
-                                                            href={user.instagram_url}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="text-[#E4405F] transition-colors"
-                                                            title="Instagram"
-                                                        >
-                                                            <Instagram className="h-5 w-5" />
-                                                        </a>
-                                                    )}
-                                                    {user?.linkedin_url && (
-                                                        <a
-                                                            href={user.linkedin_url}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="text-[#0077B5] transition-colors"
-                                                            title="LinkedIn"
-                                                        >
-                                                            <Linkedin className="h-5 w-5" />
-                                                        </a>
-                                                    )}
-                                                    {user?.youtube_url && (
-                                                        <a
-                                                            href={user.youtube_url}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="text-[#FF0000] transition-colors"
-                                                            title="YouTube"
-                                                        >
-                                                            <Youtube className="h-5 w-5" />
-                                                        </a>
-                                                    )}
-                                                </div>
+                                            {user?.instagram_url && (
+                                                <a
+                                                    href={user.instagram_url}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="text-[#E4405F] transition-colors"
+                                                    title="Instagram"
+                                                >
+                                                    <Instagram className="h-5 w-5" />
+                                                </a>
                                             )}
+                                            {user?.linkedin_url && (
+                                                <a
+                                                    href={user.linkedin_url}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="text-[#0077B5] transition-colors"
+                                                    title="LinkedIn"
+                                                >
+                                                    <Linkedin className="h-5 w-5" />
+                                                </a>
+                                            )}
+                                            {user?.youtube_url && (
+                                                <a
+                                                    href={user.youtube_url}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="text-[#FF0000] transition-colors"
+                                                    title="YouTube"
+                                                >
+                                                    <Youtube className="h-5 w-5" />
+                                                </a>
+                                            )}
+                                        </div>
+                                    )}
 
                                     {/* Action Buttons */}
                                     <div className="mb-6 flex gap-3">
@@ -529,7 +532,7 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                                         Select Matchmaker
                                                     </Button>
                                                 )}
-                                                
+
                                                 {/* Case 2: Visiting assigned matchmaker profile - Show "Contact Matchmaker" */}
                                                 {assignedMatchmakerId === user?.id && (
                                                     <Button
@@ -543,7 +546,7 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                                         Contact Matchmaker
                                                     </Button>
                                                 )}
-                                                
+
                                                 {/* Case 3: Has matchmaker but visiting different matchmaker - Show "Change Matchmaker" */}
                                                 {assignedMatchmakerId && assignedMatchmakerId !== user?.id && (
                                                     <Button
@@ -558,22 +561,27 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                                 )}
                                             </>
                                         )}
-                                            </div>
-                                        </CardContent>
-                                    </Card>
+                                    </div>
+                                </CardContent>
+                            </Card>
                         </div>
 
                         {/* Main Content Area */}
                         <div className="space-y-6 lg:col-span-9">
                             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                                 {/* Tabs for regular users */}
-                            {userRole === 'user' && (
-                                    <TabsList className={`grid h-auto w-full rounded-none border-b bg-white p-0 ${
-                                        canManage && canViewPhotos ? 'grid-cols-5' : 
-                                        canManage ? 'grid-cols-4' : 
-                                        canViewPhotos ? 'grid-cols-4' : 
-                                        'grid-cols-3'
-                                    }`}>
+                                {userRole === 'user' && (
+                                    <TabsList
+                                        className={`grid h-auto w-full rounded-none border-b bg-white p-0 ${
+                                            canManage && canViewPhotos
+                                                ? 'grid-cols-5'
+                                                : canManage
+                                                  ? 'grid-cols-4'
+                                                  : canViewPhotos
+                                                    ? 'grid-cols-4'
+                                                    : 'grid-cols-3'
+                                        }`}
+                                    >
                                         <TabsTrigger
                                             value="personal"
                                             className="rounded-none px-4 py-3 data-[state=active]:border-b-2 data-[state=active]:border-[#096725] data-[state=active]:text-[#096725]"
@@ -633,7 +641,6 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                 {(userRole === 'matchmaker' || userRole === 'admin' || userRole === 'manager') && (
                                     <TabsContent value="info" className="mt-6 space-y-6">
                                         {/* About Me / Bio */}
-                                        
 
                                         {/* Matchmaker Bio */}
                                         {userRole === 'matchmaker' && user?.matchmaker_bio && (
@@ -652,40 +659,40 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                                     <User className="h-5 w-5 text-[#096725]" />
                                                     Informations de contact
                                                 </h3>
-                                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                                                <div>
+                                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                                    <div>
                                                         <div className="mb-1 text-sm text-gray-600">Nom</div>
                                                         <div className="font-medium text-gray-900">{user?.name || '—'}</div>
                                                     </div>
                                                     <div>
                                                         <div className="mb-1 text-sm text-gray-600">Email</div>
                                                         <div className="font-medium text-gray-900">{user?.email || '—'}</div>
-                                                </div>
-                                                <div>
+                                                    </div>
+                                                    <div>
                                                         <div className="mb-1 text-sm text-gray-600">Téléphone</div>
                                                         <div className="font-medium text-gray-900">{user?.phone || '—'}</div>
-                                                </div>
-                                                <div>
+                                                    </div>
+                                                    <div>
                                                         <div className="mb-1 text-sm text-gray-600">Localisation</div>
                                                         <div className="font-medium text-gray-900">
-                                                            {user?.city && user?.country 
-                                                                ? `${user.city}, ${user.country}` 
+                                                            {user?.city && user?.country
+                                                                ? `${user.city}, ${user.country}`
                                                                 : user?.city || user?.country || '—'}
-                                                </div>
+                                                        </div>
                                                     </div>
                                                     {user?.agency && (
-                                                <div>
+                                                        <div>
                                                             <div className="mb-1 text-sm text-gray-600">Agence</div>
                                                             <div className="font-medium text-gray-900">{user.agency.name || '—'}</div>
-                                                </div>
+                                                        </div>
                                                     )}
-                                            <div>
+                                                    <div>
                                                         <div className="mb-1 text-sm text-gray-600">Rôle</div>
                                                         <div className="font-medium text-gray-900 capitalize">{userRole || '—'}</div>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        </CardContent>
-                                    </Card>
+                                            </CardContent>
+                                        </Card>
 
                                         {/* Professional Statistics - Only for matchmakers */}
                                         {userRole === 'matchmaker' && (
@@ -698,26 +705,25 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                                         <div className="rounded-lg bg-blue-50 p-4 text-center">
                                                             <div className="text-2xl font-bold text-blue-600">12</div>
                                                             <div className="text-sm text-gray-600">{t('profile.userProfile.successfulMatches')}</div>
-                                                </div>
+                                                        </div>
                                                         <div className="rounded-lg bg-green-50 p-4 text-center">
                                                             <div className="text-2xl font-bold text-[#096725]">8</div>
                                                             <div className="text-sm text-gray-600">{t('profile.userProfile.happyCouples')}</div>
-                                            </div>
+                                                        </div>
                                                         <div className="rounded-lg bg-yellow-50 p-4 text-center">
                                                             <div className="text-2xl font-bold text-yellow-600">4.8</div>
                                                             <div className="text-sm text-gray-600">{t('profile.userProfile.rating')}</div>
-                                                </div>
+                                                        </div>
                                                         <div className="rounded-lg bg-purple-50 p-4 text-center">
                                                             <div className="text-2xl font-bold text-purple-600">2</div>
                                                             <div className="text-sm text-gray-600">{t('profile.userProfile.yearsExperience')}</div>
-                                                </div>
-                                            </div>
-                                        </CardContent>
-                                    </Card>
+                                                        </div>
+                                                    </div>
+                                                </CardContent>
+                                            </Card>
                                         )}
                                     </TabsContent>
                                 )}
-
 
                                 {/* Posts Tab for matchmaker/admin/manager */}
                                 {(userRole === 'matchmaker' || userRole === 'admin' || userRole === 'manager') && (
@@ -733,7 +739,7 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                                         <CreatePost />
                                                     </div>
                                                 )}
-                                                
+
                                                 {/* Display Posts */}
                                                 {user.posts && user.posts.length > 0 ? (
                                                     <div className="space-y-4">
@@ -760,25 +766,25 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                                 <CardContent className="p-6">
                                                     <h3 className="mb-3 text-lg font-semibold text-gray-900">À propos de moi</h3>
                                                     <p className="leading-relaxed text-gray-700">{profile.apropos_description}</p>
-                                            </CardContent>
-                                        </Card>
-                                    )}
+                                                </CardContent>
+                                            </Card>
+                                        )}
 
                                         {/* Basic Information */}
                                         <Card className="border-gray-200 bg-white">
                                             <CardContent className="p-6">
                                                 <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-gray-900">
                                                     <User className="h-5 w-5 text-[#096725]" />
-                                                {t('profile.userProfile.basicInfo')}
+                                                    {t('profile.userProfile.basicInfo')}
                                                 </h3>
                                                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                                            <div>
+                                                    <div>
                                                         <div className="mb-1 text-sm text-gray-600">
                                                             {t('profile.userProfile.matrimonialSituation')}
                                                         </div>
                                                         <div className="font-medium text-gray-900">{user?.profile?.etat_matrimonial || '—'}</div>
-                                            </div>
-                                            <div>
+                                                    </div>
+                                                    <div>
                                                         <div className="mb-1 text-sm text-gray-600">{t('profile.userProfile.haveChildren')}</div>
                                                         <div className="font-medium text-gray-900">
                                                             {user?.profile?.has_children == 1
@@ -787,245 +793,251 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                                                   ? t('profile.no')
                                                                   : '—'}
                                                         </div>
-                                            </div>
-                                            <div>
+                                                    </div>
+                                                    <div>
                                                         <div className="mb-1 text-sm text-gray-600">{t('profile.userProfile.educationLevel')}</div>
                                                         <div className="font-medium text-gray-900">{user?.profile?.niveau_etudes || '—'}</div>
-                                            </div>
-                                            <div>
+                                                    </div>
+                                                    <div>
                                                         <div className="mb-1 text-sm text-gray-600">
                                                             {t('profile.userProfile.professionalSituation')}
                                                         </div>
                                                         <div className="font-medium text-gray-900">
                                                             {user?.profile?.situation_professionnelle || '—'}
                                                         </div>
-                                            </div>
-                                            <div>
+                                                    </div>
+                                                    <div>
                                                         <div className="mb-1 text-sm text-gray-600">{t('profile.userProfile.activitySector')}</div>
                                                         <div className="font-medium text-gray-900">{user?.profile?.secteur || '—'}</div>
-                                            </div>
-                                            <div>
+                                                    </div>
+                                                    <div>
                                                         <div className="mb-1 text-sm text-gray-600">{t('profile.userProfile.monthlyIncome')}</div>
                                                         <div className="font-medium text-gray-900">{user?.profile?.revenu || '—'}</div>
-                                            </div>
-                                            <div>
+                                                    </div>
+                                                    <div>
                                                         <div className="mb-1 text-sm text-gray-600">{t('profile.userProfile.height')}</div>
                                                         <div className="font-medium text-gray-900">
                                                             {user?.profile?.taille ? `${user.profile.taille} cm` : '—'}
                                                         </div>
-                                            </div>
-                                            <div>
+                                                    </div>
+                                                    <div>
                                                         <div className="mb-1 text-sm text-gray-600">{t('profile.userProfile.weight')}</div>
                                                         <div className="font-medium text-gray-900">
                                                             {user?.profile?.poids ? `${user.profile.poids} kg` : '—'}
                                                         </div>
-                                            </div>
-                                            <div>
+                                                    </div>
+                                                    <div>
                                                         <div className="mb-1 text-sm text-gray-600">Origine</div>
                                                         <div className="font-medium text-gray-900">{user?.profile?.origine || '—'}</div>
-                                            </div>
-                                            <div>
+                                                    </div>
+                                                    <div>
                                                         <div className="mb-1 text-sm text-gray-600">Pays de résidence</div>
                                                         <div className="font-medium text-gray-900">{user?.profile?.pays_residence || '—'}</div>
-                                            </div>
-                                            <div>
+                                                    </div>
+                                                    <div>
                                                         <div className="mb-1 text-sm text-gray-600">Ville de résidence</div>
                                                         <div className="font-medium text-gray-900">{user?.profile?.ville_residence || '—'}</div>
-                                            </div>
-                                            <div>
+                                                    </div>
+                                                    <div>
                                                         <div className="mb-1 text-sm text-gray-600">Pays d'origine</div>
                                                         <div className="font-medium text-gray-900">{user?.profile?.pays_origine || '—'}</div>
-                                            </div>
-                                            <div>
+                                                    </div>
+                                                    <div>
                                                         <div className="mb-1 text-sm text-gray-600">Ville d'origine</div>
                                                         <div className="font-medium text-gray-900">{user?.profile?.ville_origine || '—'}</div>
-                                            </div>
-                                            <div>
+                                                    </div>
+                                                    <div>
                                                         <div className="mb-1 text-sm text-gray-600">Religion</div>
                                                         <div className="font-medium text-gray-900">{user?.profile?.religion || '—'}</div>
-                                            </div>
-                                            <div>
+                                                    </div>
+                                                    <div>
                                                         <div className="mb-1 text-sm text-gray-600">Logement</div>
                                                         <div className="font-medium text-gray-900">{user?.profile?.logement || '—'}</div>
                                                     </div>
-                                            </div>
-                                        </CardContent>
-                                    </Card>
+                                                </div>
+                                            </CardContent>
+                                        </Card>
                                     </TabsContent>
                                 )}
 
                                 {/* Tab 2: Mode de vie - Only for users */}
                                 {userRole === 'user' && (
                                     <TabsContent value="lifestyle" className="mt-6 space-y-6">
-                                    {/* Lifestyle Information */}
-                                    <Card className="border-gray-200 bg-white">
-                                        <CardContent className="p-6">
-                                            <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-gray-900">
-                                                <Heart className="h-5 w-5 text-[#ff343a]" />
-                                                Mode de vie & Santé
-                                            </h3>
-                                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                                                <div>
-                                                    <div className="mb-1 text-sm text-gray-600">
-                                                        {t('profile.healthSituation', { defaultValue: 'Situation de santé' })}
+                                        {/* Lifestyle Information */}
+                                        <Card className="border-gray-200 bg-white">
+                                            <CardContent className="p-6">
+                                                <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-gray-900">
+                                                    <Heart className="h-5 w-5 text-[#ff343a]" />
+                                                    Mode de vie & Santé
+                                                </h3>
+                                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                                    <div>
+                                                        <div className="mb-1 text-sm text-gray-600">
+                                                            {t('profile.healthSituation', { defaultValue: 'Situation de santé' })}
+                                                        </div>
+                                                        <div className="font-medium text-gray-900">
+                                                            {(() => {
+                                                                const situationSante = user?.profile?.situation_sante;
+                                                                if (!situationSante) return '—';
+
+                                                                const situations = Array.isArray(situationSante) ? situationSante : [situationSante];
+                                                                if (situations.length === 0) return '—';
+
+                                                                const translations = {
+                                                                    sante_tres_bonne: t('profile.healthSituationVeryGood', {
+                                                                        defaultValue: 'Santé très bonne',
+                                                                    }),
+                                                                    maladie_chronique: t('profile.healthSituationChronicDisease', {
+                                                                        defaultValue: 'Maladie chronique',
+                                                                    }),
+                                                                    personne_handicap: t('profile.healthSituationDisabled', {
+                                                                        defaultValue: 'Personne en situation de handicap',
+                                                                    }),
+                                                                    non_voyant_malvoyant: t('profile.healthSituationBlindLowVision', {
+                                                                        defaultValue: 'Non voyant / Malvoyant',
+                                                                    }),
+                                                                    cecite_totale: t('profile.healthSituationTotalBlindness', {
+                                                                        defaultValue: 'مكفوف (Cécité totale)',
+                                                                    }),
+                                                                    troubles_psychiques: t('profile.healthSituationMentalDisorder', {
+                                                                        defaultValue: 'Troubles psychiques',
+                                                                    }),
+                                                                    autres: t('profile.healthSituationOther', { defaultValue: 'Autres' }),
+                                                                };
+
+                                                                return situations.map((s) => translations[s] || s).join(', ');
+                                                            })()}
+                                                        </div>
                                                     </div>
-                                                    <div className="font-medium text-gray-900">
-                                                        {(() => {
-                                                            const situationSante = user?.profile?.situation_sante;
-                                                            if (!situationSante) return '—';
-
-                                                            const situations = Array.isArray(situationSante) ? situationSante : [situationSante];
-                                                            if (situations.length === 0) return '—';
-
-                                                            const translations = {
-                                                                sante_tres_bonne: t('profile.healthSituationVeryGood', {
-                                                                    defaultValue: 'Santé très bonne',
-                                                                }),
-                                                                maladie_chronique: t('profile.healthSituationChronicDisease', {
-                                                                    defaultValue: 'Maladie chronique',
-                                                                }),
-                                                                personne_handicap: t('profile.healthSituationDisabled', {
-                                                                    defaultValue: 'Personne en situation de handicap',
-                                                                }),
-                                                                non_voyant_malvoyant: t('profile.healthSituationBlindLowVision', {
-                                                                    defaultValue: 'Non voyant / Malvoyant',
-                                                                }),
-                                                                cecite_totale: t('profile.healthSituationTotalBlindness', {
-                                                                    defaultValue: 'مكفوف (Cécité totale)',
-                                                                }),
-                                                                troubles_psychiques: t('profile.healthSituationMentalDisorder', {
-                                                                    defaultValue: 'Troubles psychiques',
-                                                                }),
-                                                                autres: t('profile.healthSituationOther', { defaultValue: 'Autres' }),
-                                                            };
-
-                                                            return situations.map((s) => translations[s] || s).join(', ');
-                                                        })()}
+                                                    <div>
+                                                        <div className="mb-1 text-sm text-gray-600">{t('profile.userProfile.healthStatus')}</div>
+                                                        <div className="font-medium text-gray-900">{user?.profile?.etat_sante || '—'}</div>
+                                                    </div>
+                                                    <div>
+                                                        <div className="mb-1 text-sm text-gray-600">{t('profile.smoker')}</div>
+                                                        <div className="font-medium text-gray-900">{user?.profile?.fumeur || '—'}</div>
+                                                    </div>
+                                                    <div>
+                                                        <div className="mb-1 text-sm text-gray-600">{t('profile.drinker')}</div>
+                                                        <div className="font-medium text-gray-900">{user?.profile?.buveur || '—'}</div>
+                                                    </div>
+                                                    <div>
+                                                        <div className="mb-1 text-sm text-gray-600">{t('profile.sport')}</div>
+                                                        <div className="font-medium text-gray-900">{user?.profile?.sport || '—'}</div>
+                                                    </div>
+                                                    <div>
+                                                        <div className="mb-1 text-sm text-gray-600">{t('profile.motorized')}</div>
+                                                        <div className="font-medium text-gray-900">{user?.profile?.motorise || '—'}</div>
+                                                    </div>
+                                                    <div className="md:col-span-2">
+                                                        <div className="mb-1 text-sm text-gray-600">{t('profile.hobbies')}</div>
+                                                        <div className="font-medium text-gray-900">{user?.profile?.loisirs || '—'}</div>
                                                     </div>
                                                 </div>
-                                                <div>
-                                                    <div className="mb-1 text-sm text-gray-600">{t('profile.userProfile.healthStatus')}</div>
-                                                    <div className="font-medium text-gray-900">{user?.profile?.etat_sante || '—'}</div>
-                                                </div>
-                                                <div>
-                                                    <div className="mb-1 text-sm text-gray-600">{t('profile.smoker')}</div>
-                                                    <div className="font-medium text-gray-900">{user?.profile?.fumeur || '—'}</div>
-                                                </div>
-                                                <div>
-                                                    <div className="mb-1 text-sm text-gray-600">{t('profile.drinker')}</div>
-                                                    <div className="font-medium text-gray-900">{user?.profile?.buveur || '—'}</div>
-                                                </div>
-                                                <div>
-                                                    <div className="mb-1 text-sm text-gray-600">{t('profile.sport')}</div>
-                                                    <div className="font-medium text-gray-900">{user?.profile?.sport || '—'}</div>
-                                            </div>
-                                            <div>
-                                                    <div className="mb-1 text-sm text-gray-600">{t('profile.motorized')}</div>
-                                                    <div className="font-medium text-gray-900">{user?.profile?.motorise || '—'}</div>
-                                                </div>
-                                                <div className="md:col-span-2">
-                                                    <div className="mb-1 text-sm text-gray-600">{t('profile.hobbies')}</div>
-                                                    <div className="font-medium text-gray-900">{user?.profile?.loisirs || '—'}</div>
-                                                </div>
-                                            </div>
-                                        </CardContent>
-                                    </Card>
+                                            </CardContent>
+                                        </Card>
                                     </TabsContent>
                                 )}
 
                                 {/* Tab 3: Profil recherché - Only for users */}
                                 {userRole === 'user' && (
                                     <TabsContent value="partner" className="mt-6 space-y-6">
-                                    {/* Partner Preferences */}
-                                    <Card className="border-gray-200 bg-white">
-                                        <CardContent className="p-6">
-                                            <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-gray-900">
-                                                <Heart className="h-5 w-5 text-[#ff343a]" />
-                                                {t('profile.userProfile.soughtProfile')}
-                                            </h3>
-                                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                                                <div>
-                                                    <div className="mb-1 text-sm text-gray-600">
-                                                        {t('profile.userProfile.minimumAge')} / {t('profile.maximumAge')}
-                                                    </div>
-                                                    <div className="font-medium text-gray-900">
-                                                        {user?.profile?.age_minimum && user?.profile?.age_maximum
-                                                            ? `${user.profile.age_minimum} - ${user.profile.age_maximum} ${t('profile.years')}`
-                                                            : user?.profile?.age_minimum
-                                                              ? `${user.profile.age_minimum} ${t('profile.years')}`
-                                                                : '—'}
-                                                    </div>
-                                                </div>
-                                                <div>
-                                                    <div className="mb-1 text-sm text-gray-600">{t('profile.userProfile.matrimonialSituation')}</div>
-                                                    <div className="font-medium text-gray-900">
-                                                        {Array.isArray(user?.profile?.situation_matrimoniale_recherche)
-                                                            ? user.profile.situation_matrimoniale_recherche.join(', ')
-                                                            : user?.profile?.situation_matrimoniale_recherche || '—'}
-                                                    </div>
-                                                </div>
-                                                <div>
-                                                    <div className="mb-1 text-sm text-gray-600">{t('common.country')}</div>
-                                                    <div className="font-medium text-gray-900">
-                                                        {Array.isArray(user?.profile?.pays_recherche)
-                                                            ? user.profile.pays_recherche.join(', ')
-                                                            : user?.profile?.pays_recherche || '—'}
-                                                    </div>
-                                                </div>
-                                                <div>
-                                                    <div className="mb-1 text-sm text-gray-600">{t('profile.userProfile.residenceLocation')}</div>
-                                                    <div className="font-medium text-gray-900">
-                                                        {user?.profile?.villes_recherche && user?.profile?.villes_recherche.length > 0
-                                                            ? (() => {
-                                                                  const villes =
-                                                                      typeof user?.profile?.villes_recherche === 'string'
-                                                                          ? JSON.parse(user?.profile?.villes_recherche)
-                                                                          : user?.profile?.villes_recherche;
-                                                                  return Array.isArray(villes) && villes.length > 0
-                                                                      ? villes.join(', ')
-                                                                      : t('profile.notSpecified');
-                                                              })()
-                                                            : '—'}
-                                                    </div>
-                                                </div>
-                                                <div>
-                                                    <div className="mb-1 text-sm text-gray-600">{t('profile.userProfile.educationLevel')}</div>
-                                                    <div className="font-medium text-gray-900">{user?.profile?.niveau_etudes_recherche || '—'}</div>
-                                                </div>
-                                                <div>
-                                                    <div className="mb-1 text-sm text-gray-600">{t('profile.userProfile.employmentStatus')}</div>
-                                                    <div className="font-medium text-gray-900">{user?.profile?.statut_emploi_recherche || '—'}</div>
-                                                </div>
-                                            <div>
-                                                    <div className="mb-1 text-sm text-gray-600">{t('profile.minimumIncome')}</div>
-                                                    <div className="font-medium text-gray-900">{user?.profile?.revenu_minimum || '—'}</div>
-                                                </div>
-                                            <div>
-                                                    <div className="mb-1 text-sm text-gray-600">{t('profile.soughtReligion')}</div>
-                                                    <div className="font-medium text-gray-900">{user?.profile?.religion_recherche || '—'}</div>
-                                                </div>
-                                            </div>
-                                            {profile?.profil_recherche_description && (
-                                                <div className="mt-4">
-                                                    <div className="mb-1 text-sm text-gray-600">{t('profile.userProfile.description')}</div>
-                                                    <div className="rounded-md border border-gray-200 bg-gray-50 p-3 leading-relaxed text-gray-900">
-                                                        {profile.profil_recherche_description}
-                                                </div>
-                                                </div>
-                                            )}
-                                        </CardContent>
-                                    </Card>
-
-                                    {/* An Ideal Relationship To Me */}
-                                    {profile?.profil_recherche_description && (
+                                        {/* Partner Preferences */}
                                         <Card className="border-gray-200 bg-white">
                                             <CardContent className="p-6">
-                                                <h3 className="mb-3 text-lg font-semibold text-gray-900">Une relation idéale pour moi</h3>
-                                                <p className="leading-relaxed text-gray-700">{profile.profil_recherche_description}</p>
+                                                <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-gray-900">
+                                                    <Heart className="h-5 w-5 text-[#ff343a]" />
+                                                    {t('profile.userProfile.soughtProfile')}
+                                                </h3>
+                                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                                    <div>
+                                                        <div className="mb-1 text-sm text-gray-600">
+                                                            {t('profile.userProfile.minimumAge')} / {t('profile.maximumAge')}
+                                                        </div>
+                                                        <div className="font-medium text-gray-900">
+                                                            {user?.profile?.age_minimum && user?.profile?.age_maximum
+                                                                ? `${user.profile.age_minimum} - ${user.profile.age_maximum} ${t('profile.years')}`
+                                                                : user?.profile?.age_minimum
+                                                                  ? `${user.profile.age_minimum} ${t('profile.years')}`
+                                                                  : '—'}
+                                                        </div>
+                                                    </div>
+                                                    <div>
+                                                        <div className="mb-1 text-sm text-gray-600">
+                                                            {t('profile.userProfile.matrimonialSituation')}
+                                                        </div>
+                                                        <div className="font-medium text-gray-900">
+                                                            {Array.isArray(user?.profile?.situation_matrimoniale_recherche)
+                                                                ? user.profile.situation_matrimoniale_recherche.join(', ')
+                                                                : user?.profile?.situation_matrimoniale_recherche || '—'}
+                                                        </div>
+                                                    </div>
+                                                    <div>
+                                                        <div className="mb-1 text-sm text-gray-600">{t('common.country')}</div>
+                                                        <div className="font-medium text-gray-900">
+                                                            {Array.isArray(user?.profile?.pays_recherche)
+                                                                ? user.profile.pays_recherche.join(', ')
+                                                                : user?.profile?.pays_recherche || '—'}
+                                                        </div>
+                                                    </div>
+                                                    <div>
+                                                        <div className="mb-1 text-sm text-gray-600">{t('profile.userProfile.residenceLocation')}</div>
+                                                        <div className="font-medium text-gray-900">
+                                                            {user?.profile?.villes_recherche && user?.profile?.villes_recherche.length > 0
+                                                                ? (() => {
+                                                                      const villes =
+                                                                          typeof user?.profile?.villes_recherche === 'string'
+                                                                              ? JSON.parse(user?.profile?.villes_recherche)
+                                                                              : user?.profile?.villes_recherche;
+                                                                      return Array.isArray(villes) && villes.length > 0
+                                                                          ? villes.join(', ')
+                                                                          : t('profile.notSpecified');
+                                                                  })()
+                                                                : '—'}
+                                                        </div>
+                                                    </div>
+                                                    <div>
+                                                        <div className="mb-1 text-sm text-gray-600">{t('profile.userProfile.educationLevel')}</div>
+                                                        <div className="font-medium text-gray-900">
+                                                            {user?.profile?.niveau_etudes_recherche || '—'}
+                                                        </div>
+                                                    </div>
+                                                    <div>
+                                                        <div className="mb-1 text-sm text-gray-600">{t('profile.userProfile.employmentStatus')}</div>
+                                                        <div className="font-medium text-gray-900">
+                                                            {user?.profile?.statut_emploi_recherche || '—'}
+                                                        </div>
+                                                    </div>
+                                                    <div>
+                                                        <div className="mb-1 text-sm text-gray-600">{t('profile.minimumIncome')}</div>
+                                                        <div className="font-medium text-gray-900">{user?.profile?.revenu_minimum || '—'}</div>
+                                                    </div>
+                                                    <div>
+                                                        <div className="mb-1 text-sm text-gray-600">{t('profile.soughtReligion')}</div>
+                                                        <div className="font-medium text-gray-900">{user?.profile?.religion_recherche || '—'}</div>
+                                                    </div>
+                                                </div>
+                                                {profile?.profil_recherche_description && (
+                                                    <div className="mt-4">
+                                                        <div className="mb-1 text-sm text-gray-600">{t('profile.userProfile.description')}</div>
+                                                        <div className="rounded-md border border-gray-200 bg-gray-50 p-3 leading-relaxed text-gray-900">
+                                                            {profile.profil_recherche_description}
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </CardContent>
                                         </Card>
-                                    )}
-                                </TabsContent>
+
+                                        {/* An Ideal Relationship To Me */}
+                                        {profile?.profil_recherche_description && (
+                                            <Card className="border-gray-200 bg-white">
+                                                <CardContent className="p-6">
+                                                    <h3 className="mb-3 text-lg font-semibold text-gray-900">Une relation idéale pour moi</h3>
+                                                    <p className="leading-relaxed text-gray-700">{profile.profil_recherche_description}</p>
+                                                </CardContent>
+                                            </Card>
+                                        )}
+                                    </TabsContent>
                                 )}
 
                                 {/* Notes & Evaluation Tab for users - Only visible to authorized staff */}
@@ -1036,10 +1048,12 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                                 <h3 className="mb-4 text-lg font-semibold text-gray-900">
                                                     {t('profile.userProfile.notesAndEvaluation')}
                                                 </h3>
-                                                
+
                                                 {/* Notes list */}
                                                 <div className="mb-6">
-                                                    <div className="mb-2 text-sm text-gray-600">{t('profile.userProfile.assignedMatchmakerNotes')}</div>
+                                                    <div className="mb-2 text-sm text-gray-600">
+                                                        {t('profile.userProfile.assignedMatchmakerNotes')}
+                                                    </div>
                                                     <div className="space-y-3">
                                                         {Array.isArray(matchmakerNotes) && matchmakerNotes.length > 0 ? (
                                                             matchmakerNotes.map((n) => {
@@ -1065,12 +1079,14 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                                                         <div className="mt-2 space-y-1">
                                                                             {n.contact_type && (
                                                                                 <div className="text-xs text-gray-600">
-                                                                                    <span className="font-medium">Type de contact:</span> {n.contact_type === 'distance' ? 'À distance' : 'Présentiel'}
+                                                                                    <span className="font-medium">Type de contact:</span>{' '}
+                                                                                    {n.contact_type === 'distance' ? 'À distance' : 'Présentiel'}
                                                                                 </div>
                                                                             )}
                                                                             {n.created_during_validation && (
                                                                                 <div className="text-xs text-gray-600">
-                                                                                    <span className="font-medium">Contexte:</span> Cette note a été prise lors de la validation du prospect
+                                                                                    <span className="font-medium">Contexte:</span> Cette note a été
+                                                                                    prise lors de la validation du prospect
                                                                                 </div>
                                                                             )}
                                                                         </div>
@@ -1086,29 +1102,33 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                                 {/* Add note - For assigned matchmaker or manager who validated the prospect */}
                                                 {canWrite && (
                                                     <div className="mb-6">
-                                                        <button 
+                                                        <button
                                                             type="button"
                                                             onClick={() => setIsNoteModalOpen(true)}
                                                             className="inline-flex items-center rounded-md bg-[#096725] px-4 py-2 text-white hover:bg-[#07501d]"
                                                         >
                                                             {t('profile.userProfile.addNoteButton')}
                                                         </button>
-                                                        
+
                                                         <Dialog open={isNoteModalOpen} onOpenChange={setIsNoteModalOpen}>
                                                             <DialogContent>
                                                                 <DialogHeader>
                                                                     <DialogTitle>{t('profile.userProfile.addNote')}</DialogTitle>
                                                                     <DialogDescription>
-                                                                        {t('profile.userProfile.addNoteDescription', { defaultValue: 'Ajoutez une note pour ce prospect' })}
+                                                                        {t('profile.userProfile.addNoteDescription', {
+                                                                            defaultValue: 'Ajoutez une note pour ce prospect',
+                                                                        })}
                                                                     </DialogDescription>
                                                                 </DialogHeader>
                                                                 <form onSubmit={addNote} className="space-y-4">
                                                                     <div>
                                                                         <label className="mb-2 block text-sm font-medium text-gray-700">
-                                                                            {t('profile.userProfile.noteContent', { defaultValue: 'Contenu de la note' })}
+                                                                            {t('profile.userProfile.noteContent', {
+                                                                                defaultValue: 'Contenu de la note',
+                                                                            })}
                                                                         </label>
                                                                         <textarea
-                                                                            className="w-full rounded-md border border-gray-300 p-3 focus:border-[#096725] focus:outline-none focus:ring-1 focus:ring-[#096725]"
+                                                                            className="w-full rounded-md border border-gray-300 p-3 focus:border-[#096725] focus:ring-1 focus:ring-[#096725] focus:outline-none"
                                                                             rows={4}
                                                                             value={newNote}
                                                                             onChange={(e) => setNewNote(e.target.value)}
@@ -1118,11 +1138,17 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                                                     </div>
                                                                     <div>
                                                                         <label className="mb-2 block text-sm font-medium text-gray-700">
-                                                                            {t('profile.userProfile.contactType', { defaultValue: 'Type de contact' })}
+                                                                            {t('profile.userProfile.contactType', {
+                                                                                defaultValue: 'Type de contact',
+                                                                            })}
                                                                         </label>
                                                                         <Select value={contactType} onValueChange={setContactType}>
                                                                             <SelectTrigger className="w-full">
-                                                                                <SelectValue placeholder={t('profile.userProfile.selectContactType', { defaultValue: 'Sélectionnez le type de contact' })} />
+                                                                                <SelectValue
+                                                                                    placeholder={t('profile.userProfile.selectContactType', {
+                                                                                        defaultValue: 'Sélectionnez le type de contact',
+                                                                                    })}
+                                                                                />
                                                                             </SelectTrigger>
                                                                             <SelectContent>
                                                                                 <SelectItem value="distance">À distance</SelectItem>
@@ -1162,16 +1188,21 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                                         <div>
                                                             <div className="mb-2 text-sm text-gray-600">{t('profile.userProfile.status')}</div>
                                                             <div className="flex gap-4 text-sm">
-                                                                {['prospect','member','client'].map((val) => (
-                                                                    <label key={val} className={`inline-flex items-center gap-2 ${!canWrite ? 'cursor-not-allowed opacity-60' : ''}`}>
-                                                                        <input 
-                                                                            type="radio" 
-                                                                            name="status" 
-                                                                            value={val} 
-                                                                            checked={evaluation?.status === val} 
-                                                                            onChange={(e)=>canWrite && setEvaluation({...evaluation, status: e.target.value})} 
+                                                                {['prospect', 'member', 'client'].map((val) => (
+                                                                    <label
+                                                                        key={val}
+                                                                        className={`inline-flex items-center gap-2 ${!canWrite ? 'cursor-not-allowed opacity-60' : ''}`}
+                                                                    >
+                                                                        <input
+                                                                            type="radio"
+                                                                            name="status"
+                                                                            value={val}
+                                                                            checked={evaluation?.status === val}
+                                                                            onChange={(e) =>
+                                                                                canWrite && setEvaluation({ ...evaluation, status: e.target.value })
+                                                                            }
                                                                             disabled={!canWrite}
-                                                                            className="text-[#096725] focus:ring-[#096725] disabled:cursor-not-allowed" 
+                                                                            className="text-[#096725] focus:ring-[#096725] disabled:cursor-not-allowed"
                                                                         />
                                                                         <span className="capitalize">{t(`profile.userProfile.${val}`)}</span>
                                                                     </label>
@@ -1189,102 +1220,131 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                                         ['social_compatibility', t('profile.userProfile.socialCompatibility')],
                                                         ['qualities', t('profile.userProfile.qualities')],
                                                         ['defects', t('profile.userProfile.defects')],
-                                                    ].map(([key,label]) => (
+                                                    ].map(([key, label]) => (
                                                         <div key={key}>
                                                             <label className="mb-1 block text-sm text-gray-600">{label}</label>
                                                             <textarea
                                                                 rows={2}
                                                                 disabled={!canWrite}
-                                                                className={`w-full rounded-md border border-gray-300 p-3 focus:border-[#096725] focus:outline-none focus:ring-1 focus:ring-[#096725] ${!canWrite ? 'bg-gray-50 cursor-not-allowed opacity-60' : ''}`}
+                                                                className={`w-full rounded-md border border-gray-300 p-3 focus:border-[#096725] focus:ring-1 focus:ring-[#096725] focus:outline-none ${!canWrite ? 'cursor-not-allowed bg-gray-50 opacity-60' : ''}`}
                                                                 value={evaluation[key] || ''}
-                                                                onChange={(e)=>canWrite && setEvaluation({...evaluation, [key]: e.target.value})}
+                                                                onChange={(e) => canWrite && setEvaluation({ ...evaluation, [key]: e.target.value })}
                                                             />
                                                         </div>
                                                     ))}
 
                                                     <div>
-                                                        <div className="mb-2 text-sm text-gray-600">{t('profile.userProfile.matchmakerRecommendation')}</div>
+                                                        <div className="mb-2 text-sm text-gray-600">
+                                                            {t('profile.userProfile.matchmakerRecommendation')}
+                                                        </div>
                                                         <div className="flex gap-6 text-sm">
                                                             {[
                                                                 ['ready', t('profile.userProfile.ready')],
                                                                 ['accompany', t('profile.userProfile.accompany')],
                                                                 ['not_ready', t('profile.userProfile.notReady')],
-                                                            ].map(([val,label]) => (
-                                                                <label key={val} className={`inline-flex items-center gap-2 ${!canWrite ? 'cursor-not-allowed opacity-60' : ''}`}>
-                                                                    <input 
-                                                                        type="radio" 
-                                                                        name="recommendation" 
-                                                                        value={val} 
-                                                                        checked={evaluation.recommendation === val} 
-                                                                        onChange={(e)=>canWrite && setEvaluation({...evaluation, recommendation: e.target.value})} 
+                                                            ].map(([val, label]) => (
+                                                                <label
+                                                                    key={val}
+                                                                    className={`inline-flex items-center gap-2 ${!canWrite ? 'cursor-not-allowed opacity-60' : ''}`}
+                                                                >
+                                                                    <input
+                                                                        type="radio"
+                                                                        name="recommendation"
+                                                                        value={val}
+                                                                        checked={evaluation.recommendation === val}
+                                                                        onChange={(e) =>
+                                                                            canWrite &&
+                                                                            setEvaluation({ ...evaluation, recommendation: e.target.value })
+                                                                        }
                                                                         disabled={!canWrite}
-                                                                        className="text-[#096725] focus:ring-[#096725] disabled:cursor-not-allowed" 
+                                                                        className="text-[#096725] focus:ring-[#096725] disabled:cursor-not-allowed"
                                                                     />
                                                                     <span>{label}</span>
                                                                 </label>
                                                             ))}
                                                         </div>
                                                     </div>
-                
-                                                    <div>
-                                                        <label className="mb-1 block text-sm text-gray-600">{t('profile.userProfile.additionalRemarks')}</label>
-                                                        <textarea 
-                                                            rows={2} 
-                                                            disabled={!canWrite}
-                                                            className={`w-full rounded-md border border-gray-300 p-3 focus:border-[#096725] focus:outline-none focus:ring-1 focus:ring-[#096725] ${!canWrite ? 'bg-gray-50 cursor-not-allowed opacity-60' : ''}`}
-                                                            value={evaluation.remarks} 
-                                                            onChange={(e)=>canWrite && setEvaluation({...evaluation, remarks: e.target.value})} 
-                                                        />
-                                                    </div>
 
                                                     <div>
-                                                        <div className="mb-2 text-sm font-medium text-gray-900">{t('profile.userProfile.feedbackAfterAppointment')}</div>
+                                                        <label className="mb-1 block text-sm text-gray-600">
+                                                            {t('profile.userProfile.additionalRemarks')}
+                                                        </label>
+                                                        <textarea
+                                                            rows={2}
+                                                            disabled={!canWrite}
+                                                            className={`w-full rounded-md border border-gray-300 p-3 focus:border-[#096725] focus:ring-1 focus:ring-[#096725] focus:outline-none ${!canWrite ? 'cursor-not-allowed bg-gray-50 opacity-60' : ''}`}
+                                                            value={evaluation.remarks}
+                                                            onChange={(e) => canWrite && setEvaluation({ ...evaluation, remarks: e.target.value })}
+                                                        />
+                                                    </div>
+                                                            {/* this must be moved to rdv feedback later  */}
+                                                    {/* <div>
+                                                        <div className="mb-2 text-sm font-medium text-gray-900">
+                                                            {t('profile.userProfile.feedbackAfterAppointment')}
+                                                        </div>
                                                         <div className="space-y-3">
                                                             <div>
-                                                                <label className="mb-1 block text-sm text-gray-600">{t('profile.userProfile.behaviorDuringAppointment')}</label>
-                                                                <textarea 
-                                                                    rows={2} 
+                                                                <label className="mb-1 block text-sm text-gray-600">
+                                                                    {t('profile.userProfile.behaviorDuringAppointment')}
+                                                                </label>
+                                                                <textarea
+                                                                    rows={2}
                                                                     disabled={!canWrite}
-                                                                    className={`w-full rounded-md border border-gray-300 p-3 focus:border-[#096725] focus:outline-none focus:ring-1 focus:ring-[#096725] ${!canWrite ? 'bg-gray-50 cursor-not-allowed opacity-60' : ''}`}
-                                                                    value={evaluation.feedback_behavior} 
-                                                                    onChange={(e)=>canWrite && setEvaluation({...evaluation, feedback_behavior: e.target.value})} 
+                                                                    className={`w-full rounded-md border border-gray-300 p-3 focus:border-[#096725] focus:ring-1 focus:ring-[#096725] focus:outline-none ${!canWrite ? 'cursor-not-allowed bg-gray-50 opacity-60' : ''}`}
+                                                                    value={evaluation.feedback_behavior}
+                                                                    onChange={(e) =>
+                                                                        canWrite &&
+                                                                        setEvaluation({ ...evaluation, feedback_behavior: e.target.value })
+                                                                    }
                                                                 />
                                                             </div>
                                                             <div>
-                                                                <label className="mb-1 block text-sm text-gray-600">{t('profile.userProfile.partnerImpression')}</label>
-                                                                <textarea 
-                                                                    rows={2} 
+                                                                <label className="mb-1 block text-sm text-gray-600">
+                                                                    {t('profile.userProfile.partnerImpression')}
+                                                                </label>
+                                                                <textarea
+                                                                    rows={2}
                                                                     disabled={!canWrite}
-                                                                    className={`w-full rounded-md border border-gray-300 p-3 focus:border-[#096725] focus:outline-none focus:ring-1 focus:ring-[#096725] ${!canWrite ? 'bg-gray-50 cursor-not-allowed opacity-60' : ''}`}
-                                                                    value={evaluation.feedback_partner_impression} 
-                                                                    onChange={(e)=>canWrite && setEvaluation({...evaluation, feedback_partner_impression: e.target.value})} 
+                                                                    className={`w-full rounded-md border border-gray-300 p-3 focus:border-[#096725] focus:ring-1 focus:ring-[#096725] focus:outline-none ${!canWrite ? 'cursor-not-allowed bg-gray-50 opacity-60' : ''}`}
+                                                                    value={evaluation.feedback_partner_impression}
+                                                                    onChange={(e) =>
+                                                                        canWrite &&
+                                                                        setEvaluation({ ...evaluation, feedback_partner_impression: e.target.value })
+                                                                    }
                                                                 />
-                                            </div>
-                                            <div>
-                                                                <label className="mb-1 block text-sm text-gray-600">{t('profile.userProfile.positiveNegativePoints')}</label>
-                                                <textarea
-                                                                    rows={2} 
+                                                            </div>
+                                                            <div>
+                                                                <label className="mb-1 block text-sm text-gray-600">
+                                                                    {t('profile.userProfile.positiveNegativePoints')}
+                                                                </label>
+                                                                <textarea
+                                                                    rows={2}
                                                                     disabled={!canWrite}
-                                                                    className={`w-full rounded-md border border-gray-300 p-3 focus:border-[#096725] focus:outline-none focus:ring-1 focus:ring-[#096725] ${!canWrite ? 'bg-gray-50 cursor-not-allowed opacity-60' : ''}`}
-                                                                    value={evaluation.feedback_pos_neg} 
-                                                                    onChange={(e)=>canWrite && setEvaluation({...evaluation, feedback_pos_neg: e.target.value})} 
-                                                />
-                                            </div>
-                                            </div>
-                                </div>
+                                                                    className={`w-full rounded-md border border-gray-300 p-3 focus:border-[#096725] focus:ring-1 focus:ring-[#096725] focus:outline-none ${!canWrite ? 'cursor-not-allowed bg-gray-50 opacity-60' : ''}`}
+                                                                    value={evaluation.feedback_pos_neg}
+                                                                    onChange={(e) =>
+                                                                        canWrite && setEvaluation({ ...evaluation, feedback_pos_neg: e.target.value })
+                                                                    }
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    </div> */}
 
                                                     {canWrite && (
-                                                    <div>
-                                                            <button type="submit" className="inline-flex items-center rounded-md bg-[#096725] px-4 py-2 text-white hover:bg-[#07501d]">
+                                                        <div>
+                                                            <button
+                                                                type="submit"
+                                                                className="inline-flex items-center rounded-md bg-[#096725] px-4 py-2 text-white hover:bg-[#07501d]"
+                                                            >
                                                                 {t('profile.userProfile.saveEvaluation')}
                                                             </button>
-                                                </div>
+                                                        </div>
                                                     )}
                                                 </form>
-                                        </CardContent>
-                                    </Card>
+                                            </CardContent>
+                                        </Card>
                                     </TabsContent>
-                            )}
+                                )}
 
                                 {/* Tab: Photos - Only for users, visible to user, matchmaker, and manager */}
                                 {userRole === 'user' && canViewPhotos && (
@@ -1298,14 +1358,18 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                                 {photos && photos.length > 0 ? (
                                                     <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
                                                         {photos.map((photo) => (
-                                                            <div key={photo.id} className="aspect-square overflow-hidden rounded-lg border border-gray-200 bg-gray-100">
+                                                            <div
+                                                                key={photo.id}
+                                                                className="aspect-square overflow-hidden rounded-lg border border-gray-200 bg-gray-100"
+                                                            >
                                                                 <img
                                                                     src={photo.url}
                                                                     alt={photo.file_name || 'User photo'}
                                                                     className="h-full w-full object-cover"
                                                                     onError={(e) => {
                                                                         e.target.onerror = null;
-                                                                        e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200"%3E%3Crect fill="%23e5e7eb" width="200" height="200"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dominant-baseline="middle" fill="%239ca3af" font-family="Arial" font-size="14"%3EImage non disponible%3C/text%3E%3C/svg%3E';
+                                                                        e.target.src =
+                                                                            'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200"%3E%3Crect fill="%23e5e7eb" width="200" height="200"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dominant-baseline="middle" fill="%239ca3af" font-family="Arial" font-size="14"%3EImage non disponible%3C/text%3E%3C/svg%3E';
                                                                     }}
                                                                 />
                                                             </div>
@@ -1313,7 +1377,7 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                                     </div>
                                                 ) : (
                                                     <div className="py-12 text-center text-gray-500">
-                                                        <Camera className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                                                        <Camera className="mx-auto mb-4 h-12 w-12 text-gray-400" />
                                                         <p>Aucune photo téléchargée</p>
                                                     </div>
                                                 )}
@@ -1323,10 +1387,9 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                 )}
                             </Tabs>
                         </div>
-                                    </div>
-                                        </div>
+                    </div>
+                </div>
             </div>
-
         </AppLayout>
     );
 }

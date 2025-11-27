@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Models\Bill;
 use App\Models\MatrimonialPack;
 use App\Models\MatchmakerNote;
+use App\Models\MatchmakerEvaluation;
 use App\Mail\BillEmail;
 use App\Mail\ProspectCredentialsMail;
 use Illuminate\Http\Request;
@@ -573,6 +574,219 @@ class MatchmakerController extends Controller
             'prospects' => $prospects,
             'status' => $status ?: 'all',
             'assignedMatchmaker' => $me,
+        ]);
+    }
+
+    /**
+     * Display evaluated users with filter by recommendation status
+     */
+    public function evaluatedUsers(Request $request)
+    {
+        $me = Auth::user();
+        $roleName = null;
+        if ($me) {
+            $roleName = \Illuminate\Support\Facades\DB::table('model_has_roles')
+                ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+                ->where('model_has_roles.model_id', $me->id)
+                ->value('roles.name');
+        }
+
+        // Check approval status for matchmaker and manager
+        if (in_array($roleName, ['manager', 'matchmaker'], true)) {
+            if ($me->approval_status !== 'approved') {
+                abort(403, 'Your account is not validated yet.');
+            }
+        }
+
+        $recommendationFilter = $request->input('recommendation', 'all'); // all|ready|accompany|not_ready
+
+        // Base query: get all evaluations with user relationships
+        // Load all possible agency sources including author's agency
+        $query = \App\Models\MatchmakerEvaluation::with([
+            'user.profile',
+            'user.assignedMatchmaker.agency',
+            'user.assignedMatchmaker',
+            'user.agency',
+            'user.validatedByManager.agency',
+            'user.validatedByManager',
+            'author' => function($q) {
+                // Load author with agency_id so we can query their agency if needed
+                $q->select('id', 'name', 'username', 'agency_id');
+            }
+        ])->whereHas('user'); // Ensure user still exists
+
+        // Role-based filtering
+        if ($roleName === 'matchmaker') {
+            // Matchmaker: see evaluations for users assigned to them OR evaluations they created
+            $query->where(function($q) use ($me) {
+                $q->where('author_id', $me->id) // Evaluations they created
+                  ->orWhereHas('user', function($subQ) use ($me) {
+                      // OR evaluations for users assigned to them
+                      $subQ->where('assigned_matchmaker_id', $me->id);
+                  });
+            });
+        } elseif ($roleName === 'manager') {
+            // Manager: see evaluations for users they validated OR users from their agency
+            // This includes:
+            // 1. Users validated by this manager (validated_by_manager_id = manager.id)
+            // 2. Users from their agency (agency_id = manager.agency_id)
+            // 3. Users assigned to matchmakers in their agency
+            // 4. Users assigned to them
+            $matchmakerIds = User::role('matchmaker')
+                ->where('agency_id', $me->agency_id)
+                ->pluck('id')
+                ->toArray();
+
+            $query->whereHas('user', function($q) use ($me, $matchmakerIds) {
+                $q->where(function($subQ) use ($me, $matchmakerIds) {
+                    // Users validated by this manager
+                    $subQ->where('validated_by_manager_id', $me->id)
+                      // OR users from their agency
+                      ->orWhere(function($subSubQ) use ($me, $matchmakerIds) {
+                          // Users from their agency
+                          $subSubQ->where('agency_id', $me->agency_id)
+                            ->where(function($subSubSubQ) use ($me, $matchmakerIds) {
+                                // Users assigned to matchmakers in their agency
+                                if (!empty($matchmakerIds)) {
+                                    $subSubSubQ->whereIn('assigned_matchmaker_id', $matchmakerIds);
+                                }
+                                // OR users assigned to them
+                                $subSubSubQ->orWhere('assigned_matchmaker_id', $me->id);
+                                // OR unassigned users from their agency
+                                $subSubSubQ->orWhereNull('assigned_matchmaker_id');
+                            });
+                      })
+                      // OR users assigned to matchmakers in their agency (even if agency_id is null)
+                      ->orWhere(function($subSubQ) use ($matchmakerIds) {
+                          if (!empty($matchmakerIds)) {
+                              $subSubQ->whereIn('assigned_matchmaker_id', $matchmakerIds);
+                          }
+                      });
+                });
+            });
+        }
+        // Admin: no additional filtering (sees all)
+
+        // Apply recommendation filter
+        if ($recommendationFilter !== 'all') {
+            $query->where('recommendation', $recommendationFilter);
+        }
+
+        $evaluations = $query->orderBy('updated_at', 'desc')->get();
+
+        // Transform data for frontend
+        $evaluatedUsers = $evaluations->map(function($evaluation) {
+            // Get agency from multiple sources with fallback priority:
+            // 1. User's agency (if agency_id is set)
+            // 2. Assigned matchmaker's agency
+            // 3. Validated manager's agency
+            // 4. Evaluator's (author's) agency
+            // 5. Direct query by agency_id if relationship didn't load
+            $agency = null;
+            
+            // Try user's agency first (check both relationship and direct ID)
+            if ($evaluation->user->agency) {
+                $agency = [
+                    'id' => $evaluation->user->agency->id,
+                    'name' => $evaluation->user->agency->name,
+                ];
+            } elseif ($evaluation->user->agency_id) {
+                // Try direct query if relationship didn't load
+                $userAgency = \App\Models\Agency::find($evaluation->user->agency_id);
+                if ($userAgency) {
+                    $agency = [
+                        'id' => $userAgency->id,
+                        'name' => $userAgency->name,
+                    ];
+                }
+            }
+            
+            // Fallback to assigned matchmaker's agency
+            if (!$agency && $evaluation->user->assignedMatchmaker) {
+                if ($evaluation->user->assignedMatchmaker->agency) {
+                    $agency = [
+                        'id' => $evaluation->user->assignedMatchmaker->agency->id,
+                        'name' => $evaluation->user->assignedMatchmaker->agency->name,
+                    ];
+                } elseif ($evaluation->user->assignedMatchmaker->agency_id) {
+                    // Try direct query if relationship didn't load
+                    $matchmakerAgency = \App\Models\Agency::find($evaluation->user->assignedMatchmaker->agency_id);
+                    if ($matchmakerAgency) {
+                        $agency = [
+                            'id' => $matchmakerAgency->id,
+                            'name' => $matchmakerAgency->name,
+                        ];
+                    }
+                }
+            }
+            
+            // Fallback to validated manager's agency
+            if (!$agency && $evaluation->user->validatedByManager) {
+                if ($evaluation->user->validatedByManager->agency) {
+                    $agency = [
+                        'id' => $evaluation->user->validatedByManager->agency->id,
+                        'name' => $evaluation->user->validatedByManager->agency->name,
+                    ];
+                } elseif ($evaluation->user->validatedByManager->agency_id) {
+                    // Try direct query if relationship didn't load
+                    $managerAgency = \App\Models\Agency::find($evaluation->user->validatedByManager->agency_id);
+                    if ($managerAgency) {
+                        $agency = [
+                            'id' => $managerAgency->id,
+                            'name' => $managerAgency->name,
+                        ];
+                    }
+                }
+            }
+            
+            // Fallback to evaluator's (author's) agency
+            if (!$agency && $evaluation->author) {
+                if ($evaluation->author->agency_id) {
+                    $authorAgency = \App\Models\Agency::find($evaluation->author->agency_id);
+                    if ($authorAgency) {
+                        $agency = [
+                            'id' => $authorAgency->id,
+                            'name' => $authorAgency->name,
+                        ];
+                    }
+                }
+            }
+
+            return [
+                'id' => $evaluation->id,
+                'user_id' => $evaluation->user_id,
+                'user' => [
+                    'id' => $evaluation->user->id,
+                    'name' => $evaluation->user->name,
+                    'username' => $evaluation->user->username,
+                    'email' => $evaluation->user->email,
+                    'phone' => $evaluation->user->phone,
+                    'assigned_matchmaker' => $evaluation->user->assignedMatchmaker ? [
+                        'id' => $evaluation->user->assignedMatchmaker->id,
+                        'name' => $evaluation->user->assignedMatchmaker->name,
+                        'username' => $evaluation->user->assignedMatchmaker->username,
+                    ] : null,
+                    'agency' => $agency,
+                    'validated_by_manager' => $evaluation->user->validatedByManager ? [
+                        'id' => $evaluation->user->validatedByManager->id,
+                        'name' => $evaluation->user->validatedByManager->name,
+                        'username' => $evaluation->user->validatedByManager->username,
+                    ] : null,
+                ],
+                'recommendation' => $evaluation->recommendation,
+                'author' => $evaluation->author ? [
+                    'id' => $evaluation->author->id,
+                    'name' => $evaluation->author->name,
+                    'username' => $evaluation->author->username,
+                ] : null,
+                'updated_at' => $evaluation->updated_at,
+                'created_at' => $evaluation->created_at,
+            ];
+        });
+
+        return Inertia::render('staff/evaluated-users', [
+            'evaluatedUsers' => $evaluatedUsers,
+            'recommendationFilter' => $recommendationFilter,
         ]);
     }
 
