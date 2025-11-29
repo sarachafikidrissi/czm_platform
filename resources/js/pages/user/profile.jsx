@@ -8,8 +8,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AppLayout from '@/layouts/app-layout';
 import { Head, router, usePage } from '@inertiajs/react';
 import { BookOpen, Camera, Facebook, Heart, Instagram, Linkedin, MapPin, MessageSquareWarning, User, X, Youtube } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import axios from 'axios';
 
 export default function UserProfile({ user, profile, agency, matchmakerNotes = [], matchmakerEvaluation = null, photos = [] }) {
     const { t } = useTranslation();
@@ -46,6 +47,54 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
     const pageProps = usePage().props;
     const profilRecherche = pageProps?.profil_recherche || {};
     const apropos = pageProps?.apropos || {};
+
+    // Countries and cities data for selects
+    const [countries, setCountries] = useState([]);
+    const [countryCodeToCities, setCountryCodeToCities] = useState({});
+    const [loadingCountries, setLoadingCountries] = useState(false);
+
+    // Fetch countries and cities from API
+    useEffect(() => {
+        let isMounted = true;
+        const fetchCountries = async () => {
+            try {
+                setLoadingCountries(true);
+                const response = await axios.get('/locations');
+                if (!isMounted) return;
+                
+                const countriesData = Array.isArray(response.data?.countries) ? response.data.countries : [];
+                
+                const normalized = countriesData
+                    .filter((item) => item?.iso2)
+                    .map((item) => ({
+                        iso2: item.iso2,
+                        iso3: item.iso3,
+                        englishName: item.name,
+                        frenchName: item.frenchName || item.name,
+                        cities: Array.isArray(item.cities) ? item.cities : [],
+                    }))
+                    .sort((a, b) => a.frenchName.localeCompare(b.frenchName, 'fr'));
+
+                const codeToCities = normalized.reduce((acc, item) => {
+                    acc[item.iso2] = item.cities;
+                    return acc;
+                }, {});
+
+                if (isMounted) {
+                    setCountries(normalized);
+                    setCountryCodeToCities(codeToCities);
+                }
+            } catch (err) {
+                // Silently fail - we'll show stored values anyway
+            } finally {
+                if (isMounted) setLoadingCountries(false);
+            }
+        };
+        fetchCountries();
+        return () => {
+            isMounted = false;
+        };
+    }, []);
 
     // Feedback local state
     const [avis, setAvis] = useState('');
@@ -284,7 +333,42 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
 
     return (
         <AppLayout>
-            <Head title={`${user?.name} - ${t('common.profile')}`} />
+            <Head title={`${user?.name} - ${t('common.profile')}`}>
+                <style>{`
+                    input[type="checkbox"] {
+                        -webkit-appearance: none;
+                        -moz-appearance: none;
+                        appearance: none;
+                        width: 1rem;
+                        height: 1rem;
+                        border: 1px solid #d1d5db;
+                        border-radius: 0.25rem;
+                        background-color: white;
+                        cursor: default;
+                        position: relative;
+                    }
+                    input[type="checkbox"]:checked {
+                        background-color: #16a34a !important;
+                        border-color: #16a34a !important;
+                    }
+                    input[type="checkbox"]:checked:disabled {
+                        background-color: #16a34a !important;
+                        border-color: #16a34a !important;
+                        opacity: 1 !important;
+                    }
+                    input[type="checkbox"]:checked::after {
+                        content: "";
+                        position: absolute;
+                        left: 3px;
+                        top: 0px;
+                        width: 4px;
+                        height: 8px;
+                        border: solid white;
+                        border-width: 0 2px 2px 0;
+                        transform: rotate(45deg);
+                    }
+                `}</style>
+            </Head>
             <div className="min-h-screen bg-gray-50">
                 {/* Banner Image Section */}
                 <div className="relative h-64 w-full overflow-hidden bg-gradient-to-r from-blue-600 to-purple-600 md:h-80">
@@ -764,8 +848,18 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                         {profile?.apropos_description && (
                                             <Card className="border-gray-200 bg-white">
                                                 <CardContent className="p-6">
-                                                    <h3 className="mb-3 text-lg font-semibold text-gray-900">À propos de moi</h3>
-                                                    <p className="leading-relaxed text-gray-700">{profile.apropos_description}</p>
+                                                    <h3 className="mb-4 text-lg font-semibold text-gray-900">À propos de moi</h3>
+                                                    <div>
+                                                        <label className="mb-1 block text-sm font-medium text-gray-700">
+                                                            {t('profile.userProfile.aboutMe')}
+                                                        </label>
+                                                        <textarea
+                                                            value={profile.apropos_description}
+                                                            disabled
+                                                            rows={6}
+                                                            className="w-full rounded-lg border-2 border-red-500 bg-gray-50 px-4 py-3 text-gray-700 disabled:cursor-not-allowed"
+                                                        />
+                                                    </div>
                                                 </CardContent>
                                             </Card>
                                         )}
@@ -777,82 +871,165 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                                     <User className="h-5 w-5 text-[#096725]" />
                                                     {t('profile.userProfile.basicInfo')}
                                                 </h3>
+                                                <div className="space-y-6">
                                                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                                     <div>
-                                                        <div className="mb-1 text-sm text-gray-600">
+                                                            <label className="mb-1 block text-sm font-medium text-gray-700">
                                                             {t('profile.userProfile.matrimonialSituation')}
-                                                        </div>
-                                                        <div className="font-medium text-gray-900">{user?.profile?.etat_matrimonial || '—'}</div>
+                                                            </label>
+                                                            <input
+                                                                type="text"
+                                                                value={user?.profile?.etat_matrimonial || ''}
+                                                                disabled
+                                                                className="w-full rounded-lg border-2 border-red-500 bg-gray-50 px-4 py-3 text-gray-700 disabled:cursor-not-allowed"
+                                                            />
                                                     </div>
                                                     <div>
-                                                        <div className="mb-1 text-sm text-gray-600">{t('profile.userProfile.haveChildren')}</div>
-                                                        <div className="font-medium text-gray-900">
-                                                            {user?.profile?.has_children == 1
+                                                            <label className="mb-1 block text-sm font-medium text-gray-700">
+                                                                {t('profile.userProfile.haveChildren')}
+                                                            </label>
+                                                            <input
+                                                                type="text"
+                                                                value={
+                                                                    user?.profile?.has_children == 1
                                                                 ? `${t('profile.yes')}${user?.profile?.children_count ? ` (${user.profile.children_count})` : ''}`
                                                                 : user?.profile?.has_children == 0
                                                                   ? t('profile.no')
-                                                                  : '—'}
-                                                        </div>
+                                                                          : ''
+                                                                }
+                                                                disabled
+                                                                className="w-full rounded-lg border-2 border-red-500 bg-gray-50 px-4 py-3 text-gray-700 disabled:cursor-not-allowed"
+                                                            />
                                                     </div>
                                                     <div>
-                                                        <div className="mb-1 text-sm text-gray-600">{t('profile.userProfile.educationLevel')}</div>
-                                                        <div className="font-medium text-gray-900">{user?.profile?.niveau_etudes || '—'}</div>
+                                                            <label className="mb-1 block text-sm font-medium text-gray-700">
+                                                                {t('profile.userProfile.educationLevel')}
+                                                            </label>
+                                                            <input
+                                                                type="text"
+                                                                value={user?.profile?.niveau_etudes || ''}
+                                                                disabled
+                                                                className="w-full rounded-lg border-2 border-red-500 bg-gray-50 px-4 py-3 text-gray-700 disabled:cursor-not-allowed"
+                                                            />
                                                     </div>
                                                     <div>
-                                                        <div className="mb-1 text-sm text-gray-600">
+                                                            <label className="mb-1 block text-sm font-medium text-gray-700">
                                                             {t('profile.userProfile.professionalSituation')}
+                                                            </label>
+                                                            <input
+                                                                type="text"
+                                                                value={user?.profile?.situation_professionnelle || ''}
+                                                                disabled
+                                                                className="w-full rounded-lg border-2 border-red-500 bg-gray-50 px-4 py-3 text-gray-700 disabled:cursor-not-allowed"
+                                                            />
+                                                    </div>
+                                                    <div>
+                                                            <label className="mb-1 block text-sm font-medium text-gray-700">
+                                                                {t('profile.userProfile.activitySector')}
+                                                            </label>
+                                                            <input
+                                                                type="text"
+                                                                value={user?.profile?.secteur || ''}
+                                                                disabled
+                                                                className="w-full rounded-lg border-2 border-red-500 bg-gray-50 px-4 py-3 text-gray-700 disabled:cursor-not-allowed"
+                                                            />
+                                                    </div>
+                                                    <div>
+                                                            <label className="mb-1 block text-sm font-medium text-gray-700">
+                                                                {t('profile.userProfile.monthlyIncome')}
+                                                            </label>
+                                                            <input
+                                                                type="text"
+                                                                value={user?.profile?.revenu || ''}
+                                                                disabled
+                                                                className="w-full rounded-lg border-2 border-red-500 bg-gray-50 px-4 py-3 text-gray-700 disabled:cursor-not-allowed"
+                                                            />
+                                                    </div>
+                                                    <div>
+                                                            <label className="mb-1 block text-sm font-medium text-gray-700">
+                                                                {t('profile.userProfile.height')}
+                                                            </label>
+                                                            <input
+                                                                type="text"
+                                                                value={user?.profile?.taille ? `${user.profile.taille} cm` : ''}
+                                                                disabled
+                                                                className="w-full rounded-lg border-2 border-red-500 bg-gray-50 px-4 py-3 text-gray-700 disabled:cursor-not-allowed"
+                                                            />
+                                                    </div>
+                                                    <div>
+                                                            <label className="mb-1 block text-sm font-medium text-gray-700">
+                                                                {t('profile.userProfile.weight')}
+                                                            </label>
+                                                            <input
+                                                                type="text"
+                                                                value={user?.profile?.poids ? `${user.profile.poids} kg` : ''}
+                                                                disabled
+                                                                className="w-full rounded-lg border-2 border-red-500 bg-gray-50 px-4 py-3 text-gray-700 disabled:cursor-not-allowed"
+                                                            />
+                                                    </div>
+                                                    <div>
+                                                            <label className="mb-1 block text-sm font-medium text-gray-700">Origine</label>
+                                                            <input
+                                                                type="text"
+                                                                value={user?.profile?.origine || ''}
+                                                                disabled
+                                                                className="w-full rounded-lg border-2 border-red-500 bg-gray-50 px-4 py-3 text-gray-700 disabled:cursor-not-allowed"
+                                                            />
+                                                    </div>
+                                                    <div>
+                                                            <label className="mb-1 block text-sm font-medium text-gray-700">Pays de résidence</label>
+                                                            <input
+                                                                type="text"
+                                                                value={user?.profile?.pays_residence || ''}
+                                                                disabled
+                                                                className="w-full rounded-lg border-2 border-red-500 bg-gray-50 px-4 py-3 text-gray-700 disabled:cursor-not-allowed"
+                                                            />
+                                                    </div>
+                                                    <div>
+                                                            <label className="mb-1 block text-sm font-medium text-gray-700">Ville de résidence</label>
+                                                            <input
+                                                                type="text"
+                                                                value={user?.profile?.ville_residence || ''}
+                                                                disabled
+                                                                className="w-full rounded-lg border-2 border-red-500 bg-gray-50 px-4 py-3 text-gray-700 disabled:cursor-not-allowed"
+                                                            />
+                                                    </div>
+                                                    <div>
+                                                            <label className="mb-1 block text-sm font-medium text-gray-700">Pays d'origine</label>
+                                                            <input
+                                                                type="text"
+                                                                value={user?.profile?.pays_origine || ''}
+                                                                disabled
+                                                                className="w-full rounded-lg border-2 border-red-500 bg-gray-50 px-4 py-3 text-gray-700 disabled:cursor-not-allowed"
+                                                            />
+                                                    </div>
+                                                    <div>
+                                                            <label className="mb-1 block text-sm font-medium text-gray-700">Ville d'origine</label>
+                                                            <input
+                                                                type="text"
+                                                                value={user?.profile?.ville_origine || ''}
+                                                                disabled
+                                                                className="w-full rounded-lg border-2 border-red-500 bg-gray-50 px-4 py-3 text-gray-700 disabled:cursor-not-allowed"
+                                                            />
+                                                    </div>
+                                                    <div>
+                                                            <label className="mb-1 block text-sm font-medium text-gray-700">Religion</label>
+                                                            <input
+                                                                type="text"
+                                                                value={user?.profile?.religion || ''}
+                                                                disabled
+                                                                className="w-full rounded-lg border-2 border-red-500 bg-gray-50 px-4 py-3 text-gray-700 disabled:cursor-not-allowed"
+                                                            />
+                                                    </div>
+                                                    <div>
+                                                            <label className="mb-1 block text-sm font-medium text-gray-700">Logement</label>
+                                                            <input
+                                                                type="text"
+                                                                value={user?.profile?.logement || ''}
+                                                                disabled
+                                                                className="w-full rounded-lg border-2 border-red-500 bg-gray-50 px-4 py-3 text-gray-700 disabled:cursor-not-allowed"
+                                                            />
                                                         </div>
-                                                        <div className="font-medium text-gray-900">
-                                                            {user?.profile?.situation_professionnelle || '—'}
-                                                        </div>
-                                                    </div>
-                                                    <div>
-                                                        <div className="mb-1 text-sm text-gray-600">{t('profile.userProfile.activitySector')}</div>
-                                                        <div className="font-medium text-gray-900">{user?.profile?.secteur || '—'}</div>
-                                                    </div>
-                                                    <div>
-                                                        <div className="mb-1 text-sm text-gray-600">{t('profile.userProfile.monthlyIncome')}</div>
-                                                        <div className="font-medium text-gray-900">{user?.profile?.revenu || '—'}</div>
-                                                    </div>
-                                                    <div>
-                                                        <div className="mb-1 text-sm text-gray-600">{t('profile.userProfile.height')}</div>
-                                                        <div className="font-medium text-gray-900">
-                                                            {user?.profile?.taille ? `${user.profile.taille} cm` : '—'}
-                                                        </div>
-                                                    </div>
-                                                    <div>
-                                                        <div className="mb-1 text-sm text-gray-600">{t('profile.userProfile.weight')}</div>
-                                                        <div className="font-medium text-gray-900">
-                                                            {user?.profile?.poids ? `${user.profile.poids} kg` : '—'}
-                                                        </div>
-                                                    </div>
-                                                    <div>
-                                                        <div className="mb-1 text-sm text-gray-600">Origine</div>
-                                                        <div className="font-medium text-gray-900">{user?.profile?.origine || '—'}</div>
-                                                    </div>
-                                                    <div>
-                                                        <div className="mb-1 text-sm text-gray-600">Pays de résidence</div>
-                                                        <div className="font-medium text-gray-900">{user?.profile?.pays_residence || '—'}</div>
-                                                    </div>
-                                                    <div>
-                                                        <div className="mb-1 text-sm text-gray-600">Ville de résidence</div>
-                                                        <div className="font-medium text-gray-900">{user?.profile?.ville_residence || '—'}</div>
-                                                    </div>
-                                                    <div>
-                                                        <div className="mb-1 text-sm text-gray-600">Pays d'origine</div>
-                                                        <div className="font-medium text-gray-900">{user?.profile?.pays_origine || '—'}</div>
-                                                    </div>
-                                                    <div>
-                                                        <div className="mb-1 text-sm text-gray-600">Ville d'origine</div>
-                                                        <div className="font-medium text-gray-900">{user?.profile?.ville_origine || '—'}</div>
-                                                    </div>
-                                                    <div>
-                                                        <div className="mb-1 text-sm text-gray-600">Religion</div>
-                                                        <div className="font-medium text-gray-900">{user?.profile?.religion || '—'}</div>
-                                                    </div>
-                                                    <div>
-                                                        <div className="mb-1 text-sm text-gray-600">Logement</div>
-                                                        <div className="font-medium text-gray-900">{user?.profile?.logement || '—'}</div>
                                                     </div>
                                                 </div>
                                             </CardContent>
@@ -870,96 +1047,147 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                                     <Heart className="h-5 w-5 text-[#ff343a]" />
                                                     Mode de vie & Santé
                                                 </h3>
+                                                <div className="space-y-6">
                                                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                                                    <div>
-                                                        <div className="mb-1 text-sm text-gray-600">
+                                                        <div className="md:col-span-2">
+                                                            <label className="mb-2 block text-sm font-medium text-gray-700">
                                                             {t('profile.healthSituation', { defaultValue: 'Situation de santé' })}
-                                                        </div>
-                                                        <div className="font-medium text-gray-900">
+                                                            </label>
+                                                            <div className="grid grid-cols-2 gap-3 rounded-lg border-2 border-red-500 bg-gray-50 p-4">
                                                             {(() => {
                                                                 const situationSante = user?.profile?.situation_sante;
-                                                                if (!situationSante) return '—';
+                                                                    const situations = Array.isArray(situationSante) ? situationSante : (situationSante ? [situationSante] : []);
+                                                                    
+                                                                    const allOptions = [
+                                                                        { value: 'sante_tres_bonne', label: t('profile.healthSituationVeryGood', { defaultValue: 'Santé très bonne' }) },
+                                                                        { value: 'maladie_chronique', label: t('profile.healthSituationChronicDisease', { defaultValue: 'Maladie chronique' }) },
+                                                                        { value: 'personne_handicap', label: t('profile.healthSituationDisabled', { defaultValue: 'Personne en situation de handicap' }) },
+                                                                        { value: 'non_voyant_malvoyant', label: t('profile.healthSituationBlindLowVision', { defaultValue: 'Non voyant / Malvoyant' }) },
+                                                                        { value: 'cecite_totale', label: t('profile.healthSituationTotalBlindness', { defaultValue: 'مكفوف (Cécité totale)' }) },
+                                                                        { value: 'troubles_psychiques', label: t('profile.healthSituationMentalDisorder', { defaultValue: 'Troubles psychiques' }) },
+                                                                        { value: 'autres', label: t('profile.healthSituationOther', { defaultValue: 'Autres' }) },
+                                                                    ];
 
-                                                                const situations = Array.isArray(situationSante) ? situationSante : [situationSante];
-                                                                if (situations.length === 0) return '—';
-
-                                                                const translations = {
-                                                                    sante_tres_bonne: t('profile.healthSituationVeryGood', {
-                                                                        defaultValue: 'Santé très bonne',
-                                                                    }),
-                                                                    maladie_chronique: t('profile.healthSituationChronicDisease', {
-                                                                        defaultValue: 'Maladie chronique',
-                                                                    }),
-                                                                    personne_handicap: t('profile.healthSituationDisabled', {
-                                                                        defaultValue: 'Personne en situation de handicap',
-                                                                    }),
-                                                                    non_voyant_malvoyant: t('profile.healthSituationBlindLowVision', {
-                                                                        defaultValue: 'Non voyant / Malvoyant',
-                                                                    }),
-                                                                    cecite_totale: t('profile.healthSituationTotalBlindness', {
-                                                                        defaultValue: 'مكفوف (Cécité totale)',
-                                                                    }),
-                                                                    troubles_psychiques: t('profile.healthSituationMentalDisorder', {
-                                                                        defaultValue: 'Troubles psychiques',
-                                                                    }),
-                                                                    autres: t('profile.healthSituationOther', { defaultValue: 'Autres' }),
-                                                                };
-
-                                                                return situations.map((s) => translations[s] || s).join(', ');
+                                                                    return allOptions.map((option) => {
+                                                                        const isChecked = situations.includes(option.value);
+                                                                        return (
+                                                                            <label key={option.value} className="flex items-center gap-2 cursor-default">
+                                                                                <input
+                                                                                    type="checkbox"
+                                                                                    checked={isChecked}
+                                                                                    disabled
+                                                                                    className="h-4 w-4 rounded border-gray-300 checked:bg-green-600 checked:border-green-600 focus:ring-green-500 disabled:cursor-not-allowed disabled:opacity-100"
+                                                                                    style={{ accentColor: '#16a34a' }}
+                                                                                />
+                                                                                <span className="text-sm text-gray-700">{option.label}</span>
+                                                                            </label>
+                                                                        );
+                                                                    });
                                                             })()}
                                                         </div>
                                                     </div>
                                                     <div>
-                                                        <div className="mb-1 text-sm text-gray-600">{t('profile.userProfile.healthStatus')}</div>
-                                                        <div className="font-medium text-gray-900">{user?.profile?.etat_sante || '—'}</div>
+                                                            <label className="mb-1 block text-sm font-medium text-gray-700">
+                                                                {t('profile.userProfile.healthStatus')}
+                                                            </label>
+                                                            <textarea
+                                                                value={user?.profile?.etat_sante || ''}
+                                                                disabled
+                                                                rows={3}
+                                                                className="w-full rounded-lg border-2 border-red-500 bg-gray-50 px-4 py-3 text-gray-700 disabled:cursor-not-allowed"
+                                                            />
                                                     </div>
                                                     <div>
-                                                        <div className="mb-1 text-sm text-gray-600">{t('profile.smoker')}</div>
-                                                        <div className="font-medium text-gray-900">{user?.profile?.fumeur || '—'}</div>
+                                                            <label className="mb-1 block text-sm font-medium text-gray-700">
+                                                                {t('profile.smoker')}
+                                                            </label>
+                                                            <input
+                                                                type="text"
+                                                                value={user?.profile?.fumeur || ''}
+                                                                disabled
+                                                                className="w-full rounded-lg border-2 border-red-500 bg-gray-50 px-4 py-3 text-gray-700 disabled:cursor-not-allowed"
+                                                            />
                                                     </div>
                                                     <div>
-                                                        <div className="mb-1 text-sm text-gray-600">{t('profile.drinker')}</div>
-                                                        <div className="font-medium text-gray-900">{user?.profile?.buveur || '—'}</div>
+                                                            <label className="mb-1 block text-sm font-medium text-gray-700">
+                                                                {t('profile.drinker')}
+                                                            </label>
+                                                            <input
+                                                                type="text"
+                                                                value={user?.profile?.buveur || ''}
+                                                                disabled
+                                                                className="w-full rounded-lg border-2 border-red-500 bg-gray-50 px-4 py-3 text-gray-700 disabled:cursor-not-allowed"
+                                                            />
                                                     </div>
                                                     <div>
-                                                        <div className="mb-1 text-sm text-gray-600">{t('profile.sport')}</div>
-                                                        <div className="font-medium text-gray-900">{user?.profile?.sport || '—'}</div>
+                                                            <label className="mb-1 block text-sm font-medium text-gray-700">
+                                                                {t('profile.sport')}
+                                                            </label>
+                                                            <input
+                                                                type="text"
+                                                                value={user?.profile?.sport || ''}
+                                                                disabled
+                                                                className="w-full rounded-lg border-2 border-red-500 bg-gray-50 px-4 py-3 text-gray-700 disabled:cursor-not-allowed"
+                                                            />
                                                     </div>
                                                     <div>
-                                                        <div className="mb-1 text-sm text-gray-600">{t('profile.motorized')}</div>
-                                                        <div className="font-medium text-gray-900">{user?.profile?.motorise || '—'}</div>
+                                                            <label className="mb-1 block text-sm font-medium text-gray-700">
+                                                                {t('profile.motorized')}
+                                                            </label>
+                                                            <input
+                                                                type="text"
+                                                                value={user?.profile?.motorise || ''}
+                                                                disabled
+                                                                className="w-full rounded-lg border-2 border-red-500 bg-gray-50 px-4 py-3 text-gray-700 disabled:cursor-not-allowed"
+                                                            />
                                                     </div>
                                                     <div className="md:col-span-2">
-                                                        <div className="mb-1 text-sm text-gray-600">{t('profile.hobbies')}</div>
-                                                        <div className="font-medium text-gray-900">{user?.profile?.loisirs || '—'}</div>
+                                                            <label className="mb-1 block text-sm font-medium text-gray-700">
+                                                                {t('profile.hobbies')}
+                                                            </label>
+                                                            <input
+                                                                type="text"
+                                                                value={user?.profile?.loisirs || ''}
+                                                                disabled
+                                                                className="w-full rounded-lg border-2 border-red-500 bg-gray-50 px-4 py-3 text-gray-700 disabled:cursor-not-allowed"
+                                                            />
+                                                    </div>
                                                     </div>
 
                                                     {/* Female-only fields */}
                                                     {user?.gender === 'female' && (
-                                                        <>
+                                                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                                             {/* 1. Voile */}
                                                             <div>
-                                                                <div className="mb-1 text-sm text-gray-600">{t('profile.veil')}</div>
-                                                                <div className="font-medium text-gray-900">
-                                                                    {(() => {
+                                                                <label className="mb-1 block text-sm font-medium text-gray-700">
+                                                                    {t('profile.veil')}
+                                                                </label>
+                                                                <input
+                                                                    type="text"
+                                                                    value={(() => {
                                                                         const veil = user?.profile?.veil;
-                                                                        if (!veil) return '—';
+                                                                        if (!veil) return '';
                                                                         const translations = {
                                                                             veiled: t('profile.veiled'),
                                                                             non_veiled: t('profile.nonVeiled'),
                                                                         };
                                                                         return translations[veil] || veil;
                                                                     })()}
-                                                                </div>
+                                                                    disabled
+                                                                    className="w-full rounded-lg border-2 border-red-500 bg-gray-50 px-4 py-3 text-gray-700 disabled:cursor-not-allowed"
+                                                                />
                                                             </div>
 
                                                             {/* 2. Souhait de porter un voile particulier */}
                                                             <div>
-                                                                <div className="mb-1 text-sm text-gray-600">{t('profile.specificVeilWish')}</div>
-                                                                <div className="font-medium text-gray-900">
-                                                                    {(() => {
+                                                                <label className="mb-1 block text-sm font-medium text-gray-700">
+                                                                    {t('profile.specificVeilWish')}
+                                                                </label>
+                                                                <input
+                                                                    type="text"
+                                                                    value={(() => {
                                                                         const specificVeilWish = user?.profile?.specific_veil_wish;
-                                                                        if (!specificVeilWish) return '—';
+                                                                        if (!specificVeilWish) return '';
                                                                         const translations = {
                                                                             hijab: t('profile.veilHijab'),
                                                                             niqab: t('profile.veilNiqab'),
@@ -967,16 +1195,21 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                                                         };
                                                                         return translations[specificVeilWish] || specificVeilWish;
                                                                     })()}
-                                                                </div>
+                                                                    disabled
+                                                                    className="w-full rounded-lg border-2 border-red-500 bg-gray-50 px-4 py-3 text-gray-700 disabled:cursor-not-allowed"
+                                                                />
                                                             </div>
 
                                                             {/* 3. Acceptation du niqab */}
                                                             <div>
-                                                                <div className="mb-1 text-sm text-gray-600">{t('profile.niqabAcceptance')}</div>
-                                                                <div className="font-medium text-gray-900">
-                                                                    {(() => {
+                                                                <label className="mb-1 block text-sm font-medium text-gray-700">
+                                                                    {t('profile.niqabAcceptance')}
+                                                                </label>
+                                                                <input
+                                                                    type="text"
+                                                                    value={(() => {
                                                                         const niqabAcceptance = user?.profile?.niqab_acceptance;
-                                                                        if (!niqabAcceptance) return '—';
+                                                                        if (!niqabAcceptance) return '';
                                                                         const translations = {
                                                                             yes: t('profile.yes'),
                                                                             no: t('profile.no'),
@@ -984,16 +1217,21 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                                                         };
                                                                         return translations[niqabAcceptance] || niqabAcceptance;
                                                                     })()}
-                                                                </div>
+                                                                    disabled
+                                                                    className="w-full rounded-lg border-2 border-red-500 bg-gray-50 px-4 py-3 text-gray-700 disabled:cursor-not-allowed"
+                                                                />
                                                             </div>
 
                                                             {/* 4. Polygamie */}
                                                             <div>
-                                                                <div className="mb-1 text-sm text-gray-600">{t('profile.polygamy')}</div>
-                                                                <div className="font-medium text-gray-900">
-                                                                    {(() => {
+                                                                <label className="mb-1 block text-sm font-medium text-gray-700">
+                                                                    {t('profile.polygamy')}
+                                                                </label>
+                                                                <input
+                                                                    type="text"
+                                                                    value={(() => {
                                                                         const polygamy = user?.profile?.polygamy;
-                                                                        if (!polygamy) return '—';
+                                                                        if (!polygamy) return '';
                                                                         const translations = {
                                                                             accepted: t('profile.accepted'),
                                                                             not_accepted: t('profile.notAccepted'),
@@ -1001,16 +1239,21 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                                                         };
                                                                         return translations[polygamy] || polygamy;
                                                                     })()}
-                                                                </div>
+                                                                    disabled
+                                                                    className="w-full rounded-lg border-2 border-red-500 bg-gray-50 px-4 py-3 text-gray-700 disabled:cursor-not-allowed"
+                                                                />
                                                             </div>
 
                                                             {/* 5. Mariage avec une personne étrangère */}
                                                             <div>
-                                                                <div className="mb-1 text-sm text-gray-600">{t('profile.foreignMarriage')}</div>
-                                                                <div className="font-medium text-gray-900">
-                                                                    {(() => {
+                                                                <label className="mb-1 block text-sm font-medium text-gray-700">
+                                                                    {t('profile.foreignMarriage')}
+                                                                </label>
+                                                                <input
+                                                                    type="text"
+                                                                    value={(() => {
                                                                         const foreignMarriage = user?.profile?.foreign_marriage;
-                                                                        if (!foreignMarriage) return '—';
+                                                                        if (!foreignMarriage) return '';
                                                                         const translations = {
                                                                             yes: t('profile.yes'),
                                                                             no: t('profile.no'),
@@ -1018,16 +1261,21 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                                                         };
                                                                         return translations[foreignMarriage] || foreignMarriage;
                                                                     })()}
-                                                                </div>
+                                                                    disabled
+                                                                    className="w-full rounded-lg border-2 border-red-500 bg-gray-50 px-4 py-3 text-gray-700 disabled:cursor-not-allowed"
+                                                                />
                                                             </div>
 
                                                             {/* 6. Travail après le mariage */}
                                                             <div>
-                                                                <div className="mb-1 text-sm text-gray-600">{t('profile.workAfterMarriage')}</div>
-                                                                <div className="font-medium text-gray-900">
-                                                                    {(() => {
+                                                                <label className="mb-1 block text-sm font-medium text-gray-700">
+                                                                    {t('profile.workAfterMarriage')}
+                                                                </label>
+                                                                <input
+                                                                    type="text"
+                                                                    value={(() => {
                                                                         const workAfterMarriage = user?.profile?.work_after_marriage;
-                                                                        if (!workAfterMarriage) return '—';
+                                                                        if (!workAfterMarriage) return '';
                                                                         const translations = {
                                                                             yes: t('profile.yes'),
                                                                             no: t('profile.no'),
@@ -1036,9 +1284,11 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                                                         };
                                                                         return translations[workAfterMarriage] || workAfterMarriage;
                                                                     })()}
-                                                                </div>
+                                                                    disabled
+                                                                    className="w-full rounded-lg border-2 border-red-500 bg-gray-50 px-4 py-3 text-gray-700 disabled:cursor-not-allowed"
+                                                                />
                                                             </div>
-                                                        </>
+                                                        </div>
                                                     )}
                                                 </div>
                                             </CardContent>
@@ -1056,94 +1306,218 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                                     <Heart className="h-5 w-5 text-[#ff343a]" />
                                                     {t('profile.userProfile.soughtProfile')}
                                                 </h3>
+                                                <div className="space-y-6">
                                                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                                     <div>
-                                                        <div className="mb-1 text-sm text-gray-600">
+                                                            <label className="mb-1 block text-sm font-medium text-gray-700">
                                                             {t('profile.userProfile.minimumAge')} / {t('profile.maximumAge')}
-                                                        </div>
-                                                        <div className="font-medium text-gray-900">
-                                                            {user?.profile?.age_minimum && user?.profile?.age_maximum
+                                                            </label>
+                                                            <input
+                                                                type="text"
+                                                                value={
+                                                                    user?.profile?.age_minimum && user?.profile?.age_maximum
                                                                 ? `${user.profile.age_minimum} - ${user.profile.age_maximum} ${t('profile.years')}`
                                                                 : user?.profile?.age_minimum
                                                                   ? `${user.profile.age_minimum} ${t('profile.years')}`
-                                                                  : '—'}
+                                                                          : ''
+                                                                }
+                                                                disabled
+                                                                className="w-full rounded-lg border-2 border-red-500 bg-gray-50 px-4 py-3 text-gray-700 disabled:cursor-not-allowed"
+                                                            />
                                                         </div>
-                                                    </div>
-                                                    <div>
-                                                        <div className="mb-1 text-sm text-gray-600">
+                                                        <div className="md:col-span-2">
+                                                            <label className="mb-2 block text-sm font-medium text-gray-700">
                                                             {t('profile.userProfile.matrimonialSituation')}
+                                                            </label>
+                                                            <div className="grid grid-cols-2 gap-3 rounded-lg border-2 border-red-500 bg-gray-50 p-4">
+                                                                {[
+                                                                    { value: 'celibataire', label: t('profile.matrimonialSituationSingle') },
+                                                                    { value: 'marie', label: t('profile.matrimonialSituationMarried') },
+                                                                    { value: 'divorce', label: t('profile.matrimonialSituationDivorced') },
+                                                                    { value: 'veuf', label: t('profile.matrimonialSituationWidowed') },
+                                                                ].map((option) => {
+                                                                    const selectedValues = Array.isArray(user?.profile?.situation_matrimoniale_recherche)
+                                                                        ? user.profile.situation_matrimoniale_recherche
+                                                                        : user?.profile?.situation_matrimoniale_recherche
+                                                                          ? [user.profile.situation_matrimoniale_recherche]
+                                                                          : [];
+                                                                    const isChecked = selectedValues.includes(option.value);
+                                                                    return (
+                                                                        <label key={option.value} className="flex items-center gap-2 cursor-default">
+                                                                            <input
+                                                                                type="checkbox"
+                                                                                checked={isChecked}
+                                                                                disabled
+                                                                                className="h-4 w-4 rounded border-gray-300 checked:bg-green-600 checked:border-green-600 focus:ring-green-500 disabled:cursor-not-allowed disabled:opacity-100"
+                                                                                style={{ accentColor: '#16a34a' }}
+                                                                            />
+                                                                            <span className="text-sm text-gray-700">{option.label}</span>
+                                                                        </label>
+                                                                    );
+                                                                })}
                                                         </div>
-                                                        <div className="font-medium text-gray-900">
-                                                            {Array.isArray(user?.profile?.situation_matrimoniale_recherche)
-                                                                ? user.profile.situation_matrimoniale_recherche.join(', ')
-                                                                : user?.profile?.situation_matrimoniale_recherche || '—'}
                                                         </div>
+                                                        <div className="md:col-span-2">
+                                                            <label className="mb-2 block text-sm font-medium text-gray-700">
+                                                                {t('profile.soughtCountry')}
+                                                            </label>
+                                                            {(() => {
+                                                                const selectedCountries = Array.isArray(user?.profile?.pays_recherche)
+                                                                    ? user.profile.pays_recherche
+                                                                    : user?.profile?.pays_recherche
+                                                                      ? [user.profile.pays_recherche]
+                                                                      : [];
+                                                                
+                                                                if (selectedCountries.length === 0) {
+                                                                    return (
+                                                                        <div className="rounded-lg border-2 border-red-500 bg-gray-50 px-4 py-3">
+                                                                            <span className="text-sm text-gray-700">—</span>
                                                     </div>
-                                                    <div>
-                                                        <div className="mb-1 text-sm text-gray-600">{t('common.country')}</div>
-                                                        <div className="font-medium text-gray-900">
-                                                            {Array.isArray(user?.profile?.pays_recherche)
-                                                                ? user.profile.pays_recherche.join(', ')
-                                                                : user?.profile?.pays_recherche || '—'}
+                                                                    );
+                                                                }
+                                                                
+                                                                // Get country names for selected country codes
+                                                                const selectedCountryNames = selectedCountries.map((code) => {
+                                                                    const country = countries.find((c) => c.iso2 === code);
+                                                                    return country ? country.frenchName : code;
+                                                                });
+                                                                
+                                                                return (
+                                                                    <div className="grid grid-cols-2 gap-3 rounded-lg border-2 border-red-500 bg-gray-50 p-4">
+                                                                        {selectedCountryNames.map((countryName, index) => {
+                                                                            const countryCode = selectedCountries[index];
+                                                                            return (
+                                                                                <label key={countryCode || index} className="flex items-center gap-2 cursor-default">
+                                                                                    <input
+                                                                                        type="checkbox"
+                                                                                        checked={true}
+                                                                                        disabled
+                                                                                        className="h-4 w-4 rounded border-gray-300 checked:bg-green-600 checked:border-green-600 focus:ring-green-500 disabled:cursor-not-allowed disabled:opacity-100"
+                                                                                        style={{ accentColor: '#16a34a' }}
+                                                                                    />
+                                                                                    <span className="text-sm text-gray-700">{countryName}</span>
+                                                                                </label>
+                                                                            );
+                                                                        })}
                                                         </div>
+                                                                );
+                                                            })()}
                                                     </div>
-                                                    <div>
-                                                        <div className="mb-1 text-sm text-gray-600">{t('profile.userProfile.residenceLocation')}</div>
-                                                        <div className="font-medium text-gray-900">
-                                                            {user?.profile?.villes_recherche && user?.profile?.villes_recherche.length > 0
+                                                        <div className="md:col-span-2">
+                                                            <label className="mb-2 block text-sm font-medium text-gray-700">
+                                                                {t('profile.userProfile.residenceLocation')}
+                                                            </label>
+                                                            <div className="grid grid-cols-2 gap-3 rounded-lg border-2 border-red-500 bg-gray-50 p-4 max-h-60 overflow-y-auto">
+                                                                {(() => {
+                                                                    const villes = user?.profile?.villes_recherche && user?.profile?.villes_recherche.length > 0
                                                                 ? (() => {
-                                                                      const villes =
+                                                                              const villesData =
                                                                           typeof user?.profile?.villes_recherche === 'string'
                                                                               ? JSON.parse(user?.profile?.villes_recherche)
                                                                               : user?.profile?.villes_recherche;
-                                                                      return Array.isArray(villes) && villes.length > 0
-                                                                          ? villes.join(', ')
-                                                                          : t('profile.notSpecified');
-                                                                  })()
-                                                                : '—'}
+                                                                              return Array.isArray(villesData) && villesData.length > 0 ? villesData : [];
+                                                                          })()
+                                                                        : [];
+                                                                    
+                                                                    // Get cities from selected countries
+                                                                    const selectedCountries = Array.isArray(user?.profile?.pays_recherche)
+                                                                        ? user.profile.pays_recherche
+                                                                        : user?.profile?.pays_recherche
+                                                                          ? [user.profile.pays_recherche]
+                                                                          : [];
+                                                                    
+                                                                    const allCities = [];
+                                                                    selectedCountries.forEach((code) => {
+                                                                        const countryCities = countryCodeToCities[code] || [];
+                                                                        allCities.push(...countryCities);
+                                                                    });
+                                                                    const uniqueCities = [...new Set(allCities)].sort();
+                                                                    
+                                                                    // Show selected cities and available cities
+                                                                    const citiesToShow = uniqueCities.length > 0 ? uniqueCities : villes;
+                                                                    
+                                                                    return citiesToShow.length > 0 ? citiesToShow.map((city) => {
+                                                                        const isChecked = villes.includes(city);
+                                                                        return (
+                                                                            <label key={city} className="flex items-center gap-2 cursor-default">
+                                                                                <input
+                                                                                    type="checkbox"
+                                                                                    checked={isChecked}
+                                                                                    disabled
+                                                                                    className="h-4 w-4 rounded border-gray-300 checked:bg-green-600 checked:border-green-600 focus:ring-green-500 disabled:cursor-not-allowed disabled:opacity-100"
+                                                                                    style={{ accentColor: '#16a34a' }}
+                                                                                />
+                                                                                <span className="text-sm text-gray-700">{city}</span>
+                                                                            </label>
+                                                                        );
+                                                                    }) : (
+                                                                        <div className="col-span-2 text-sm text-gray-500">Aucune ville sélectionnée</div>
+                                                                    );
+                                                                })()}
                                                         </div>
                                                     </div>
                                                     <div>
-                                                        <div className="mb-1 text-sm text-gray-600">{t('profile.userProfile.educationLevel')}</div>
-                                                        <div className="font-medium text-gray-900">
-                                                            {user?.profile?.niveau_etudes_recherche || '—'}
-                                                        </div>
+                                                            <label className="mb-1 block text-sm font-medium text-gray-700">
+                                                                {t('profile.userProfile.educationLevel')}
+                                                            </label>
+                                                            <input
+                                                                type="text"
+                                                                value={user?.profile?.niveau_etudes_recherche || ''}
+                                                                disabled
+                                                                className="w-full rounded-lg border-2 border-red-500 bg-gray-50 px-4 py-3 text-gray-700 disabled:cursor-not-allowed"
+                                                            />
                                                     </div>
                                                     <div>
-                                                        <div className="mb-1 text-sm text-gray-600">{t('profile.userProfile.employmentStatus')}</div>
-                                                        <div className="font-medium text-gray-900">
-                                                            {user?.profile?.statut_emploi_recherche || '—'}
-                                                        </div>
+                                                            <label className="mb-1 block text-sm font-medium text-gray-700">
+                                                                {t('profile.userProfile.employmentStatus')}
+                                                            </label>
+                                                            <input
+                                                                type="text"
+                                                                value={user?.profile?.statut_emploi_recherche || ''}
+                                                                disabled
+                                                                className="w-full rounded-lg border-2 border-red-500 bg-gray-50 px-4 py-3 text-gray-700 disabled:cursor-not-allowed"
+                                                            />
                                                     </div>
                                                     <div>
-                                                        <div className="mb-1 text-sm text-gray-600">{t('profile.minimumIncome')}</div>
-                                                        <div className="font-medium text-gray-900">{user?.profile?.revenu_minimum || '—'}</div>
+                                                            <label className="mb-1 block text-sm font-medium text-gray-700">
+                                                                {t('profile.minimumIncome')}
+                                                            </label>
+                                                            <input
+                                                                type="text"
+                                                                value={user?.profile?.revenu_minimum || ''}
+                                                                disabled
+                                                                className="w-full rounded-lg border-2 border-red-500 bg-gray-50 px-4 py-3 text-gray-700 disabled:cursor-not-allowed"
+                                                            />
                                                     </div>
                                                     <div>
-                                                        <div className="mb-1 text-sm text-gray-600">{t('profile.soughtReligion')}</div>
-                                                        <div className="font-medium text-gray-900">{user?.profile?.religion_recherche || '—'}</div>
+                                                            <label className="mb-1 block text-sm font-medium text-gray-700">
+                                                                {t('profile.soughtReligion')}
+                                                            </label>
+                                                            <input
+                                                                type="text"
+                                                                value={user?.profile?.religion_recherche || ''}
+                                                                disabled
+                                                                className="w-full rounded-lg border-2 border-red-500 bg-gray-50 px-4 py-3 text-gray-700 disabled:cursor-not-allowed"
+                                                            />
                                                     </div>
                                                 </div>
                                                 {profile?.profil_recherche_description && (
-                                                    <div className="mt-4">
-                                                        <div className="mb-1 text-sm text-gray-600">{t('profile.userProfile.description')}</div>
-                                                        <div className="rounded-md border border-gray-200 bg-gray-50 p-3 leading-relaxed text-gray-900">
-                                                            {profile.profil_recherche_description}
-                                                        </div>
+                                                        <div>
+                                                            <label className="mb-1 block text-sm font-medium text-gray-700">
+                                                                {t('profile.userProfile.description')}
+                                                            </label>
+                                                            <textarea
+                                                                value={profile.profil_recherche_description}
+                                                                disabled
+                                                                rows={6}
+                                                                className="w-full rounded-lg border-2 border-red-500 bg-gray-50 px-4 py-3 text-gray-700 disabled:cursor-not-allowed"
+                                                            />
                                                     </div>
                                                 )}
+                                                </div>
                                             </CardContent>
                                         </Card>
 
-                                        {/* An Ideal Relationship To Me */}
-                                        {profile?.profil_recherche_description && (
-                                            <Card className="border-gray-200 bg-white">
-                                                <CardContent className="p-6">
-                                                    <h3 className="mb-3 text-lg font-semibold text-gray-900">Une relation idéale pour moi</h3>
-                                                    <p className="leading-relaxed text-gray-700">{profile.profil_recherche_description}</p>
-                                                </CardContent>
-                                            </Card>
-                                        )}
                                     </TabsContent>
                                 )}
 
