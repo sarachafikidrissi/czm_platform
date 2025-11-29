@@ -57,6 +57,12 @@ class ProfileController extends Controller
                 'childrenCount' => $profile->children_count,
                 'childrenGuardian' => $profile->children_guardian,
                 'hijabChoice' => $profile->hijab_choice,
+                'veil' => $profile->veil,
+                'specificVeilWish' => $profile->specific_veil_wish,
+                'niqabAcceptance' => $profile->niqab_acceptance,
+                'polygamy' => $profile->polygamy,
+                'foreignMarriage' => $profile->foreign_marriage,
+                'workAfterMarriage' => $profile->work_after_marriage,
                 'situationSante' => is_array($profile->situation_sante) 
                     ? $profile->situation_sante 
                     : ($profile->situation_sante ? [$profile->situation_sante] : []),
@@ -193,6 +199,12 @@ class ProfileController extends Controller
             'childrenCount' => 'nullable|integer|min:0|max:20',
             'childrenGuardian' => 'nullable|in:mother,father',
             'hijabChoice' => 'nullable|in:voile,non_voile,niqab,idea_niqab,idea_hijab',
+            'veil' => 'nullable|in:veiled,non_veiled',
+            'specificVeilWish' => 'nullable|in:hijab,niqab,neither',
+            'niqabAcceptance' => 'nullable|in:yes,no,to_discuss',
+            'polygamy' => 'nullable|in:accepted,not_accepted,to_discuss',
+            'foreignMarriage' => 'nullable|in:yes,no,maybe_discuss',
+            'workAfterMarriage' => 'nullable|in:yes,no,maybe,depending_situation',
             'situationSante' => 'nullable',
             'heardAboutUs' => 'required|string|in:recommande,passage,pub,online_ads,google_search,youtube_video,facebook_post,instagram_post,tiktok_video,collaboration,phone_call',
             'heardAboutReference' => 'nullable|string|max:255',
@@ -333,6 +345,12 @@ class ProfileController extends Controller
         $profile->children_count = $request->childrenCount;
         $profile->children_guardian = $request->childrenGuardian;
         $profile->hijab_choice = $request->hijabChoice;
+        $profile->veil = $request->veil;
+        $profile->specific_veil_wish = $request->specificVeilWish;
+        $profile->niqab_acceptance = $request->niqabAcceptance;
+        $profile->polygamy = $request->polygamy;
+        $profile->foreign_marriage = $request->foreignMarriage;
+        $profile->work_after_marriage = $request->workAfterMarriage;
         
         // Handle situationSante as array or string
         $situationSante = $request->situationSante;

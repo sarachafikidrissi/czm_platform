@@ -254,31 +254,121 @@ function Details({ formData, setFormData, gender }) {
                     </div>
                 </div>
 
-                {/* Female-only hijab/niqab choice */}
+                {/* Female-only hijab/niqab and lifestyle choices */}
                 {gender === 'female' && (
-                    <div>
-                        <label className="mb-2 block text-sm font-medium text-gray-700">Voile / Niqab</label>
-                        <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
-                            <label className="inline-flex items-center">
-                                <input type="radio" name="hijabChoice" value="voile" checked={formData.hijabChoice === 'voile'} onChange={handleInputChange} className="text-blue-600 focus:ring-blue-500" />
-                                <span className="ml-2 text-sm text-gray-700">Voile</span>
-                            </label>
-                            <label className="inline-flex items-center">
-                                <input type="radio" name="hijabChoice" value="non_voile" checked={formData.hijabChoice === 'non_voile'} onChange={handleInputChange} className="text-blue-600 focus:ring-blue-500" />
-                                <span className="ml-2 text-sm text-gray-700">Non voile</span>
-                            </label>
-                            <label className="inline-flex items-center">
-                                <input type="radio" name="hijabChoice" value="niqab" checked={formData.hijabChoice === 'niqab'} onChange={handleInputChange} className="text-blue-600 focus:ring-blue-500" />
-                                <span className="ml-2 text-sm text-gray-700">Niqab</span>
-                            </label>
-                            <label className="inline-flex items-center">
-                                <input type="radio" name="hijabChoice" value="idea_niqab" checked={formData.hijabChoice === 'idea_niqab'} onChange={handleInputChange} className="text-blue-600 focus:ring-blue-500" />
-                                <span className="ml-2 text-sm text-gray-700">Idée de porter niqab</span>
-                            </label>
-                            <label className="inline-flex items-center">
-                                <input type="radio" name="hijabChoice" value="idea_hijab" checked={formData.hijabChoice === 'idea_hijab'} onChange={handleInputChange} className="text-blue-600 focus:ring-blue-500" />
-                                <span className="ml-2 text-sm text-gray-700">Idée de porter hijab</span>
-                            </label>
+                    <div className="space-y-6">
+                        {/* 1. Voile */}
+                        <div>
+                            <label className="mb-2 block text-sm font-medium text-gray-700">{t('profile.veil')}</label>
+                            <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                                <label className="inline-flex items-center">
+                                    <input type="radio" name="veil" value="veiled" checked={formData.veil === 'veiled'} onChange={handleInputChange} className="text-blue-600 focus:ring-blue-500" />
+                                    <span className="ml-2 text-sm text-gray-700">{t('profile.veiled')}</span>
+                                </label>
+                                <label className="inline-flex items-center">
+                                    <input type="radio" name="veil" value="non_veiled" checked={formData.veil === 'non_veiled'} onChange={handleInputChange} className="text-blue-600 focus:ring-blue-500" />
+                                    <span className="ml-2 text-sm text-gray-700">{t('profile.nonVeiled')}</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        {/* 2. Souhait de porter un voile particulier */}
+                        <div>
+                            <label className="mb-2 block text-sm font-medium text-gray-700">{t('profile.specificVeilWish')}</label>
+                            <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
+                                <label className="inline-flex items-center">
+                                    <input type="radio" name="specificVeilWish" value="hijab" checked={formData.specificVeilWish === 'hijab'} onChange={handleInputChange} className="text-blue-600 focus:ring-blue-500" />
+                                    <span className="ml-2 text-sm text-gray-700">{t('profile.veilHijab')}</span>
+                                </label>
+                                <label className="inline-flex items-center">
+                                    <input type="radio" name="specificVeilWish" value="niqab" checked={formData.specificVeilWish === 'niqab'} onChange={handleInputChange} className="text-blue-600 focus:ring-blue-500" />
+                                    <span className="ml-2 text-sm text-gray-700">{t('profile.veilNiqab')}</span>
+                                </label>
+                                <label className="inline-flex items-center">
+                                    <input type="radio" name="specificVeilWish" value="neither" checked={formData.specificVeilWish === 'neither'} onChange={handleInputChange} className="text-blue-600 focus:ring-blue-500" />
+                                    <span className="ml-2 text-sm text-gray-700">{t('profile.veilNeither')}</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        {/* 3. Acceptation du niqab */}
+                        <div>
+                            <label className="mb-2 block text-sm font-medium text-gray-700">{t('profile.niqabAcceptance')}</label>
+                            <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
+                                <label className="inline-flex items-center">
+                                    <input type="radio" name="niqabAcceptance" value="yes" checked={formData.niqabAcceptance === 'yes'} onChange={handleInputChange} className="text-blue-600 focus:ring-blue-500" />
+                                    <span className="ml-2 text-sm text-gray-700">{t('profile.yes')}</span>
+                                </label>
+                                <label className="inline-flex items-center">
+                                    <input type="radio" name="niqabAcceptance" value="no" checked={formData.niqabAcceptance === 'no'} onChange={handleInputChange} className="text-blue-600 focus:ring-blue-500" />
+                                    <span className="ml-2 text-sm text-gray-700">{t('profile.no')}</span>
+                                </label>
+                                <label className="inline-flex items-center">
+                                    <input type="radio" name="niqabAcceptance" value="to_discuss" checked={formData.niqabAcceptance === 'to_discuss'} onChange={handleInputChange} className="text-blue-600 focus:ring-blue-500" />
+                                    <span className="ml-2 text-sm text-gray-700">{t('profile.toDiscuss')}</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        {/* 4. Polygamie */}
+                        <div>
+                            <label className="mb-2 block text-sm font-medium text-gray-700">{t('profile.polygamy')}</label>
+                            <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
+                                <label className="inline-flex items-center">
+                                    <input type="radio" name="polygamy" value="accepted" checked={formData.polygamy === 'accepted'} onChange={handleInputChange} className="text-blue-600 focus:ring-blue-500" />
+                                    <span className="ml-2 text-sm text-gray-700">{t('profile.accepted')}</span>
+                                </label>
+                                <label className="inline-flex items-center">
+                                    <input type="radio" name="polygamy" value="not_accepted" checked={formData.polygamy === 'not_accepted'} onChange={handleInputChange} className="text-blue-600 focus:ring-blue-500" />
+                                    <span className="ml-2 text-sm text-gray-700">{t('profile.notAccepted')}</span>
+                                </label>
+                                <label className="inline-flex items-center">
+                                    <input type="radio" name="polygamy" value="to_discuss" checked={formData.polygamy === 'to_discuss'} onChange={handleInputChange} className="text-blue-600 focus:ring-blue-500" />
+                                    <span className="ml-2 text-sm text-gray-700">{t('profile.toDiscuss')}</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        {/* 5. Mariage avec une personne étrangère */}
+                        <div>
+                            <label className="mb-2 block text-sm font-medium text-gray-700">{t('profile.foreignMarriage')}</label>
+                            <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
+                                <label className="inline-flex items-center">
+                                    <input type="radio" name="foreignMarriage" value="yes" checked={formData.foreignMarriage === 'yes'} onChange={handleInputChange} className="text-blue-600 focus:ring-blue-500" />
+                                    <span className="ml-2 text-sm text-gray-700">{t('profile.yes')}</span>
+                                </label>
+                                <label className="inline-flex items-center">
+                                    <input type="radio" name="foreignMarriage" value="no" checked={formData.foreignMarriage === 'no'} onChange={handleInputChange} className="text-blue-600 focus:ring-blue-500" />
+                                    <span className="ml-2 text-sm text-gray-700">{t('profile.no')}</span>
+                                </label>
+                                <label className="inline-flex items-center">
+                                    <input type="radio" name="foreignMarriage" value="maybe_discuss" checked={formData.foreignMarriage === 'maybe_discuss'} onChange={handleInputChange} className="text-blue-600 focus:ring-blue-500" />
+                                    <span className="ml-2 text-sm text-gray-700">{t('profile.maybeDiscuss')}</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        {/* 6. Travail après le mariage */}
+                        <div>
+                            <label className="mb-2 block text-sm font-medium text-gray-700">{t('profile.workAfterMarriage')}</label>
+                            <div className="grid grid-cols-1 gap-2 md:grid-cols-4">
+                                <label className="inline-flex items-center">
+                                    <input type="radio" name="workAfterMarriage" value="yes" checked={formData.workAfterMarriage === 'yes'} onChange={handleInputChange} className="text-blue-600 focus:ring-blue-500" />
+                                    <span className="ml-2 text-sm text-gray-700">{t('profile.yes')}</span>
+                                </label>
+                                <label className="inline-flex items-center">
+                                    <input type="radio" name="workAfterMarriage" value="no" checked={formData.workAfterMarriage === 'no'} onChange={handleInputChange} className="text-blue-600 focus:ring-blue-500" />
+                                    <span className="ml-2 text-sm text-gray-700">{t('profile.no')}</span>
+                                </label>
+                                <label className="inline-flex items-center">
+                                    <input type="radio" name="workAfterMarriage" value="maybe" checked={formData.workAfterMarriage === 'maybe'} onChange={handleInputChange} className="text-blue-600 focus:ring-blue-500" />
+                                    <span className="ml-2 text-sm text-gray-700">{t('profile.maybe')}</span>
+                                </label>
+                                <label className="inline-flex items-center">
+                                    <input type="radio" name="workAfterMarriage" value="depending_situation" checked={formData.workAfterMarriage === 'depending_situation'} onChange={handleInputChange} className="text-blue-600 focus:ring-blue-500" />
+                                    <span className="ml-2 text-sm text-gray-700">{t('profile.dependingOnSituation')}</span>
+                                </label>
+                            </div>
                         </div>
                     </div>
                 )}

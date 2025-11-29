@@ -36,6 +36,12 @@ class Profile extends Model
         'children_count',
         'children_guardian',
         'hijab_choice',
+        'veil',
+        'specific_veil_wish',
+        'niqab_acceptance',
+        'polygamy',
+        'foreign_marriage',
+        'work_after_marriage',
         'situation_sante',
         // Step3 extensions
         'profil_recherche_description',

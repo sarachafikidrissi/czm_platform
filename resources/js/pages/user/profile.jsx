@@ -933,6 +933,113 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                                         <div className="mb-1 text-sm text-gray-600">{t('profile.hobbies')}</div>
                                                         <div className="font-medium text-gray-900">{user?.profile?.loisirs || '—'}</div>
                                                     </div>
+
+                                                    {/* Female-only fields */}
+                                                    {user?.gender === 'female' && (
+                                                        <>
+                                                            {/* 1. Voile */}
+                                                            <div>
+                                                                <div className="mb-1 text-sm text-gray-600">{t('profile.veil')}</div>
+                                                                <div className="font-medium text-gray-900">
+                                                                    {(() => {
+                                                                        const veil = user?.profile?.veil;
+                                                                        if (!veil) return '—';
+                                                                        const translations = {
+                                                                            veiled: t('profile.veiled'),
+                                                                            non_veiled: t('profile.nonVeiled'),
+                                                                        };
+                                                                        return translations[veil] || veil;
+                                                                    })()}
+                                                                </div>
+                                                            </div>
+
+                                                            {/* 2. Souhait de porter un voile particulier */}
+                                                            <div>
+                                                                <div className="mb-1 text-sm text-gray-600">{t('profile.specificVeilWish')}</div>
+                                                                <div className="font-medium text-gray-900">
+                                                                    {(() => {
+                                                                        const specificVeilWish = user?.profile?.specific_veil_wish;
+                                                                        if (!specificVeilWish) return '—';
+                                                                        const translations = {
+                                                                            hijab: t('profile.veilHijab'),
+                                                                            niqab: t('profile.veilNiqab'),
+                                                                            neither: t('profile.veilNeither'),
+                                                                        };
+                                                                        return translations[specificVeilWish] || specificVeilWish;
+                                                                    })()}
+                                                                </div>
+                                                            </div>
+
+                                                            {/* 3. Acceptation du niqab */}
+                                                            <div>
+                                                                <div className="mb-1 text-sm text-gray-600">{t('profile.niqabAcceptance')}</div>
+                                                                <div className="font-medium text-gray-900">
+                                                                    {(() => {
+                                                                        const niqabAcceptance = user?.profile?.niqab_acceptance;
+                                                                        if (!niqabAcceptance) return '—';
+                                                                        const translations = {
+                                                                            yes: t('profile.yes'),
+                                                                            no: t('profile.no'),
+                                                                            to_discuss: t('profile.toDiscuss'),
+                                                                        };
+                                                                        return translations[niqabAcceptance] || niqabAcceptance;
+                                                                    })()}
+                                                                </div>
+                                                            </div>
+
+                                                            {/* 4. Polygamie */}
+                                                            <div>
+                                                                <div className="mb-1 text-sm text-gray-600">{t('profile.polygamy')}</div>
+                                                                <div className="font-medium text-gray-900">
+                                                                    {(() => {
+                                                                        const polygamy = user?.profile?.polygamy;
+                                                                        if (!polygamy) return '—';
+                                                                        const translations = {
+                                                                            accepted: t('profile.accepted'),
+                                                                            not_accepted: t('profile.notAccepted'),
+                                                                            to_discuss: t('profile.toDiscuss'),
+                                                                        };
+                                                                        return translations[polygamy] || polygamy;
+                                                                    })()}
+                                                                </div>
+                                                            </div>
+
+                                                            {/* 5. Mariage avec une personne étrangère */}
+                                                            <div>
+                                                                <div className="mb-1 text-sm text-gray-600">{t('profile.foreignMarriage')}</div>
+                                                                <div className="font-medium text-gray-900">
+                                                                    {(() => {
+                                                                        const foreignMarriage = user?.profile?.foreign_marriage;
+                                                                        if (!foreignMarriage) return '—';
+                                                                        const translations = {
+                                                                            yes: t('profile.yes'),
+                                                                            no: t('profile.no'),
+                                                                            maybe_discuss: t('profile.maybeDiscuss'),
+                                                                        };
+                                                                        return translations[foreignMarriage] || foreignMarriage;
+                                                                    })()}
+                                                                </div>
+                                                            </div>
+
+                                                            {/* 6. Travail après le mariage */}
+                                                            <div>
+                                                                <div className="mb-1 text-sm text-gray-600">{t('profile.workAfterMarriage')}</div>
+                                                                <div className="font-medium text-gray-900">
+                                                                    {(() => {
+                                                                        const workAfterMarriage = user?.profile?.work_after_marriage;
+                                                                        if (!workAfterMarriage) return '—';
+                                                                        const translations = {
+                                                                            yes: t('profile.yes'),
+                                                                            no: t('profile.no'),
+                                                                            maybe: t('profile.maybe'),
+                                                                            depending_situation: t('profile.dependingOnSituation'),
+                                                                        };
+                                                                        return translations[workAfterMarriage] || workAfterMarriage;
+                                                                    })()}
+                                                                </div>
+                                                            </div>
+                                                        </>
+                                                    )}
                                                 </div>
                                             </CardContent>
                                         </Card>
