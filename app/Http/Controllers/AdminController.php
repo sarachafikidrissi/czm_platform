@@ -282,7 +282,7 @@ class AdminController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255',
-            'duration' => 'required|string|max:255',
+            'duration' => 'required|integer|min:1|max:120',
         ]);
 
         MatrimonialPack::create([

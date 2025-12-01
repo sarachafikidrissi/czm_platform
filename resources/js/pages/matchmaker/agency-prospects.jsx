@@ -969,7 +969,7 @@ export default function AgencyProspects() {
                                 <SelectTrigger className="h-9 w-full"><SelectValue placeholder="Choose a pack" /></SelectTrigger>
                                 <SelectContent>
                                     {matrimonialPacks.map((pack) => (
-                                        <SelectItem key={pack.id} value={String(pack.id)}>{pack.name} - {pack.duration}</SelectItem>
+                                        <SelectItem key={pack.id} value={String(pack.id)}>{pack.name} - {pack.duration} mois</SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>

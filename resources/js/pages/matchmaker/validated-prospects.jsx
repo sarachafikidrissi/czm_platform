@@ -1011,7 +1011,7 @@ export default function ValidatedProspects() {
                                 <SelectContent>
                                     {matrimonialPacks.map((pack) => (
                                         <SelectItem key={pack.id} value={pack.id.toString()}>
-                                            {pack.name} - {pack.duration}
+                                            {pack.name} - {pack.duration} mois
                                         </SelectItem>
                                     ))}
                                 </SelectContent>

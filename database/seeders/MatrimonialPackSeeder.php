@@ -15,19 +15,19 @@ class MatrimonialPackSeeder extends Seeder
         $packs = [
             [
                 'name' => 'Pack Bronze',
-                'duration' => '6 mois',
+                'duration' => 6,
             ],
             [
                 'name' => 'Pack Silver',
-                'duration' => '6 mois dont 1 mois intensif',
+                'duration' => 6,
             ],
             [
                 'name' => 'Pack Gold',
-                'duration' => '12 mois dont 2 mois intensifs',
+                'duration' => 12,
             ],
             [
                 'name' => 'Pack Diamond',
-                'duration' => '12 mois dont 3 mois intensifs',
+                'duration' => 12,
             ],
         ];
 

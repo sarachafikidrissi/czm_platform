@@ -14,8 +14,18 @@ class MatrimonialPack extends Model
         'duration',
     ];
 
+    protected $casts = [
+        'duration' => 'integer',
+    ];
+
     public function profiles()
     {
         return $this->hasMany(Profile::class);
+    }
+
+    // Accessor to format duration for display
+    public function getDurationDisplayAttribute()
+    {
+        return $this->duration . ' mois';
     }
 }

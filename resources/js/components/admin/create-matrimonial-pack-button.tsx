@@ -45,19 +45,22 @@ export default function CreateMatrimonialPackButton({ buttonLabel, className = '
                         {errors.name && <p className="text-red-500 text-sm">{errors.name}</p>}
                     </div>
                     <div className="grid gap-2">
-                        <Label htmlFor="pack-duration">{t('admin.createMatrimonialPack.duration')}</Label>
+                        <Label htmlFor="pack-duration">{t('admin.createMatrimonialPack.duration')} (en mois)</Label>
                         <Input 
                             id="pack-duration" 
+                            type="number"
+                            min="1"
+                            max="120"
                             value={data.duration} 
                             onChange={(e) => setData('duration', e.target.value)} 
-                            placeholder={t('admin.createMatrimonialPack.durationPlaceholder')} 
+                            placeholder="Ex: 6"
                         />
                         {errors.duration && <p className="text-red-500 text-sm">{errors.duration}</p>}
                     </div>
                 </div>
                 <DialogFooter>
                     <Button variant="outline" onClick={() => reset()}>{t('common.cancel')}</Button>
-                    <Button onClick={submit} disabled={processing || !data.name.trim() || !data.duration.trim()}>{processing ? t('admin.createMatrimonialPack.creating') : t('admin.createMatrimonialPack.create')}</Button>
+                    <Button onClick={submit} disabled={processing || !data.name.trim() || !data.duration}>{processing ? t('admin.createMatrimonialPack.creating') : t('admin.createMatrimonialPack.create')}</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>

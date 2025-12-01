@@ -112,8 +112,13 @@ class UserSubscription extends Model
 
     private static function parseDurationToMonths($duration)
     {
-        // Parse duration strings like "6 mois", "12 mois dont 2 mois intensifs"
-        if (preg_match('/(\d+)\s*mois/', $duration, $matches)) {
+        // Duration is now stored as integer, so just return it
+        if (is_numeric($duration)) {
+            return (int) $duration;
+        }
+        
+        // Fallback for old data that might still be string
+        if (is_string($duration) && preg_match('/(\d+)\s*mois/', $duration, $matches)) {
             return (int) $matches[1];
         }
         
