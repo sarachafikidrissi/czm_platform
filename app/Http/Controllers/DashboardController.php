@@ -45,6 +45,12 @@ class DashboardController extends Controller
             $posts = $this->getManagerPosts($user);
         }
         
+        // Matchmaker dashboard data
+        $expiringClients = null;
+        if ($role === 'matchmaker' && $user) {
+            $expiringClients = $this->getExpiringClientsForMatchmaker($user);
+        }
+        
         // User dashboard data
         if ($role === 'user' && $user) {
             $profile = $user->profile;
@@ -86,6 +92,7 @@ class DashboardController extends Controller
             'expiredSubscription' => $expiredSubscription,
             'posts' => $posts,
             'recentPosts' => $recentPosts ?? null,
+            'expiringClients' => $expiringClients,
         ]);
     }
 
@@ -290,6 +297,44 @@ class DashboardController extends Controller
         }
 
         return null;
+    }
+
+    /**
+     * Get clients expiring in 3 days for matchmaker
+     */
+    private function getExpiringClientsForMatchmaker(User $matchmaker): array
+    {
+        $today = Carbon::today();
+        $threeDaysFromNow = $today->copy()->addDays(3);
+        
+        // Get clients assigned to this matchmaker with subscriptions expiring in exactly 3 days
+        $expiringClients = User::role('user')
+            ->where('assigned_matchmaker_id', $matchmaker->id)
+            ->whereIn('status', ['client', 'client_expire'])
+            ->whereHas('subscriptions', function($query) use ($threeDaysFromNow) {
+                $query->where('status', 'active')
+                      ->whereDate('subscription_end', '=', $threeDaysFromNow);
+            })
+            ->with(['subscriptions' => function($query) use ($threeDaysFromNow) {
+                $query->where('status', 'active')
+                      ->whereDate('subscription_end', '=', $threeDaysFromNow)
+                      ->with('matrimonialPack');
+            }])
+            ->get()
+            ->map(function($client) {
+                $subscription = $client->subscriptions->first();
+                return [
+                    'id' => $client->id,
+                    'name' => $client->name,
+                    'email' => $client->email,
+                    'phone' => $client->phone,
+                    'expirationDate' => $subscription ? $subscription->subscription_end->format('d/m/Y') : null,
+                    'packName' => $subscription && $subscription->matrimonialPack ? $subscription->matrimonialPack->name : null,
+                ];
+            })
+            ->toArray();
+        
+        return $expiringClients;
     }
 
     /**

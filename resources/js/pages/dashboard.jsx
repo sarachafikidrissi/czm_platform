@@ -538,7 +538,7 @@ export default function Dashboard() {
                     posts={props?.posts || null}
                 />
             ) : role === 'matchmaker' ? (
-                <MatchMakerDashboardContent />
+                <MatchMakerDashboardContent expiringClients={props?.expiringClients || []} />
             ) : (
                 <UserDashboardContent
                     user={user}

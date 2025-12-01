@@ -382,6 +382,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/create-bill', [\App\Http\Controllers\MatchmakerController::class, 'createBill'])->name('create-bill');
         Route::get('/subscription-form-data/{userId}', [\App\Http\Controllers\MatchmakerController::class, 'getSubscriptionFormData'])->name('subscription-form-data');
         Route::post('/test-subscription-expiration', [\App\Http\Controllers\MatchmakerController::class, 'testSubscriptionExpiration'])->name('test-subscription-expiration');
+        Route::post('/test-three-day-reminder', [\App\Http\Controllers\MatchmakerController::class, 'testThreeDayReminder'])->name('test-three-day-reminder');
         // Matchmaker: activate/deactivate member/client accounts
         Route::post('/users/{user}/activate', [\App\Http\Controllers\AccountStatusController::class, 'activateMemberClient'])->name('users.activate');
         Route::post('/users/{user}/deactivate', [\App\Http\Controllers\AccountStatusController::class, 'deactivateMemberClient'])->name('users.deactivate');

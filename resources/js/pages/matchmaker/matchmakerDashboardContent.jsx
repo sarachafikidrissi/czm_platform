@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
-import { router, usePage } from '@inertiajs/react';
+import { router, usePage, Link } from '@inertiajs/react';
 import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AlertCircle, Clock } from 'lucide-react';
 import {
     BarChart,
     Bar,
@@ -48,7 +50,7 @@ const COLORS = {
     chart5: '#339966',
 };
 
-function MatchMakerDashboardContent() {
+function MatchMakerDashboardContent({ expiringClients = [] }) {
     const { t } = useTranslation();
     const { props } = usePage();
     const [statistics, setStatistics] = useState([]);
@@ -156,6 +158,32 @@ function MatchMakerDashboardContent() {
                     </div>
                 </div>
             </div>
+
+            {/* Expiring Clients Alert */}
+            {expiringClients && expiringClients.length > 0 && (
+                <Alert className="bg-warning-light border-warning">
+                    <AlertCircle className="h-4 w-4 text-warning" />
+                    <AlertDescription>
+                        <div className="space-y-2">
+                            <div className="font-semibold text-warning-foreground">
+                                {t('dashboard.expiringClientsAlert', { count: expiringClients.length })}
+                            </div>
+                            <div className="space-y-1">
+                                {expiringClients.map((client) => (
+                                    <div key={client.id} className="text-sm text-warning-foreground">
+                                        <strong>{client.name}</strong> - {t('dashboard.expiresOn')} {client.expirationDate}
+                                        {client.packName && ` (${client.packName})`}
+                                        {client.email && ` - ${client.email}`}
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="text-xs text-warning-foreground mt-2">
+                                {t('dashboard.contactClientsReminder')}
+                            </div>
+                        </div>
+                    </AlertDescription>
+                </Alert>
+            )}
 
             {/* Filters */}
             <Card>

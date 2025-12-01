@@ -617,6 +617,7 @@ class MatchmakerController extends Controller
         // If status is 'rappeler', show only expired clients marked as "A rappeler"
         // If status is 'en_attente_paiement', show members OR clients (including expired) with unpaid bills
         // If status is 'client_expire', show only expired clients who DON'T have unpaid bills (those with unpaid bills appear in "en attente de paiement")
+        // If status is 'expiring_in_3_days', show clients with active subscriptions expiring within 3 days
         if ($status && $status !== 'all') {
             if ($status === 'rappeler') {
                 // Show only expired clients marked as "A rappeler"
@@ -634,6 +635,16 @@ class MatchmakerController extends Controller
                 $query->where('status', 'client_expire')
                       ->whereDoesntHave('bills', function($billQuery) {
                           $billQuery->where('status', 'unpaid');
+                      });
+            } elseif ($status === 'expiring_in_3_days') {
+                // Show clients with active subscriptions expiring within 3 days (0-3 days)
+                $today = \Carbon\Carbon::today();
+                $threeDaysFromNow = $today->copy()->addDays(3);
+                $query->whereIn('status', ['client', 'client_expire'])
+                      ->whereHas('subscriptions', function($subQuery) use ($today, $threeDaysFromNow) {
+                          $subQuery->where('status', 'active')
+                                   ->whereDate('subscription_end', '>=', $today)
+                                   ->whereDate('subscription_end', '<=', $threeDaysFromNow);
                       });
             } else {
                 $query->where('status', $status);
@@ -663,6 +674,32 @@ class MatchmakerController extends Controller
         // Add has_bill flag to each prospect
         $prospects->each(function($prospect) {
             $prospect->has_bill = $prospect->bills->where('status', '!=', 'paid')->isNotEmpty();
+        });
+
+        // Add expiring_in_3_days flag to each prospect
+        $today = \Carbon\Carbon::today();
+        $threeDaysFromNow = $today->copy()->addDays(3);
+        $prospects->each(function($prospect) use ($today, $threeDaysFromNow) {
+            $prospect->expiring_in_3_days = false;
+            $prospect->expiration_date = null;
+            $prospect->expiring_pack_name = null;
+            
+            // Check if user has an active subscription expiring within 3 days (0-3 days)
+            $activeSubscription = $prospect->subscriptions
+                ->where('status', 'active')
+                ->first();
+            
+            if ($activeSubscription && $activeSubscription->subscription_end) {
+                $expirationDate = \Carbon\Carbon::parse($activeSubscription->subscription_end);
+                $daysUntilExpiration = $today->diffInDays($expirationDate, false);
+                
+                // Check if subscription expires within 3 days (0 to 3 days)
+                if ($daysUntilExpiration >= 0 && $daysUntilExpiration <= 3) {
+                    $prospect->expiring_in_3_days = true;
+                    $prospect->expiration_date = $expirationDate->format('d/m/Y');
+                    $prospect->expiring_pack_name = $activeSubscription->matrimonialPack->name ?? null;
+                }
+            }
         });
 
         // Load pending transfer requests for each prospect
@@ -1341,6 +1378,70 @@ class MatchmakerController extends Controller
         if ($statusChanged) {
             $message .= "Status changed to 'client_expire'. ";
         }
+        if ($emailSent) {
+            $message .= "Email sent successfully to {$user->email}.";
+        } elseif ($emailError) {
+            $message .= "Email failed: {$emailError}";
+        }
+
+        return redirect()->back()->with('success', $message);
+    }
+
+    /**
+     * Test 3-day expiration reminder for a user (sets end date to 3 days from now)
+     */
+    public function testThreeDayReminder(Request $request)
+    {
+        $request->validate([
+            'user_id' => 'required|exists:users,id',
+        ]);
+
+        $me = Auth::user();
+        $roleName = null;
+        if ($me) {
+            $roleName = \Illuminate\Support\Facades\DB::table('model_has_roles')
+                ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+                ->where('model_has_roles.model_id', $me->id)
+                ->value('roles.name');
+        }
+
+        if (!in_array($roleName, ['matchmaker', 'manager', 'admin'])) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $user = User::findOrFail($request->user_id);
+        
+        // Find active subscription
+        $subscription = \App\Models\UserSubscription::where('user_id', $user->id)
+            ->where('status', 'active')
+            ->with(['matrimonialPack', 'assignedMatchmaker'])
+            ->latest()
+            ->first();
+
+        if (!$subscription) {
+            return redirect()->back()->with('error', 'No active subscription found for this user.');
+        }
+
+        // Set subscription to expire in 3 days
+        $threeDaysFromNow = \Carbon\Carbon::today()->addDays(3);
+        $subscription->update(['subscription_end' => $threeDaysFromNow]);
+
+        // Send 3-day reminder email
+        $emailSent = false;
+        $emailError = null;
+        
+        try {
+            $daysRemaining = \Carbon\Carbon::today()->diffInDays($subscription->subscription_end, false);
+            \Illuminate\Support\Facades\Mail::to($user->email)->send(
+                new \App\Mail\SubscriptionReminderEmail($subscription, $daysRemaining)
+            );
+            $emailSent = true;
+        } catch (\Exception $e) {
+            $emailError = $e->getMessage();
+        }
+
+        $message = "Test 3-day reminder completed: ";
+        $message .= "Subscription end date set to {$threeDaysFromNow->format('d/m/Y')}. ";
         if ($emailSent) {
             $message .= "Email sent successfully to {$user->email}.";
         } elseif ($emailError) {

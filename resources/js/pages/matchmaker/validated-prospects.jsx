@@ -13,7 +13,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import { useState, useEffect, useMemo } from 'react';
-import { LayoutGrid, Table2, Mail, MapPin, CheckCircle, Pencil, TestTube, Link as LinkIcon, Copy, Check, Search, Phone, ArrowRightLeft } from 'lucide-react';
+import { LayoutGrid, Table2, Mail, MapPin, CheckCircle, Pencil, TestTube, Link as LinkIcon, Copy, Check, Search, Phone, ArrowRightLeft, AlertCircle } from 'lucide-react';
 
 export default function ValidatedProspects() {
     const { t } = useTranslation();
@@ -32,7 +32,9 @@ export default function ValidatedProspects() {
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 24;
     const [testExpirationOpen, setTestExpirationOpen] = useState(false);
+    const [testThreeDayReminderOpen, setTestThreeDayReminderOpen] = useState(false);
     const [testUser, setTestUser] = useState(null);
+    const [testThreeDayUser, setTestThreeDayUser] = useState(null);
     const [activateDialogOpen, setActivateDialogOpen] = useState(false);
     const [deactivateDialogOpen, setDeactivateDialogOpen] = useState(false);
     const [selectedUserForStatus, setSelectedUserForStatus] = useState(null);
@@ -177,6 +179,26 @@ export default function ValidatedProspects() {
             },
             onError: () => {
                 setLoading(prev => ({ ...prev, [`test_${testUser.id}`]: false }));
+            }
+        });
+    };
+
+    const confirmTestThreeDayReminder = () => {
+        if (!testThreeDayUser) return;
+        
+        setLoading(prev => ({ ...prev, [`test_3day_${testThreeDayUser.id}`]: true }));
+        
+        router.post('/staff/test-three-day-reminder', {
+            user_id: testThreeDayUser.id
+        }, {
+            onSuccess: () => {
+                setLoading(prev => ({ ...prev, [`test_3day_${testThreeDayUser.id}`]: false }));
+                setTestThreeDayReminderOpen(false);
+                setTestThreeDayUser(null);
+                router.reload({ only: ['prospects'] });
+            },
+            onError: () => {
+                setLoading(prev => ({ ...prev, [`test_3day_${testThreeDayUser.id}`]: false }));
             }
         });
     };
@@ -446,6 +468,15 @@ export default function ValidatedProspects() {
                                 <TestTube className="w-4 h-4" />
                                 Test Expiration
                             </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setTestThreeDayReminderOpen(true)}
+                                className="flex items-center gap-2 border-warning text-warning hover:bg-warning-light"
+                            >
+                                <TestTube className="w-4 h-4" />
+                                Test 3-Day Reminder
+                            </Button>
                         </div>
                         
                         {/* Pagination Info */}
@@ -499,6 +530,7 @@ export default function ValidatedProspects() {
                                     <SelectItem value="member">Member</SelectItem>
                                     <SelectItem value="client">Client</SelectItem>
                                     <SelectItem value="client_expire">Client Expiré</SelectItem>
+                                    <SelectItem value="expiring_in_3_days">Expire dans 3 jours</SelectItem>
                                     <SelectItem value="rappeler">A rappeler</SelectItem>
                                     <SelectItem value="en_attente_paiement">En attente de paiement</SelectItem>
                                 </SelectContent>
@@ -541,6 +573,11 @@ export default function ValidatedProspects() {
                                                     A rappeler
                                                 </Badge>
                                             )}
+                                            {u.expiring_in_3_days && (
+                                                <Badge className="bg-warning text-warning-foreground text-xs px-2 py-1">
+                                                    Expire dans 3 jours
+                                                </Badge>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -563,6 +600,21 @@ export default function ValidatedProspects() {
                                         <CheckCircle className="w-4 h-4 mt-0.5 flex-shrink-0 text-green-600" />
                                         <span>Approved by {u.approvedBy?.name || u.approved_by?.name || 'Unknown'}</span>
                                     </div>
+                                    
+                                    {u.expiring_in_3_days && (
+                                        <div className="flex items-start gap-2 text-sm bg-warning-light border border-warning rounded-lg p-2">
+                                            <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0 text-warning" />
+                                            <div className="flex flex-col">
+                                                <span className="font-semibold text-warning-foreground">Expire dans 3 jours</span>
+                                                {u.expiration_date && (
+                                                    <span className="text-xs text-warning-foreground">Date: {u.expiration_date}</span>
+                                                )}
+                                                {u.expiring_pack_name && (
+                                                    <span className="text-xs text-warning-foreground">Pack: {u.expiring_pack_name}</span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
                                     
                                     <div className="pt-2 space-y-2">
                                         {u.profile?.account_status === 'desactivated' ? (
@@ -687,6 +739,7 @@ export default function ValidatedProspects() {
                                             <TableHead className="hidden lg:table-cell">City</TableHead>
                                             <TableHead>Step</TableHead>
                                             <TableHead>Status</TableHead>
+                                            <TableHead>Expiring</TableHead>
                                             <TableHead>Account Status</TableHead>
                                             <TableHead>Actions</TableHead>
                                         </TableRow>
@@ -722,6 +775,27 @@ export default function ValidatedProspects() {
                                                             </Badge>
                                                         )}
                                                     </div>
+                                                </TableCell>
+                                                <TableCell>
+                                                    {u.expiring_in_3_days ? (
+                                                        <div className="flex flex-col gap-1">
+                                                            <Badge className="bg-warning text-warning-foreground w-fit text-xs">
+                                                                Expire dans 3 jours
+                                                            </Badge>
+                                                            {u.expiration_date && (
+                                                                <span className="text-xs text-muted-foreground">
+                                                                    {u.expiration_date}
+                                                                </span>
+                                                            )}
+                                                            {u.expiring_pack_name && (
+                                                                <span className="text-xs text-muted-foreground">
+                                                                    {u.expiring_pack_name}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-muted-foreground text-xs">-</span>
+                                                    )}
                                                 </TableCell>
                                                 <TableCell>
                                                     <Badge variant={u.profile?.account_status === 'desactivated' ? 'destructive' : 'default'}>
@@ -1099,6 +1173,79 @@ export default function ValidatedProspects() {
                                 className="bg-warning hover:opacity-90"
                             >
                                 {loading[`test_${testUser?.id}`] ? 'Testing...' : 'Test Expiration'}
+                            </Button>
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Test 3-Day Reminder Dialog */}
+            <Dialog open={testThreeDayReminderOpen} onOpenChange={setTestThreeDayReminderOpen}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Test 3-Day Reminder</DialogTitle>
+                        <DialogDescription>
+                            Select a client to test 3-day expiration reminder. This will:
+                            <ul className="list-disc list-inside mt-2 space-y-1 text-sm">
+                                <li>Set subscription end date to 3 days from now</li>
+                                <li>Send reminder email to the client</li>
+                                <li>Display alert in matchmaker dashboard</li>
+                            </ul>
+                        </DialogDescription>
+                    </DialogHeader>
+                    
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="test-3day-user">Select Client</Label>
+                            <Select 
+                                value={testThreeDayUser?.id?.toString() || ''} 
+                                onValueChange={(value) => {
+                                    const user = prospects.find(u => u.id.toString() === value);
+                                    setTestThreeDayUser(user);
+                                }}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select a client to test" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {prospects
+                                        .filter(u => (u.status === 'client' || u.status === 'client_expire') && u.subscriptions?.some(s => s.status === 'active'))
+                                        .map((user) => {
+                                            const activeSub = user.subscriptions?.find(s => s.status === 'active');
+                                            return (
+                                                <SelectItem key={user.id} value={user.id.toString()}>
+                                                    {user.name} - Expires: {activeSub?.subscription_end ? new Date(activeSub.subscription_end).toLocaleDateString('fr-FR') : 'N/A'}
+                                                </SelectItem>
+                                            );
+                                        })}
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        {testThreeDayUser && (
+                            <div className="bg-warning-light border border-warning rounded-lg p-3">
+                                <p className="text-sm text-warning-foreground">
+                                    <strong>Warning:</strong> This will modify the subscription end date for <strong>{testThreeDayUser.name}</strong> to 3 days from now and send a reminder email. This is a test action.
+                                </p>
+                            </div>
+                        )}
+
+                        <div className="flex justify-end space-x-2 pt-4">
+                            <Button
+                                variant="outline"
+                                onClick={() => {
+                                    setTestThreeDayReminderOpen(false);
+                                    setTestThreeDayUser(null);
+                                }}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                onClick={confirmTestThreeDayReminder}
+                                disabled={!testThreeDayUser || loading[`test_3day_${testThreeDayUser?.id}`]}
+                                className="bg-warning hover:opacity-90"
+                            >
+                                {loading[`test_3day_${testThreeDayUser?.id}`] ? 'Testing...' : 'Test 3-Day Reminder'}
                             </Button>
                         </div>
                     </div>

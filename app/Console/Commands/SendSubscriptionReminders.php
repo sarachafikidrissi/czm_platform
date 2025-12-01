@@ -52,12 +52,15 @@ class SendSubscriptionReminders extends Command
             try {
                 $daysRemaining = $today->diffInDays($subscription->subscription_end, false);
                 
-                Mail::to($subscription->user->email)->send(
-                    new SubscriptionReminderEmail($subscription, $daysRemaining)
-                );
-                
-                $sent++;
-                $this->line("- Sent reminder to {$subscription->user->name} ({$subscription->user->email}) - {$daysRemaining} days remaining");
+                // Only send email if exactly the specified number of days remaining
+                if ($daysRemaining == $days) {
+                    Mail::to($subscription->user->email)->send(
+                        new SubscriptionReminderEmail($subscription, $daysRemaining)
+                    );
+                    
+                    $sent++;
+                    $this->line("- Sent reminder to {$subscription->user->name} ({$subscription->user->email}) - {$daysRemaining} days remaining");
+                }
             } catch (\Exception $e) {
                 $this->error("Failed to send reminder to {$subscription->user->email}: " . $e->getMessage());
             }
