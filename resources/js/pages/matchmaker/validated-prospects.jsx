@@ -422,6 +422,7 @@ export default function ValidatedProspects() {
                                     <SelectItem value="client">Client</SelectItem>
                                     <SelectItem value="client_expire">Client Expiré</SelectItem>
                                     <SelectItem value="rappeler">A rappeler</SelectItem>
+                                    <SelectItem value="en_attente_paiement">En attente de paiement</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>

@@ -614,11 +614,18 @@ class MatchmakerController extends Controller
 
         // Apply status filter - if status is 'all', show all validated prospects (member, client, client_expire)
         // If status is 'rappeler', show only expired clients marked as "A rappeler"
+        // If status is 'en_attente_paiement', show only members with unpaid bills
         if ($status && $status !== 'all') {
             if ($status === 'rappeler') {
                 // Show only expired clients marked as "A rappeler"
                 $query->where('status', 'client_expire')
                       ->where('to_rappeler', true);
+            } elseif ($status === 'en_attente_paiement') {
+                // Show only members with unpaid bills
+                $query->where('status', 'member')
+                      ->whereHas('bills', function($q) {
+                          $q->where('status', 'unpaid');
+                      });
             } else {
                 $query->where('status', $status);
             }
