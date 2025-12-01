@@ -13,7 +13,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import { useState, useEffect, useMemo } from 'react';
-import { LayoutGrid, Table2, Mail, MapPin, CheckCircle, Pencil, TestTube, Link as LinkIcon, Copy, Check, Search } from 'lucide-react';
+import { LayoutGrid, Table2, Mail, MapPin, CheckCircle, Pencil, TestTube, Link as LinkIcon, Copy, Check, Search, Phone } from 'lucide-react';
 
 export default function ValidatedProspects() {
     const { t } = useTranslation();
@@ -295,6 +295,42 @@ export default function ValidatedProspects() {
             router.visit(`/profile/${selectedUserForInfo.username || selectedUserForInfo.id}`);
         }
     };
+    
+    // Check if user can mark as "A rappeler" (only for expired clients)
+    const canMarkAsRappeler = (user) => {
+        if (!auth?.user || !user) return false;
+        
+        // Only allow for expired clients
+        if (user.status !== 'client_expire') return false;
+        
+        const userId = auth?.user?.id;
+        const userRole = auth?.user?.roles?.[0]?.name || 'user';
+        
+        if (userRole === 'admin') return true;
+        
+        // For matchmakers: can mark if they validated the user or if assigned to them
+        if (userRole === 'matchmaker') {
+            return user.approved_by === userId || user.assigned_matchmaker_id === userId;
+        }
+        
+        // For managers: can mark if user is from their agency or they validated them
+        if (userRole === 'manager') {
+            return user.agency_id === auth?.user?.agency_id || user.validated_by_manager_id === userId;
+        }
+        
+        return false;
+    };
+    
+    const handleMarkAsRappeler = (user) => {
+        router.post(`/staff/prospects/${user.id}/rappeler`, {}, {
+            onSuccess: () => {
+                router.reload({ only: ['prospects'] });
+            },
+            onError: () => {
+                // Error handled by redirect
+            }
+        });
+    };
 
     return (
         <AppLayout>
@@ -376,17 +412,19 @@ export default function ValidatedProspects() {
                     <div className="flex flex-wrap items-center gap-3 bg-card rounded-lg p-3 border">
                         <div className="flex items-center gap-2">
                             <Label className="text-sm text-muted-foreground">Status</Label>
-                            <Select value={status || 'all'} onValueChange={(v) => router.visit(`/staff/validated-prospects?status=${v}`, { preserveScroll: true, preserveState: true, replace: true })}>
+                            <Select value={status || 'all'} onValueChange={(v) => {
+                                router.visit(`/staff/validated-prospects?status=${v}`, { preserveScroll: true, preserveState: true, replace: true });
+                            }}>
                                 <SelectTrigger className="h-9 w-[160px]"><SelectValue /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="all">All</SelectItem>
                                     <SelectItem value="member">Member</SelectItem>
                                     <SelectItem value="client">Client</SelectItem>
                                     <SelectItem value="client_expire">Client Expiré</SelectItem>
+                                    <SelectItem value="rappeler">A rappeler</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
-                        <Separator orientation="vertical" className="h-6" />
                     </div>
                 </div>
 
@@ -415,9 +453,16 @@ export default function ValidatedProspects() {
                                                 Confirmed
                                             </Badge>
                                         </div>
-                                        <Badge className={`${getStatusInfo(u.status).className} text-xs px-2 py-1`}>
-                                            {getStatusInfo(u.status).label}
-                                        </Badge>
+                                        <div className="flex gap-2">
+                                            <Badge className={`${getStatusInfo(u.status).className} text-xs px-2 py-1`}>
+                                                {getStatusInfo(u.status).label}
+                                            </Badge>
+                                            {u.to_rappeler && (
+                                                <Badge className="bg-warning text-warning-foreground text-xs px-2 py-1">
+                                                    A rappeler
+                                                </Badge>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                                 <CardContent className="p-4 space-y-3">
@@ -466,6 +511,17 @@ export default function ValidatedProspects() {
                                                 }}
                                             >
                                                 {t('staff.deactivate')}
+                                            </Button>
+                                        )}
+                                        {canMarkAsRappeler(u) && !u.to_rappeler && (
+                                            <Button
+                                                variant="default"
+                                                size="sm"
+                                                className="w-full bg-warning hover:opacity-90"
+                                                onClick={() => handleMarkAsRappeler(u)}
+                                            >
+                                                <Phone className="w-4 h-4 mr-1" />
+                                                A rappeler
                                             </Button>
                                         )}
                                         {(u.status === 'member' || u.status === 'client_expire') && !u.has_bill && (
@@ -558,6 +614,11 @@ export default function ValidatedProspects() {
                                                         <Badge className={`${getStatusInfo(u.status).className} w-fit text-xs`}>
                                                             {getStatusInfo(u.status).label}
                                                         </Badge>
+                                                        {u.to_rappeler && (
+                                                            <Badge className="bg-warning text-warning-foreground w-fit text-xs">
+                                                                A rappeler
+                                                            </Badge>
+                                                        )}
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>
@@ -592,6 +653,20 @@ export default function ValidatedProspects() {
                                                                 }}
                                                             >
                                                                 {t('staff.deactivate')}
+                                                            </Button>
+                                                        )}
+                                                        {canMarkAsRappeler(u) && !u.to_rappeler && (
+                                                            <Button
+                                                                variant="default"
+                                                                size="sm"
+                                                                className="bg-warning hover:opacity-90"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleMarkAsRappeler(u);
+                                                                }}
+                                                            >
+                                                                <Phone className="w-4 h-4 mr-1" />
+                                                                A rappeler
                                                             </Button>
                                                         )}
                                                         {(u.status === 'member' || u.status === 'client_expire') && !u.has_bill && (

@@ -457,16 +457,14 @@ class MatchmakerController extends Controller
 
     public function markAsRappeler(Request $request, $id)
     {
-        $prospect = User::findOrFail($id);
+        $user = User::findOrFail($id);
         
-        // Check if prospect was previously rejected
-        if (!$prospect->rejection_reason) {
-            return redirect()->back()->with('error', 'Seuls les prospects rejetés peuvent être marqués comme "A rappeler".');
-        }
-
-        // Check if prospect status is still 'prospect'
-        if ($prospect->status !== 'prospect') {
-            return redirect()->back()->with('error', 'Ce prospect n\'est plus un prospect.');
+        // Check if user is a rejected prospect OR an expired client
+        $isRejectedProspect = $user->rejection_reason && $user->status === 'prospect';
+        $isExpiredClient = $user->status === 'client_expire';
+        
+        if (!$isRejectedProspect && !$isExpiredClient) {
+            return redirect()->back()->with('error', 'Seuls les prospects rejetés ou les clients expirés peuvent être marqués comme "A rappeler".');
         }
 
         $me = Auth::user();
@@ -479,36 +477,49 @@ class MatchmakerController extends Controller
             ->where('model_has_roles.model_id', $me->id)
             ->value('roles.name');
 
-        // Check authorization: admin, assigned matchmaker, or manager assigned to the prospect
+        // Check authorization: admin, assigned matchmaker, or manager assigned to the user
         $canMarkRappeler = false;
         
         if ($roleName === 'admin') {
             $canMarkRappeler = true;
         } elseif ($roleName === 'matchmaker') {
-            // Matchmaker can mark if they are assigned to the prospect OR if prospect is from their agency and was added by manager
-            if ($prospect->assigned_matchmaker_id === $me->id) {
-                $canMarkRappeler = true;
+            // For rejected prospects: matchmaker can mark if assigned to them OR if prospect is from their agency
+            if ($isRejectedProspect) {
+                if ($user->assigned_matchmaker_id === $me->id) {
+                    $canMarkRappeler = true;
+                }
+                if ($user->agency_id === $me->agency_id && $user->assigned_matchmaker_id === null) {
+                    $canMarkRappeler = true;
+                }
             }
-            if ($prospect->agency_id === $me->agency_id && $prospect->assigned_matchmaker_id === null) {
-                $canMarkRappeler = true;
+            // For expired clients: matchmaker can mark if they validated them OR if assigned to them
+            if ($isExpiredClient) {
+                if ($user->approved_by === $me->id || $user->assigned_matchmaker_id === $me->id) {
+                    $canMarkRappeler = true;
+                }
             }
         } elseif ($roleName === 'manager') {
-            // Manager can mark if the prospect is from their agency
-            if ($prospect->agency_id === $me->agency_id) {
+            // Manager can mark if the user is from their agency
+            if ($user->agency_id === $me->agency_id) {
+                $canMarkRappeler = true;
+            }
+            // Or if they validated the user
+            if ($user->validated_by_manager_id === $me->id) {
                 $canMarkRappeler = true;
             }
         }
 
         if (!$canMarkRappeler) {
-            abort(403, 'Vous n\'êtes pas autorisé à marquer ce prospect comme "A rappeler".');
+            abort(403, 'Vous n\'êtes pas autorisé à marquer cet utilisateur comme "A rappeler".');
         }
 
-        // Mark prospect as "A rappeler"
-        $prospect->update([
+        // Mark user as "A rappeler"
+        $user->update([
             'to_rappeler' => true,
         ]);
 
-        return redirect()->back()->with('success', 'Prospect marqué comme "A rappeler" avec succès.');
+        $userType = $isRejectedProspect ? 'Prospect' : 'Utilisateur';
+        return redirect()->back()->with('success', $userType . ' marqué comme "A rappeler" avec succès.');
     }
 
     public function validatedProspects(Request $request)
@@ -535,7 +546,7 @@ class MatchmakerController extends Controller
             abort(403, 'You must be linked to an agency to access prospects.');
         }
 
-        $status = $request->input('status', 'all'); // all|member|client|client_expire
+        $status = $request->input('status', 'all'); // all|member|client|client_expire|rappeler
         $query = User::role('user')
             ->whereIn('status', ['member','client','client_expire'])
             ->with(['profile', 'assignedMatchmaker']);
@@ -602,8 +613,15 @@ class MatchmakerController extends Controller
         }
 
         // Apply status filter - if status is 'all', show all validated prospects (member, client, client_expire)
+        // If status is 'rappeler', show only expired clients marked as "A rappeler"
         if ($status && $status !== 'all') {
-            $query->where('status', $status);
+            if ($status === 'rappeler') {
+                // Show only expired clients marked as "A rappeler"
+                $query->where('status', 'client_expire')
+                      ->where('to_rappeler', true);
+            } else {
+                $query->where('status', $status);
+            }
         }
 
         $prospects = $query->with([
@@ -620,6 +638,11 @@ class MatchmakerController extends Controller
             'subscriptions.matrimonialPack',
             'subscriptions.assignedMatchmaker'
         ])->get();
+        
+        // Ensure to_rappeler is included in the response
+        $prospects->each(function($prospect) {
+            $prospect->to_rappeler = $prospect->to_rappeler ?? false;
+        });
 
         // Add has_bill flag to each prospect
         $prospects->each(function($prospect) {
