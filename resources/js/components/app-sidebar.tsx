@@ -6,7 +6,7 @@ import { GlobalSearch } from '@/components/global-search';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { CalendarHeart, Flame, HeartHandshake, Images, LayoutGrid, User, UserRoundSearch, Users, UserCheck, Plus, ShoppingCart, CreditCard, RotateCcw, Building2, Target } from 'lucide-react';
+import { CalendarHeart, Flame, HeartHandshake, Images, LayoutGrid, User, UserRoundSearch, Users, UserCheck, Plus, ShoppingCart, CreditCard, RotateCcw, Building2, Target, ArrowRightLeft } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 const getMainNavItems = (t: (key: string) => string, role: string): NavItem[] => [
@@ -145,6 +145,12 @@ const getMainNavItems = (t: (key: string) => string, role: string): NavItem[] =>
         url: '/staff/reactivation-requests',
         icon: RotateCcw,
         roles: ['matchmaker'],
+    },
+    {
+        title: t('navigation.transferRequests', { defaultValue: 'Transfer Requests' }),
+        url: '/staff/transfer-requests',
+        icon: ArrowRightLeft,
+        roles: ['matchmaker', 'manager'],
     },
     {
         title: t('navigation.agencies'),

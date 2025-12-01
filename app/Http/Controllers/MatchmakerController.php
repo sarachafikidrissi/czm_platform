@@ -7,6 +7,7 @@ use App\Models\Bill;
 use App\Models\MatrimonialPack;
 use App\Models\MatchmakerNote;
 use App\Models\MatchmakerEvaluation;
+use App\Models\TransferRequest;
 use App\Mail\BillEmail;
 use App\Mail\ProspectCredentialsMail;
 use Illuminate\Http\Request;
@@ -656,6 +657,27 @@ class MatchmakerController extends Controller
             $prospect->has_bill = $prospect->bills->where('status', '!=', 'paid')->isNotEmpty();
         });
 
+        // Load pending transfer requests for each prospect
+        $prospectIds = $prospects->pluck('id')->toArray();
+        $pendingTransferRequests = TransferRequest::whereIn('user_id', $prospectIds)
+            ->where('status', 'pending')
+            ->where('from_matchmaker_id', $me->id)
+            ->get()
+            ->keyBy('user_id');
+        
+        // Add pending transfer request info to each prospect
+        $prospects->each(function ($prospect) use ($pendingTransferRequests) {
+            $transferRequest = $pendingTransferRequests->get($prospect->id);
+            $prospect->pending_transfer_request = $transferRequest ? [
+                'id' => $transferRequest->id,
+                'to_matchmaker_id' => $transferRequest->to_matchmaker_id,
+                'to_matchmaker' => $transferRequest->toMatchmaker ? [
+                    'id' => $transferRequest->toMatchmaker->id,
+                    'name' => $transferRequest->toMatchmaker->name,
+                ] : null,
+            ] : null;
+        });
+
         return Inertia::render('matchmaker/validated-prospects', [
             'prospects' => $prospects,
             'status' => $status ?: 'all',
@@ -1046,6 +1068,27 @@ class MatchmakerController extends Controller
 
         $prospects = $query->get(['id','name','email','phone','country','city','status','agency_id','assigned_matchmaker_id','rejection_reason','rejected_by','rejected_at','to_rappeler','created_at']);
         $prospects->load(['profile', 'assignedMatchmaker', 'agency']);
+        
+        // Load pending transfer requests for each prospect
+        $prospectIds = $prospects->pluck('id')->toArray();
+        $pendingTransferRequests = TransferRequest::whereIn('user_id', $prospectIds)
+            ->where('status', 'pending')
+            ->where('from_matchmaker_id', $me->id)
+            ->get()
+            ->keyBy('user_id');
+        
+        // Add pending transfer request info to each prospect
+        $prospects->each(function ($prospect) use ($pendingTransferRequests) {
+            $transferRequest = $pendingTransferRequests->get($prospect->id);
+            $prospect->pending_transfer_request = $transferRequest ? [
+                'id' => $transferRequest->id,
+                'to_matchmaker_id' => $transferRequest->to_matchmaker_id,
+                'to_matchmaker' => $transferRequest->toMatchmaker ? [
+                    'id' => $transferRequest->toMatchmaker->id,
+                    'name' => $transferRequest->toMatchmaker->name,
+                ] : null,
+            ] : null;
+        });
         
         $services = [];
         if (\Illuminate\Support\Facades\Schema::hasTable('services')) {
@@ -1897,5 +1940,231 @@ class MatchmakerController extends Controller
             $fileContent = file_get_contents($file->getRealPath());
             $profile->identity_card_front_hash = hash_hmac('sha256', $fileContent, $appKey);
         }
+    }
+
+    /**
+     * Get list of all matchmakers for transfer selection
+     */
+    public function getMatchmakersForTransfer()
+    {
+        $me = Auth::user();
+        if (!$me) {
+            abort(403, 'Unauthorized.');
+        }
+
+        $roleName = \Illuminate\Support\Facades\DB::table('model_has_roles')
+            ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+            ->where('model_has_roles.model_id', $me->id)
+            ->value('roles.name');
+
+        if (!in_array($roleName, ['matchmaker', 'manager', 'admin'])) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        // Get all approved matchmakers, excluding the current user
+        $matchmakers = User::role('matchmaker')
+            ->where('approval_status', 'approved')
+            ->where('id', '!=', $me->id)
+            ->with('agency:id,name')
+            ->select('id', 'name', 'email', 'phone', 'agency_id')
+            ->get();
+
+        return response()->json($matchmakers);
+    }
+
+    /**
+     * Create a transfer request
+     */
+    public function createTransferRequest(Request $request)
+    {
+        $me = Auth::user();
+        if (!$me) {
+            abort(403, 'Unauthorized.');
+        }
+
+        $roleName = \Illuminate\Support\Facades\DB::table('model_has_roles')
+            ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+            ->where('model_has_roles.model_id', $me->id)
+            ->value('roles.name');
+
+        if (!in_array($roleName, ['matchmaker', 'manager', 'admin'])) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'to_matchmaker_id' => 'required|exists:users,id',
+        ]);
+
+        $user = User::findOrFail($request->user_id);
+        $toMatchmaker = User::findOrFail($request->to_matchmaker_id);
+
+        // Verify the to_matchmaker_id is actually a matchmaker
+        if (!$toMatchmaker->hasRole('matchmaker')) {
+            return redirect()->back()->with('error', 'Selected user is not a matchmaker.');
+        }
+
+        // Check if user is assigned to current matchmaker
+        if ($roleName === 'matchmaker' && $user->assigned_matchmaker_id !== $me->id) {
+            abort(403, 'You can only transfer users assigned to you.');
+        }
+
+        // Check if there's already a pending transfer request for this user
+        $existingRequest = TransferRequest::where('user_id', $user->id)
+            ->where('status', 'pending')
+            ->first();
+
+        if ($existingRequest) {
+            return redirect()->back()->with('error', 'A pending transfer request already exists for this user.');
+        }
+
+        // Create transfer request
+        $transferRequest = TransferRequest::create([
+            'user_id' => $user->id,
+            'from_matchmaker_id' => $me->id,
+            'to_matchmaker_id' => $toMatchmaker->id,
+            'status' => 'pending',
+        ]);
+
+        return redirect()->back()->with('success', 'Transfer request sent successfully.');
+    }
+
+    /**
+     * Get transfer requests for the current matchmaker
+     */
+    public function getTransferRequests(Request $request)
+    {
+        $me = Auth::user();
+        if (!$me) {
+            abort(403, 'Unauthorized.');
+        }
+
+        $roleName = \Illuminate\Support\Facades\DB::table('model_has_roles')
+            ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+            ->where('model_has_roles.model_id', $me->id)
+            ->value('roles.name');
+
+        if (!in_array($roleName, ['matchmaker', 'manager', 'admin'])) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        // Get requests where current user is the recipient (to_matchmaker_id)
+        $receivedRequests = TransferRequest::where('to_matchmaker_id', $me->id)
+            ->where('status', 'pending')
+            ->with([
+                'user.profile', 
+                'user.agency',
+                'fromMatchmaker', 
+                'fromMatchmaker.agency',
+                'user.assignedMatchmaker'
+            ])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        // Get requests sent by current user
+        $sentRequests = TransferRequest::where('from_matchmaker_id', $me->id)
+            ->with([
+                'user.profile', 
+                'user.agency',
+                'toMatchmaker', 
+                'toMatchmaker.agency',
+                'user.assignedMatchmaker'
+            ])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return Inertia::render('matchmaker/transfer-requests', [
+            'receivedRequests' => $receivedRequests,
+            'sentRequests' => $sentRequests,
+        ]);
+    }
+
+    /**
+     * Accept a transfer request
+     */
+    public function acceptTransferRequest(Request $request, $id)
+    {
+        $me = Auth::user();
+        if (!$me) {
+            abort(403, 'Unauthorized.');
+        }
+
+        $roleName = \Illuminate\Support\Facades\DB::table('model_has_roles')
+            ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+            ->where('model_has_roles.model_id', $me->id)
+            ->value('roles.name');
+
+        if (!in_array($roleName, ['matchmaker', 'manager', 'admin'])) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $transferRequest = TransferRequest::findOrFail($id);
+
+        // Verify the request is for the current matchmaker
+        if ($transferRequest->to_matchmaker_id !== $me->id) {
+            abort(403, 'You can only accept transfer requests sent to you.');
+        }
+
+        // Verify the request is still pending
+        if ($transferRequest->status !== 'pending') {
+            return redirect()->back()->with('error', 'This transfer request has already been processed.');
+        }
+
+        // Update user's assigned matchmaker
+        $user = $transferRequest->user;
+        $user->update([
+            'assigned_matchmaker_id' => $me->id,
+        ]);
+
+        // Update transfer request status
+        $transferRequest->update([
+            'status' => 'accepted',
+        ]);
+
+        return redirect()->back()->with('success', 'Transfer request accepted. User has been assigned to you.');
+    }
+
+    /**
+     * Reject a transfer request
+     */
+    public function rejectTransferRequest(Request $request, $id)
+    {
+        $me = Auth::user();
+        if (!$me) {
+            abort(403, 'Unauthorized.');
+        }
+
+        $roleName = \Illuminate\Support\Facades\DB::table('model_has_roles')
+            ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+            ->where('model_has_roles.model_id', $me->id)
+            ->value('roles.name');
+
+        if (!in_array($roleName, ['matchmaker', 'manager', 'admin'])) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $request->validate([
+            'rejection_reason' => 'required|string|max:1000',
+        ]);
+
+        $transferRequest = TransferRequest::findOrFail($id);
+
+        // Verify the request is for the current matchmaker
+        if ($transferRequest->to_matchmaker_id !== $me->id) {
+            abort(403, 'You can only reject transfer requests sent to you.');
+        }
+
+        // Verify the request is still pending
+        if ($transferRequest->status !== 'pending') {
+            return redirect()->back()->with('error', 'This transfer request has already been processed.');
+        }
+
+        // Update transfer request status with rejection reason
+        $transferRequest->update([
+            'status' => 'rejected',
+            'rejection_reason' => $request->rejection_reason,
+        ]);
+
+        return redirect()->back()->with('success', 'Transfer request rejected.');
     }
 }

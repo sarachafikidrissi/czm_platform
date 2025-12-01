@@ -389,6 +389,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/reactivation-requests/{request}/reject', [\App\Http\Controllers\ReactivationRequestController::class, 'reject'])->name('reactivation-requests.reject');
         // Global search
         Route::get('/search', [\App\Http\Controllers\SearchController::class, 'searchUsers'])->name('search');
+        // Transfer requests
+        Route::get('/matchmakers-for-transfer', [\App\Http\Controllers\MatchmakerController::class, 'getMatchmakersForTransfer'])->name('matchmakers-for-transfer');
+        Route::post('/transfer-requests', [\App\Http\Controllers\MatchmakerController::class, 'createTransferRequest'])->name('transfer-requests.create');
+        Route::get('/transfer-requests', [\App\Http\Controllers\MatchmakerController::class, 'getTransferRequests'])->name('transfer-requests');
+        Route::post('/transfer-requests/{id}/accept', [\App\Http\Controllers\MatchmakerController::class, 'acceptTransferRequest'])->name('transfer-requests.accept');
+        Route::post('/transfer-requests/{id}/reject', [\App\Http\Controllers\MatchmakerController::class, 'rejectTransferRequest'])->name('transfer-requests.reject');
     });
 
     // Objectives routes - accessible to admin, manager, and matchmaker

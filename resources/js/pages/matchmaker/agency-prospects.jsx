@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
-import { LayoutGrid, Table2, Mail, MapPin, CheckCircle, Pencil, XCircle, Search, Copy, Check, Phone } from 'lucide-react';
+import { LayoutGrid, Table2, Mail, MapPin, CheckCircle, Pencil, XCircle, Search, Copy, Check, Phone, ArrowRightLeft } from 'lucide-react';
 
 export default function AgencyProspects() {
     const { t } = useTranslation();
@@ -47,6 +47,14 @@ export default function AgencyProspects() {
     const [searchQuery, setSearchQuery] = useState('');
     const [userInfoModalOpen, setUserInfoModalOpen] = useState(false);
     const [selectedUserForInfo, setSelectedUserForInfo] = useState(null);
+    
+    // Transfer dialog state
+    const [transferDialogOpen, setTransferDialogOpen] = useState(false);
+    const [selectedProspectForTransfer, setSelectedProspectForTransfer] = useState(null);
+    const [matchmakers, setMatchmakers] = useState([]);
+    const [selectedMatchmakerId, setSelectedMatchmakerId] = useState('');
+    const [loadingMatchmakers, setLoadingMatchmakers] = useState(false);
+    const [transferring, setTransferring] = useState(false);
     
     const { role: userRole } = usePage().props; // Get role from shared props
     const currentUser = auth?.user;
@@ -203,6 +211,26 @@ export default function AgencyProspects() {
         return false;
     };
     
+    // Check if current user can transfer a prospect/member/client
+    const canTransferUser = (user) => {
+        if (!user || !userRole || !userId) {
+            return false;
+        }
+        // Matchmaker can transfer if user is assigned to them
+        if (userRole === 'matchmaker') {
+            return user.assigned_matchmaker_id === userId;
+        }
+        // Manager can transfer if user is from their agency
+        if (userRole === 'manager') {
+            return user.agency_id === userAgencyId;
+        }
+        // Admin can transfer anyone
+        if (userRole === 'admin') {
+            return true;
+        }
+        return false;
+    };
+    
     // Check if user can mark a rejected prospect as "A rappeler" (same authorization as accept)
     const canMarkAsRappeler = (prospect) => {
         if (!prospect || !prospect.rejection_reason) return false;
@@ -294,6 +322,47 @@ export default function AgencyProspects() {
         if (selectedUserForInfo) {
             router.visit(`/profile/${selectedUserForInfo.username || selectedUserForInfo.id}`);
         }
+    };
+    
+    // Handle transfer click
+    const handleTransferClick = async (user) => {
+        setSelectedProspectForTransfer(user);
+        setSelectedMatchmakerId('');
+        setLoadingMatchmakers(true);
+        setTransferDialogOpen(true);
+        
+        try {
+            const response = await fetch('/staff/matchmakers-for-transfer');
+            const data = await response.json();
+            setMatchmakers(data);
+        } catch (error) {
+            console.error('Error fetching matchmakers:', error);
+        } finally {
+            setLoadingMatchmakers(false);
+        }
+    };
+    
+    // Handle transfer submission
+    const handleTransferSubmit = () => {
+        if (!selectedProspectForTransfer || !selectedMatchmakerId) {
+            return;
+        }
+        
+        setTransferring(true);
+        router.post('/staff/transfer-requests', {
+            user_id: selectedProspectForTransfer.id,
+            to_matchmaker_id: selectedMatchmakerId,
+        }, {
+            onSuccess: () => {
+                setTransferDialogOpen(false);
+                setSelectedProspectForTransfer(null);
+                setSelectedMatchmakerId('');
+                setTransferring(false);
+            },
+            onError: () => {
+                setTransferring(false);
+            }
+        });
     };    
     // Pre-fill form when prospect is selected
     const handleValidateClick = (prospect) => {
@@ -489,14 +558,14 @@ export default function AgencyProspects() {
                                         </div>
                                     )}
                                     
-                                    <div className="pt-2 flex gap-2">
+                                    <div className="pt-2 flex flex-col gap-2">
                                         {statusFilter === 'active' ? (
                                             <>
                                                 {canRejectProspect(p) && (
                                                     <Button
                                                         variant="destructive"
                                                         size="sm"
-                                                        className="flex-1"
+                                                        className="w-full"
                                                         onClick={() => handleReject(p)}
                                                     >
                                                         <XCircle className="w-4 h-4 mr-1" />
@@ -507,7 +576,7 @@ export default function AgencyProspects() {
                                                     <Button
                                                         variant="outline"
                                                         size="sm"
-                                                        className="flex-1"
+                                                        className="w-full"
                                                         onClick={() => router.visit(`/staff/prospects/${p.id}/profile/edit`)}
                                                     >
                                                         <Pencil className="w-4 h-4 mr-1" />
@@ -518,11 +587,34 @@ export default function AgencyProspects() {
                                                     <Button
                                                         variant="outline"
                                                         size="sm"
-                                                        className="flex-1"
+                                                        className="w-full"
                                                         onClick={() => handleValidateClick(p)}
                                                     >
                                                         Validate
                                                     </Button>
+                                                )}
+                                                {canTransferUser(p) && (
+                                                    p.pending_transfer_request ? (
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="w-full bg-warning/10 border-warning text-warning hover:bg-warning/20"
+                                                            disabled
+                                                        >
+                                                            <ArrowRightLeft className="w-4 h-4 mr-1" />
+                                                            En attente de réponse
+                                                        </Button>
+                                                    ) : (
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="w-full"
+                                                            onClick={() => handleTransferClick(p)}
+                                                        >
+                                                            <ArrowRightLeft className="w-4 h-4 mr-1" />
+                                                            Transférer
+                                                        </Button>
+                                                    )
                                                 )}
                                             </>
                                         ) : (
@@ -531,7 +623,7 @@ export default function AgencyProspects() {
                                                     <Button
                                                         variant="default"
                                                         size="sm"
-                                                        className="flex-1 bg-warning hover:opacity-90"
+                                                        className="w-full bg-warning hover:opacity-90"
                                                         onClick={() => handleMarkAsRappeler(p)}
                                                     >
                                                         <Phone className="w-4 h-4 mr-1" />
@@ -542,7 +634,7 @@ export default function AgencyProspects() {
                                                     <Button
                                                         variant="default"
                                                         size="sm"
-                                                        className={p.to_rappeler ? "w-full bg-success hover:opacity-90" : "flex-1 bg-success hover:opacity-90"}
+                                                        className="w-full bg-success hover:opacity-90"
                                                         onClick={() => handleAccept(p)}
                                                     >
                                                         <CheckCircle className="w-4 h-4 mr-1" />
@@ -631,6 +723,28 @@ export default function AgencyProspects() {
                                                                 )}
                                                                 {canValidateProspect(p) && (
                                                                     <Button size="sm" onClick={() => handleValidateClick(p)}>Validate</Button>
+                                                                )}
+                                                                {canTransferUser(p) && (
+                                                                    p.pending_transfer_request ? (
+                                                                        <Button
+                                                                            size="sm"
+                                                                            variant="outline"
+                                                                            className="bg-warning/10 border-warning text-warning hover:bg-warning/20"
+                                                                            disabled
+                                                                        >
+                                                                            <ArrowRightLeft className="w-4 h-4 mr-1" />
+                                                                            En attente de réponse
+                                                                        </Button>
+                                                                    ) : (
+                                                                        <Button
+                                                                            size="sm"
+                                                                            variant="outline"
+                                                                            onClick={() => handleTransferClick(p)}
+                                                                        >
+                                                                            <ArrowRightLeft className="w-4 h-4 mr-1" />
+                                                                            Transférer
+                                                                        </Button>
+                                                                    )
                                                                 )}
                                                             </>
                                                         ) : (
@@ -1189,6 +1303,50 @@ export default function AgencyProspects() {
                             </DialogFooter>
                         </>
                     )}
+                </DialogContent>
+            </Dialog>
+            
+            {/* Transfer Dialog */}
+            <Dialog open={transferDialogOpen} onOpenChange={setTransferDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Transférer {selectedProspectForTransfer?.name || 'l\'utilisateur'}</DialogTitle>
+                        <DialogDescription>
+                            Sélectionnez le matchmaker vers lequel vous souhaitez transférer cet utilisateur
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                            <Label htmlFor="matchmaker">Matchmaker *</Label>
+                            {loadingMatchmakers ? (
+                                <div className="text-sm text-muted-foreground">Chargement des matchmakers...</div>
+                            ) : (
+                                <Select value={selectedMatchmakerId} onValueChange={setSelectedMatchmakerId}>
+                                    <SelectTrigger className="h-9 w-full">
+                                        <SelectValue placeholder="Sélectionnez un matchmaker" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {matchmakers.map((matchmaker) => (
+                                            <SelectItem key={matchmaker.id} value={String(matchmaker.id)}>
+                                                {matchmaker.name} {matchmaker.agency ? `(${matchmaker.agency.name})` : ''}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            )}
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setTransferDialogOpen(false)}>
+                            Annuler
+                        </Button>
+                        <Button
+                            onClick={handleTransferSubmit}
+                            disabled={!selectedMatchmakerId || transferring || loadingMatchmakers}
+                        >
+                            {transferring ? 'Envoi...' : 'Transférer'}
+                        </Button>
+                    </DialogFooter>
                 </DialogContent>
             </Dialog>
         </AppLayout>
