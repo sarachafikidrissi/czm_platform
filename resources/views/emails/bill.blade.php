@@ -9,8 +9,8 @@
             font-family: 'Arial', sans-serif;
             margin: 0;
             padding: 0;
-            background-color: #f8fafc;
-            color: #333;
+            background-color: #ffffff;
+            color: #000000;
         }
         .email-container {
             max-width: 600px;
@@ -21,7 +21,7 @@
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
         .header {
-            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            background: linear-gradient(135deg,#059669, #076725);
             color: white;
             padding: 30px;
             text-align: center;
@@ -45,12 +45,12 @@
         }
         .greeting {
             font-size: 18px;
-            color: #1f2937;
+            color: #000000;
             margin-bottom: 20px;
         }
         .bill-info {
-            background: #f8fafc;
-            border: 1px solid #e5e7eb;
+            background: #ffffff;
+            border: 2px solid #10b981;
             border-radius: 8px;
             padding: 20px;
             margin-bottom: 25px;
@@ -58,7 +58,7 @@
         .bill-number {
             font-size: 20px;
             font-weight: bold;
-            color: #3b82f6;
+            color: #10b981;
             margin-bottom: 10px;
         }
         .bill-details {
@@ -73,11 +73,11 @@
         }
         .detail-label {
             font-weight: bold;
-            color: #374151;
+            color: #000000;
         }
         .pack-advantages {
-            background: linear-gradient(135deg, #fef3c7, #fde68a);
-            border: 1px solid #f59e0b;
+            background: #ffffff;
+            border: 2px solid #10b981;
             border-radius: 8px;
             padding: 20px;
             margin-bottom: 25px;
@@ -85,7 +85,7 @@
         .advantages-title {
             font-size: 16px;
             font-weight: bold;
-            color: #92400e;
+            color: #000000;
             margin-bottom: 15px;
             text-align: center;
         }
@@ -96,7 +96,7 @@
         }
         .advantages-list li {
             padding: 8px 0;
-            color: #78350f;
+            color: #000000;
             position: relative;
             padding-left: 25px;
         }
@@ -108,8 +108,8 @@
             font-weight: bold;
         }
         .amount-section {
-            background: #f0f9ff;
-            border: 1px solid #0ea5e9;
+            background: #ffffff;
+            border: 2px solid #10b981;
             border-radius: 8px;
             padding: 20px;
             text-align: center;
@@ -117,17 +117,17 @@
         }
         .amount-label {
             font-size: 14px;
-            color: #0369a1;
+            color: #000000;
             margin-bottom: 5px;
         }
         .amount-value {
             font-size: 28px;
             font-weight: bold;
-            color: #0c4a6e;
+            color: #10b981;
         }
         .payment-reminder {
-            background: #fef2f2;
-            border: 1px solid #f87171;
+            background: #ffffff;
+            border: 2px solid #dc2626;
             border-radius: 8px;
             padding: 20px;
             text-align: center;
@@ -139,13 +139,13 @@
             font-size: 16px;
         }
         .payment-reminder p {
-            color: #991b1b;
+            color: #000000;
             margin: 0;
             font-size: 14px;
         }
         .cta-button {
             display: inline-block;
-            background: linear-gradient(135deg, #10b981, #059669);
+            background: #10b981;
             color: white;
             padding: 15px 30px;
             text-decoration: none;
@@ -159,17 +159,17 @@
             transform: translateY(-2px);
         }
         .footer {
-            background: #f8fafc;
+            background: #ffffff;
             padding: 20px;
             text-align: center;
             font-size: 12px;
-            color: #6b7280;
-            border-top: 1px solid #e5e7eb;
+            color: #000000;
+            border-top: 2px solid #10b981;
         }
         .contact-info {
             margin-top: 15px;
             padding-top: 15px;
-            border-top: 1px solid #e5e7eb;
+            border-top: 1px solid #000000;
         }
     </style>
 </head>
@@ -177,7 +177,7 @@
     <div class="email-container">
         <!-- Header -->
         <div class="header">
-            <img src="{{ asset('images/CENTRE-ZAWAJ-PNG-LOGO.png') }}" alt="CZM Logo" class="logo">
+            <img src="{{ asset('images/czm_Logo.png') }}" alt="CZM Logo" class="logo">
             <div class="company-name">Centre Zawaj Maroc</div>
             <div class="company-tagline">Service de mariage et accompagnement matrimonial</div>
         </div>

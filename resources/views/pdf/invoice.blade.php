@@ -19,23 +19,32 @@
             line-height: 1.6;
         }
         .receipt-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
             margin-bottom: 30px;
+            overflow: hidden;
+            width: 100%;
+        }
+        .receipt-header:after {
+            content: "";
+            display: table;
+            clear: both;
         }
         .receipt-title {
+            float: left;
             font-size: 32px;
             font-weight: bold;
             color: #000000;
+        }
+        .logo-container {
+            float: right;
+            text-align: right;
         }
         /* .logo-container {
             text-align: right;
         } */
         .logo {
-            width: 200px;
-            height: 200px;
-            object-fit: cover;
+            width: 150px;
+            height: auto;
+            max-height: 150px;
         }
         .invoice-details {
             margin-bottom: 30px;
@@ -53,30 +62,39 @@
             color: #000000;
         }
         .billing-info {
-            display: flex;
-            justify-content: space-between;
             margin-bottom: 50px;
             margin-top: 20px;
+            overflow: hidden;
         }
         .sender-info, .recipient-info {
-            flex: 1;
-            max-width: 45%;
-            display: flex;
-            flex-direction: row;
-            justify-content: space-between;
+            width: 45%;
+            float: left;
+            margin-right: 5%;
+        }
+        .recipient-info {
+            margin-right: 0;
+            float: right;
         }
         .info-title {
             font-weight: bold;
             font-size: 14px;
             margin-bottom: 12px;
             color: #000000;
-            flex-shrink: 0;
+            float: left;
+            width: 30%;
         }
         .info-content {
             font-size: 14px;
             color: #000000;
             line-height: 1.8;
-            flex: 1;
+            float: left;
+            width: 65%;
+            margin-left: 5%;
+        }
+        .sender-info:after, .recipient-info:after {
+            content: "";
+            display: table;
+            clear: both;
         }
         .info-content p {
             margin-bottom: 4px;
@@ -124,9 +142,15 @@
             font-size: 14px;
             color: #000000;
             border-bottom: 1px solid #f0f0f0;
-            display: flex;
-            justify-content: flex-end;
-            gap: 20px;
+            text-align: right;
+            overflow: hidden;
+        }
+        .total-label {
+            display: inline-block;
+            margin-right: 20px;
+        }
+        .total-value {
+            display: inline-block;
         }
         .total-row.amount-paid {
             font-weight: bold;
@@ -138,12 +162,15 @@
         }
         .total-label {
             color: #000000;
+            display: inline-block;
+            margin-right: 20px;
         }
         .total-value {
             color: #000000;
             font-weight: inherit;
             min-width: 100px;
             text-align: right;
+            display: inline-block;
         }
         .payment-history {
             margin-top: 50px;
@@ -200,6 +227,73 @@
             color: #666666;
             margin-top: 30px;
         }
+        .pdf-footer {
+            margin-top: 60px;
+            padding-top: 20px;
+            border-top: 1px solid #e0e0e0;
+            clear: both;
+        }
+        .footer-content {
+            width: 100%;
+            margin-bottom: 20px;
+            font-size: 11px;
+            line-height: 1.6;
+            overflow: hidden;
+        }
+        .footer-content:after {
+            content: "";
+            display: table;
+            clear: both;
+        }
+        .footer-left {
+            float: left;
+            width: 48%;
+        }
+        .footer-right {
+            float: right;
+            width: 48%;
+        }
+        .footer-company-name {
+            font-weight: bold;
+            font-size: 12px;
+            margin-bottom: 8px;
+            color: #000000;
+        }
+        .footer-address {
+            color: #000000;
+            margin-bottom: 4px;
+        }
+        .footer-registration {
+            color: #000000;
+            margin-top: 8px;
+        }
+        .footer-registration div {
+            margin-bottom: 2px;
+        }
+        .footer-contact-title {
+            font-weight: bold;
+            font-size: 12px;
+            margin-bottom: 8px;
+            color: #000000;
+        }
+        .footer-contact-info {
+            color: #000000;
+            margin-bottom: 4px;
+        }
+        .footer-contact-info a {
+            color: #0066cc;
+            text-decoration: none;
+        }
+        .footer-thank-you {
+            background-color: #28a745;
+            color: #ffffff;
+            text-align: center;
+            padding: 15px 0;
+            font-weight: bold;
+            font-size: 14px;
+            letter-spacing: 1px;
+            margin-top: 20px;
+        }
         .pack-name {
             font-weight: bold;
             color: #000000;
@@ -211,8 +305,11 @@
     <div class="receipt-header">
         <div class="receipt-title">Facture</div>
         <div class="logo-container">
-            @if(file_exists(public_path('images/CENTRE-ZAWAJ-PNG-LOGO.png')))
-            <img src="{{ public_path('images/czm_Logo.png') }}" alt="CZM Logo" class="logo">
+            @php
+                $logoPath = public_path('images/czm_Logo.png');
+            @endphp
+            @if(file_exists($logoPath))
+            <img src="{{ $logoPath }}" alt="CZM Logo" class="logo">
             @endif
         </div>
     </div>
@@ -371,13 +468,38 @@
 
     <!-- Footer Text -->
     <div class="footer-text">
-        <p>Centre Zawaj Maroc - Service de mariage et accompagnement matrimonial</p>
         @if($bill->matchmaker)
         <p>Votre matchmaker: {{ $bill->matchmaker->name }} - {{ $bill->matchmaker->email }}</p>
         @endif
         @if($bill->notes)
         <p>Notes: {{ $bill->notes }}</p>
         @endif
+    </div>
+
+    <!-- PDF Footer -->
+    <div class="pdf-footer">
+        <div class="footer-content">
+            <div class="footer-left">
+                <div class="footer-company-name">ZCM CONSULTING S.A.R.L AU</div>
+                <div class="footer-address">59 BD EMILE ZOLA 1 ERE ETAGE BUREAU N°2 CASABLANCA</div>
+                <div class="footer-address">CASABLANCA</div>
+                <div class="footer-registration">
+                    <div>RC: 553857</div>
+                    <div>IF: 52623880</div>
+                    <div>ICE: 003132958000051</div>
+                    <div>Patente: 32501891</div>
+                </div>
+            </div>
+            <div class="footer-right">
+                <div class="footer-contact-title">Coordonnées</div>
+                <div class="footer-contact-info">Téléphone: 0698989697</div>
+                <div class="footer-contact-info">E-mail: contact@czm.ma</div>
+                <div class="footer-contact-info"><a href="https://czm.ma">www.Czm.ma</a></div>
+            </div>
+        </div>
+        <div class="footer-thank-you">
+            MERCI DE VOTRE CONFIANCE
+        </div>
     </div>
 
     <!-- Page Number -->
