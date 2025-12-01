@@ -139,6 +139,21 @@ export default function ProspectsDispatch() {
     const prospectsCountry = filters?.country || '';
     const prospectsCity = filters?.city || '';
 
+    // Sync selectedCountryCode with props when countries are loaded or props change
+    useEffect(() => {
+        if (countries.length === 0) return;
+        
+        if (prospectsCountry) {
+            const country = countries.find((c) => c.frenchName === prospectsCountry);
+            const matchingCode = country?.iso2 || '';
+            if (selectedCountryCode !== matchingCode) {
+                setSelectedCountryCode(matchingCode);
+            }
+        } else if (selectedCountryCode) {
+            setSelectedCountryCode('');
+        }
+    }, [countries, prospectsCountry]);
+
     const handleFilterProspects = (countryName, cityName, dispatchVal = dispatchStatus, statusVal = statusFilter) => {
         const params = new URLSearchParams();
         if (countryName) params.set('country', countryName);
@@ -353,12 +368,22 @@ export default function ProspectsDispatch() {
                             <div className="grid gap-2 w-[220px]">
                                 <Label>{t('staff.country')}</Label>
                                 <Select
-                                    value={selectedCountryCode}
-                                    onValueChange={(v) => setSelectedCountryCode(v)}
+                                    value={selectedCountryCode || 'all'}
+                                    onValueChange={(v) => {
+                                        if (v === 'all') {
+                                            setSelectedCountryCode('');
+                                            handleFilterProspects('', '', dispatchStatus, statusFilter);
+                                        } else {
+                                            setSelectedCountryCode(v);
+                                            const countryName = countries.find((c) => c.iso2 === v)?.frenchName || '';
+                                            handleFilterProspects(countryName, '', dispatchStatus, statusFilter);
+                                        }
+                                    }}
                                     disabled={loadingCountries}
                                 >
                                     <SelectTrigger className="h-9"><SelectValue placeholder={loadingCountries ? t('staff.userInfo.loading') : t('staff.userInfo.selectCountry')} /></SelectTrigger>
                                     <SelectContent>
+                                        <SelectItem value="all">{t('staff.all')}</SelectItem>
                                         {countries.map((c) => (
                                             <SelectItem key={c.iso2} value={c.iso2}>{c.frenchName}</SelectItem>
                                         ))}
@@ -398,7 +423,14 @@ export default function ProspectsDispatch() {
                                 <Label>{t('common.status')}</Label>
                                 <Select
                                     value={statusFilter || 'active'}
-                                    onValueChange={(v) => handleFilterProspects(selectedCountryCode ? (countries.find((c) => c.iso2 === selectedCountryCode)?.frenchName || '') : prospectsCountry, prospectsCity, dispatchStatus, v)}
+                                    onValueChange={(v) => {
+                                        handleFilterProspects(
+                                            selectedCountryCode ? (countries.find((c) => c.iso2 === selectedCountryCode)?.frenchName || '') : prospectsCountry, 
+                                            prospectsCity, 
+                                            dispatchStatus, 
+                                            v
+                                        );
+                                    }}
                                 >
                                     <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                                     <SelectContent>
@@ -407,7 +439,11 @@ export default function ProspectsDispatch() {
                                     </SelectContent>
                                 </Select>
                             </div>
-                            <Button variant="outline" onClick={() => handleFilterProspects(selectedCountryCode ? (countries.find((c) => c.iso2 === selectedCountryCode)?.frenchName || '') : '', '', dispatchStatus, 'active')}>{t('staff.reset')}</Button>
+                            <Button variant="outline" onClick={() => {
+                                setSelectedCountryCode('');
+                                setDispatchStatus('all');
+                                handleFilterProspects('', '', 'all', 'active');
+                            }}>{t('staff.reset')}</Button>
                             <div className="ml-auto flex gap-2">
                                 <Button disabled={!hasValidDispatchSelection} onClick={handleDispatchClick}>{t('staff.dispatchProspects')}</Button>
                                 <Button disabled={!hasValidReassignSelection} variant="outline" onClick={handleReassignClick}>{t('staff.reassignProspects')}</Button>
