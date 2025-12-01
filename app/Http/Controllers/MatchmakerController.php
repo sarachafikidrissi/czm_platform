@@ -116,7 +116,7 @@ class MatchmakerController extends Controller
             });
         }
 
-        $prospects = $query->get(['id','name','email','phone','country','city','status','agency_id','assigned_matchmaker_id','rejection_reason','rejected_by','rejected_at','created_at']);
+        $prospects = $query->get(['id','name','username','email','phone','country','city','status','agency_id','assigned_matchmaker_id','rejection_reason','rejected_by','rejected_at','created_at']);
         $prospects->load(['profile', 'assignedMatchmaker', 'agency']);
         
         $services = [];
@@ -1066,7 +1066,7 @@ class MatchmakerController extends Controller
             }
         }
 
-        $prospects = $query->get(['id','name','email','phone','country','city','status','agency_id','assigned_matchmaker_id','rejection_reason','rejected_by','rejected_at','to_rappeler','created_at']);
+        $prospects = $query->get(['id','name','username','email','phone','country','city','status','agency_id','assigned_matchmaker_id','rejection_reason','rejected_by','rejected_at','to_rappeler','created_at']);
         $prospects->load(['profile', 'assignedMatchmaker', 'agency']);
         
         // Load pending transfer requests for each prospect

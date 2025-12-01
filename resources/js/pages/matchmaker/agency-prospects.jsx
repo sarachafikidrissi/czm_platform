@@ -309,8 +309,8 @@ export default function AgencyProspects() {
 
     // Handle copy link
     const handleCopyLink = () => {
-        if (selectedUserForInfo) {
-            const profileUrl = `${window.location.origin}/profile/${selectedUserForInfo.username || selectedUserForInfo.id}`;
+        if (selectedUserForInfo && selectedUserForInfo.username) {
+            const profileUrl = `${window.location.origin}/profile/${selectedUserForInfo.username}`;
             navigator.clipboard.writeText(profileUrl).then(() => {
                 // You could add a toast notification here
             });
@@ -319,8 +319,8 @@ export default function AgencyProspects() {
 
     // Handle view profile
     const handleViewProfile = () => {
-        if (selectedUserForInfo) {
-            router.visit(`/profile/${selectedUserForInfo.username || selectedUserForInfo.id}`);
+        if (selectedUserForInfo && selectedUserForInfo.username) {
+            router.visit(`/profile/${selectedUserForInfo.username}`);
         }
     };
     
@@ -1197,6 +1197,7 @@ export default function AgencyProspects() {
                                             variant="outline"
                                             size="sm"
                                             onClick={handleCopyLink}
+                                            disabled={!selectedUserForInfo?.username}
                                             className="flex items-center justify-center gap-2 w-full sm:w-auto"
                                         >
                                             <Copy className="w-4 h-4" />
@@ -1206,6 +1207,7 @@ export default function AgencyProspects() {
                                             variant="outline"
                                             size="sm"
                                             onClick={handleViewProfile}
+                                            disabled={!selectedUserForInfo?.username}
                                             className="flex items-center justify-center gap-2 w-full sm:w-auto"
                                         >
                                             {t('staff.userInfo.viewProfile')}
