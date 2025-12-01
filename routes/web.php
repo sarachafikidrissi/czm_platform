@@ -199,54 +199,56 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 ->orderBy('due_date', 'asc')
                 ->first();
 
-            // Check for expired subscriptions (by status or by date)
-            $expiredSubscriptionRecord = $user->subscriptions()
-                ->where(function($query) {
-                    $query->where('status', 'expired')
-                        ->orWhere(function($q) {
-                            $q->where('status', 'active')
-                              ->where('subscription_end', '<', \Carbon\Carbon::today());
-                        });
-                })
-                ->with(['matrimonialPack', 'assignedMatchmaker'])
-                ->orderBy('subscription_end', 'desc')
+            // Check for expired subscriptions - but only if user has NO active subscription
+            // First, check if user has any subscription with status 'active'
+            $activeSubscription = \App\Models\UserSubscription::where('user_id', $user->id)
+                ->where('status', 'active')
+                ->latest('created_at')
                 ->first();
             
-            if ($expiredSubscriptionRecord) {
-                $expiredSubscription = [
-                    'expirationDate' => $expiredSubscriptionRecord->subscription_end->format('d/m/Y'),
-                    'packName' => $expiredSubscriptionRecord->matrimonialPack->name ?? 'Pack',
-                    'matchmaker' => $expiredSubscriptionRecord->assignedMatchmaker ? [
-                        'name' => $expiredSubscriptionRecord->assignedMatchmaker->name,
-                        'phone' => $expiredSubscriptionRecord->assignedMatchmaker->phone,
-                        'email' => $expiredSubscriptionRecord->assignedMatchmaker->email,
-                    ] : null,
-                ];
+            // Only show expired alert if there's no active subscription
+            if (!$activeSubscription) {
+                $expiredSubscriptionRecord = \App\Models\UserSubscription::where('user_id', $user->id)
+                    ->where('status', 'expired')
+                    ->with(['matrimonialPack', 'assignedMatchmaker'])
+                    ->orderBy('subscription_end', 'desc')
+                    ->first();
+                
+                if ($expiredSubscriptionRecord) {
+                    $expiredSubscription = [
+                        'expirationDate' => $expiredSubscriptionRecord->subscription_end->format('d/m/Y'),
+                        'packName' => $expiredSubscriptionRecord->matrimonialPack->name ?? 'Pack',
+                        'matchmaker' => $expiredSubscriptionRecord->assignedMatchmaker ? [
+                            'name' => $expiredSubscriptionRecord->assignedMatchmaker->name,
+                            'phone' => $expiredSubscriptionRecord->assignedMatchmaker->phone,
+                            'email' => $expiredSubscriptionRecord->assignedMatchmaker->email,
+                        ] : null,
+                    ];
+                }
             }
 
             // Load active subscription for reminders (only if not expired)
-            if (!$expiredSubscriptionRecord) {
-                $subscription = $user->subscriptions()
-                    ->where('status', 'active')
-                    ->where('subscription_end', '>=', \Carbon\Carbon::today())
-                    ->with(['matrimonialPack', 'assignedMatchmaker'])
-                    ->orderBy('created_at', 'desc')
-                    ->first();
+            // Check if there's an active subscription that hasn't expired
+            $subscription = \App\Models\UserSubscription::where('user_id', $user->id)
+                ->where('status', 'active')
+                ->where('subscription_end', '>=', \Carbon\Carbon::today())
+                ->with(['matrimonialPack', 'assignedMatchmaker'])
+                ->orderBy('created_at', 'desc')
+                ->first();
+            
+            if ($subscription) {
+                $today = \Carbon\Carbon::today();
+                $expirationDate = \Carbon\Carbon::parse($subscription->subscription_end);
+                $daysRemaining = $today->diffInDays($expirationDate, false);
                 
-                if ($subscription) {
-                    $today = \Carbon\Carbon::today();
-                    $expirationDate = \Carbon\Carbon::parse($subscription->subscription_end);
-                    $daysRemaining = $today->diffInDays($expirationDate, false);
-                    
-                    // Show reminder if subscription expires within 30 days
-                    if ($daysRemaining <= 30 && $daysRemaining >= 0) {
-                        $subscriptionReminder = [
-                            'daysRemaining' => $daysRemaining,
-                            'expirationDate' => $expirationDate->format('d/m/Y'),
-                            'isExpired' => false,
-                            'packName' => $subscription->matrimonialPack->name ?? 'Pack',
-                        ];
-                    }
+                // Show reminder if subscription expires within 30 days
+                if ($daysRemaining <= 30 && $daysRemaining >= 0) {
+                    $subscriptionReminder = [
+                        'daysRemaining' => $daysRemaining,
+                        'expirationDate' => $expirationDate->format('d/m/Y'),
+                        'isExpired' => false,
+                        'packName' => $subscription->matrimonialPack->name ?? 'Pack',
+                    ];
                 }
             }
 

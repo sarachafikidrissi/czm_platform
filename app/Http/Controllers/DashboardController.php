@@ -51,9 +51,15 @@ class DashboardController extends Controller
             $accountStatus = $profile ? $profile->account_status : 'active';
             $user->load('assignedMatchmaker');
             
+            // Refresh subscriptions relationship to ensure we have the latest data
+            $user->load('subscriptions');
+            
             $rejectedBy = $this->getRejectedBy($user);
             $unpaidBill = $this->getUnpaidBill($user);
+            
+            // Get expired subscription - will return null if user has any active subscription
             $expiredSubscription = $this->getExpiredSubscription($user);
+            
             $subscriptionReminder = $this->getSubscriptionReminder($user);
             $recentPosts = $this->getRecentPosts();
         }
@@ -204,14 +210,22 @@ class DashboardController extends Controller
      */
     private function getExpiredSubscription(User $user): ?array
     {
-        $expiredSubscriptionRecord = $user->subscriptions()
-            ->where(function($query) {
-                $query->where('status', 'expired')
-                    ->orWhere(function($q) {
-                        $q->where('status', 'active')
-                          ->where('subscription_end', '<', Carbon::today());
-                    });
-            })
+        // Use a fresh query to check subscriptions (not the relationship cache)
+        // First, check if user has any subscription with status 'active'
+        // If such a subscription exists, don't show the expired alert
+        $activeSubscription = \App\Models\UserSubscription::where('user_id', $user->id)
+            ->where('status', 'active')
+            ->latest('created_at')
+            ->first();
+
+        // If there's an active subscription, don't show expired alert
+        if ($activeSubscription) {
+            return null;
+        }
+
+        // Only show expired alert if there's no active subscription
+        $expiredSubscriptionRecord = \App\Models\UserSubscription::where('user_id', $user->id)
+            ->where('status', 'expired')
             ->with(['matrimonialPack', 'assignedMatchmaker'])
             ->orderBy('subscription_end', 'desc')
             ->first();
@@ -236,45 +250,43 @@ class DashboardController extends Controller
      */
     private function getSubscriptionReminder(User $user): ?array
     {
-        // Check if there's an expired subscription first
-        $expiredSubscriptionRecord = $user->subscriptions()
-            ->where(function($query) {
-                $query->where('status', 'expired')
-                    ->orWhere(function($q) {
-                        $q->where('status', 'active')
-                          ->where('subscription_end', '<', Carbon::today());
-                    });
-            })
+        $today = Carbon::today();
+        
+        // Use a fresh query to check subscriptions (not the relationship cache)
+        // First, check if there's any active subscription
+        $activeSubscription = \App\Models\UserSubscription::where('user_id', $user->id)
+            ->where('status', 'active')
+            ->latest('created_at')
             ->first();
-
-        // If there's an expired subscription, don't show reminder
-        if ($expiredSubscriptionRecord) {
+        
+        // If there's no active subscription, don't show reminder
+        if (!$activeSubscription) {
             return null;
         }
-
-        $subscription = $user->subscriptions()
+        
+        // Check if the active subscription hasn't expired yet
+        $subscription = \App\Models\UserSubscription::where('user_id', $user->id)
             ->where('status', 'active')
-            ->where('subscription_end', '>=', Carbon::today())
+            ->whereDate('subscription_start', '<=', $today)
+            ->whereDate('subscription_end', '>=', $today)
             ->with(['matrimonialPack', 'assignedMatchmaker'])
             ->orderBy('created_at', 'desc')
             ->first();
         
-        if (!$subscription) {
-            return null;
-        }
-
-        $today = Carbon::today();
-        $expirationDate = Carbon::parse($subscription->subscription_end);
-        $daysRemaining = $today->diffInDays($expirationDate, false);
-        
-        // Show reminder if subscription expires within 30 days
-        if ($daysRemaining <= 30 && $daysRemaining >= 0) {
-            return [
-                'daysRemaining' => $daysRemaining,
-                'expirationDate' => $expirationDate->format('d/m/Y'),
-                'isExpired' => false,
-                'packName' => $subscription->matrimonialPack->name ?? 'Pack',
-            ];
+        // If there's an active non-expired subscription, show reminder if needed
+        if ($subscription) {
+            $expirationDate = Carbon::parse($subscription->subscription_end);
+            $daysRemaining = $today->diffInDays($expirationDate, false);
+            
+            // Show reminder if subscription expires within 30 days
+            if ($daysRemaining <= 30 && $daysRemaining >= 0) {
+                return [
+                    'daysRemaining' => $daysRemaining,
+                    'expirationDate' => $expirationDate->format('d/m/Y'),
+                    'isExpired' => false,
+                    'packName' => $subscription->matrimonialPack->name ?? 'Pack',
+                ];
+            }
         }
 
         return null;
