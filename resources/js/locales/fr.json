@@ -67,6 +67,8 @@
         "matchmakerStatistics": "Statistiques des Matchmakers",
         "reactivationRequests": "Demandes de Réactivation",
         "transferRequests": "Demandes de Transfert",
+        "receivedRequests": "Demandes reçues",
+        "sentRequests": "Demandes envoyées",
         "agencies": "Agences"
     },
     "breadcrumbs": {

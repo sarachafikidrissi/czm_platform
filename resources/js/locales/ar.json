@@ -67,6 +67,8 @@
         "matchmakerStatistics": "إحصائيات وسطاء الزواج",
         "reactivationRequests": "طلبات إعادة التفعيل",
         "transferRequests": "طلبات النقل",
+        "receivedRequests": "الطلبات المستلمة",
+        "sentRequests": "الطلبات المرسلة",
         "agencies": "الوكالات"
     },
     "breadcrumbs": {

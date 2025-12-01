@@ -1994,6 +1994,7 @@ class MatchmakerController extends Controller
         $request->validate([
             'user_id' => 'required|exists:users,id',
             'to_matchmaker_id' => 'required|exists:users,id',
+            'reason' => 'nullable|string|max:1000',
         ]);
 
         $user = User::findOrFail($request->user_id);
@@ -2024,6 +2025,7 @@ class MatchmakerController extends Controller
             'from_matchmaker_id' => $me->id,
             'to_matchmaker_id' => $toMatchmaker->id,
             'status' => 'pending',
+            'reason' => $request->reason,
         ]);
 
         return redirect()->back()->with('success', 'Transfer request sent successfully.');

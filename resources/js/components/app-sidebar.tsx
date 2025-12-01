@@ -148,9 +148,13 @@ const getMainNavItems = (t: (key: string) => string, role: string): NavItem[] =>
     },
     {
         title: t('navigation.transferRequests', { defaultValue: 'Transfer Requests' }),
-        url: '/staff/transfer-requests',
+        url: '/staff/transfer-requests?type=received',
         icon: ArrowRightLeft,
         roles: ['matchmaker', 'manager'],
+        children: [
+            { title: t('navigation.receivedRequests', { defaultValue: 'Demandes reçues' }), url: '/staff/transfer-requests?type=received', roles: ['matchmaker', 'manager'] },
+            { title: t('navigation.sentRequests', { defaultValue: 'Demandes envoyées' }), url: '/staff/transfer-requests?type=sent', roles: ['matchmaker', 'manager'] },
+        ],
     },
     {
         title: t('navigation.agencies'),

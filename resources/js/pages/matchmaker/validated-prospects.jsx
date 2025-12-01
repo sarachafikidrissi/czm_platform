@@ -53,6 +53,7 @@ export default function ValidatedProspects() {
     const [selectedUserForTransfer, setSelectedUserForTransfer] = useState(null);
     const [matchmakers, setMatchmakers] = useState([]);
     const [selectedMatchmakerId, setSelectedMatchmakerId] = useState('');
+    const [transferReason, setTransferReason] = useState('');
     const [loadingMatchmakers, setLoadingMatchmakers] = useState(false);
     const [transferring, setTransferring] = useState(false);
     
@@ -358,6 +359,7 @@ export default function ValidatedProspects() {
     const handleTransferClick = async (user) => {
         setSelectedUserForTransfer(user);
         setSelectedMatchmakerId('');
+        setTransferReason('');
         setLoadingMatchmakers(true);
         setTransferDialogOpen(true);
         
@@ -382,11 +384,13 @@ export default function ValidatedProspects() {
         router.post('/staff/transfer-requests', {
             user_id: selectedUserForTransfer.id,
             to_matchmaker_id: selectedMatchmakerId,
+            reason: transferReason,
         }, {
             onSuccess: () => {
                 setTransferDialogOpen(false);
                 setSelectedUserForTransfer(null);
                 setSelectedMatchmakerId('');
+                setTransferReason('');
                 setTransferring(false);
             },
             onError: () => {
@@ -1388,6 +1392,16 @@ export default function ValidatedProspects() {
                                     </SelectContent>
                                 </Select>
                             )}
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="transfer-reason">Raison du transfert (optionnel)</Label>
+                            <Textarea
+                                id="transfer-reason"
+                                value={transferReason}
+                                onChange={(e) => setTransferReason(e.target.value)}
+                                placeholder="Expliquez pourquoi vous souhaitez transférer cet utilisateur..."
+                                rows={4}
+                            />
                         </div>
                     </div>
                     <DialogFooter>

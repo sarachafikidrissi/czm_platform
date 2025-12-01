@@ -12,6 +12,7 @@ class TransferRequest extends Model
         'from_matchmaker_id',
         'to_matchmaker_id',
         'status',
+        'reason',
         'rejection_reason',
     ];
 

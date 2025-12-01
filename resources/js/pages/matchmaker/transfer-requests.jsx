@@ -1,5 +1,5 @@
 import { Head, router, usePage } from '@inertiajs/react';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import AppLayout from '@/layouts/app-layout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -10,9 +10,15 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { CheckCircle, XCircle, ArrowRightLeft, User, Mail, Phone, MapPin, Copy, Check } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 export default function TransferRequests() {
+    const { t } = useTranslation();
     const { receivedRequests = [], sentRequests = [] } = usePage().props;
+    
+    // Get the type from URL query parameter, default to 'received'
+    const urlParams = new URLSearchParams(window.location.search);
+    const type = urlParams.get('type') || 'received';
     const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
     const [selectedRequest, setSelectedRequest] = useState(null);
     const [rejectionReason, setRejectionReason] = useState('');
@@ -102,12 +108,19 @@ export default function TransferRequests() {
             <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-2xl font-bold">Demandes de transfert</h1>
-                        <p className="text-muted-foreground">Gérez les demandes de transfert de prospects/membres/clients</p>
+                        <h1 className="text-2xl font-bold">
+                            {type === 'received' ? t('navigation.receivedRequests', { defaultValue: 'Demandes reçues' }) : t('navigation.sentRequests', { defaultValue: 'Demandes envoyées' })}
+                        </h1>
+                        <p className="text-muted-foreground">
+                            {type === 'received' 
+                                ? 'Demandes de transfert que vous avez reçues'
+                                : 'Demandes de transfert que vous avez envoyées'}
+                        </p>
                     </div>
                 </div>
 
                 {/* Received Requests */}
+                {type === 'received' && (
                 <Card>
                     <CardHeader>
                         <CardTitle>Demandes reçues</CardTitle>
@@ -129,6 +142,7 @@ export default function TransferRequests() {
                                             <TableHead>Statut</TableHead>
                                             <TableHead>Demandé par</TableHead>
                                             <TableHead>Date</TableHead>
+                                            <TableHead>Raison</TableHead>
                                             <TableHead>Actions</TableHead>
                                         </TableRow>
                                     </TableHeader>
@@ -188,6 +202,17 @@ export default function TransferRequests() {
                                                         minute: '2-digit'
                                                     })}
                                                 </TableCell>
+                                                <TableCell>
+                                                    {request.reason ? (
+                                                        <div className="max-w-xs">
+                                                            <p className="text-sm text-muted-foreground line-clamp-2" title={request.reason}>
+                                                                {request.reason}
+                                                            </p>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-sm text-muted-foreground">-</span>
+                                                    )}
+                                                </TableCell>
                                                 <TableCell onClick={(e) => e.stopPropagation()}>
                                                     <div className="flex gap-2">
                                                         <Button
@@ -217,8 +242,10 @@ export default function TransferRequests() {
                         )}
                     </CardContent>
                 </Card>
+                )}
 
                 {/* Sent Requests */}
+                {type === 'sent' && (
                 <Card>
                     <CardHeader>
                         <CardTitle>Demandes envoyées</CardTitle>
@@ -240,6 +267,7 @@ export default function TransferRequests() {
                                             <TableHead>Statut</TableHead>
                                             <TableHead>Transféré à</TableHead>
                                             <TableHead>Date</TableHead>
+                                            <TableHead>Raison</TableHead>
                                             <TableHead>Statut de la demande</TableHead>
                                         </TableRow>
                                     </TableHeader>
@@ -300,11 +328,22 @@ export default function TransferRequests() {
                                                     })}
                                                 </TableCell>
                                                 <TableCell>
+                                                    {request.reason ? (
+                                                        <div className="max-w-xs">
+                                                            <p className="text-sm text-muted-foreground line-clamp-2" title={request.reason}>
+                                                                {request.reason}
+                                                            </p>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-sm text-muted-foreground">-</span>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell>
                                                     <div className="flex flex-col gap-1">
                                                         {getStatusBadge(request.status)}
                                                         {request.status === 'rejected' && request.rejection_reason && (
                                                             <div className="mt-1 p-2 bg-error-light border border-error rounded text-xs">
-                                                                <p className="font-semibold text-error mb-1">Raison:</p>
+                                                                <p className="font-semibold text-error mb-1">Raison du rejet:</p>
                                                                 <p className="text-error">{request.rejection_reason}</p>
                                                             </div>
                                                         )}
@@ -318,6 +357,7 @@ export default function TransferRequests() {
                         )}
                     </CardContent>
                 </Card>
+                )}
 
                 {/* User Info Modal */}
                 <Dialog open={userInfoModalOpen} onOpenChange={setUserInfoModalOpen}>
