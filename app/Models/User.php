@@ -49,6 +49,7 @@ class User extends Authenticatable
         'rejection_reason',
         'rejected_by',
         'rejected_at',
+        'to_rappeler',
         'acceptance_reason',
         'accepted_by',
         'accepted_at'

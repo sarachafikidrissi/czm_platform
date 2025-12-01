@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
-import { LayoutGrid, Table2, Mail, MapPin, CheckCircle, Pencil, XCircle, Search, Copy, Check } from 'lucide-react';
+import { LayoutGrid, Table2, Mail, MapPin, CheckCircle, Pencil, XCircle, Search, Copy, Check, Phone } from 'lucide-react';
 
 export default function AgencyProspects() {
     const { t } = useTranslation();
@@ -203,6 +203,31 @@ export default function AgencyProspects() {
         return false;
     };
     
+    // Check if user can mark a rejected prospect as "A rappeler" (same authorization as accept)
+    const canMarkAsRappeler = (prospect) => {
+        if (!prospect || !prospect.rejection_reason) return false;
+        if (!userRole || !userId) return false;
+        if (userRole === 'admin') return true;
+        // Matchmaker can mark if assigned to them OR if prospect is from their agency and was added by manager
+        if (userRole === 'matchmaker') {
+            if (prospect.assigned_matchmaker_id === userId) return true;
+            if (prospect.agency_id === userAgencyId && prospect.assigned_matchmaker_id === null) return true;
+        }
+        if (userRole === 'manager' && prospect.agency_id === userAgencyId) return true;
+        return false;
+    };
+    
+    const handleMarkAsRappeler = (prospect) => {
+        router.post(`/staff/prospects/${prospect.id}/rappeler`, {}, {
+            onSuccess: () => {
+                // Success handled by redirect
+            },
+            onError: () => {
+                // Error handled by redirect
+            }
+        });
+    };
+    
     // Reset page when prospects change
     useEffect(() => {
         setCurrentPage(1);
@@ -375,6 +400,7 @@ export default function AgencyProspects() {
                                 <SelectContent>
                                     <SelectItem value="active">Actifs</SelectItem>
                                     <SelectItem value="rejected">Rejetés</SelectItem>
+                                    <SelectItem value="rappeler">A rappeler</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
@@ -394,19 +420,23 @@ export default function AgencyProspects() {
                 {viewMode === 'cards' && (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                         {paginatedProspects.map((p) => (
-                            <Card key={p.id} className={`overflow-hidden hover:shadow-lg transition-shadow ${statusFilter === 'rejected' ? 'border-error' : ''}`}>
+                            <Card key={p.id} className={`overflow-hidden hover:shadow-lg transition-shadow ${statusFilter === 'rejected' || statusFilter === 'rappeler' ? 'border-error' : ''}`}>
                                 <div className="relative">
                                     <img
                                         src={getProfilePicture(p)}
                                         alt={p.name}
-                                        className={`w-full h-48 object-cover ${statusFilter === 'rejected' ? 'opacity-75' : ''}`}
+                                        className={`w-full h-48 object-cover ${statusFilter === 'rejected' || statusFilter === 'rappeler' ? 'opacity-75' : ''}`}
                                         onError={(e) => {
                                             e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(p.name)}&background=random`;
                                         }}
                                     />
                                     {/* Overlay Tags */}
                                     <div className="absolute top-2 right-2 flex gap-2">
-                                        {statusFilter === 'rejected' ? (
+                                        {statusFilter === 'rappeler' || p.to_rappeler ? (
+                                            <Badge className="bg-warning text-warning-foreground text-xs px-2 py-1">
+                                                A rappeler
+                                            </Badge>
+                                        ) : statusFilter === 'rejected' ? (
                                             <Badge className="bg-error text-error-foreground text-xs px-2 py-1">
                                                 Rejeté
                                             </Badge>
@@ -432,7 +462,7 @@ export default function AgencyProspects() {
                                 <CardContent className="p-4 space-y-3">
                                     <div>
                                         <h3 className="font-semibold text-lg">{p.name}</h3>
-                                        {statusFilter === 'rejected' && p.rejection_reason && (
+                                        {(statusFilter === 'rejected' || statusFilter === 'rappeler') && p.rejection_reason && (
                                             <p className="text-xs text-error mt-1 line-clamp-2" title={p.rejection_reason}>
                                                 {p.rejection_reason}
                                             </p>
@@ -497,11 +527,22 @@ export default function AgencyProspects() {
                                             </>
                                         ) : (
                                             <>
+                                                {canMarkAsRappeler(p) && !p.to_rappeler && (
+                                                    <Button
+                                                        variant="default"
+                                                        size="sm"
+                                                        className="flex-1 bg-warning hover:opacity-90"
+                                                        onClick={() => handleMarkAsRappeler(p)}
+                                                    >
+                                                        <Phone className="w-4 h-4 mr-1" />
+                                                        A rappeler
+                                                    </Button>
+                                                )}
                                                 {canAcceptProspect(p) && (
                                                     <Button
                                                         variant="default"
                                                         size="sm"
-                                                        className="w-full bg-success hover:opacity-90"
+                                                        className={p.to_rappeler ? "w-full bg-success hover:opacity-90" : "flex-1 bg-success hover:opacity-90"}
                                                         onClick={() => handleAccept(p)}
                                                     >
                                                         <CheckCircle className="w-4 h-4 mr-1" />
@@ -566,28 +607,57 @@ export default function AgencyProspects() {
                                                 </TableCell>
                                                 <TableCell onClick={(e) => e.stopPropagation()}>
                                                     <div className="flex gap-2">
-                                                        {canRejectProspect(p) && (
-                                                            <Button
-                                                                size="sm"
-                                                                variant="destructive"
-                                                                onClick={() => handleReject(p)}
-                                                            >
-                                                                <XCircle className="w-4 h-4 mr-1" />
-                                                                Rejeter
-                                                            </Button>
-                                                        )}
-                                                        {canEditProspectProfile(p) && (
-                                                            <Button 
-                                                                size="sm" 
-                                                                variant="outline"
-                                                                onClick={() => router.visit(`/staff/prospects/${p.id}/profile/edit`)}
-                                                            >
-                                                                <Pencil className="w-4 h-4 mr-1" />
-                                                                Profil
-                                                            </Button>
-                                                        )}
-                                                        {canValidateProspect(p) && (
-                                                            <Button size="sm" onClick={() => handleValidateClick(p)}>Validate</Button>
+                                                        {statusFilter === 'active' ? (
+                                                            <>
+                                                                {canRejectProspect(p) && (
+                                                                    <Button
+                                                                        size="sm"
+                                                                        variant="destructive"
+                                                                        onClick={() => handleReject(p)}
+                                                                    >
+                                                                        <XCircle className="w-4 h-4 mr-1" />
+                                                                        Rejeter
+                                                                    </Button>
+                                                                )}
+                                                                {canEditProspectProfile(p) && (
+                                                                    <Button 
+                                                                        size="sm" 
+                                                                        variant="outline"
+                                                                        onClick={() => router.visit(`/staff/prospects/${p.id}/profile/edit`)}
+                                                                    >
+                                                                        <Pencil className="w-4 h-4 mr-1" />
+                                                                        Profil
+                                                                    </Button>
+                                                                )}
+                                                                {canValidateProspect(p) && (
+                                                                    <Button size="sm" onClick={() => handleValidateClick(p)}>Validate</Button>
+                                                                )}
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                {canMarkAsRappeler(p) && !p.to_rappeler && (
+                                                                    <Button
+                                                                        size="sm"
+                                                                        variant="default"
+                                                                        className="bg-warning hover:opacity-90"
+                                                                        onClick={() => handleMarkAsRappeler(p)}
+                                                                    >
+                                                                        <Phone className="w-4 h-4 mr-1" />
+                                                                        A rappeler
+                                                                    </Button>
+                                                                )}
+                                                                {canAcceptProspect(p) && (
+                                                                    <Button
+                                                                        size="sm"
+                                                                        variant="default"
+                                                                        className="bg-success hover:opacity-90"
+                                                                        onClick={() => handleAccept(p)}
+                                                                    >
+                                                                        <CheckCircle className="w-4 h-4 mr-1" />
+                                                                        Accepter
+                                                                    </Button>
+                                                                )}
+                                                            </>
                                                         )}
                                                     </div>
                                                 </TableCell>
@@ -602,6 +672,8 @@ export default function AgencyProspects() {
                                     <p className="text-muted-foreground">
                                         {statusFilter === 'rejected' 
                                             ? 'Aucun prospect rejeté pour le moment.'
+                                            : statusFilter === 'rappeler'
+                                            ? 'Aucun prospect marqué comme "A rappeler" pour le moment.'
                                             : 'No prospects assigned to your agency yet.'}
                                     </p>
                                 </div>

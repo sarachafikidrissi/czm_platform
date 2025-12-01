@@ -455,6 +455,62 @@ class MatchmakerController extends Controller
         return redirect()->back()->with('success', 'Prospect accepté et restauré avec succès.');
     }
 
+    public function markAsRappeler(Request $request, $id)
+    {
+        $prospect = User::findOrFail($id);
+        
+        // Check if prospect was previously rejected
+        if (!$prospect->rejection_reason) {
+            return redirect()->back()->with('error', 'Seuls les prospects rejetés peuvent être marqués comme "A rappeler".');
+        }
+
+        // Check if prospect status is still 'prospect'
+        if ($prospect->status !== 'prospect') {
+            return redirect()->back()->with('error', 'Ce prospect n\'est plus un prospect.');
+        }
+
+        $me = Auth::user();
+        if (!$me) {
+            abort(403, 'Unauthorized.');
+        }
+
+        $roleName = \Illuminate\Support\Facades\DB::table('model_has_roles')
+            ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+            ->where('model_has_roles.model_id', $me->id)
+            ->value('roles.name');
+
+        // Check authorization: admin, assigned matchmaker, or manager assigned to the prospect
+        $canMarkRappeler = false;
+        
+        if ($roleName === 'admin') {
+            $canMarkRappeler = true;
+        } elseif ($roleName === 'matchmaker') {
+            // Matchmaker can mark if they are assigned to the prospect OR if prospect is from their agency and was added by manager
+            if ($prospect->assigned_matchmaker_id === $me->id) {
+                $canMarkRappeler = true;
+            }
+            if ($prospect->agency_id === $me->agency_id && $prospect->assigned_matchmaker_id === null) {
+                $canMarkRappeler = true;
+            }
+        } elseif ($roleName === 'manager') {
+            // Manager can mark if the prospect is from their agency
+            if ($prospect->agency_id === $me->agency_id) {
+                $canMarkRappeler = true;
+            }
+        }
+
+        if (!$canMarkRappeler) {
+            abort(403, 'Vous n\'êtes pas autorisé à marquer ce prospect comme "A rappeler".');
+        }
+
+        // Mark prospect as "A rappeler"
+        $prospect->update([
+            'to_rappeler' => true,
+        ]);
+
+        return redirect()->back()->with('success', 'Prospect marqué comme "A rappeler" avec succès.');
+    }
+
     public function validatedProspects(Request $request)
     {
         // Allow roles: admin, manager, matchmaker (middleware handles role)
@@ -878,7 +934,7 @@ class MatchmakerController extends Controller
             abort(403, 'You must be linked to an agency to access prospects.');
         }
 
-        $statusFilter = $request->string('status_filter')->toString(); // active | rejected
+        $statusFilter = $request->string('status_filter')->toString(); // active | rejected | rappeler
         $query = User::role('user')
             ->where('status', 'prospect')
             ->with(['profile', 'assignedMatchmaker', 'agency']);
@@ -937,6 +993,14 @@ class MatchmakerController extends Controller
             if ($roleName === 'matchmaker') {
                 $query->where('rejected_by', $me->id);
             }
+        } elseif ($statusFilter === 'rappeler') {
+            // Show only prospects marked as "A rappeler"
+            $query->where('to_rappeler', true);
+            $query->whereNotNull('rejection_reason');
+            // For matchmakers, only show prospects they rejected
+            if ($roleName === 'matchmaker') {
+                $query->where('rejected_by', $me->id);
+            }
         } else {
             // Default to active (non-rejected) prospects
             $query->whereNull('rejection_reason');
@@ -950,7 +1014,7 @@ class MatchmakerController extends Controller
             }
         }
 
-        $prospects = $query->get(['id','name','email','phone','country','city','status','agency_id','assigned_matchmaker_id','rejection_reason','rejected_by','rejected_at','created_at']);
+        $prospects = $query->get(['id','name','email','phone','country','city','status','agency_id','assigned_matchmaker_id','rejection_reason','rejected_by','rejected_at','to_rappeler','created_at']);
         $prospects->load(['profile', 'assignedMatchmaker', 'agency']);
         
         $services = [];

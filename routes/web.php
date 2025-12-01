@@ -372,6 +372,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/prospects/{user}/validate', [\App\Http\Controllers\MatchmakerController::class, 'validateProspect'])->name('prospects.validate');
         Route::post('/prospects/{user}/reject', [\App\Http\Controllers\MatchmakerController::class, 'rejectProspect'])->name('prospects.reject');
         Route::post('/prospects/{user}/accept', [\App\Http\Controllers\MatchmakerController::class, 'acceptRejectedProspect'])->name('prospects.accept');
+        Route::post('/prospects/{user}/rappeler', [\App\Http\Controllers\MatchmakerController::class, 'markAsRappeler'])->name('prospects.rappeler');
         Route::get('/validated-prospects', [\App\Http\Controllers\MatchmakerController::class, 'validatedProspects'])->name('prospects.validated');
         Route::get('/evaluated-users', [\App\Http\Controllers\MatchmakerController::class, 'evaluatedUsers'])->name('evaluated-users');
         Route::post('/mark-as-client', [\App\Http\Controllers\MatchmakerController::class, 'markAsClient'])->name('mark-as-client');
