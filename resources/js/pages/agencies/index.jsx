@@ -14,7 +14,9 @@ export default function AgenciesIndex() {
     const { t } = useTranslation();
     const { agencies = [], selectedAgency } = usePage().props;
     const [activeTab, setActiveTab] = useState(selectedAgency?.id || null);
-    const isLoading = selectedAgency === null || selectedAgency === undefined;
+    // Show skeleton only if an agency is selected (activeTab is set) but data is not yet loaded
+    // Don't show skeleton if no agency is selected at all
+    const isLoading = activeTab !== null && (selectedAgency === null || selectedAgency === undefined);
 
     const handleAgencyClick = (agencyId) => {
         setActiveTab(agencyId);
