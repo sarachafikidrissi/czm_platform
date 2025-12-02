@@ -8,9 +8,11 @@ import CreateAgencyButton from '@/components/admin/create-agency-button';
 import CreateServiceButton from '@/components/admin/create-service-button';
 import CreateSecteurButton from '@/components/admin/create-secteur-button';
 import CreateMatrimonialPackButton from '@/components/admin/create-matrimonial-pack-button';
+import { Skeleton } from '@/components/ui/skeleton';
 
 function AdminDashboardContent({ agencies = [], stats = { totalUsers: 0, pending: 0, approvedManagers: 0, approvedMatchmakers: 0 } }) {
     const { t } = useTranslation();
+    const isLoading = stats === null || stats === undefined;
     return (
         <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
             <div className="flex items-center justify-between">
@@ -24,10 +26,19 @@ function AdminDashboardContent({ agencies = [], stats = { totalUsers: 0, pending
                         <Users className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{stats.totalUsers}</div>
-                        <p className="text-xs text-muted-foreground">
-                            {t('admin.dashboard.stats.allRegisteredUsers')}
-                        </p>
+                        {isLoading ? (
+                            <>
+                                <Skeleton className="h-8 w-20 mb-2" />
+                                <Skeleton className="h-3 w-32" />
+                            </>
+                        ) : (
+                            <>
+                                <div className="text-2xl font-bold">{stats.totalUsers}</div>
+                                <p className="text-xs text-muted-foreground">
+                                    {t('admin.dashboard.stats.allRegisteredUsers')}
+                                </p>
+                            </>
+                        )}
                     </CardContent>
                 </Card>
 
@@ -37,10 +48,19 @@ function AdminDashboardContent({ agencies = [], stats = { totalUsers: 0, pending
                         <UserCheck className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{stats.pending}</div>
-                        <p className="text-xs text-muted-foreground">
-                            {t('admin.dashboard.stats.staffAwaitingApproval')}
-                        </p>
+                        {isLoading ? (
+                            <>
+                                <Skeleton className="h-8 w-16 mb-2" />
+                                <Skeleton className="h-3 w-40" />
+                            </>
+                        ) : (
+                            <>
+                                <div className="text-2xl font-bold">{stats.pending}</div>
+                                <p className="text-xs text-muted-foreground">
+                                    {t('admin.dashboard.stats.staffAwaitingApproval')}
+                                </p>
+                            </>
+                        )}
                     </CardContent>
                 </Card>
 
@@ -50,10 +70,19 @@ function AdminDashboardContent({ agencies = [], stats = { totalUsers: 0, pending
                         <UserCheck className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{stats.approvedMatchmakers}</div>
-                        <p className="text-xs text-muted-foreground">
-                            {t('admin.dashboard.stats.approvedMatchmakers')}
-                        </p>
+                        {isLoading ? (
+                            <>
+                                <Skeleton className="h-8 w-16 mb-2" />
+                                <Skeleton className="h-3 w-36" />
+                            </>
+                        ) : (
+                            <>
+                                <div className="text-2xl font-bold">{stats.approvedMatchmakers}</div>
+                                <p className="text-xs text-muted-foreground">
+                                    {t('admin.dashboard.stats.approvedMatchmakers')}
+                                </p>
+                            </>
+                        )}
                     </CardContent>
                 </Card>
 
@@ -63,10 +92,19 @@ function AdminDashboardContent({ agencies = [], stats = { totalUsers: 0, pending
                         <Settings className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{stats.approvedManagers}</div>
-                        <p className="text-xs text-muted-foreground">
-                            {t('admin.dashboard.stats.approvedManagers')}
-                        </p>
+                        {isLoading ? (
+                            <>
+                                <Skeleton className="h-8 w-16 mb-2" />
+                                <Skeleton className="h-3 w-32" />
+                            </>
+                        ) : (
+                            <>
+                                <div className="text-2xl font-bold">{stats.approvedManagers}</div>
+                                <p className="text-xs text-muted-foreground">
+                                    {t('admin.dashboard.stats.approvedManagers')}
+                                </p>
+                            </>
+                        )}
                     </CardContent>
                 </Card>
             </div>

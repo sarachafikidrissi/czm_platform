@@ -11,10 +11,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { CheckCircle, XCircle, ArrowRightLeft, User, Mail, Phone, MapPin, Copy, Check } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function TransferRequests() {
     const { t } = useTranslation();
     const { receivedRequests = [], sentRequests = [] } = usePage().props;
+    const isLoading = (receivedRequests === null || receivedRequests === undefined) && (sentRequests === null || sentRequests === undefined);
     
     // Get the type from URL query parameter, default to 'received'
     const urlParams = new URLSearchParams(window.location.search);
@@ -147,7 +149,34 @@ export default function TransferRequests() {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {receivedRequests.map((request) => (
+                                        {isLoading ? (
+                                            [1, 2, 3, 4, 5].map((i) => (
+                                                <TableRow key={i}>
+                                                    <TableCell>
+                                                        <div className="flex items-center gap-3">
+                                                            <Skeleton className="w-10 h-10 rounded-full" />
+                                                            <div>
+                                                                <Skeleton className="h-4 w-32 mb-2" />
+                                                                <Skeleton className="h-3 w-24" />
+                                                            </div>
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell><Skeleton className="h-4 w-40" /></TableCell>
+                                                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                                                    <TableCell><Skeleton className="h-6 w-16" /></TableCell>
+                                                    <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                                                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                                                    <TableCell><Skeleton className="h-4 w-40" /></TableCell>
+                                                    <TableCell>
+                                                        <div className="flex gap-2">
+                                                            <Skeleton className="h-8 w-20" />
+                                                            <Skeleton className="h-8 w-20" />
+                                                        </div>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))
+                                        ) : (
+                                            receivedRequests.map((request) => (
                                             <TableRow 
                                                 key={request.id}
                                                 className="cursor-pointer hover:bg-muted/50"
@@ -235,7 +264,8 @@ export default function TransferRequests() {
                                                     </div>
                                                 </TableCell>
                                             </TableRow>
-                                        ))}
+                                            ))
+                                        )}
                                     </TableBody>
                                 </Table>
                             </div>
@@ -272,7 +302,29 @@ export default function TransferRequests() {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {sentRequests.map((request) => (
+                                        {isLoading ? (
+                                            [1, 2, 3, 4, 5].map((i) => (
+                                                <TableRow key={i}>
+                                                    <TableCell>
+                                                        <div className="flex items-center gap-3">
+                                                            <Skeleton className="w-10 h-10 rounded-full" />
+                                                            <div>
+                                                                <Skeleton className="h-4 w-32 mb-2" />
+                                                                <Skeleton className="h-3 w-24" />
+                                                            </div>
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell><Skeleton className="h-4 w-40" /></TableCell>
+                                                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                                                    <TableCell><Skeleton className="h-6 w-16" /></TableCell>
+                                                    <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                                                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                                                    <TableCell><Skeleton className="h-4 w-40" /></TableCell>
+                                                    <TableCell><Skeleton className="h-6 w-20" /></TableCell>
+                                                </TableRow>
+                                            ))
+                                        ) : (
+                                            sentRequests.map((request) => (
                                             <TableRow 
                                                 key={request.id}
                                                 className="cursor-pointer hover:bg-muted/50"
@@ -350,7 +402,8 @@ export default function TransferRequests() {
                                                     </div>
                                                 </TableCell>
                                             </TableRow>
-                                        ))}
+                                            ))
+                                        )}
                                     </TableBody>
                                 </Table>
                             </div>

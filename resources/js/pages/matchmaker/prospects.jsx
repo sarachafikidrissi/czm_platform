@@ -12,9 +12,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { CheckCircle, User, XCircle, Pencil } from 'lucide-react';
 import { useState } from 'react';
 import AppLayout from '@/layouts/app-layout';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function MatchmakerProspects() {
     const { prospects = [], filter, statusFilter = 'active', services = [], matrimonialPacks = [], auth } = usePage().props;
+    const isLoading = prospects === null || prospects === undefined;
     const [selectedProspect, setSelectedProspect] = useState(null);
     const [notes, setNotes] = useState('');
     const [contactType, setContactType] = useState('');
@@ -310,7 +312,25 @@ export default function MatchmakerProspects() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {prospects.map((prospect) => (
+                            {isLoading ? (
+                                [1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                                    <TableRow key={i}>
+                                        <TableCell><Skeleton className="h-4 w-4" /></TableCell>
+                                        <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                                        <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                                        <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+                                        <TableCell><Skeleton className="h-6 w-24" /></TableCell>
+                                        {statusFilter === 'rejected' && <TableCell><Skeleton className="h-4 w-40" /></TableCell>}
+                                        <TableCell className="text-right">
+                                            <div className="flex justify-end gap-2">
+                                                <Skeleton className="h-8 w-20" />
+                                                <Skeleton className="h-8 w-16" />
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                ))
+                            ) : (
+                                prospects.map((prospect) => (
                                 <TableRow key={prospect.id} className={statusFilter === 'rejected' ? 'bg-error-light' : ''}>
                                     <TableCell><input type="checkbox" className="accent-primary" /></TableCell>
                                     <TableCell className="font-medium">{prospect.name}</TableCell>
@@ -605,7 +625,8 @@ export default function MatchmakerProspects() {
                                         </div>
                                     </TableCell>
                                 </TableRow>
-                            ))}
+                                ))
+                            )}
                         </TableBody>
                     </Table>
                     

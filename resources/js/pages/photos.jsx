@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -39,6 +40,7 @@ export default function PhotosPage({
     // Handle pagination data structure
     const photosData = photos?.data || [];
     const pagination = photos || {};
+    const isLoading = photos === null || photos === undefined;
 
     // const handleSearch = (e) => {
     //     const value = e.target.value;
@@ -235,7 +237,19 @@ export default function PhotosPage({
                 )}
 
                 {/* Gallery Grid */}
-                {photosData.length > 0 ? (
+                {isLoading ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 px-4">
+                        {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                            <div key={i} className="bg-white rounded-2xl overflow-hidden shadow-sm">
+                                <Skeleton className="w-full aspect-square" />
+                                <div className="p-4 space-y-2">
+                                    <Skeleton className="h-4 w-3/4" />
+                                    <Skeleton className="h-3 w-1/2" />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ) : photosData.length > 0 ? (
                     <>
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 px-4">
                             {photosData.map((photo) => (

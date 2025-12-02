@@ -15,6 +15,7 @@ import AdminDashboardContent from './admin/adminDashboardContent';
 import ManagerDashboardContent from './manager/managerDashboardContent';
 import MatchMakerDashboardContent from './matchmaker/matchmakerDashboardContent';
 import PostCard from '@/components/posts/PostCard';
+import { Skeleton } from '@/components/ui/skeleton';
 
 function UserDashboardContent({ user, profile, subscriptionReminder, accountStatus, rejectedBy, unpaidBill, expiredSubscription, recentPosts }) {
     const { t } = useTranslation();
@@ -361,7 +362,17 @@ function UserDashboardContent({ user, profile, subscriptionReminder, accountStat
                     <CardDescription>{t('dashboard.recentActivityDescription')}</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    {recentPosts && recentPosts.length > 0 ? (
+                    {recentPosts === null || recentPosts === undefined ? (
+                        <div className="space-y-4">
+                            {[1, 2, 3].map((i) => (
+                                <div key={i} className="space-y-3">
+                                    <Skeleton className="h-4 w-3/4" />
+                                    <Skeleton className="h-4 w-1/2" />
+                                    <Skeleton className="h-32 w-full" />
+                                </div>
+                            ))}
+                        </div>
+                    ) : recentPosts && recentPosts.length > 0 ? (
                         <div className="space-y-4">
                             {recentPosts.map((post) => (
                                 <PostCard key={post.id} post={post} />

@@ -1,5 +1,5 @@
 import { Head, router, usePage, useForm } from '@inertiajs/react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import AppLayout from '@/layouts/app-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { CheckCircle, Edit, Target, TrendingUp, Loader2, Eye } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function ObjectivesIndex() {
     const { t } = useTranslation();
@@ -27,13 +28,23 @@ export default function ObjectivesIndex() {
         canEdit,
         currentUser 
     } = usePage().props;
-
     const [editDialogOpen, setEditDialogOpen] = useState(false);
     const [selectedUserId, setSelectedUserId] = useState(userId || null);
     const [detailDialogOpen, setDetailDialogOpen] = useState(false);
     const [selectedMetric, setSelectedMetric] = useState(null);
     const [detailData, setDetailData] = useState(null);
     const [loadingDetails, setLoadingDetails] = useState(false);
+    const [isNavigating, setIsNavigating] = useState(false);
+    
+    // Show skeleton loading only if there IS data (objective exists), otherwise show normal element
+    // If there's no objective, show normal "no objectives" message instead of skeleton
+    const hasData = objective !== null && objective !== undefined && realized !== null && realized !== undefined;
+    const isLoading = hasData && isNavigating;
+    
+    // Track navigation state when filters change
+    useEffect(() => {
+        setIsNavigating(false); // Reset when props update (navigation finished)
+    }, [objective, realized, progress, commission, month, year]);
 
     const { data, setData, post, processing, errors, reset } = useForm({
         role_type: roleType || 'matchmaker',
@@ -91,6 +102,7 @@ export default function ObjectivesIndex() {
     };
 
     const handleMonthYearChange = (newMonth, newYear) => {
+        setIsNavigating(true);
         router.get('/objectives', {
             month: newMonth,
             year: newYear,
@@ -98,11 +110,13 @@ export default function ObjectivesIndex() {
         }, {
             preserveScroll: true,
             preserveState: false,
+            onFinish: () => setIsNavigating(false),
         });
     };
 
     const handleUserChange = (newUserId) => {
         setSelectedUserId(newUserId ? parseInt(newUserId) : null);
+        setIsNavigating(true);
         router.get('/objectives', {
             month: month,
             year: year,
@@ -110,6 +124,7 @@ export default function ObjectivesIndex() {
         }, {
             preserveScroll: true,
             preserveState: false,
+            onFinish: () => setIsNavigating(false),
         });
     };
 
@@ -321,7 +336,24 @@ export default function ObjectivesIndex() {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {metrics.map((metric) => (
+                                    {isLoading ? (
+                                        [1, 2, 3, 4].map((i) => (
+                                            <TableRow key={i}>
+                                                <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                                                <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                                                <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                                                <TableCell>
+                                                    <div className="flex items-center gap-2">
+                                                        <Skeleton className="h-2 w-full" />
+                                                        <Skeleton className="h-4 w-12" />
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell><Skeleton className="h-6 w-24" /></TableCell>
+                                                {canEdit && <TableCell><Skeleton className="h-8 w-20" /></TableCell>}
+                                            </TableRow>
+                                        ))
+                                    ) : (
+                                        metrics.map((metric) => (
                                         <TableRow 
                                             key={metric.key}
                                             className="cursor-pointer hover:bg-muted/50"
@@ -398,7 +430,8 @@ export default function ObjectivesIndex() {
                                                 </TableCell>
                                             )}
                                         </TableRow>
-                                    ))}
+                                        ))
+                                    )}
                                 </TableBody>
                             </Table>
                         </div>

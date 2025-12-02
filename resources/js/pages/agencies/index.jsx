@@ -8,11 +8,13 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useTranslation } from 'react-i18next';
 import { Building2, Calendar, ExternalLink, MapPin, UserCheck, Users } from 'lucide-react';
 import { useState } from 'react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function AgenciesIndex() {
     const { t } = useTranslation();
     const { agencies = [], selectedAgency } = usePage().props;
     const [activeTab, setActiveTab] = useState(selectedAgency?.id || null);
+    const isLoading = selectedAgency === null || selectedAgency === undefined;
 
     const handleAgencyClick = (agencyId) => {
         setActiveTab(agencyId);
@@ -68,10 +70,9 @@ export default function AgenciesIndex() {
                     </CardContent>
                 </Card>
                 <Card className=" h-48 p-0!">
-                    {/* <CardHeader>
-                        <CardTitle>Agency Image</CardTitle>
-                    </CardHeader> */}
-                    {/* <CardContent className="p-0"> */}
+                    {isLoading ? (
+                        <Skeleton className="h-full w-full" />
+                    ) : selectedAgency ? (
                         <div className="relative h-full w-full overflow-hidden rounded-lg">
                             <img
                                 src={getAgencyImage(selectedAgency)}
@@ -82,11 +83,118 @@ export default function AgenciesIndex() {
                                 }}
                             />
                         </div>
-                    {/* </CardContent> */}
+                    ) : null}
                 </Card>
 
                 {/* Agency Details Section */}
-                {selectedAgency ? (
+                {isLoading ? (
+                    <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+                        {/* Left Column Skeleton */}
+                        <div className="space-y-4 lg:col-span-2">
+                            {/* Agency Header Card Skeleton */}
+                            <Card className="overflow-hidden">
+                                <div className="relative p-6" style={{ backgroundColor: 'rgba(9, 103, 37, 0.05)' }}>
+                                    <div className="flex items-start gap-4 max-md:flex-col">
+                                        <Skeleton className="h-20 w-20 rounded-full" />
+                                        <div className="flex-1 space-y-3">
+                                            <div className="flex items-start justify-between">
+                                                <div className="space-y-2">
+                                                    <Skeleton className="h-8 w-48" />
+                                                    <Skeleton className="h-4 w-64" />
+                                                    <Skeleton className="h-4 w-80" />
+                                                </div>
+                                                <Skeleton className="h-6 w-24" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <CardContent className="p-6">
+                                    <Skeleton className="h-6 w-32 mb-3" />
+                                    <Skeleton className="h-4 w-full" />
+                                    <Skeleton className="h-4 w-3/4" />
+                                </CardContent>
+                            </Card>
+
+                            {/* Team Members Section Skeleton */}
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2">
+                                        <Users className="h-5 w-5" />
+                                        {t('agencies.teamMembers')}
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                        {[1, 2, 3, 4].map((i) => (
+                                            <Card key={i} className="overflow-hidden">
+                                                <CardContent className="p-4">
+                                                    <div className="flex items-center gap-3">
+                                                        <Skeleton className="h-12 w-12 rounded-full" />
+                                                        <div className="flex-1 space-y-2">
+                                                            <Skeleton className="h-4 w-32" />
+                                                            <Skeleton className="h-3 w-40" />
+                                                        </div>
+                                                        <Skeleton className="h-8 w-24" />
+                                                    </div>
+                                                </CardContent>
+                                            </Card>
+                                        ))}
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            {/* Posts Section Skeleton */}
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2">
+                                        <Calendar className="h-5 w-5" />
+                                        {t('agencies.latestPostsFromMatchmakers')}
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="space-y-4">
+                                        {[1, 2].map((i) => (
+                                            <Card key={i}>
+                                                <CardContent className="p-4 space-y-3">
+                                                    <div className="flex items-center gap-3">
+                                                        <Skeleton className="h-10 w-10 rounded-full" />
+                                                        <div className="space-y-2">
+                                                            <Skeleton className="h-4 w-32" />
+                                                            <Skeleton className="h-3 w-24" />
+                                                        </div>
+                                                    </div>
+                                                    <Skeleton className="h-4 w-full" />
+                                                    <Skeleton className="h-4 w-3/4" />
+                                                    <Skeleton className="h-48 w-full" />
+                                                </CardContent>
+                                            </Card>
+                                        ))}
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </div>
+
+                        {/* Right Column Skeleton */}
+                        <div className="space-y-4">
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2">
+                                        <MapPin className="h-5 w-5" />
+                                        {t('agencies.location')}
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="p-0">
+                                    <Skeleton className="h-64 w-full" />
+                                    <div className="bg-white p-4 space-y-2">
+                                        <Skeleton className="h-4 w-32" />
+                                        <Skeleton className="h-3 w-48" />
+                                        <Skeleton className="h-3 w-40" />
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </div>
+                    </div>
+                ) : selectedAgency ? (
                     <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
                         {/* Left Column - Agency Information */}
                         <div className="space-y-4 lg:col-span-2">

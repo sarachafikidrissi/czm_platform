@@ -13,10 +13,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { XCircle, CheckCircle, Copy, Check, Mail, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function ProspectsDispatch() {
     const { t } = useTranslation();
     const { prospects = [], agencies = [], matchmakers = [], filters = {}, statusFilter = 'active' } = usePage().props;
+    const isLoading = prospects === null || prospects === undefined;
     const [countries, setCountries] = useState([]);
     const [countryCodeToCities, setCountryCodeToCities] = useState({});
     const [selectedCountryCode, setSelectedCountryCode] = useState('');
@@ -211,6 +213,7 @@ export default function ProspectsDispatch() {
 
     // Filter prospects based on search query
     const filteredProspects = useMemo(() => {
+        if (!prospects || prospects.length === 0) return [];
         if (!searchQuery.trim()) {
             return prospects;
         }
@@ -493,7 +496,28 @@ export default function ProspectsDispatch() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {filteredProspects.map((p) => (
+                                {isLoading ? (
+                                    [1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                                        <TableRow key={i}>
+                                            <TableCell><Skeleton className="h-4 w-4" /></TableCell>
+                                            <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                                            <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                                            <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+                                            <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                                            {statusFilter === 'active' && <TableCell><Skeleton className="h-4 w-32" /></TableCell>}
+                                            {statusFilter === 'rejected' && <TableCell><Skeleton className="h-4 w-40" /></TableCell>}
+                                            <TableCell><Skeleton className="h-6 w-16" /></TableCell>
+                                            <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                                            <TableCell>
+                                                <div className="flex gap-2">
+                                                    <Skeleton className="h-8 w-20" />
+                                                    <Skeleton className="h-8 w-16" />
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))
+                                ) : (
+                                    filteredProspects.map((p) => (
                                     <TableRow 
                                         key={p.id} 
                                         className={`cursor-pointer hover:bg-muted/50 ${statusFilter === 'rejected' ? 'bg-error-light' : ''}`}
@@ -607,8 +631,9 @@ export default function ProspectsDispatch() {
                                             </div>
                                     </TableCell>
                                 </TableRow>
-                            ))}
-                            {filteredProspects.length === 0 && !searchQuery.trim() && (
+                                ))
+                            )}
+                            {filteredProspects.length === 0 && !searchQuery.trim() && !isLoading && (
                                 <TableRow>
                                     <TableCell colSpan={statusFilter === 'active' ? 9 : 9} className="text-center py-8">
                                         <p className="text-muted-foreground">{t('staff.noProspectsAvailable')}</p>

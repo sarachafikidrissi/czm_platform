@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle, Clock } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
     BarChart,
     Bar,
@@ -125,8 +126,60 @@ function MatchMakerDashboardContent({ expiringClients = [] }) {
     if (loading) {
         return (
             <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
-                <div className="flex items-center justify-center h-64">
-                    <div className="text-muted-foreground">{t('common.loading')}</div>
+                {/* Header Skeleton */}
+                <div className="flex flex-col gap-3">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                        <div>
+                            <Skeleton className="h-8 w-64 mb-2" />
+                            <Skeleton className="h-4 w-96" />
+                        </div>
+                    </div>
+                </div>
+
+                {/* Filters Skeleton */}
+                <Card>
+                    <CardHeader>
+                        <Skeleton className="h-6 w-32" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            {[1, 2, 3, 4].map((i) => (
+                                <div key={i}>
+                                    <Skeleton className="h-4 w-24 mb-2" />
+                                    <Skeleton className="h-10 w-full" />
+                                </div>
+                            ))}
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {/* Statistics Cards Skeleton */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {[1, 2, 3, 4].map((i) => (
+                        <Card key={i}>
+                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                <Skeleton className="h-4 w-24" />
+                                <Skeleton className="h-4 w-4" />
+                            </CardHeader>
+                            <CardContent>
+                                <Skeleton className="h-8 w-20 mb-2" />
+                            </CardContent>
+                        </Card>
+                    ))}
+                </div>
+
+                {/* Charts Skeleton */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {[1, 2].map((i) => (
+                        <Card key={i}>
+                            <CardHeader>
+                                <Skeleton className="h-6 w-48" />
+                            </CardHeader>
+                            <CardContent>
+                                <Skeleton className="h-[300px] w-full" />
+                            </CardContent>
+                        </Card>
+                    ))}
                 </div>
             </div>
         );
@@ -270,9 +323,13 @@ function MatchMakerDashboardContent({ expiringClients = [] }) {
                                 <Users className="h-4 w-4 text-muted-foreground" />
                             </CardHeader>
                             <CardContent>
-                                <div className="text-2xl font-bold">
-                                    {stat.users?.total_assigned || 0}
-                                </div>
+                                {loading || !stat.users ? (
+                                    <Skeleton className="h-8 w-20" />
+                                ) : (
+                                    <div className="text-2xl font-bold">
+                                        {stat.users?.total_assigned || 0}
+                                    </div>
+                                )}
                             </CardContent>
                         </Card>
 
@@ -284,9 +341,13 @@ function MatchMakerDashboardContent({ expiringClients = [] }) {
                                 <DollarSign className="h-4 w-4 text-muted-foreground" />
                             </CardHeader>
                             <CardContent>
-                                <div className="text-2xl font-bold">
-                                    {formatCurrency(stat.bills?.total_sales || 0)}
-                                </div>
+                                {loading || !stat.bills ? (
+                                    <Skeleton className="h-8 w-24" />
+                                ) : (
+                                    <div className="text-2xl font-bold">
+                                        {formatCurrency(stat.bills?.total_sales || 0)}
+                                    </div>
+                                )}
                             </CardContent>
                         </Card>
 
@@ -298,9 +359,13 @@ function MatchMakerDashboardContent({ expiringClients = [] }) {
                                 <FileText className="h-4 w-4 text-muted-foreground" />
                             </CardHeader>
                             <CardContent>
-                                <div className="text-2xl font-bold">
-                                    {stat.subscriptions?.active_count || 0}
-                                </div>
+                                {loading || !stat.subscriptions ? (
+                                    <Skeleton className="h-8 w-16" />
+                                ) : (
+                                    <div className="text-2xl font-bold">
+                                        {stat.subscriptions?.active_count || 0}
+                                    </div>
+                                )}
                             </CardContent>
                         </Card>
 
@@ -312,9 +377,13 @@ function MatchMakerDashboardContent({ expiringClients = [] }) {
                                 <ClipboardList className="h-4 w-4 text-muted-foreground" />
                             </CardHeader>
                             <CardContent>
-                                <div className="text-2xl font-bold">
-                                    {stat.evaluations?.total || 0}
-                                </div>
+                                {loading || !stat.evaluations ? (
+                                    <Skeleton className="h-8 w-16" />
+                                ) : (
+                                    <div className="text-2xl font-bold">
+                                        {stat.evaluations?.total || 0}
+                                    </div>
+                                )}
                             </CardContent>
                         </Card>
                     </div>
@@ -326,30 +395,34 @@ function MatchMakerDashboardContent({ expiringClients = [] }) {
                                 <CardTitle>{t('statistics.userStatusDistribution')}</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <ResponsiveContainer width="100%" height={300}>
-                                    <PieChart>
-                                        <Pie
-                                            data={prepareChartData(stat.users?.by_status)}
-                                            cx="50%"
-                                            cy="50%"
-                                            labelLine={false}
-                                            label={({ name, percent }) =>
-                                                `${name}: ${(percent * 100).toFixed(0)}%`
-                                            }
-                                            outerRadius={80}
-                                            fill="#8884d8"
-                                            dataKey="value"
-                                        >
-                                            {prepareChartData(stat.users?.by_status).map((entry, index) => (
-                                                <Cell
-                                                    key={`cell-${index}`}
-                                                    fill={Object.values(COLORS)[index % Object.keys(COLORS).length]}
-                                                />
-                                            ))}
-                                        </Pie>
-                                        <Tooltip />
-                                    </PieChart>
-                                </ResponsiveContainer>
+                                {loading || !stat.users?.by_status ? (
+                                    <Skeleton className="h-[300px] w-full" />
+                                ) : (
+                                    <ResponsiveContainer width="100%" height={300}>
+                                        <PieChart>
+                                            <Pie
+                                                data={prepareChartData(stat.users?.by_status)}
+                                                cx="50%"
+                                                cy="50%"
+                                                labelLine={false}
+                                                label={({ name, percent }) =>
+                                                    `${name}: ${(percent * 100).toFixed(0)}%`
+                                                }
+                                                outerRadius={80}
+                                                fill="#8884d8"
+                                                dataKey="value"
+                                            >
+                                                {prepareChartData(stat.users?.by_status).map((entry, index) => (
+                                                    <Cell
+                                                        key={`cell-${index}`}
+                                                        fill={Object.values(COLORS)[index % Object.keys(COLORS).length]}
+                                                    />
+                                                ))}
+                                            </Pie>
+                                            <Tooltip />
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                )}
                             </CardContent>
                         </Card>
 
@@ -358,20 +431,24 @@ function MatchMakerDashboardContent({ expiringClients = [] }) {
                                 <CardTitle>{t('statistics.salesTrend')}</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <ResponsiveContainer width="100%" height={300}>
-                                    <AreaChart data={stat.bills?.trends || []}>
-                                        <CartesianGrid strokeDasharray="3 3" />
-                                        <XAxis dataKey="period" />
-                                        <YAxis />
-                                        <Tooltip formatter={(value) => formatCurrency(value)} />
-                                        <Area
-                                            type="monotone"
-                                            dataKey="total"
-                                            stroke={COLORS.success}
-                                            fill={COLORS.chart1}
-                                        />
-                                    </AreaChart>
-                                </ResponsiveContainer>
+                                {loading || !stat.bills?.trends || stat.bills.trends.length === 0 ? (
+                                    <Skeleton className="h-[300px] w-full" />
+                                ) : (
+                                    <ResponsiveContainer width="100%" height={300}>
+                                        <AreaChart data={stat.bills?.trends || []}>
+                                            <CartesianGrid strokeDasharray="3 3" />
+                                            <XAxis dataKey="period" />
+                                            <YAxis />
+                                            <Tooltip formatter={(value) => formatCurrency(value)} />
+                                            <Area
+                                                type="monotone"
+                                                dataKey="total"
+                                                stroke={COLORS.success}
+                                                fill={COLORS.chart1}
+                                            />
+                                        </AreaChart>
+                                    </ResponsiveContainer>
+                                )}
                             </CardContent>
                         </Card>
                     </div>

@@ -14,10 +14,12 @@ import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import { useState, useEffect, useMemo } from 'react';
 import { LayoutGrid, Table2, Mail, MapPin, CheckCircle, Pencil, TestTube, Link as LinkIcon, Copy, Check, Search, Phone, ArrowRightLeft, AlertCircle } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function ValidatedProspects() {
     const { t } = useTranslation();
     const { prospects, status, assignedMatchmaker, auth } = usePage().props;
+    const isLoading = prospects === null || prospects === undefined;
     const [loading, setLoading] = useState({});
     const [subscriptionOpen, setSubscriptionOpen] = useState(false);
     const [selectedUser, setSelectedUser] = useState(null);
@@ -71,6 +73,7 @@ export default function ValidatedProspects() {
     
     // Filter prospects based on search query
     const filteredProspects = useMemo(() => {
+        if (!prospects || prospects.length === 0) return [];
         if (!searchQuery.trim()) {
             return prospects;
         }
@@ -542,7 +545,20 @@ export default function ValidatedProspects() {
                 {/* Cards View */}
                 {viewMode === 'cards' && (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                        {paginatedProspects.map((u) => (
+                        {isLoading ? (
+                            [1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                                <Card key={i} className="overflow-hidden">
+                                    <Skeleton className="w-full h-48" />
+                                    <CardContent className="p-4 space-y-3">
+                                        <Skeleton className="h-6 w-3/4" />
+                                        <Skeleton className="h-4 w-full" />
+                                        <Skeleton className="h-4 w-2/3" />
+                                        <Skeleton className="h-10 w-full" />
+                                    </CardContent>
+                                </Card>
+                            ))
+                        ) : (
+                            paginatedProspects.map((u) => (
                             <Card key={u.id} className="overflow-hidden hover:shadow-lg transition-shadow">
                                 <div className="relative">
                                     <img
@@ -721,7 +737,8 @@ export default function ValidatedProspects() {
                                     </div>
                                 </CardContent>
                             </Card>
-                        ))}
+                            ))
+                        )}
                     </div>
                 )}
 
@@ -745,7 +762,27 @@ export default function ValidatedProspects() {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {paginatedProspects.map((u) => (
+                                        {isLoading ? (
+                                            [1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                                                <TableRow key={i}>
+                                                    <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                                                    <TableCell><Skeleton className="h-4 w-40" /></TableCell>
+                                                    <TableCell className="hidden md:table-cell"><Skeleton className="h-4 w-24" /></TableCell>
+                                                    <TableCell className="hidden lg:table-cell"><Skeleton className="h-4 w-28" /></TableCell>
+                                                    <TableCell><Skeleton className="h-6 w-16" /></TableCell>
+                                                    <TableCell><Skeleton className="h-6 w-20" /></TableCell>
+                                                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                                                    <TableCell><Skeleton className="h-6 w-16" /></TableCell>
+                                                    <TableCell>
+                                                        <div className="flex items-center gap-2">
+                                                            <Skeleton className="h-8 w-20" />
+                                                            <Skeleton className="h-8 w-8" />
+                                                        </div>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))
+                                        ) : (
+                                            paginatedProspects.map((u) => (
                                             <TableRow 
                                                 key={u.id}
                                                 className="cursor-pointer hover:bg-muted/50"
@@ -925,7 +962,8 @@ export default function ValidatedProspects() {
                                                     </div>
                                                 </TableCell>
                                             </TableRow>
-                                        ))}
+                                            ))
+                                        )}
                                     </TableBody>
                                 </Table>
                             </div>

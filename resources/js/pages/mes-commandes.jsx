@@ -10,10 +10,12 @@ import { ShoppingCart, Package, CreditCard, CheckCircle, MoreHorizontal, Eye, Do
 import { useState } from 'react';
 import { Link } from '@inertiajs/react';
 import { useTranslation } from 'react-i18next';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function MesCommandes({ bills = [] }) {
     const { auth } = usePage().props;
     const { t } = useTranslation();
+    const isLoading = bills === null || bills === undefined;
     const [selectedInvoice, setSelectedInvoice] = useState(null);
     const [showInvoice, setShowInvoice] = useState(false);
     const [showMatchmakerDialog, setShowMatchmakerDialog] = useState(false);
@@ -127,7 +129,57 @@ export default function MesCommandes({ bills = [] }) {
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="min-w-0">
-                            {bills.length > 0 ? (
+                            {isLoading ? (
+                                <>
+                                    {/* Desktop Table View Skeleton */}
+                                    <div className="hidden md:block overflow-x-auto">
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow>
+                                                    <TableHead className="w-[120px]">{t('orders.orderNumber')}</TableHead>
+                                                    <TableHead>{t('common.date')}</TableHead>
+                                                    <TableHead>{t('orders.pack')}</TableHead>
+                                                    <TableHead>{t('common.status')}</TableHead>
+                                                    <TableHead>{t('orders.dueDate')}</TableHead>
+                                                    <TableHead className="text-right">{t('common.amount')}</TableHead>
+                                                    <TableHead className="w-[100px]">{t('common.actions')}</TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {[1, 2, 3, 4, 5].map((i) => (
+                                                    <TableRow key={i}>
+                                                        <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                                                        <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                                                        <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                                                        <TableCell><Skeleton className="h-6 w-20" /></TableCell>
+                                                        <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                                                        <TableCell className="text-right"><Skeleton className="h-4 w-20" /></TableCell>
+                                                        <TableCell><Skeleton className="h-8 w-8" /></TableCell>
+                                                    </TableRow>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
+                                    </div>
+                                    {/* Mobile Card View Skeleton */}
+                                    <div className="md:hidden space-y-4 min-w-0">
+                                        {[1, 2, 3].map((i) => (
+                                            <Card key={i} className="border min-w-0">
+                                                <CardContent className="pt-4 sm:pt-6 px-3 sm:px-6">
+                                                    <div className="space-y-4 min-w-0">
+                                                        <Skeleton className="h-4 w-3/4" />
+                                                        <Skeleton className="h-4 w-1/2" />
+                                                        <Skeleton className="h-6 w-20" />
+                                                        <Skeleton className="h-4 w-full" />
+                                                        <Skeleton className="h-4 w-2/3" />
+                                                        <Skeleton className="h-4 w-1/2" />
+                                                        <Skeleton className="h-9 w-full" />
+                                                    </div>
+                                                </CardContent>
+                                            </Card>
+                                        ))}
+                                    </div>
+                                </>
+                            ) : bills.length > 0 ? (
                                 <>
                                     {/* Desktop Table View */}
                                     <div className="hidden md:block overflow-x-auto">

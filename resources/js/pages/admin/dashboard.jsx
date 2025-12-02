@@ -13,10 +13,12 @@ import { CheckCircle, XCircle, Users, UserCheck, Edit, Shield } from 'lucide-rea
 import CreateStaffButton from '@/components/admin/create-staff-button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import AppLayout from '@/layouts/app-layout';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function AdminDashboard() {
     const { t } = useTranslation();
     const { managers, matchmakers, agencies } = usePage().props;
+    const isLoading = managers === null || managers === undefined || matchmakers === null || matchmakers === undefined;
     const url = usePage().url;
     const viewParam = (() => {
         const qIndex = url.indexOf('?');
@@ -177,19 +179,52 @@ export default function AdminDashboard() {
                         </CardDescription>
                     </CardHeader>
                     <CardContent className={viewParam !== 'managers' ? 'hidden' : ''}>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead className="w-10"></TableHead>
-                                    <TableHead>{t('admin.dashboard.name')}</TableHead>
-                                    <TableHead>{t('admin.dashboard.date')}</TableHead>
-                                    <TableHead>{t('admin.dashboard.agency')}</TableHead>
-                                    <TableHead>{t('admin.dashboard.role')}</TableHead>
-                                    <TableHead className="text-right">{t('admin.dashboard.actions')}</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {managers.map((manager) => (
+                        {isLoading ? (
+                            <div className="space-y-4">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead className="w-10"></TableHead>
+                                            <TableHead>{t('admin.dashboard.name')}</TableHead>
+                                            <TableHead>{t('admin.dashboard.date')}</TableHead>
+                                            <TableHead>{t('admin.dashboard.agency')}</TableHead>
+                                            <TableHead>{t('admin.dashboard.role')}</TableHead>
+                                            <TableHead className="text-right">{t('admin.dashboard.actions')}</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {[1, 2, 3, 4, 5].map((i) => (
+                                            <TableRow key={i}>
+                                                <TableCell><Skeleton className="h-4 w-4" /></TableCell>
+                                                <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                                                <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                                                <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+                                                <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                                                <TableCell className="text-right">
+                                                    <div className="flex space-x-2 justify-end">
+                                                        <Skeleton className="h-8 w-8" />
+                                                        <Skeleton className="h-8 w-8" />
+                                                    </div>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        ) : (
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead className="w-10"></TableHead>
+                                        <TableHead>{t('admin.dashboard.name')}</TableHead>
+                                        <TableHead>{t('admin.dashboard.date')}</TableHead>
+                                        <TableHead>{t('admin.dashboard.agency')}</TableHead>
+                                        <TableHead>{t('admin.dashboard.role')}</TableHead>
+                                        <TableHead className="text-right">{t('admin.dashboard.actions')}</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {managers.map((manager) => (
                                     <TableRow key={manager.id}>
                                         <TableCell><input type="checkbox" className="accent-neutral-800" /></TableCell>
                                         <TableCell className="font-medium">{manager.name}</TableCell>
@@ -237,9 +272,10 @@ export default function AdminDashboard() {
                                             </div>
                                         </TableCell>
                                     </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        )}
                     </CardContent>
                 </Card>
 
@@ -255,19 +291,52 @@ export default function AdminDashboard() {
                         </CardDescription>
                     </CardHeader>
                     <CardContent className={viewParam !== 'matchmakers' ? 'hidden' : ''}>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead className="w-10"></TableHead>
-                                    <TableHead>{t('admin.dashboard.name')}</TableHead>
-                                    <TableHead>{t('admin.dashboard.date')}</TableHead>
-                                    <TableHead>{t('admin.dashboard.agency')}</TableHead>
-                                    <TableHead>{t('admin.dashboard.role')}</TableHead>
-                                    <TableHead className="text-right">{t('admin.dashboard.actions')}</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {matchmakers.map((matchmaker) => (
+                        {isLoading ? (
+                            <div className="space-y-4">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead className="w-10"></TableHead>
+                                            <TableHead>{t('admin.dashboard.name')}</TableHead>
+                                            <TableHead>{t('admin.dashboard.date')}</TableHead>
+                                            <TableHead>{t('admin.dashboard.agency')}</TableHead>
+                                            <TableHead>{t('admin.dashboard.role')}</TableHead>
+                                            <TableHead className="text-right">{t('admin.dashboard.actions')}</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {[1, 2, 3, 4, 5].map((i) => (
+                                            <TableRow key={i}>
+                                                <TableCell><Skeleton className="h-4 w-4" /></TableCell>
+                                                <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                                                <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                                                <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+                                                <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                                                <TableCell className="text-right">
+                                                    <div className="flex space-x-2 justify-end">
+                                                        <Skeleton className="h-8 w-8" />
+                                                        <Skeleton className="h-8 w-8" />
+                                                    </div>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        ) : (
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead className="w-10"></TableHead>
+                                        <TableHead>{t('admin.dashboard.name')}</TableHead>
+                                        <TableHead>{t('admin.dashboard.date')}</TableHead>
+                                        <TableHead>{t('admin.dashboard.agency')}</TableHead>
+                                        <TableHead>{t('admin.dashboard.role')}</TableHead>
+                                        <TableHead className="text-right">{t('admin.dashboard.actions')}</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {matchmakers.map((matchmaker) => (
                                     <TableRow key={matchmaker.id}>
                                         <TableCell><input type="checkbox" className="accent-neutral-800" /></TableCell>
                                         <TableCell className="font-medium">{matchmaker.name}</TableCell>
@@ -315,9 +384,10 @@ export default function AdminDashboard() {
                                             </div>
                                         </TableCell>
                                     </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        )}
                     </CardContent>
                 </Card>
             </div>

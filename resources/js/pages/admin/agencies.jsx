@@ -11,10 +11,12 @@ import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { Pencil, Trash2, Users } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function AdminAgencies() {
     const { t } = useTranslation();
     const { agencies = [] } = usePage().props;
+    const isLoading = agencies === null || agencies === undefined;
     const [editingAgency, setEditingAgency] = useState(null);
     const [deletingAgency, setDeletingAgency] = useState(null);
     const [isDeleting, setIsDeleting] = useState(false);
@@ -145,7 +147,25 @@ export default function AdminAgencies() {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {agencies.map((agency) => (
+                                    {isLoading ? (
+                                        [1, 2, 3, 4, 5].map((i) => (
+                                            <TableRow key={i}>
+                                                <TableCell><Skeleton className="w-12 h-12 rounded-lg" /></TableCell>
+                                                <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                                                <TableCell className="hidden md:table-cell"><Skeleton className="h-4 w-24" /></TableCell>
+                                                <TableCell className="hidden lg:table-cell"><Skeleton className="h-4 w-28" /></TableCell>
+                                                <TableCell className="hidden lg:table-cell"><Skeleton className="h-4 w-40" /></TableCell>
+                                                <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                                                <TableCell>
+                                                    <div className="flex gap-2">
+                                                        <Skeleton className="h-8 w-20" />
+                                                        <Skeleton className="h-8 w-20" />
+                                                    </div>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    ) : (
+                                        agencies.map((agency) => (
                                         <TableRow key={agency.id}>
                                             <TableCell>
                                                 <img
@@ -209,7 +229,8 @@ export default function AdminAgencies() {
                                                 </div>
                                             </TableCell>
                                         </TableRow>
-                                    ))}
+                                        ))
+                                    )}
                                 </TableBody>
                             </Table>
                         </div>

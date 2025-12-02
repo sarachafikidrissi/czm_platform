@@ -9,10 +9,12 @@ import AppLayout from '@/layouts/app-layout';
 import { usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function UserSubscription() {
     const { user, profile, subscription, subscriptionStatus } = usePage().props;
     const { t } = useTranslation();
+    const isLoading = subscription === null || subscription === undefined;
     const [showMatchmakerDialog, setShowMatchmakerDialog] = useState(false);
     const assignedMatchmaker = user?.assignedMatchmaker ?? user?.assigned_matchmaker ?? subscription?.assignedMatchmaker ?? subscription?.assigned_matchmaker ?? null;
     
@@ -105,7 +107,47 @@ export default function UserSubscription() {
                         <CardTitle className="text-red-600 text-lg sm:text-xl">{t('subscription.currentSubscription')}</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        {subscription ? (
+                        {isLoading ? (
+                            <div className="space-y-4">
+                                {/* Desktop Table View Skeleton */}
+                                <div className="hidden md:block overflow-x-auto">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>{t('subscription.plan')}</TableHead>
+                                                <TableHead>{t('subscription.start')}</TableHead>
+                                                <TableHead>{t('subscription.expire')}</TableHead>
+                                                <TableHead>{t('common.status')}</TableHead>
+                                                <TableHead>{t('subscription.matchmaker')}</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            <TableRow>
+                                                <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                                                <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                                                <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                                                <TableCell><Skeleton className="h-6 w-20" /></TableCell>
+                                                <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+                                            </TableRow>
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                                {/* Mobile Card View Skeleton */}
+                                <div className="md:hidden space-y-3">
+                                    <Card className="border">
+                                        <CardContent className="pt-4">
+                                            <div className="space-y-3">
+                                                <Skeleton className="h-4 w-3/4" />
+                                                <Skeleton className="h-4 w-1/2" />
+                                                <Skeleton className="h-4 w-1/2" />
+                                                <Skeleton className="h-6 w-20" />
+                                                <Skeleton className="h-4 w-2/3" />
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                </div>
+                            </div>
+                        ) : subscription ? (
                             <div className="space-y-4">
                                 {/* Desktop Table View */}
                                 <div className="hidden md:block overflow-x-auto">

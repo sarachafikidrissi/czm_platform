@@ -4,8 +4,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Users, UserCheck, Crown, UserPlus } from 'lucide-react';
 import CreatePost from '@/components/posts/CreatePost';
 import PostCard from '@/components/posts/PostCard';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function ManagerDashboardContent({ stats = { prospectsReceived: 0, activeClients: 0, members: 0 }, posts = null }) {
+    const isLoading = stats === null || stats === undefined;
     return (
         <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
             <div className="flex items-center justify-between">
@@ -20,10 +22,19 @@ export default function ManagerDashboardContent({ stats = { prospectsReceived: 0
                         <Users className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{stats.prospectsReceived || 0}</div>
-                        <p className="text-xs text-muted-foreground">
-                            Prospects dans votre agence
-                        </p>
+                        {isLoading ? (
+                            <>
+                                <Skeleton className="h-8 w-16 mb-2" />
+                                <Skeleton className="h-3 w-40" />
+                            </>
+                        ) : (
+                            <>
+                                <div className="text-2xl font-bold">{stats.prospectsReceived || 0}</div>
+                                <p className="text-xs text-muted-foreground">
+                                    Prospects dans votre agence
+                                </p>
+                            </>
+                        )}
                     </CardContent>
                 </Card>
 
@@ -33,10 +44,19 @@ export default function ManagerDashboardContent({ stats = { prospectsReceived: 0
                         <Crown className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{stats.activeClients || 0}</div>
-                        <p className="text-xs text-muted-foreground">
-                            Clients actifs
-                        </p>
+                        {isLoading ? (
+                            <>
+                                <Skeleton className="h-8 w-16 mb-2" />
+                                <Skeleton className="h-3 w-32" />
+                            </>
+                        ) : (
+                            <>
+                                <div className="text-2xl font-bold">{stats.activeClients || 0}</div>
+                                <p className="text-xs text-muted-foreground">
+                                    Clients actifs
+                                </p>
+                            </>
+                        )}
                     </CardContent>
                 </Card>
 
@@ -46,10 +66,19 @@ export default function ManagerDashboardContent({ stats = { prospectsReceived: 0
                         <UserCheck className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{stats.members || 0}</div>
-                        <p className="text-xs text-muted-foreground">
-                            Membres actifs
-                        </p>
+                        {isLoading ? (
+                            <>
+                                <Skeleton className="h-8 w-16 mb-2" />
+                                <Skeleton className="h-3 w-32" />
+                            </>
+                        ) : (
+                            <>
+                                <div className="text-2xl font-bold">{stats.members || 0}</div>
+                                <p className="text-xs text-muted-foreground">
+                                    Membres actifs
+                                </p>
+                            </>
+                        )}
                     </CardContent>
                 </Card>
             </div>
@@ -88,7 +117,17 @@ export default function ManagerDashboardContent({ stats = { prospectsReceived: 0
                         <CreatePost />
 
                         {/* Posts Feed */}
-                        {posts && posts.data && posts.data.length > 0 ? (
+                        {posts === null || posts === undefined ? (
+                            <div className="space-y-4">
+                                {[1, 2, 3].map((i) => (
+                                    <div key={i} className="space-y-3">
+                                        <Skeleton className="h-4 w-3/4" />
+                                        <Skeleton className="h-4 w-1/2" />
+                                        <Skeleton className="h-32 w-full" />
+                                    </div>
+                                ))}
+                            </div>
+                        ) : posts && posts.data && posts.data.length > 0 ? (
                             <div className="space-y-4">
                                 {posts.data.map((post) => (
                                     <PostCard key={post.id} post={post} />

@@ -15,6 +15,7 @@ import { useState } from 'react';
 export default function UserMatchmakers() {
     const { posts, assignedMatchmaker } = usePage().props;
     const [selected, setSelected] = useState(null);
+    const isLoading = posts === null || posts === undefined || (posts?.data === null || posts?.data === undefined);
     
 
     const handleSelectMatchmaker = (matchmakerId) => {
@@ -74,7 +75,26 @@ export default function UserMatchmakers() {
 
             {/* Posts Display */}
             <div className="space-y-4">
-                {posts.data && posts.data.length > 0 ? (
+                {isLoading ? (
+                    [1, 2, 3].map((i) => (
+                        <div key={i} className="relative w-[65%] max-md:w-[100%] max-sm:w-[100%]">
+                            <Card>
+                                <CardContent className="p-4 space-y-3">
+                                    <div className="flex items-center gap-3">
+                                        <Skeleton className="w-10 h-10 rounded-full" />
+                                        <div className="space-y-2">
+                                            <Skeleton className="h-4 w-32" />
+                                            <Skeleton className="h-3 w-24" />
+                                        </div>
+                                    </div>
+                                    <Skeleton className="h-4 w-full" />
+                                    <Skeleton className="h-4 w-3/4" />
+                                    <Skeleton className="h-48 w-full" />
+                                </CardContent>
+                            </Card>
+                        </div>
+                    ))
+                ) : posts.data && posts.data.length > 0 ? (
                     posts.data.map((post) => (
                         <div key={post.id} className="relative w-[65%] max-md:w-[100%] max-sm:w-[100%]">
                             <PostCard  post={post} />

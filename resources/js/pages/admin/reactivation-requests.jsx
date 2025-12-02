@@ -11,10 +11,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { AlertCircle, CheckCircle, XCircle, User, Mail, Phone, Calendar, Search } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function ReactivationRequests() {
     const { t } = useTranslation();
     const { requests = [], routePrefix = 'admin' } = usePage().props;
+    const isLoading = requests === null || requests === undefined;
     const [selectedRequest, setSelectedRequest] = useState(null);
     const [actionType, setActionType] = useState(null); // 'approve' or 'reject'
     const [reviewNotes, setReviewNotes] = useState('');
@@ -65,6 +67,7 @@ export default function ReactivationRequests() {
 
     // Filter requests based on search query
     const filteredRequests = useMemo(() => {
+        if (!requests || requests.length === 0) return [];
         if (!searchQuery.trim()) {
             return requests;
         }
@@ -153,7 +156,46 @@ export default function ReactivationRequests() {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {filteredRequests.map((request) => (
+                                    {isLoading ? (
+                                        [1, 2, 3, 4, 5].map((i) => (
+                                            <TableRow key={i}>
+                                                <TableCell>
+                                                    <div className="flex items-center gap-2">
+                                                        <Skeleton className="w-4 h-4" />
+                                                        <Skeleton className="h-4 w-32" />
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <div className="flex items-center gap-2">
+                                                        <Skeleton className="w-4 h-4" />
+                                                        <Skeleton className="h-4 w-40" />
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <div className="flex items-center gap-2">
+                                                        <Skeleton className="w-4 h-4" />
+                                                        <Skeleton className="h-4 w-24" />
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell><Skeleton className="h-6 w-20" /></TableCell>
+                                                <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                                                <TableCell>
+                                                    <div className="flex items-center gap-2">
+                                                        <Skeleton className="w-4 h-4" />
+                                                        <Skeleton className="h-4 w-28" />
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell><Skeleton className="h-4 w-40" /></TableCell>
+                                                <TableCell className="text-right">
+                                                    <div className="flex justify-end gap-2">
+                                                        <Skeleton className="h-8 w-24" />
+                                                        <Skeleton className="h-8 w-20" />
+                                                    </div>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    ) : (
+                                        filteredRequests.map((request) => (
                                         <TableRow key={request.id}>
                                             <TableCell className="font-medium">
                                                 <div className="flex items-center gap-2">
@@ -228,7 +270,8 @@ export default function ReactivationRequests() {
                                                 </div>
                                             </TableCell>
                                         </TableRow>
-                                    ))}
+                                        ))
+                                    )}
                                 </TableBody>
                             </Table>
                         </CardContent>

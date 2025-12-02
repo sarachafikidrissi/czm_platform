@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
     BarChart,
     Bar,
@@ -56,6 +57,7 @@ export default function MatchmakerStatistics() {
     const { t } = useTranslation();
     const { statistics = [], filters, agencies = [], matchmakers = [], canViewAll } = usePage().props;
     const [activeTabs, setActiveTabs] = useState({});
+    const isLoading = statistics === null || statistics === undefined || (Array.isArray(statistics) && statistics.length === 0 && !filters);
 
     // Filter state
     const [timeRange, setTimeRange] = useState(filters?.time_range || 'month');
@@ -108,6 +110,86 @@ export default function MatchmakerStatistics() {
             minimumFractionDigits: 0,
         }).format(amount);
     };
+
+    if (isLoading) {
+        return (
+            <AppLayout>
+                <Head title={t('statistics.title')} />
+                <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
+                    {/* Header Skeleton */}
+                    <div className="flex flex-col gap-3">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                            <div>
+                                <Skeleton className="h-8 w-64 mb-2" />
+                                <Skeleton className="h-4 w-96" />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Filters Skeleton */}
+                    <Card>
+                        <CardHeader>
+                            <Skeleton className="h-6 w-32" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                                {[1, 2, 3, 4, 5].map((i) => (
+                                    <div key={i}>
+                                        <Skeleton className="h-4 w-24 mb-2" />
+                                        <Skeleton className="h-10 w-full" />
+                                    </div>
+                                ))}
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* Statistics Cards Skeleton */}
+                    <Card>
+                        <CardHeader>
+                            <Skeleton className="h-6 w-48 mb-2" />
+                            <Skeleton className="h-4 w-64" />
+                        </CardHeader>
+                        <CardContent>
+                            <Tabs defaultValue="overview" className="w-full">
+                                <TabsList className="grid w-full grid-cols-6">
+                                    {[1, 2, 3, 4, 5, 6].map((i) => (
+                                        <Skeleton key={i} className="h-10 w-full" />
+                                    ))}
+                                </TabsList>
+                                <TabsContent value="overview" className="space-y-4 mt-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                        {[1, 2, 3, 4].map((i) => (
+                                            <Card key={i}>
+                                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                                    <Skeleton className="h-4 w-24" />
+                                                    <Skeleton className="h-4 w-4" />
+                                                </CardHeader>
+                                                <CardContent>
+                                                    <Skeleton className="h-8 w-20 mb-2" />
+                                                </CardContent>
+                                            </Card>
+                                        ))}
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {[1, 2].map((i) => (
+                                            <Card key={i}>
+                                                <CardHeader>
+                                                    <Skeleton className="h-6 w-48" />
+                                                </CardHeader>
+                                                <CardContent>
+                                                    <Skeleton className="h-[300px] w-full" />
+                                                </CardContent>
+                                            </Card>
+                                        ))}
+                                    </div>
+                                </TabsContent>
+                            </Tabs>
+                        </CardContent>
+                    </Card>
+                </div>
+            </AppLayout>
+        );
+    }
 
     if (statistics.length === 0) {
         return (
@@ -295,9 +377,13 @@ export default function MatchmakerStatistics() {
                                             <Users className="h-4 w-4 text-muted-foreground" />
                                         </CardHeader>
                                         <CardContent>
-                                            <div className="text-2xl font-bold">
-                                                {stat.users?.total_assigned || 0}
-                                            </div>
+                                            {isLoading ? (
+                                                <Skeleton className="h-8 w-20" />
+                                            ) : (
+                                                <div className="text-2xl font-bold">
+                                                    {stat.users?.total_assigned || 0}
+                                                </div>
+                                            )}
                                         </CardContent>
                                     </Card>
 
@@ -309,9 +395,13 @@ export default function MatchmakerStatistics() {
                                             <DollarSign className="h-4 w-4 text-muted-foreground" />
                                         </CardHeader>
                                         <CardContent>
-                                            <div className="text-2xl font-bold">
-                                                {formatCurrency(stat.bills?.total_sales || 0)}
-                                            </div>
+                                            {isLoading ? (
+                                                <Skeleton className="h-8 w-24" />
+                                            ) : (
+                                                <div className="text-2xl font-bold">
+                                                    {formatCurrency(stat.bills?.total_sales || 0)}
+                                                </div>
+                                            )}
                                         </CardContent>
                                     </Card>
 
@@ -323,9 +413,13 @@ export default function MatchmakerStatistics() {
                                             <FileText className="h-4 w-4 text-muted-foreground" />
                                         </CardHeader>
                                         <CardContent>
-                                            <div className="text-2xl font-bold">
-                                                {stat.subscriptions?.active_count || 0}
-                                            </div>
+                                            {isLoading ? (
+                                                <Skeleton className="h-8 w-16" />
+                                            ) : (
+                                                <div className="text-2xl font-bold">
+                                                    {stat.subscriptions?.active_count || 0}
+                                                </div>
+                                            )}
                                         </CardContent>
                                     </Card>
 
@@ -337,9 +431,13 @@ export default function MatchmakerStatistics() {
                                             <ClipboardList className="h-4 w-4 text-muted-foreground" />
                                         </CardHeader>
                                         <CardContent>
-                                            <div className="text-2xl font-bold">
-                                                {stat.evaluations?.total || 0}
-                                            </div>
+                                            {isLoading ? (
+                                                <Skeleton className="h-8 w-16" />
+                                            ) : (
+                                                <div className="text-2xl font-bold">
+                                                    {stat.evaluations?.total || 0}
+                                                </div>
+                                            )}
                                         </CardContent>
                                     </Card>
                                 </div>
@@ -351,30 +449,34 @@ export default function MatchmakerStatistics() {
                                             <CardTitle>{t('statistics.userStatusDistribution')}</CardTitle>
                                         </CardHeader>
                                         <CardContent>
-                                            <ResponsiveContainer width="100%" height={300}>
-                                                <PieChart>
-                                                    <Pie
-                                                        data={prepareChartData(stat.users?.by_status)}
-                                                        cx="50%"
-                                                        cy="50%"
-                                                        labelLine={false}
-                                                        label={({ name, percent }) =>
-                                                            `${name}: ${(percent * 100).toFixed(0)}%`
-                                                        }
-                                                        outerRadius={80}
-                                                        fill="#8884d8"
-                                                        dataKey="value"
-                                                    >
-                                                        {prepareChartData(stat.users?.by_status).map((entry, index) => (
-                                                            <Cell
-                                                                key={`cell-${index}`}
-                                                                fill={Object.values(COLORS)[index % Object.keys(COLORS).length]}
-                                                            />
-                                                        ))}
-                                                    </Pie>
-                                                    <Tooltip />
-                                                </PieChart>
-                                            </ResponsiveContainer>
+                                            {isLoading || !stat.users?.by_status ? (
+                                                <Skeleton className="h-[300px] w-full" />
+                                            ) : (
+                                                <ResponsiveContainer width="100%" height={300}>
+                                                    <PieChart>
+                                                        <Pie
+                                                            data={prepareChartData(stat.users?.by_status)}
+                                                            cx="50%"
+                                                            cy="50%"
+                                                            labelLine={false}
+                                                            label={({ name, percent }) =>
+                                                                `${name}: ${(percent * 100).toFixed(0)}%`
+                                                            }
+                                                            outerRadius={80}
+                                                            fill="#8884d8"
+                                                            dataKey="value"
+                                                        >
+                                                            {prepareChartData(stat.users?.by_status).map((entry, index) => (
+                                                                <Cell
+                                                                    key={`cell-${index}`}
+                                                                    fill={Object.values(COLORS)[index % Object.keys(COLORS).length]}
+                                                                />
+                                                            ))}
+                                                        </Pie>
+                                                        <Tooltip />
+                                                    </PieChart>
+                                                </ResponsiveContainer>
+                                            )}
                                         </CardContent>
                                     </Card>
 
@@ -383,20 +485,24 @@ export default function MatchmakerStatistics() {
                                             <CardTitle>{t('statistics.salesTrend')}</CardTitle>
                                         </CardHeader>
                                         <CardContent>
-                                            <ResponsiveContainer width="100%" height={300}>
-                                                <AreaChart data={stat.bills?.trends || []}>
-                                                    <CartesianGrid strokeDasharray="3 3" />
-                                                    <XAxis dataKey="period" />
-                                                    <YAxis />
-                                                    <Tooltip formatter={(value) => formatCurrency(value)} />
-                                                    <Area
-                                                        type="monotone"
-                                                        dataKey="total"
-                                                        stroke={COLORS.success}
-                                                        fill={COLORS.chart1}
-                                                    />
-                                                </AreaChart>
-                                            </ResponsiveContainer>
+                                            {isLoading || !stat.bills?.trends || stat.bills.trends.length === 0 ? (
+                                                <Skeleton className="h-[300px] w-full" />
+                                            ) : (
+                                                <ResponsiveContainer width="100%" height={300}>
+                                                    <AreaChart data={stat.bills?.trends || []}>
+                                                        <CartesianGrid strokeDasharray="3 3" />
+                                                        <XAxis dataKey="period" />
+                                                        <YAxis />
+                                                        <Tooltip formatter={(value) => formatCurrency(value)} />
+                                                        <Area
+                                                            type="monotone"
+                                                            dataKey="total"
+                                                            stroke={COLORS.success}
+                                                            fill={COLORS.chart1}
+                                                        />
+                                                    </AreaChart>
+                                                </ResponsiveContainer>
+                                            )}
                                         </CardContent>
                                     </Card>
                                 </div>
