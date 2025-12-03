@@ -379,6 +379,41 @@
     /* height: var(--container-height, 100%); */
     padding: 20px;
 }
+.welcome-layout-bg {
+    position: relative;
+    min-height: 100vh;
+    background-image: url('/images/Czm-arrière-site-web.jpg');
+    background-size: cover;
+    background-position: top center;
+    background-repeat: no-repeat;
+    background-attachment: scroll;
+}
+
+/* Responsive background positioning for different screen sizes */
+@media (min-width: 640px) {
+    .welcome-layout-bg {
+        background-position: top center;
+    }
+}
+
+@media (min-width: 768px) {
+    .welcome-layout-bg {
+        background-position: top center;
+        min-height: 100vh;
+    }
+}
+
+@media (min-width: 1024px) {
+    .welcome-layout-bg {
+        background-position: top center;
+    }
+}
+
+@media (min-width: 1280px) {
+    .welcome-layout-bg {
+        background-position: top center;
+    }
+}
 
 /* Green scrollbar for auth layout */
 .auth-layout-bg {
