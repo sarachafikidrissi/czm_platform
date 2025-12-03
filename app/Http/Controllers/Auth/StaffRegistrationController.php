@@ -37,7 +37,7 @@ class StaffRegistrationController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|string|lowercase|email|max:255|unique:'.User::class,
             'phone' => 'required|string|max:20',
-            'role' => 'required|string|in:admin,manager,matchmaker',
+            'role' => 'required|string|in:manager,matchmaker',
             'agency' => 'required_if:role,manager,matchmaker|string|max:255',
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
@@ -58,16 +58,12 @@ class StaffRegistrationController extends Controller
             'email' => $request->email,
             'phone' => $request->phone,
             'agency' => $request->agency,
-            'approval_status' => $request->role === 'admin' ? 'approved' : 'pending',
+            'approval_status' => 'pending',
             'password' => Hash::make($request->password),
         ]);
 
         $user->assignRole($request->role);
-
-        // Only create profile for non-admin users
-        if ($request->role !== 'admin') {
-            $user->profile()->create([]);
-        }
+        $user->profile()->create([]);
 
         event(new Registered($user));
 

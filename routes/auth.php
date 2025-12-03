@@ -4,6 +4,7 @@ use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\ConfirmablePasswordController;
 use App\Http\Controllers\Auth\EmailVerificationNotificationController;
 use App\Http\Controllers\Auth\EmailVerificationPromptController;
+use App\Http\Controllers\Auth\FirstAdminSetupController;
 use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Auth\RegisteredUserController;
@@ -21,6 +22,12 @@ Route::middleware('guest')->group(function () {
         ->name('staff.register');
 
     Route::post('staff/register', [StaffRegistrationController::class, 'store']);
+
+    // First admin setup (only available when no admins exist)
+    Route::get('setup/admin', [FirstAdminSetupController::class, 'create'])
+        ->name('first-admin.setup');
+    
+    Route::post('setup/admin', [FirstAdminSetupController::class, 'store']);
 
     Route::get('login', [AuthenticatedSessionController::class, 'create'])
         ->name('login');
