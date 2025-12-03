@@ -200,19 +200,81 @@ export default function Welcome() {
                 {/* Hero Section */}
                 <section
                     id="hero"
-                    className="relative flex min-h-screen justify-center bg-green-800 md:justify-center welcome-layout-bg p-4 pt-40 sm:pt-48 md:items-center md:pt-56 lg:pt-64"
+                    className="relative flex min-h-screen justify-center bg-green-800 md:justify-center welcome-layout-bg md:items-center md:pt-56 lg:pt-64"
                 >
                     {/* Overlay for better text readability - responsive opacity */}
                     <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/10 to-black/40 md:from-black/40 md:via-black/20 md:to-black/50"></div>
                     
-                    {/* Content Container - positioned below "Bienvenu" text on background image */}
-                    <div className="absolute z-10  w-full bottom-[20vh] md:bottom-30   max-w-6xl px-4 text-center sm:px-6">
+                    {/* Small Screen Layout - matches image design */}
+                    <div className="relative z-10 w-full md:hidden">
+                        {/* Hero Image Section with curved bottom */}
+                        <div 
+                            className="relative h-[60vh] min-h-[400px] overflow-hidden"
+                            style={{
+                                backgroundImage: "url('/images/bg-no-title.png')",
+                                backgroundSize: 'cover',
+                                backgroundPosition: 'center',
+                                backgroundRepeat: 'no-repeat'
+                            }}
+                        >
+                            {/* Curved bottom edge */}
+                            <div className="absolute bottom-0 left-0 right-0 h-16 bg-[#f5f5f5]" style={{ clipPath: 'ellipse(100% 60% at 50% 100%)' }}></div>
+                        </div>
+                        
+                        {/* Logo - overlapping bottom of hero section (half above) */}
+                        <div className="relative -mt-20 flex justify-center z-20">
+                            <div className="rounded-full border-4 border-white bg-white p-3 shadow-2xl">
+                                <img src="/images/czm_Logo.png" alt="CZM Logo" className="h-24 w-auto object-contain" />
+                            </div>
+                        </div>
+                        
+                        {/* Content Section - light gray background */}
+                        <div className="bg-[#f5f5f5] pt-8 pb-12 px-4 text-center">
+                            {/* Main Title */}
+                            <h1 className="mb-2 text-3xl font-bold text-[#076725]">
+                                {t('common.centreZawajMaroc')}
+                            </h1>
+                            
+                            {/* Subtitle */}
+                            <p className="mb-3 text-xl font-bold text-[#90080b]">
+                                {t('welcome.tagline')}
+                            </p>
+                            
+                            {/* Mission Statement */}
+                            <p className="mx-auto mb-6 max-w-2xl text-base font-medium text-gray-500">
+                                {t('welcome.mission')}
+                            </p>
+                            
+                            {/* Action Buttons */}
+                            <div className="flex flex-col items-center justify-center gap-3">
+                                <Link href={route('login')} className="w-full max-w-xs">
+                                    <Button
+                                        size="lg"
+                                        className="h-12 w-full rounded-lg bg-[#90080b] text-base font-semibold text-white shadow-lg transition-all duration-300 hover:bg-[#90080b]/90"
+                                    >
+                                        {t('welcome.login')}
+                                    </Button>
+                                </Link>
+                                <Link href={route('register')} className="w-full max-w-xs">
+                                    <Button
+                                        size="lg"
+                                        className="h-12 w-full rounded-lg border-2 border-gray-300 bg-white text-base font-semibold text-gray-700 shadow-lg transition-all duration-300 hover:bg-gray-50"
+                                    >
+                                        {t('welcome.signUp')}
+                                    </Button>
+                                </Link>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {/* Large Screen Layout - original design */}
+                    <div className="hidden md:block absolute z-10 w-full bottom-30 max-w-6xl px-4 text-center sm:px-6">
                         {/* Logo - responsive sizing */}
-                        {/* <div className="mb-4 flex justify-center sm:mb-0 md:mb-0 ">
+                        <div className="mb-4 flex justify-center md:hidden">
                             <div className="rounded-full border-4 border-white bg-white/95 p-3 shadow-2xl backdrop-blur-sm sm:p-4 md:p-6">
                                 <img src="/images/czm_Logo.png" alt="CZM Logo" className="h-16 w-auto object-contain sm:h-20 md:h-28 lg:h-32" />
                             </div>
-                        </div> */}
+                        </div>
                         
                         {/* Main Title - responsive with color highlights (positioned below "Bienvenu" on background) */}
                         <h1 className="mb-2 text-2xl font-bold text-white drop-shadow-lg sm:mb-0 sm:text-3xl md:mb-0 md:text-4xl lg:text-5xl xl:text-6xl">
