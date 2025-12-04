@@ -536,6 +536,7 @@ export default function ValidatedProspects() {
                                     <SelectItem value="expiring_in_3_days">Expire dans 3 jours</SelectItem>
                                     <SelectItem value="rappeler">A rappeler</SelectItem>
                                     <SelectItem value="en_attente_paiement">En attente de paiement</SelectItem>
+                                    <SelectItem value="deactivated">Désactivé</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>

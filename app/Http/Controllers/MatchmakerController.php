@@ -646,6 +646,11 @@ class MatchmakerController extends Controller
                                    ->whereDate('subscription_end', '>=', $today)
                                    ->whereDate('subscription_end', '<=', $threeDaysFromNow);
                       });
+            } elseif ($status === 'deactivated') {
+                // Show only deactivated users
+                $query->whereHas('profile', function($profileQuery) {
+                    $profileQuery->where('account_status', 'desactivated');
+                });
             } else {
                 $query->where('status', $status);
             }
