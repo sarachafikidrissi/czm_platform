@@ -85,6 +85,7 @@ export default function StaffRegister({ agencies = [] }) {
                                         onChange={(e) => setData('name', e.target.value)}
                                         disabled={processing}
                                         placeholder="Enter your full name"
+                                        className="border-[#096626] border-2 "
                                     />
                                     <InputError message={errors.name} />
                                 </div>
@@ -101,6 +102,7 @@ export default function StaffRegister({ agencies = [] }) {
                                         onChange={(e) => setData('email', e.target.value)}
                                         disabled={processing}
                                         placeholder="email@example.com"
+                                        className="border-[#096626] border-2 "
                                     />
                                     <InputError message={errors.email} />
                                 </div>
@@ -117,6 +119,7 @@ export default function StaffRegister({ agencies = [] }) {
                                         onChange={(e) => setData('phone', e.target.value)}
                                         disabled={processing}
                                         placeholder="+212 6-XX-XX-XX-XX"
+                                        className="border-[#096626] border-2 "
                                     />
                                     <InputError message={errors.phone} />
                                 </div>
@@ -128,7 +131,7 @@ export default function StaffRegister({ agencies = [] }) {
                                         onValueChange={(value) => setData('role', value)}
                                         disabled={processing}
                                     >
-                                        <SelectTrigger tabIndex={4}>
+                                        <SelectTrigger tabIndex={4} className="border-[#096626] border-2">
                                             <SelectValue placeholder="Select your role" />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -147,7 +150,7 @@ export default function StaffRegister({ agencies = [] }) {
                                             onValueChange={(v) => setData('agency', v)}
                                             disabled={processing}
                                         >
-                                            <SelectTrigger tabIndex={5}>
+                                            <SelectTrigger tabIndex={5} className="border-[#096626] border-2">
                                                 <SelectValue placeholder="Select your agency" />
                                             </SelectTrigger>
                                             <SelectContent>{agencyItems}</SelectContent>
@@ -169,6 +172,7 @@ export default function StaffRegister({ agencies = [] }) {
                                             onChange={(e) => setData('password', e.target.value)}
                                             disabled={processing}
                                             placeholder="Create a strong password"
+                                            className="border-[#096626] border-2 "
                                         />
                                         <Button
                                             type="button"
@@ -197,6 +201,7 @@ export default function StaffRegister({ agencies = [] }) {
                                             onChange={(e) => setData('password_confirmation', e.target.value)}
                                             disabled={processing}
                                             placeholder="Confirm your password"
+                                            className="border-[#096626] border-2 "
                                         />
                                         <Button
                                             type="button"
@@ -219,6 +224,7 @@ export default function StaffRegister({ agencies = [] }) {
                                         onCheckedChange={(checked) => setData('condition', checked)}
                                         disabled={processing}
                                         tabIndex={8}
+                                        className="border-[#096626] border-2  w-6 h-6"
                                     />
                                     <Label htmlFor="condition">I agree to the terms and conditions</Label>
                                 </div>

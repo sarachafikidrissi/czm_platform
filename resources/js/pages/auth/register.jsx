@@ -175,6 +175,7 @@ export default function Register() {
                                         onChange={(e) => setData('name', e.target.value)}
                                         disabled={processing}
                                         placeholder="Entrer votre identifiant ex:hajar05"
+                                        className="border-[#096626] border-2"
                                     />
                                     <InputError message={errors.name} className="mt-0.5" />
                 </div>
@@ -194,6 +195,7 @@ export default function Register() {
                                         onChange={(e) => setData('email', e.target.value)}
                                         disabled={processing}
                                         placeholder="email@example.com"
+                                        className="border-[#096626] border-2"
                                     />
                                     <InputError message={errors.email} />
                                 </div>
@@ -213,6 +215,7 @@ export default function Register() {
                                         onChange={(e) => setData('phone', e.target.value)}
                                         disabled={processing}
                                         placeholder="+212 6-XX-XX-XX-XX"
+                                        className="border-[#096626] border-2"
                                     />
                                     <InputError message={errors.phone} />
                                 </div>
@@ -223,7 +226,7 @@ export default function Register() {
                                     </Label>
                                     <p className="text-sm font-medium leading-none mt-0.5" dir="rtl">الجنس</p>
                                     <Select value={data.gender} onValueChange={(value) => setData('gender', value)} disabled={processing}>
-                                        <SelectTrigger tabIndex={4}>
+                                        <SelectTrigger tabIndex={4} className="border-[#096626] border-2">
                                             <SelectValue placeholder="Choisur votre sexe" />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -249,7 +252,7 @@ export default function Register() {
                                             }}
                                             disabled={processing || loadingCountries}
                                         >
-                                            <SelectTrigger tabIndex={5}>
+                                            <SelectTrigger tabIndex={5} className="border-[#096626] border-2">
                                                 <SelectValue placeholder={loadingCountries ? 'Chargement des pays…' : 'Sélectionnez votre pays'} />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -274,7 +277,7 @@ export default function Register() {
                                             onValueChange={(value) => setData('city', value)}
                                             disabled={processing || !selectedCountryCode || availableCities.length === 0}
                                         >
-                                            <SelectTrigger tabIndex={6}>
+                                            <SelectTrigger tabIndex={6} className="border-[#096626] border-2">
                                                 <SelectValue
                                                     placeholder={
                                                         !selectedCountryCode
@@ -314,6 +317,7 @@ export default function Register() {
                                                 disabled={processing}
                                                 placeholder="Créer un mot de passe fort
 "
+                                                className="border-[#096626] border-2"
                                             />
                                             <Button
                                                 type="button"
@@ -345,6 +349,7 @@ export default function Register() {
                                                 onChange={(e) => setData('password_confirmation', e.target.value)}
                                                 disabled={processing}
                                                 placeholder="Confirmer Mot de passe"
+                                                className="border-[#096626] border-2"
                                             />
                                             <Button
                                                 type="button"
@@ -367,6 +372,7 @@ export default function Register() {
                                         checked={termsAccepted}
                                         onCheckedChange={() => setTermsAccepted(!termsAccepted)}
                                         disabled={processing}
+                                        className="border-[#096626] border-2 w-6 h-6"
                                     />
                                     <Label  htmlFor="terms">
                                         J'accepte les{' '}
@@ -694,6 +700,7 @@ export default function Register() {
                                         onChange={(e) => setData('name', e.target.value)}
                                         disabled={processing}
                                         placeholder="Entrer votre identifiant ex:hajar05"
+                                        className="border-[#096626] border-2"
                                     />
                                     <InputError message={errors.name} className="mt-0.5" />
                                 </div>
@@ -713,6 +720,7 @@ export default function Register() {
                                         onChange={(e) => setData('email', e.target.value)}
                                         disabled={processing}
                                         placeholder="email@example.com"
+                                        className="border-[#096626] border-2"
                                     />
                                     <InputError message={errors.email} />
                                 </div>
@@ -732,6 +740,7 @@ export default function Register() {
                                         onChange={(e) => setData('phone', e.target.value)}
                                         disabled={processing}
                                         placeholder="+212 6-XX-XX-XX-XX"
+                                        className="border-[#096626] border-2"
                                     />
                                     <InputError message={errors.phone} />
                                 </div>
@@ -742,7 +751,7 @@ export default function Register() {
                                     </Label>
                                     <p className="text-sm font-medium leading-none mt-0.5" dir="rtl">الجنس</p>
                                     <Select value={data.gender} onValueChange={(value) => setData('gender', value)} disabled={processing}>
-                                        <SelectTrigger tabIndex={4}>
+                                        <SelectTrigger tabIndex={4} className="border-[#096626] border-2">
                                             <SelectValue placeholder="Choisur votre sexe" />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -768,7 +777,7 @@ export default function Register() {
                                             }}
                                             disabled={processing || loadingCountries}
                                         >
-                                            <SelectTrigger tabIndex={5}>
+                                            <SelectTrigger tabIndex={5} className="border-[#096626] border-2">
                                                 <SelectValue placeholder={loadingCountries ? 'Chargement des pays…' : 'Sélectionnez votre pays'} />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -793,7 +802,7 @@ export default function Register() {
                                             onValueChange={(value) => setData('city', value)}
                                             disabled={processing || !selectedCountryCode || availableCities.length === 0}
                                         >
-                                            <SelectTrigger tabIndex={6}>
+                                            <SelectTrigger tabIndex={6} className="border-[#096626] border-2">
                                                 <SelectValue
                                                     placeholder={
                                                         !selectedCountryCode
@@ -833,6 +842,7 @@ export default function Register() {
                                                 disabled={processing}
                                                 placeholder="Créer un mot de passe fort
 "
+                                                className="border-[#096626] border-2"
                                             />
                                             <Button
                                                 type="button"
@@ -864,6 +874,7 @@ export default function Register() {
                                                 onChange={(e) => setData('password_confirmation', e.target.value)}
                                                 disabled={processing}
                                                 placeholder="Confirmer Mot de passe"
+                                                className="border-[#096626] border-2"
                                             />
                                             <Button
                                                 type="button"
@@ -886,6 +897,7 @@ export default function Register() {
                                         checked={termsAccepted}
                                         onCheckedChange={() => setTermsAccepted(!termsAccepted)}
                                         disabled={processing}
+                                        className="border-[#096626] border-2 w-6 h-6"
                                     />
                                     <Label  htmlFor="terms">
                                         J'accepte les{' '}

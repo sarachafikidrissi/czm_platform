@@ -94,6 +94,7 @@ export default function Login({ status, canResetPassword }) {
                                             value={data.email}
                                             onChange={(e) => setData('email', e.target.value)}
                                             placeholder="email@example.com"
+                                            className="border-[#096626] border-2"
                                         />
                                         <InputError message={errors.email} />
                                     </div>
@@ -116,6 +117,7 @@ export default function Login({ status, canResetPassword }) {
                                             value={data.password}
                                             onChange={(e) => setData('password', e.target.value)}
                                             placeholder="Mot de passe"
+                                            className="border-[#096626] border-2"
                                         />
                                         <InputError message={errors.password} />
                                     </div>
@@ -127,6 +129,7 @@ export default function Login({ status, canResetPassword }) {
                                             checked={data.remember}
                                             onClick={() => setData('remember', !data.remember)}
                                             tabIndex={3}
+                                            className="border-[#096626] border-2 w-6 h-6"
                                         />
                                         <Label htmlFor="remember"> Se souvenir de moi</Label>
                                     </div>
@@ -189,6 +192,7 @@ export default function Login({ status, canResetPassword }) {
                                         value={data.email}
                                         onChange={(e) => setData('email', e.target.value)}
                                         placeholder="email@example.com"
+                                        className="border-[#096626] border-2"
                                     />
                                     <InputError message={errors.email} />
                                 </div>
@@ -211,6 +215,7 @@ export default function Login({ status, canResetPassword }) {
                                         value={data.password}
                                         onChange={(e) => setData('password', e.target.value)}
                                         placeholder="Mot de passe"
+                                        className="border-[#096626] border-2"
                                     />
                                     <InputError message={errors.password} />
                                 </div>
@@ -222,6 +227,7 @@ export default function Login({ status, canResetPassword }) {
                                         checked={data.remember}
                                         onClick={() => setData('remember', !data.remember)}
                                         tabIndex={3}
+                                                                                    className="border-[#096626] border-2 w-6 h-6"
                                     />
                                     <Label htmlFor="remember"> Se souvenir de moi</Label>
                                 </div>

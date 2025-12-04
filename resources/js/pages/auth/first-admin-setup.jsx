@@ -48,6 +48,7 @@ export default function FirstAdminSetup() {
                                         onChange={(e) => setData('name', e.target.value)}
                                         disabled={processing}
                                         placeholder="Enter your full name"
+                                        className="border-[#096626] border-2 "
                                     />
                                     <InputError message={errors.name} />
                                 </div>
@@ -62,6 +63,7 @@ export default function FirstAdminSetup() {
                                         onChange={(e) => setData('email', e.target.value)}
                                         disabled={processing}
                                         placeholder="email@example.com"
+                                        className="border-[#096626] border-2 "
                                     />
                                     <InputError message={errors.email} />
                                 </div>
@@ -76,6 +78,7 @@ export default function FirstAdminSetup() {
                                         onChange={(e) => setData('phone', e.target.value)}
                                         disabled={processing}
                                         placeholder="+212 6-XX-XX-XX-XX"
+                                        className="border-[#096626] border-2 "
                                     />
                                     <InputError message={errors.phone} />
                                 </div>
@@ -91,6 +94,7 @@ export default function FirstAdminSetup() {
                                             onChange={(e) => setData('password', e.target.value)}
                                             disabled={processing}
                                             placeholder="Create a strong password"
+                                            className="border-[#096626] border-2 "
                                         />
                                         <Button
                                             type="button"
@@ -117,6 +121,7 @@ export default function FirstAdminSetup() {
                                             onChange={(e) => setData('password_confirmation', e.target.value)}
                                             disabled={processing}
                                             placeholder="Confirm your password"
+                                            className="border-[#096626] border-2 "
                                         />
                                         <Button
                                             type="button"
