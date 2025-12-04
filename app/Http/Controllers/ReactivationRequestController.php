@@ -12,7 +12,7 @@ use Inertia\Inertia;
 class ReactivationRequestController extends Controller
 {
     /**
-     * Admin: View all reactivation requests
+     * Admin/Manager/Matchmaker: View reactivation requests
      */
     public function index()
     {
@@ -35,6 +35,41 @@ class ReactivationRequestController extends Controller
                 })
                 ->orderBy('created_at', 'desc')
                 ->get();
+        } elseif ($roleName === 'manager') {
+            // Manager sees requests for:
+            // 1. Users from their agency
+            // 2. Users validated by them
+            // 3. Users assigned to matchmakers in their agency
+            if (!$me->agency_id) {
+                // If manager has no agency, return empty results
+                $requests = collect();
+            } else {
+                // Get all matchmaker IDs in the manager's agency
+                $matchmakerIds = User::role('matchmaker')
+                    ->where('agency_id', $me->agency_id)
+                    ->pluck('id')
+                    ->toArray();
+                
+                $requests = ReactivationRequest::with(['user.profile', 'user.assignedMatchmaker'])
+                    ->where('status', 'pending')
+                    ->whereHas('user', function($query) use ($me, $matchmakerIds) {
+                        $query->whereIn('status', ['member', 'client', 'client_expire'])
+                              ->where(function($q) use ($me, $matchmakerIds) {
+                                  // Users from their agency
+                                  $q->where('agency_id', $me->agency_id)
+                                    // OR users validated by them
+                                    ->orWhere('validated_by_manager_id', $me->id)
+                                    // OR users assigned to matchmakers in their agency
+                                    ->orWhere(function($subQ) use ($matchmakerIds) {
+                                        if (!empty($matchmakerIds)) {
+                                            $subQ->whereIn('assigned_matchmaker_id', $matchmakerIds);
+                                        }
+                                    });
+                              });
+                    })
+                    ->orderBy('created_at', 'desc')
+                    ->get();
+            }
         } else {
             abort(403, 'Unauthorized.');
         }
@@ -66,6 +101,30 @@ class ReactivationRequestController extends Controller
             if ($user->assigned_matchmaker_id !== $me->id || 
                 !in_array($user->status, ['member', 'client', 'client_expire'])) {
                 abort(403, 'Vous ne pouvez approuver que les demandes pour vos membres/clients assignés.');
+            }
+        } elseif ($roleName === 'manager') {
+            // Manager can approve requests for users from their agency, validated by them, or assigned to matchmakers in their agency
+            $user = $reactivationRequest->user;
+            if (!in_array($user->status, ['member', 'client', 'client_expire'])) {
+                abort(403, 'Vous ne pouvez approuver que les demandes pour les membres/clients.');
+            }
+            
+            $canApprove = false;
+            if ($me->agency_id && $user->agency_id === $me->agency_id) {
+                $canApprove = true;
+            }
+            if ($user->validated_by_manager_id === $me->id) {
+                $canApprove = true;
+            }
+            if ($me->agency_id && $user->assigned_matchmaker_id) {
+                $matchmaker = User::find($user->assigned_matchmaker_id);
+                if ($matchmaker && $matchmaker->agency_id === $me->agency_id) {
+                    $canApprove = true;
+                }
+            }
+            
+            if (!$canApprove) {
+                abort(403, 'Vous ne pouvez approuver que les demandes pour les utilisateurs de votre agence ou validés par vous.');
             }
         } else {
             abort(403, 'Unauthorized.');
@@ -110,6 +169,30 @@ class ReactivationRequestController extends Controller
             if ($user->assigned_matchmaker_id !== $me->id || 
                 !in_array($user->status, ['member', 'client', 'client_expire'])) {
                 abort(403, 'Vous ne pouvez rejeter que les demandes pour vos membres/clients assignés.');
+            }
+        } elseif ($roleName === 'manager') {
+            // Manager can reject requests for users from their agency, validated by them, or assigned to matchmakers in their agency
+            $user = $reactivationRequest->user;
+            if (!in_array($user->status, ['member', 'client', 'client_expire'])) {
+                abort(403, 'Vous ne pouvez rejeter que les demandes pour les membres/clients.');
+            }
+            
+            $canReject = false;
+            if ($me->agency_id && $user->agency_id === $me->agency_id) {
+                $canReject = true;
+            }
+            if ($user->validated_by_manager_id === $me->id) {
+                $canReject = true;
+            }
+            if ($me->agency_id && $user->assigned_matchmaker_id) {
+                $matchmaker = User::find($user->assigned_matchmaker_id);
+                if ($matchmaker && $matchmaker->agency_id === $me->agency_id) {
+                    $canReject = true;
+                }
+            }
+            
+            if (!$canReject) {
+                abort(403, 'Vous ne pouvez rejeter que les demandes pour les utilisateurs de votre agence ou validés par vous.');
             }
         } else {
             abort(403, 'Unauthorized.');

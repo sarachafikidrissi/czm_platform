@@ -26,7 +26,7 @@ const getMainNavItems = (t: (key: string) => string, role: string): NavItem[] =>
         title: t('navigation.myProfile'),
         url: '/user/profile/{username}',
         icon: User,
-        roles: ['matchmaker'],
+        roles: ['matchmaker', 'manager'],
     },
     {
         title: t('navigation.myPhotos'),
@@ -144,7 +144,7 @@ const getMainNavItems = (t: (key: string) => string, role: string): NavItem[] =>
         title: t('navigation.reactivationRequests'),
         url: '/staff/reactivation-requests',
         icon: RotateCcw,
-        roles: ['matchmaker'],
+        roles: ['matchmaker', 'manager'],
     },
     {
         title: t('navigation.transferRequests', { defaultValue: 'Transfer Requests' }),

@@ -73,8 +73,9 @@ class AccountStatusController extends Controller
     }
 
     /**
-rrr     * Matchmaker/Admin: Activate member/client account
+     * Matchmaker/Manager/Admin: Activate member/client account
      * Matchmaker: only assigned to them
+     * Manager: users from their agency or validated by them
      * Admin: any user
      */
     public function activateMemberClient(Request $request, $userId)
@@ -86,22 +87,36 @@ rrr     * Matchmaker/Admin: Activate member/client account
         $me = Auth::user();
         $roleName = $this->getUserRole($me);
 
-        if (!in_array($roleName, ['matchmaker', 'admin'])) {
-            abort(403, 'Only matchmakers and admins can activate member/client accounts.');
+        if (!in_array($roleName, ['matchmaker', 'manager', 'admin'])) {
+            abort(403, 'Only matchmakers, managers, and admins can activate member/client accounts.');
         }
 
         $user = User::findOrFail($userId);
         
-        // Check if user is a member or client (for matchmakers)
+        // Check if user is a member or client (for matchmakers and managers)
         // Admin can activate any user
-        if ($roleName === 'matchmaker') {
+        if (in_array($roleName, ['matchmaker', 'manager'])) {
             if (!in_array($user->status, ['member', 'client', 'client_expire'])) {
                 return redirect()->back()->with('error', 'Can only activate member or client accounts.');
             }
 
-            // Check if matchmaker is assigned to this user
-            if ($user->assigned_matchmaker_id !== $me->id) {
-                abort(403, 'You can only activate accounts assigned to you.');
+            if ($roleName === 'matchmaker') {
+                // Check if matchmaker is assigned to this user
+                if ($user->assigned_matchmaker_id !== $me->id) {
+                    abort(403, 'You can only activate accounts assigned to you.');
+                }
+            } elseif ($roleName === 'manager') {
+                // Manager can activate users from their agency or validated by them
+                $canActivate = false;
+                if ($me->agency_id && $user->agency_id === $me->agency_id) {
+                    $canActivate = true;
+                }
+                if ($user->validated_by_manager_id === $me->id) {
+                    $canActivate = true;
+                }
+                if (!$canActivate) {
+                    abort(403, 'You can only activate accounts from your agency or validated by you.');
+                }
             }
         }
 
@@ -117,8 +132,9 @@ rrr     * Matchmaker/Admin: Activate member/client account
     }
 
     /**
-     * Matchmaker/Admin: Deactivate member/client account
+     * Matchmaker/Manager/Admin: Deactivate member/client account
      * Matchmaker: only assigned to them
+     * Manager: users from their agency or validated by them
      * Admin: any user
      */
     public function deactivateMemberClient(Request $request, $userId)
@@ -130,22 +146,36 @@ rrr     * Matchmaker/Admin: Activate member/client account
         $me = Auth::user();
         $roleName = $this->getUserRole($me);
 
-        if (!in_array($roleName, ['matchmaker', 'admin'])) {
-            abort(403, 'Only matchmakers and admins can deactivate member/client accounts.');
+        if (!in_array($roleName, ['matchmaker', 'manager', 'admin'])) {
+            abort(403, 'Only matchmakers, managers, and admins can deactivate member/client accounts.');
         }
 
         $user = User::findOrFail($userId);
         
-        // Check if user is a member or client (for matchmakers)
+        // Check if user is a member or client (for matchmakers and managers)
         // Admin can deactivate any user
-        if ($roleName === 'matchmaker') {
+        if (in_array($roleName, ['matchmaker', 'manager'])) {
             if (!in_array($user->status, ['member', 'client', 'client_expire'])) {
                 return redirect()->back()->with('error', 'Can only deactivate member or client accounts.');
             }
 
-            // Check if matchmaker is assigned to this user
-            if ($user->assigned_matchmaker_id !== $me->id) {
-                abort(403, 'You can only deactivate accounts assigned to you.');
+            if ($roleName === 'matchmaker') {
+                // Check if matchmaker is assigned to this user
+                if ($user->assigned_matchmaker_id !== $me->id) {
+                    abort(403, 'You can only deactivate accounts assigned to you.');
+                }
+            } elseif ($roleName === 'manager') {
+                // Manager can deactivate users from their agency or validated by them
+                $canDeactivate = false;
+                if ($me->agency_id && $user->agency_id === $me->agency_id) {
+                    $canDeactivate = true;
+                }
+                if ($user->validated_by_manager_id === $me->id) {
+                    $canDeactivate = true;
+                }
+                if (!$canDeactivate) {
+                    abort(403, 'You can only deactivate accounts from your agency or validated by you.');
+                }
             }
         }
 
