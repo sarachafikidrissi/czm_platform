@@ -19,6 +19,13 @@ export default function AgencyProspects() {
     const { t } = useTranslation();
     const { prospects = [], statusFilter = 'active', services = [], matrimonialPacks = [], auth } = usePage().props;
     const isLoading = prospects === null || prospects === undefined;
+    
+    // Handle pagination data structure
+    const prospectsData = prospects?.data || prospects || [];
+    const pagination = prospects?.links || null;
+    const currentPageNum = prospects?.current_page || 1;
+    const lastPage = prospects?.last_page || 1;
+    
     const { data, setData, post, processing, errors, reset } = useForm({
         notes: '',
         contact_type: '',
@@ -31,9 +38,7 @@ export default function AgencyProspects() {
         payment_mode: '',
     });
     const [validatingProspect, setValidatingProspect] = useState(null);
-    const [viewMode, setViewMode] = useState('cards'); // 'cards' or 'table'
-    const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 24;
+    const [viewMode, setViewMode] = useState('table'); // 'cards' or 'table'
     
     // Rejection dialog state
     const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
@@ -259,33 +264,34 @@ export default function AgencyProspects() {
         });
     };
     
-    // Reset page when prospects change
-    useEffect(() => {
-        setCurrentPage(1);
-    }, [prospects.length]);
-    
-    // Filter prospects based on search query
+    // Filter prospects based on search query (client-side filtering on current page)
     const filteredProspects = useMemo(() => {
-        if (!prospects || prospects.length === 0) return [];
+        if (!prospectsData || prospectsData.length === 0) return [];
         if (!searchQuery.trim()) {
-            return prospects;
+            return prospectsData;
         }
         const query = searchQuery.toLowerCase().trim();
-        return prospects.filter(p => {
+        return prospectsData.filter(p => {
             const name = (p.name || '').toLowerCase();
             const email = (p.email || '').toLowerCase();
             const username = (p.username || '').toLowerCase();
             return name.includes(query) || email.includes(query) || username.includes(query);
         });
-    }, [prospects, searchQuery]);
+    }, [prospectsData, searchQuery]);
     
-    // Pagination logic
-    const totalPages = Math.ceil(filteredProspects.length / itemsPerPage);
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    const paginatedProspects = filteredProspects.slice(startIndex, endIndex);
-    const showingStart = filteredProspects.length > 0 ? startIndex + 1 : 0;
-    const showingEnd = Math.min(endIndex, filteredProspects.length);
+    // Pagination handlers
+    const handlePageChange = (page) => {
+        const url = new URL(window.location.href);
+        url.searchParams.set('page', page);
+        router.visit(url.toString(), {
+            preserveState: true,
+            preserveScroll: false,
+        });
+    };
+    
+    const showingStart = prospects?.from || 0;
+    const showingEnd = prospects?.to || 0;
+    const total = prospects?.total || 0;
     
     // Helper function to get profile picture URL
     const getProfilePicture = (prospect) => {
@@ -432,11 +438,11 @@ export default function AgencyProspects() {
                         {/* Pagination Info */}
                         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 text-sm text-muted-foreground">
                             <div>
-                                Showing {showingStart} to {showingEnd} of {filteredProspects.length} prospects
+                                Affichage de {showingStart} à {showingEnd} sur {total} prospects
                             </div>
-                            {totalPages > 1 && (
+                            {lastPage > 1 && (
                                 <div>
-                                    Page {currentPage} of {totalPages}
+                                    Page {currentPageNum} sur {lastPage}
                                 </div>
                             )}
                         </div>
@@ -452,7 +458,6 @@ export default function AgencyProspects() {
                                 value={searchQuery}
                                 onChange={(e) => {
                                     setSearchQuery(e.target.value);
-                                    setCurrentPage(1); // Reset to first page when searching
                                 }}
                                 className="pl-10"
                             />
@@ -508,7 +513,7 @@ export default function AgencyProspects() {
                                 </Card>
                             ))
                         ) : (
-                            paginatedProspects.map((p) => (
+                            filteredProspects.map((p) => (
                             <Card key={p.id} className={`overflow-hidden hover:shadow-lg transition-shadow ${statusFilter === 'rejected' || statusFilter === 'rappeler' ? 'border-error' : ''}`}>
                                 <div className="relative">
                                     <img
@@ -578,91 +583,138 @@ export default function AgencyProspects() {
                                         </div>
                                     )}
                                     
-                                    <div className="pt-2 flex flex-col gap-2">
-                                        {statusFilter === 'active' ? (
-                                            <>
-                                                {canRejectProspect(p) && (
-                                                    <Button
-                                                        variant="destructive"
-                                                        size="sm"
-                                                        className="w-full"
-                                                        onClick={() => handleReject(p)}
-                                                    >
-                                                        <XCircle className="w-4 h-4 mr-1" />
-                                                        Rejeter
-                                                    </Button>
-                                                )}
-                                                {canEditProspectProfile(p) && (
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        className="w-full"
-                                                        onClick={() => router.visit(`/staff/prospects/${p.id}/profile/edit`)}
-                                                    >
-                                                        <Pencil className="w-4 h-4 mr-1" />
-                                                        Profil
-                                                    </Button>
-                                                )}
-                                                {canValidateProspect(p) && (
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        className="w-full"
-                                                        onClick={() => handleValidateClick(p)}
-                                                    >
-                                                        Validate
-                                                    </Button>
-                                                )}
-                                                {canTransferUser(p) && (
-                                                    p.pending_transfer_request ? (
+                                    <div className="pt-2">
+                                        {/* Primary Actions - Compact Grid */}
+                                        <div className="grid grid-cols-2 gap-1.5 mb-1.5">
+                                            {statusFilter === 'active' ? (
+                                                <>
+                                                    {canRejectProspect(p) && (
+                                                        <Button
+                                                            variant="destructive"
+                                                            size="sm"
+                                                            className="text-xs"
+                                                            onClick={() => handleReject(p)}
+                                                        >
+                                                            <XCircle className="w-3 h-3 mr-1" />
+                                                            Rejeter
+                                                        </Button>
+                                                    )}
+                                                    {canValidateProspect(p) && (
+                                                        <Button
+                                                            variant="default"
+                                                            size="sm"
+                                                            className="text-xs"
+                                                            onClick={() => handleValidateClick(p)}
+                                                        >
+                                                            Valider
+                                                        </Button>
+                                                    )}
+                                                    {canEditProspectProfile(p) && (
                                                         <Button
                                                             variant="outline"
                                                             size="sm"
-                                                            className="w-full bg-warning/10 border-warning text-warning hover:bg-warning/20"
-                                                            disabled
+                                                            className="text-xs"
+                                                            onClick={() => router.visit(`/staff/prospects/${p.id}/profile/edit`)}
                                                         >
-                                                            <ArrowRightLeft className="w-4 h-4 mr-1" />
-                                                            En attente de réponse
+                                                            <Pencil className="w-3 h-3 mr-1" />
+                                                            Profil
                                                         </Button>
-                                                    ) : (
+                                                    )}
+                                                    {canTransferUser(p) && (
+                                                        p.pending_transfer_request ? (
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                className="text-xs bg-warning/10 border-warning text-warning hover:bg-warning/20"
+                                                                disabled
+                                                            >
+                                                                <ArrowRightLeft className="w-3 h-3 mr-1" />
+                                                                En attente
+                                                            </Button>
+                                                        ) : (
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                className="text-xs"
+                                                                onClick={() => handleTransferClick(p)}
+                                                            >
+                                                                <ArrowRightLeft className="w-3 h-3 mr-1" />
+                                                                Transférer
+                                                            </Button>
+                                                        )
+                                                    )}
+                                                </>
+                                            ) : (
+                                                <>
+                                                    {canMarkAsRappeler(p) && !p.to_rappeler && (
+                                                        <Button
+                                                            variant="default"
+                                                            size="sm"
+                                                            className="text-xs bg-warning hover:opacity-90"
+                                                            onClick={() => handleMarkAsRappeler(p)}
+                                                        >
+                                                            <Phone className="w-3 h-3 mr-1" />
+                                                            Rappeler
+                                                        </Button>
+                                                    )}
+                                                    {canAcceptProspect(p) && (
+                                                        <Button
+                                                            variant="default"
+                                                            size="sm"
+                                                            className="text-xs bg-success hover:opacity-90"
+                                                            onClick={() => handleAccept(p)}
+                                                        >
+                                                            <CheckCircle className="w-3 h-3 mr-1" />
+                                                            Accepter
+                                                        </Button>
+                                                    )}
+                                                    {canEditProspectProfile(p) && (
                                                         <Button
                                                             variant="outline"
                                                             size="sm"
-                                                            className="w-full"
-                                                            onClick={() => handleTransferClick(p)}
+                                                            className="text-xs"
+                                                            onClick={() => router.visit(`/staff/prospects/${p.id}/profile/edit`)}
                                                         >
-                                                            <ArrowRightLeft className="w-4 h-4 mr-1" />
-                                                            Transférer
+                                                            <Pencil className="w-3 h-3 mr-1" />
+                                                            Profil
                                                         </Button>
-                                                    )
-                                                )}
-                                            </>
-                                        ) : (
-                                            <>
-                                                {canMarkAsRappeler(p) && !p.to_rappeler && (
-                                                    <Button
-                                                        variant="default"
-                                                        size="sm"
-                                                        className="w-full bg-warning hover:opacity-90"
-                                                        onClick={() => handleMarkAsRappeler(p)}
-                                                    >
-                                                        <Phone className="w-4 h-4 mr-1" />
-                                                        A rappeler
-                                                    </Button>
-                                                )}
-                                                {canAcceptProspect(p) && (
-                                                    <Button
-                                                        variant="default"
-                                                        size="sm"
-                                                        className="w-full bg-success hover:opacity-90"
-                                                        onClick={() => handleAccept(p)}
-                                                    >
-                                                        <CheckCircle className="w-4 h-4 mr-1" />
-                                                        Accepter
-                                                    </Button>
-                                                )}
-                                            </>
-                                        )}
+                                                    )}
+                                                    {canValidateProspect(p) && (
+                                                        <Button
+                                                            variant="default"
+                                                            size="sm"
+                                                            className="text-xs"
+                                                            onClick={() => handleValidateClick(p)}
+                                                        >
+                                                            Valider
+                                                        </Button>
+                                                    )}
+                                                    {canTransferUser(p) && (
+                                                        p.pending_transfer_request ? (
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                className="text-xs bg-warning/10 border-warning text-warning hover:bg-warning/20"
+                                                                disabled
+                                                            >
+                                                                <ArrowRightLeft className="w-3 h-3 mr-1" />
+                                                                En attente
+                                                            </Button>
+                                                        ) : (
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                className="text-xs"
+                                                                onClick={() => handleTransferClick(p)}
+                                                            >
+                                                                <ArrowRightLeft className="w-3 h-3 mr-1" />
+                                                                Transférer
+                                                            </Button>
+                                                        )
+                                                    )}
+                                                </>
+                                            )}
+                                        </div>
                                     </div>
                                 </CardContent>
                             </Card>
@@ -711,7 +763,7 @@ export default function AgencyProspects() {
                                                 </TableRow>
                                             ))
                                         ) : (
-                                            paginatedProspects.map((p) => (
+                                            filteredProspects.map((p) => (
                                             <TableRow 
                                                 key={p.id}
                                                 className="cursor-pointer hover:bg-muted/50"
@@ -821,14 +873,14 @@ export default function AgencyProspects() {
                                 </Table>
                             </div>
                             
-                            {paginatedProspects.length === 0 && !searchQuery.trim() && (
+                            {filteredProspects.length === 0 && !searchQuery.trim() && !isLoading && (
                                 <div className="text-center py-8">
                                     <p className="text-muted-foreground">
                                         {statusFilter === 'rejected' 
                                             ? 'Aucun prospect rejeté pour le moment.'
                                             : statusFilter === 'rappeler'
                                             ? 'Aucun prospect marqué comme "A rappeler" pour le moment.'
-                                            : 'No prospects assigned to your agency yet.'}
+                                            : 'Aucun prospect assigné à votre agence pour le moment.'}
                                     </p>
                                 </div>
                             )}
@@ -837,49 +889,54 @@ export default function AgencyProspects() {
                 )}
 
                 {/* Pagination Controls */}
-                {totalPages > 1 && (
+                {pagination && lastPage > 1 && (
                     <div className="flex justify-center items-center gap-2">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                            disabled={currentPage === 1}
-                        >
-                            Previous
-                        </Button>
+                        {pagination[0]?.url && (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handlePageChange(currentPageNum - 1)}
+                                disabled={currentPageNum === 1}
+                            >
+                                Précédent
+                            </Button>
+                        )}
                         <div className="flex gap-1">
-                            {[...Array(totalPages)].map((_, i) => {
-                                const pageNum = i + 1;
-                                if (
-                                    pageNum === 1 ||
-                                    pageNum === totalPages ||
-                                    (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)
-                                ) {
-                                    return (
-                                        <Button
-                                            key={pageNum}
-                                            variant={currentPage === pageNum ? 'default' : 'outline'}
-                                            size="sm"
-                                            onClick={() => setCurrentPage(pageNum)}
-                                            className="w-10"
-                                        >
-                                            {pageNum}
-                                        </Button>
-                                    );
-                                } else if (pageNum === currentPage - 2 || pageNum === currentPage + 2) {
-                                    return <span key={pageNum} className="px-2">...</span>;
+                            {Array.from({ length: Math.min(5, lastPage) }, (_, i) => {
+                                let pageNum;
+                                if (lastPage <= 5) {
+                                    pageNum = i + 1;
+                                } else if (currentPageNum <= 3) {
+                                    pageNum = i + 1;
+                                } else if (currentPageNum >= lastPage - 2) {
+                                    pageNum = lastPage - 4 + i;
+                                } else {
+                                    pageNum = currentPageNum - 2 + i;
                                 }
-                                return null;
+                                
+                                return (
+                                    <Button
+                                        key={pageNum}
+                                        variant={currentPageNum === pageNum ? 'default' : 'outline'}
+                                        size="sm"
+                                        onClick={() => handlePageChange(pageNum)}
+                                        className="w-10"
+                                    >
+                                        {pageNum}
+                                    </Button>
+                                );
                             })}
                         </div>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                            disabled={currentPage === totalPages}
-                        >
-                            Next
-                        </Button>
+                        {pagination[pagination.length - 1]?.url && (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handlePageChange(currentPageNum + 1)}
+                                disabled={currentPageNum === lastPage}
+                            >
+                                Suivant
+                            </Button>
+                        )}
                     </div>
                 )}
             </div>

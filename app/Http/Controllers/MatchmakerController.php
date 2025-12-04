@@ -669,7 +669,7 @@ class MatchmakerController extends Controller
             },
             'subscriptions.matrimonialPack',
             'subscriptions.assignedMatchmaker'
-        ])->get();
+        ])->paginate(8)->withQueryString();
         
         // Ensure to_rappeler is included in the response
         $prospects->each(function($prospect) {
@@ -1116,8 +1116,10 @@ class MatchmakerController extends Controller
             }
         }
 
-        $prospects = $query->get(['id','name','username','email','phone','country','city','status','agency_id','assigned_matchmaker_id','rejection_reason','rejected_by','rejected_at','to_rappeler','created_at']);
-        $prospects->load(['profile', 'assignedMatchmaker', 'agency']);
+        $prospects = $query->select(['id','name','username','email','phone','country','city','status','agency_id','assigned_matchmaker_id','rejection_reason','rejected_by','rejected_at','to_rappeler','created_at'])
+            ->with(['profile', 'assignedMatchmaker', 'agency'])
+            ->paginate(8)
+            ->withQueryString();
         
         // Load pending transfer requests for each prospect
         $prospectIds = $prospects->pluck('id')->toArray();
@@ -1127,8 +1129,9 @@ class MatchmakerController extends Controller
             ->get()
             ->keyBy('user_id');
         
-        // Add pending transfer request info to each prospect
-        $prospects->each(function ($prospect) use ($pendingTransferRequests) {
+        // Transform the collection to add additional data
+        $prospects->getCollection()->transform(function ($prospect) use ($pendingTransferRequests) {
+            // Add pending transfer request info
             $transferRequest = $pendingTransferRequests->get($prospect->id);
             $prospect->pending_transfer_request = $transferRequest ? [
                 'id' => $transferRequest->id,
@@ -1138,6 +1141,18 @@ class MatchmakerController extends Controller
                     'name' => $transferRequest->toMatchmaker->name,
                 ] : null,
             ] : null;
+            
+            // Decrypt CNI for prospects who already provided it (for validation form display)
+            if ($prospect->profile && $prospect->profile->cin) {
+                try {
+                    $prospect->profile->cin_decrypted = Crypt::decryptString($prospect->profile->cin);
+                } catch (\Exception $e) {
+                    // If decryption fails, mark as not provided
+                    $prospect->profile->cin_decrypted = null;
+                }
+            }
+            
+            return $prospect;
         });
         
         $services = [];
@@ -1149,18 +1164,6 @@ class MatchmakerController extends Controller
         if (\Illuminate\Support\Facades\Schema::hasTable('matrimonial_packs')) {
             $matrimonialPacks = \App\Models\MatrimonialPack::all(['id','name','duration']);
         }
-
-        // Decrypt CNI for prospects who already provided it (for validation form display)
-        $prospects->each(function ($prospect) {
-            if ($prospect->profile && $prospect->profile->cin) {
-                try {
-                    $prospect->profile->cin_decrypted = Crypt::decryptString($prospect->profile->cin);
-                } catch (\Exception $e) {
-                    // If decryption fails, mark as not provided
-                    $prospect->profile->cin_decrypted = null;
-                }
-            }
-        });
 
         return Inertia::render('matchmaker/agency-prospects', [
             'prospects' => $prospects,
