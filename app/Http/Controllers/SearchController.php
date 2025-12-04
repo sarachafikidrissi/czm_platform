@@ -105,16 +105,43 @@ class SearchController extends Controller
 
         $users = $usersQuery->limit(20)->get();
 
+        // If admin, also search for staff members
+        $staffMembers = collect();
+        if ($roleName === 'admin') {
+            $staffQuery = User::whereHas('roles', function($q) {
+                    $q->whereIn('name', ['admin', 'manager', 'matchmaker']);
+                })
+                ->where(function($q) use ($query) {
+                    $q->where('name', 'like', "%{$query}%")
+                      ->orWhere('username', 'like', "%{$query}%")
+                      ->orWhere('email', 'like', "%{$query}%")
+                      ->orWhere('phone', 'like', "%{$query}%");
+                })
+                ->with(['roles', 'agency'])
+                ->limit(20)
+                ->get();
+            
+            $staffMembers = $staffQuery;
+        }
+
+        // Merge regular users and staff members, then limit to 20 total
+        $allResults = $users->merge($staffMembers)->take(20);
+
         // Format results
-        $formattedUsers = $users->map(function($user) {
+        $formattedUsers = $allResults->map(function($user) {
             // For regular users, profile picture is in profile->profile_picture_path
+            // For staff members, profile picture is in user->profile_picture
             $profilePicture = null;
             if ($user->profile && $user->profile->profile_picture_path) {
                 $profilePicture = $user->profile->profile_picture_path;
             } elseif ($user->profile_picture) {
-                // Fallback to user->profile_picture (for staff users if any)
+                // Fallback to user->profile_picture (for staff users)
                 $profilePicture = $user->profile_picture;
             }
+
+            // Get user roles to determine if it's a staff member
+            $userRoles = $user->roles->pluck('name')->toArray();
+            $isStaffMember = !empty(array_intersect($userRoles, ['admin', 'manager', 'matchmaker']));
 
             return [
                 'id' => $user->id,
@@ -122,7 +149,7 @@ class SearchController extends Controller
                 'username' => $user->username,
                 'email' => $user->email,
                 'phone' => $user->phone,
-                'status' => $user->status,
+                'status' => $isStaffMember ? ($userRoles[0] ?? 'staff') : $user->status,
                 'profile_picture' => $profilePicture,
                 'agency' => $user->agency ? [
                     'id' => $user->agency->id,
@@ -132,6 +159,7 @@ class SearchController extends Controller
                     'id' => $user->assignedMatchmaker->id,
                     'name' => $user->assignedMatchmaker->name,
                 ] : null,
+                'role' => $isStaffMember ? ($userRoles[0] ?? null) : null,
             ];
         });
 

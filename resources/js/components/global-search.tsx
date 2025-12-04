@@ -21,6 +21,7 @@ interface SearchUser {
         id: number;
         name: string;
     } | null;
+    role?: string | null;
 }
 
 interface GlobalSearchProps {
@@ -176,6 +177,10 @@ export function GlobalSearch({ role }: GlobalSearchProps) {
                 return 'bg-blue-500';
             case 'prospect':
                 return 'bg-yellow-500';
+            case 'admin':
+            case 'manager':
+            case 'matchmaker':
+                return 'bg-purple-500';
             default:
                 return 'bg-gray-500';
         }
@@ -219,7 +224,10 @@ export function GlobalSearch({ role }: GlobalSearchProps) {
                                 <Input
                                     ref={searchInputRef}
                                     type="text"
-                                    placeholder="Search for users by name, username, phone, or email..."
+                                    placeholder={role === 'admin' 
+                                        ? "Search for users and staff members by name, username, phone, or email..."
+                                        : "Search for users by name, username, phone, or email..."
+                                    }
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                     className="pl-10 pr-10 bg-white border-[#096725] text-black placeholder:text-gray-500 focus:border-[#096725] focus:ring-[#096725] h-12 text-base"
@@ -289,7 +297,17 @@ export function GlobalSearch({ role }: GlobalSearchProps) {
                                                         <p className="font-medium text-black truncate">
                                                             {user.name}
                                                         </p>
-                                                        {user.status && (
+                                                        {user.role && (
+                                                            <span className={cn(
+                                                                "px-2 py-0.5 rounded-full text-xs font-medium",
+                                                                user.role === 'admin' && "bg-purple-500/20 text-purple-600",
+                                                                user.role === 'manager' && "bg-purple-500/20 text-purple-600",
+                                                                user.role === 'matchmaker' && "bg-purple-500/20 text-purple-600"
+                                                            )}>
+                                                                {user.role}
+                                                            </span>
+                                                        )}
+                                                        {user.status && !user.role && (
                                                             <span className={cn(
                                                                 "px-2 py-0.5 rounded-full text-xs font-medium",
                                                                 user.status === 'client' && "bg-[#096725]/20 text-[#096725]",
