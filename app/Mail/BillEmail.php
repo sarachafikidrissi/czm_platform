@@ -57,6 +57,9 @@ class BillEmail extends Mailable
     public function attachments(): array
     {
         $pdf = Pdf::loadView('pdf.invoice', ['bill' => $this->bill]);
+        $pdf->setPaper('A4', 'portrait');
+        $pdf->setOption('enable-smart-shrinking', true);
+        $pdf->setOption('page-break-inside', 'avoid');
         
         return [
             Attachment::fromData(

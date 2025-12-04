@@ -10,501 +10,452 @@
             padding: 0;
             box-sizing: border-box;
         }
+        @page {
+            margin: 0;
+            size: A4;
+        }
+        * {
+            page-break-inside: avoid;
+        }
+        table {
+            page-break-inside: avoid;
+        }
+        tr {
+            page-break-inside: avoid;
+        }
         body {
             font-family: Arial, Helvetica, sans-serif;
             color: #000000;
             background: #FFFFFF;
-            padding: 40px 50px;
-            font-size: 14px;
-            line-height: 1.6;
+            padding: 15px 25px;
+            font-size: 10px;
+            line-height: 1.3;
         }
-        .receipt-header {
-            margin-bottom: 30px;
-            overflow: hidden;
+        .header-table {
             width: 100%;
+            margin-bottom: 10px;
         }
-        .receipt-header:after {
-            content: "";
-            display: table;
-            clear: both;
+        .header-table td {
+            vertical-align: top;
         }
         .receipt-title {
-            float: left;
-            font-size: 32px;
+            font-size: 50px;
             font-weight: bold;
-            color: #000000;
+            color: #0f5c21;
+            padding-top: 50px;
         }
         .logo-container {
-            float: right;
             text-align: right;
+            width: 200px;
+            height: 200px;
         }
-        /* .logo-container {
-            text-align: right;
-        } */
         .logo {
+            width: 200px;
+            height: 200px;
+            /* max-height: 80px; */
+            object-fit: cover;
+        }
+        .company-info-table {
+            width: 100%;
+            margin-bottom: 10px;
+            border-collapse: collapse;
+        }
+        .company-info-table td {
+            padding: 5px 0;
+            font-size: 11px;
+            vertical-align: top;
+        }
+        .section-title {
+            font-weight: bold;
+            font-size: 11px;
+            color: #000000;
             width: 150px;
-            height: auto;
-            max-height: 150px;
         }
-        .invoice-details {
-            margin-bottom: 30px;
+        .invoice-details-table {
+            width: 100%;
+            margin-bottom: 10px;
+            border-collapse: collapse;
         }
-        .invoice-detail-row {
-            margin-bottom: 8px;
-            font-size: 14px;
-            line-height: 1.8;
+        .invoice-details-table td {
+            padding: 4px 8px;
+            font-size: 11px;
+            border: 1px solid #d0d0d0;
         }
-        .invoice-detail-label {
+        .invoice-details-table .label {
             font-weight: bold;
-            color: #000000;
+            background-color: #f5f5f5;
+            width: 140px;
         }
-        .invoice-detail-value {
-            color: #000000;
-        }
-        .billing-info {
-            margin-bottom: 50px;
-            margin-top: 20px;
-            overflow: hidden;
-        }
-        .sender-info, .recipient-info {
-            width: 45%;
-            float: left;
-            margin-right: 5%;
-        }
-        .recipient-info {
-            margin-right: 0;
-            float: right;
-        }
-        .info-title {
-            font-weight: bold;
-            font-size: 14px;
-            margin-bottom: 12px;
-            color: #000000;
-            float: left;
-            width: 30%;
-        }
-        .info-content {
-            font-size: 14px;
-            color: #000000;
-            line-height: 1.8;
-            float: left;
-            width: 65%;
-            margin-left: 5%;
-        }
-        .sender-info:after, .recipient-info:after {
-            content: "";
-            display: table;
-            clear: both;
-        }
-        .info-content p {
-            margin-bottom: 4px;
-        }
-        .payment-summary {
-            margin: 40px 0;
-            font-size: 20px;
-            font-weight: bold;
-            color: #000000;
-            text-align: center;
+        .invoice-details-table .value {
+            background-color: #ffffff;
         }
         .items-table {
             width: 100%;
+            margin-bottom: 8px;
             border-collapse: collapse;
-            margin-bottom: 20px;
+            font-size: 9px;
         }
-        .items-table thead th {
+        .items-table th {
+            background-color: #f5f5f5;
+            padding: 6px 4px;
             text-align: left;
             font-weight: bold;
-            font-size: 14px;
-            color: #000000;
-            padding-bottom: 8px;
-            border-bottom: 1px solid #d0d0d0;
-            padding-top: 20px;
+            font-size: 10px;
+            border: 1px solid #d0d0d0;
         }
-        .items-table thead th.text-right {
+        .items-table th.text-center {
+            text-align: center;
+        }
+        .items-table th.text-right {
             text-align: right;
         }
-        .items-table tbody td {
-            padding: 12px 0;
-            font-size: 14px;
-            color: #000000;
-            border-bottom: 1px solid #f0f0f0;
+        .items-table td {
+            padding: 6px 4px;
+            font-size: 10px;
+            border: 1px solid #d0d0d0;
         }
-        .items-table tbody td.text-right {
+        .items-table td.text-center {
+            text-align: center;
+        }
+        .items-table td.text-right {
             text-align: right;
         }
-        .totals {
-            margin-top: 20px;
-            margin-bottom: 50px;
-            text-align: right;
-        }
-        .total-row {
-            padding: 8px 0;
-            font-size: 14px;
-            color: #000000;
-            border-bottom: 1px solid #f0f0f0;
-            text-align: right;
-            overflow: hidden;
-        }
-        .total-label {
-            display: inline-block;
-            margin-right: 20px;
-        }
-        .total-value {
-            display: inline-block;
-        }
-        .total-row.amount-paid {
-            font-weight: bold;
-            font-size: 16px;
-            margin-top: 15px;
-            padding-top: 15px;
-            border-top: 1px solid #d0d0d0;
-            border-bottom: none;
-        }
-        .total-label {
-            color: #000000;
-            display: inline-block;
-            margin-right: 20px;
-        }
-        .total-value {
-            color: #000000;
-            font-weight: inherit;
-            min-width: 100px;
-            text-align: right;
-            display: inline-block;
-        }
-        .payment-history {
-            margin-top: 50px;
-            margin-bottom: 40px;
-        }
-        .payment-history-title {
-            font-weight: bold;
-            font-size: 16px;
-            margin-bottom: 20px;
-            color: #000000;
-        }
-        .payment-table {
+        .payment-modes-table {
             width: 100%;
+            margin-bottom: 8px;
             border-collapse: collapse;
         }
-        .payment-table thead th {
-            text-align: left;
-            font-weight: bold;
-            font-size: 14px;
-            color: #000000;
-            padding-bottom: 8px;
-            border-bottom: 1px solid #d0d0d0;
+        .payment-modes-table td {
+            padding: 4px 8px;
+            font-size: 10px;
         }
-        .payment-table thead th.text-right {
-            text-align: right;
-        }
-        .payment-table tbody td {
-            padding: 12px 0;
-            font-size: 14px;
-            color: #000000;
-            border-bottom: 1px solid #f0f0f0;
-        }
-        .payment-table tbody td.text-right {
-            text-align: right;
-        }
-        .additional-info {
-            margin-top: 40px;
-            margin-bottom: 30px;
-            font-size: 14px;
-            color: #000000;
-        }
-        .additional-info p {
-            margin-bottom: 6px;
-        }
-        .footer-text {
-            margin-top: 40px;
-            font-size: 12px;
-            color: #666666;
-            line-height: 1.8;
-        }
-        .page-number {
-            text-align: right;
-            font-size: 12px;
-            color: #666666;
-            margin-top: 30px;
-        }
-        .pdf-footer {
-            margin-top: 60px;
-            padding-top: 20px;
-            border-top: 1px solid #e0e0e0;
-            clear: both;
-        }
-        .footer-content {
+        .totals-table {
             width: 100%;
-            margin-bottom: 20px;
+            margin-bottom: 8px;
+            border-collapse: collapse;
+        }
+        .totals-table td {
+            padding: 6px 8px;
             font-size: 11px;
-            line-height: 1.6;
-            overflow: hidden;
+            border: 1px solid #d0d0d0;
         }
-        .footer-content:after {
-            content: "";
-            display: table;
-            clear: both;
+        .totals-table .label {
+            font-weight: bold;
+            text-align: right;
+            width: 70%;
+        }
+        .totals-table .value {
+            text-align: right;
+            font-weight: bold;
+        }
+        .totals-table .total-ttc {
+            background-color: #d4edda;
+            color: #000000;
+            font-weight: bold;
+            font-size: 12px;
+        }
+        .invoice-summary {
+            margin-bottom: 10px;
+            font-size: 9px;
+            line-height: 1.4;
+            padding: 6px;
+            background-color: #f9f9f9;
+            border: 1px solid #d0d0d0;
+        }
+        .stamp-section {
+            margin-bottom: 10px;
+            text-align: center;
+            font-size: 9px;
+        }
+        .stamp-box {
+            display: inline-block;
+            border: 2px solid #0066cc;
+            padding: 8px;
+            text-align: center;
+            min-width: 180px;
+        }
+        .stamp-company {
+            font-weight: bold;
+            font-size: 11px;
+            margin-bottom: 5px;
+        }
+        .stamp-address {
+            font-size: 9px;
+            margin-bottom: 3px;
+        }
+        .stamp-phone {
+            font-size: 9px;
+        }
+        .footer-table {
+            width: 100%;
+            margin-bottom: 10px;
+            border-collapse: collapse;
+        }
+        .footer-table td {
+            padding: 4px 0;
+            font-size: 9px;
+            vertical-align: top;
         }
         .footer-left {
-            float: left;
-            width: 48%;
+            width: 50%;
         }
         .footer-right {
-            float: right;
-            width: 48%;
+            width: 50%;
+            text-align: right;
         }
         .footer-company-name {
             font-weight: bold;
-            font-size: 12px;
-            margin-bottom: 8px;
-            color: #000000;
-        }
-        .footer-address {
-            color: #000000;
-            margin-bottom: 4px;
+            font-size: 10px;
+            margin-bottom: 3px;
         }
         .footer-registration {
-            color: #000000;
-            margin-top: 8px;
-        }
-        .footer-registration div {
-            margin-bottom: 2px;
+            font-size: 9px;
+            margin-top: 5px;
         }
         .footer-contact-title {
             font-weight: bold;
-            font-size: 12px;
-            margin-bottom: 8px;
-            color: #000000;
+            font-size: 10px;
+            margin-bottom: 3px;
         }
         .footer-contact-info {
-            color: #000000;
-            margin-bottom: 4px;
+            font-size: 9px;
         }
         .footer-contact-info a {
             color: #0066cc;
-            text-decoration: none;
+            text-decoration: underline;
         }
         .footer-thank-you {
             background-color: #28a745;
             color: #ffffff;
             text-align: center;
-            padding: 15px 0;
+            padding: 6px 0;
             font-weight: bold;
-            font-size: 14px;
+            font-size: 10px;
             letter-spacing: 1px;
-            margin-top: 20px;
+            margin-top: 8px;
         }
         .pack-name {
             font-weight: bold;
-            color: #000000;
+        }
+        .empty-row {
+            background-color: #f9f9f9;
         }
     </style>
 </head>
 <body>
-    <!-- Receipt Header: Title and Logo -->
-    <div class="receipt-header">
-        <div class="receipt-title">Facture</div>
-        <div class="logo-container">
-            @php
-                $logoPath = public_path('images/czm_Logo.png');
-            @endphp
-            @if(file_exists($logoPath))
-            <img src="{{ $logoPath }}" alt="CZM Logo" class="logo">
-            @endif
-        </div>
-    </div>
+    <!-- Header: Title and Logo -->
+    <table class="header-table">
+        <tr>
+            <td>
+                <div class="receipt-title">Facture</div>
+            </td>
+            <td class="logo-container">
+                @php
+                    $logoPath = public_path('images/czm_Logo.png');
+                @endphp
+                @if(file_exists($logoPath))
+                <img src="{{ $logoPath }}" alt="CZM Logo" class="logo">
+                @endif
+            </td>
+        </tr>
+    </table>
 
-    <!-- Invoice Details -->
-    <div class="invoice-details">
-        <div class="invoice-detail-row">
-            <span class="invoice-detail-label">Numéro de facture:</span>
-            <span class="invoice-detail-value"> {{ $bill->bill_number }}</span>
-        </div>
-        <div class="invoice-detail-row">
-            <span class="invoice-detail-label">Date:</span>
-            <span class="invoice-detail-value"> {{ \Carbon\Carbon::parse($bill->bill_date)->format('d F Y') }}</span>
-        </div>
-        @if($bill->status === 'paid')
-        <div class="invoice-detail-row">
-            <span class="invoice-detail-label">Date de paiement:</span>
-            <span class="invoice-detail-value"> {{ \Carbon\Carbon::parse($bill->updated_at)->format('d F Y') }}</span>
-        </div>
-        @endif
-    </div>
+    <!-- Service Provider Information -->
+    <table class="company-info-table">
+        <tr>
+            <td class="section-title">PRESTATEUR DE SERVICE</td>
+            <td>
+                <strong>ZCM CONSULTING S.A.R.L AU</strong><br>
+                59 BD EMILE ZOLA 1 ERE ETAGE BUREAU N°2 CASABLANCA<br>
+                CASABLANCA
+            </td>
+        </tr>
+    </table>
 
-    <!-- Billing Information -->
-    <div class="billing-info">
-        <div class="sender-info">
-            <div class="info-title">Centre Zawaj Maroc</div>
-            <div class="info-content">
-                <p>Service de mariage et accompagnement matrimonial</p>
-                @if($bill->matchmaker)
-                <p>{{ $bill->matchmaker->name }}</p>
-                <p>{{ $bill->matchmaker->email }}</p>
-                @if($bill->matchmaker->phone)
-                <p>{{ $bill->matchmaker->phone }}</p>
+    <!-- Client Information -->
+    <table class="company-info-table">
+        <tr>
+            <td class="section-title">Client</td>
+            <td>
+                <strong>{{ strtoupper($bill->user->name) }}</strong><br>
+                @if($bill->profile && $bill->profile->cin)
+                @php
+                    try {
+                        $decryptedCin = \Illuminate\Support\Facades\Crypt::decryptString($bill->profile->cin);
+                    } catch (\Exception $e) {
+                        $decryptedCin = null;
+                    }
+                @endphp
+                @if($decryptedCin)
+                CNI N° {{ $decryptedCin }}<br>
                 @endif
                 @endif
-            </div>
-        </div>
-        <div class="recipient-info">
-            <div class="info-title">Facturer à</div>
-            <div class="info-content">
-                <p>{{ $bill->user->name }}</p>
-                @if($bill->user->email)
-                <p>{{ $bill->user->email }}</p>
-                @endif
-                @if($bill->user->phone)
-                <p>{{ $bill->user->phone }}</p>
-                @endif
-                @if($bill->user->city)
-                <p>{{ $bill->user->city }}{{ $bill->user->country ? ', ' . $bill->user->country : '' }}</p>
-                @endif
-            </div>
-        </div>
-    </div>
+                Client N° {{ str_pad($bill->user->id, 5, '0', STR_PAD_LEFT) }}
+            </td>
+        </tr>
+    </table>
 
-    <!-- Payment Summary -->
-    @if($bill->status === 'paid')
-    <div class="payment-summary">
-        {{ number_format($bill->total_amount, 2) }} {{ $bill->currency }} payé le {{ \Carbon\Carbon::parse($bill->updated_at)->format('d F Y') }}
-    </div>
-    @else
-    <div class="payment-summary">
-        {{ number_format($bill->total_amount, 2) }} {{ $bill->currency }} à payer avant le {{ \Carbon\Carbon::parse($bill->due_date)->format('d F Y') }}
-    </div>
-    @endif
+    <!-- Invoice Details Table -->
+    @php
+        // Format bill number to match image format (FAC093/2025)
+        $billNumberParts = explode('-', $bill->bill_number);
+        $formattedBillNumber = $bill->bill_number;
+        if (count($billNumberParts) >= 3) {
+            $year = $billNumberParts[1] ?? date('Y');
+            $sequence = $billNumberParts[2] ?? '001';
+            $formattedBillNumber = 'FAC' . str_pad($sequence, 3, '0', STR_PAD_LEFT) . '/' . $year;
+        }
+    @endphp
+    <table class="invoice-details-table">
+        <tr>
+            <td class="label">Date de facturation</td>
+            {{-- <td class="value">{{ \Carbon\Carbon::parse($bill->bill_date)->format('d/m/Y') }}</td> --}}
+            <td class="label">Numéro de la facture</td>
+            <td class="label">Échéance</td>
+            <td class="label">Mode de paiement</td>
+            <td class="label">Ref de Reglement</td>
+            <td class="label"></td>
+            <td class="value"></td>
+        </tr>
+        <tr>
+            <td class="value">{{ \Carbon\Carbon::parse($bill->bill_date)->format('d/m/Y') }}</td>
+            <td class="value">{{ $formattedBillNumber }}</td>
+            <td class="value">{{ \Carbon\Carbon::parse($bill->due_date)->format('d/m/Y') }}</td>
+            <td class="value">{{ strtoupper($bill->payment_method ?? 'ESP') }}</td>
+            <td class="value">{{ $bill->status === 'paid' ? ($formattedBillNumber ?? '-') : '-' }}</td>
+
+
+
+        </tr>
+    </table>
 
     <!-- Items Table -->
     <table class="items-table">
         <thead>
             <tr>
-                <th>Description</th>
-                <th class="text-right">Qté</th>
-                <th class="text-right">Prix unitaire</th>
-                <th class="text-right">Montant</th>
+                <th style="width: 35%;">Description</th>
+                <th class="text-center" style="width: 8%;">Quantité</th>
+                <th class="text-center" style="width: 10%;">Unité</th>
+                <th class="text-right" style="width: 12%;">Prix unitaire HT</th>
+                <th class="text-center" style="width: 8%;">% TVA</th>
+                <th class="text-right" style="width: 12%;">Total TVA</th>
+                <th class="text-right" style="width: 15%;">Total TTC</th>
             </tr>
         </thead>
         <tbody>
             <tr>
-                <td>
-                    <span class="pack-name">{{ $bill->pack_name }}</span>
-                </td>
-                <td class="text-right">1</td>
-                <td class="text-right">{{ number_format($bill->amount, 2) }} {{ $bill->currency }}</td>
-                <td class="text-right">{{ number_format($bill->amount, 2) }} {{ $bill->currency }}</td>
+                <td><span class="pack-name">{{ strtoupper($bill->pack_name) }}</span></td>
+                <td class="text-center">1</td>
+                <td class="text-center">-</td>
+                <td class="text-right">{{ number_format($bill->amount, 2, ',', ' ') }} MAD</td>
+                <td class="text-center">{{ number_format($bill->tax_rate, 0) }}%</td>
+                <td class="text-right">{{ number_format($bill->tax_amount, 2, ',', ' ') }} MAD</td>
+                <td class="text-right">{{ number_format($bill->total_amount, 2, ',', ' ') }} MAD</td>
+            </tr>
+            <tr class="empty-row">
+                <td>-</td>
+                <td class="text-center">-</td>
+                <td class="text-center">-</td>
+                <td class="text-right">-</td>
+                <td class="text-center">{{ number_format($bill->tax_rate, 0) }}%</td>
+                <td class="text-right">- MAD</td>
+                <td class="text-right">- MAD</td>
             </tr>
         </tbody>
     </table>
 
-    <!-- Totals -->
-    <div class="totals">
-        <div class="total-row">
-            <span class="total-label">Sous-total</span>
-            <span class="total-value">{{ number_format($bill->amount, 2) }} {{ $bill->currency }}</span>
-        </div>
-        <div class="total-row">
-            <span class="total-label">TVA ({{ number_format($bill->tax_rate, 0) }}%)</span>
-            <span class="total-value">{{ number_format($bill->tax_amount, 2) }} {{ $bill->currency }}</span>
-        </div>
-        <div class="total-row">
-            <span class="total-label">Total</span>
-            <span class="total-value">{{ number_format($bill->total_amount, 2) }} {{ $bill->currency }}</span>
-        </div>
-        @if($bill->status === 'paid')
-        <div class="total-row amount-paid">
-            <span class="total-label">Montant payé</span>
-            <span class="total-value">{{ number_format($bill->total_amount, 2) }} {{ $bill->currency }}</span>
-        </div>
-        @else
-        <div class="total-row amount-paid">
-            <span class="total-label">Montant dû</span>
-            <span class="total-value">{{ number_format($bill->total_amount, 2) }} {{ $bill->currency }}</span>
-        </div>
+    <!-- Payment Modes -->
+    <table class="payment-modes-table">
+        <tr>
+            <td><strong>LES MODES DE PAIEMENT ACCEPTES:</strong></td>
+        </tr>
+        <tr>
+            <td>ESP/CARTE BANCAIRE</td>
+            <td>CHEQUE/VIREMENT</td>
+            <td>EFFET</td>
+        </tr>
+    </table>
+
+    <!-- Totals Table -->
+    <table class="totals-table">
+        <tr>
+            <td class="label">Total HT</td>
+            <td class="value">{{ number_format($bill->amount, 2, ',', ' ') }}</td>
+        </tr>
+        <tr>
+            <td class="label">Total TVA</td>
+            <td class="value">{{ number_format($bill->tax_amount, 2, ',', ' ') }}</td>
+        </tr>
+        <tr>
+            <td class="label total-ttc">Total TTC</td>
+            <td class="value total-ttc">{{ number_format($bill->total_amount, 2, ',', ' ') }}</td>
+        </tr>
+    </table>
+
+    <!-- Invoice Summary Statement -->
+    <div class="invoice-summary">
+        <strong>ARRETEE A LA PRESENTE FACTURE A LA SOMME TTC DE:</strong> 
+        @php
+            // Convert number to words in French
+            $amount = (int)$bill->total_amount;
+            $amountInWords = '';
+            try {
+                if (extension_loaded('intl')) {
+                    $numberFormatter = new NumberFormatter('fr_FR', NumberFormatter::SPELLOUT);
+                    $amountInWords = ucfirst($numberFormatter->format($amount));
+                } else {
+                    $amountInWords = $amount . ' dirhams';
+                }
+            } catch (Exception $e) {
+                $amountInWords = $amount . ' dirhams';
+            }
+        @endphp
+        {{ $amountInWords }}
+        @if($bill->pack_advantages && count($bill->pack_advantages) > 0)
+        / offre spéciale
         @endif
+        / Avance {{ strtolower($bill->pack_name) }} {{ number_format($bill->total_amount, 0, ',', ' ') }}dhs
+        / Mode de paiement : {{ strtolower($bill->payment_method ?? 'esp') }}
     </div>
 
-    <!-- Payment History -->
-    <div class="payment-history">
-        <div class="payment-history-title">Historique de paiement</div>
-        <table class="payment-table">
-            <thead>
-                <tr>
-                    <th>Mode de paiement</th>
-                    <th class="text-right">Date</th>
-                    <th class="text-right">Montant payé</th>
-                    <th class="text-right">Numéro de facture</th>
-                </tr>
-            </thead>
-            <tbody>
-                @if($bill->status === 'paid')
-                <tr>
-                    <td>{{ $bill->payment_method }}</td>
-                    <td class="text-right">{{ \Carbon\Carbon::parse($bill->updated_at)->format('d F Y') }}</td>
-                    <td class="text-right">{{ number_format($bill->total_amount, 2) }} {{ $bill->currency }}</td>
-                    <td class="text-right">{{ $bill->bill_number }}</td>
-                </tr>
-                @else
-                <tr>
-                    <td>{{ $bill->payment_method }}</td>
-                    <td class="text-right">-</td>
-                    <td class="text-right">0,00 {{ $bill->currency }}</td>
-                    <td class="text-right">{{ $bill->bill_number }}</td>
-                </tr>
-                @endif
-            </tbody>
-        </table>
+    <!-- Stamp & Signature -->
+    <div class="stamp-section">
+        <div class="stamp-box">
+            <div class="stamp-company">ZCM CONSULTING S.A.R.L AU</div>
+            <div class="stamp-address">59, Bd Emile Zola, 1er Etage Bureau n° 2 - Casablanca</div>
+            <div class="stamp-phone">Tél. 1: 07 02 75 84 70</div>
+            <div class="stamp-phone">Tél. 2: 07 14 57 06 37</div>
+            <div style="margin-top: 10px; height: 25px;">
+                <div style="font-size: 8px; margin-top: 15px;">CACHET & SIGNATURE</div>
+            </div>
+        </div>
     </div>
 
-    <!-- Additional Information -->
-    @if($bill->pack_advantages && count($bill->pack_advantages) > 0)
-    <div class="additional-info">
-        <p><strong>Avantages inclus:</strong></p>
-        @foreach($bill->pack_advantages as $advantage)
-        <p>{{ $advantage }}</p>
-        @endforeach
-    </div>
-    @endif
-
-    <!-- Footer Text -->
-    <div class="footer-text">
-        @if($bill->matchmaker)
-        <p>Votre matchmaker: {{ $bill->matchmaker->name }} - {{ $bill->matchmaker->email }}</p>
-        @endif
-        @if($bill->notes)
-        <p>Notes: {{ $bill->notes }}</p>
-        @endif
-    </div>
-
-    <!-- PDF Footer -->
-    <div class="pdf-footer">
-        <div class="footer-content">
-            <div class="footer-left">
+    <!-- Footer -->
+    <table class="footer-table">
+        <tr>
+            <td class="footer-left">
                 <div class="footer-company-name">ZCM CONSULTING S.A.R.L AU</div>
-                <div class="footer-address">59 BD EMILE ZOLA 1 ERE ETAGE BUREAU N°2 CASABLANCA</div>
-                <div class="footer-address">CASABLANCA</div>
+                <div>59 BD EMILE ZOLA 1 ERE ETAGE BUREAU N°2 CASABLANCA, CASABLANCA</div>
                 <div class="footer-registration">
                     <div>RC: 553857</div>
                     <div>IF: 52623880</div>
                     <div>ICE: 003132958000051</div>
                     <div>Patente: 32501891</div>
                 </div>
-            </div>
-            <div class="footer-right">
+            </td>
+            <td class="footer-right">
                 <div class="footer-contact-title">Coordonnées</div>
                 <div class="footer-contact-info">Téléphone: 0698989697</div>
                 <div class="footer-contact-info">E-mail: contact@czm.ma</div>
                 <div class="footer-contact-info"><a href="https://czm.ma">www.Czm.ma</a></div>
-            </div>
-        </div>
-        <div class="footer-thank-you">
-            MERCI DE VOTRE CONFIANCE
-        </div>
-    </div>
+            </td>
+        </tr>
+    </table>
 
-    <!-- Page Number -->
-    <div class="page-number">
-        Page 1 sur 1
+    <!-- Thank You Footer -->
+    <div class="footer-thank-you">
+        MERCI DE VOTRE CONFIANCE
     </div>
 </body>
 </html>

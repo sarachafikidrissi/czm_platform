@@ -46,6 +46,8 @@ class BillController extends Controller
         
         $pdf = Pdf::loadView('pdf.invoice', ['bill' => $bill]);
         $pdf->setPaper('A4', 'portrait');
+        $pdf->setOption('enable-smart-shrinking', true);
+        $pdf->setOption('page-break-inside', 'avoid');
         
         return response($pdf->output(), 200, [
             'Content-Type' => 'application/pdf',
