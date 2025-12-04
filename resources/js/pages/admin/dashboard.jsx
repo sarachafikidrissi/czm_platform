@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, XCircle, Users, UserCheck, Edit, Shield } from 'lucide-react';
+import { CheckCircle, XCircle, Users, UserCheck, Edit, Shield, User, Check, Copy, Mail } from 'lucide-react';
 import CreateStaffButton from '@/components/admin/create-staff-button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import AppLayout from '@/layouts/app-layout';
@@ -31,6 +31,7 @@ export default function AdminDashboard() {
     const [selectedAgency, setSelectedAgency] = useState('');
     const [roleEditingUser, setRoleEditingUser] = useState(null);
     const [selectedRoles, setSelectedRoles] = useState([]);
+    const [selectedStaff, setSelectedStaff] = useState(null);
 
     const { data, setData, post, processing, errors, reset } = useForm({
         name: '',
@@ -103,6 +104,31 @@ export default function AdminDashboard() {
                 return <Badge className="bg-error-bg text-error">{t('admin.dashboard.status.rejected')}</Badge>;
             default:
                 return <Badge className="bg-muted text-muted-foreground">{status}</Badge>;
+        }
+    };
+
+    // Helper function to get profile picture URL
+    const getProfilePicture = (staff) => {
+        if (staff.profile_picture) {
+            return `/storage/${staff.profile_picture}`;
+        }
+        return `https://ui-avatars.com/api/?name=${encodeURIComponent(staff.name)}&background=random`;
+    };
+
+    // Handle copy link
+    const handleCopyLink = () => {
+        if (selectedStaff?.username) {
+            const profileUrl = `${window.location.origin}/profile/${selectedStaff.username}`;
+            navigator.clipboard.writeText(profileUrl).then(() => {
+                // You could add a toast notification here
+            });
+        }
+    };
+
+    // Handle view profile
+    const handleViewProfile = () => {
+        if (selectedStaff?.username) {
+            router.visit(`/profile/${selectedStaff.username}`);
         }
     };
 
@@ -225,13 +251,23 @@ export default function AdminDashboard() {
                                 </TableHeader>
                                 <TableBody>
                                     {managers.map((manager) => (
-                                    <TableRow key={manager.id}>
-                                        <TableCell><input type="checkbox" className="accent-neutral-800" /></TableCell>
+                                    <TableRow 
+                                        key={manager.id}
+                                        className="cursor-pointer hover:bg-muted/50"
+                                        onClick={(e) => {
+                                            // Don't trigger if clicking on buttons or checkbox
+                                            if (e.target.closest('button') || e.target.closest('input[type="checkbox"]')) {
+                                                return;
+                                            }
+                                            setSelectedStaff(manager);
+                                        }}
+                                    >
+                                        <TableCell onClick={(e) => e.stopPropagation()}><input type="checkbox" className="accent-neutral-800" /></TableCell>
                                         <TableCell className="font-medium">{manager.name}</TableCell>
                                         <TableCell className="text-muted-foreground">{new Date(manager.created_at ?? Date.now()).toLocaleDateString()}</TableCell>
                                         <TableCell>{manager.agency?.name || manager.agency || t('admin.dashboard.noAgency')}</TableCell>
                                         <TableCell><Badge className="bg-neutral-100 text-neutral-800 capitalize">{t('admin.dashboard.manager')}</Badge></TableCell>
-                                        <TableCell className="text-right">
+                                        <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                                             <div className="flex space-x-2 justify-end">
                                                 <Button
                                                     size="sm"
@@ -337,13 +373,23 @@ export default function AdminDashboard() {
                                 </TableHeader>
                                 <TableBody>
                                     {matchmakers.map((matchmaker) => (
-                                    <TableRow key={matchmaker.id}>
-                                        <TableCell><input type="checkbox" className="accent-neutral-800" /></TableCell>
+                                    <TableRow 
+                                        key={matchmaker.id}
+                                        className="cursor-pointer hover:bg-muted/50"
+                                        onClick={(e) => {
+                                            // Don't trigger if clicking on buttons or checkbox
+                                            if (e.target.closest('button') || e.target.closest('input[type="checkbox"]')) {
+                                                return;
+                                            }
+                                            setSelectedStaff(matchmaker);
+                                        }}
+                                    >
+                                        <TableCell onClick={(e) => e.stopPropagation()}><input type="checkbox" className="accent-neutral-800" /></TableCell>
                                         <TableCell className="font-medium">{matchmaker.name}</TableCell>
                                         <TableCell className="text-muted-foreground">{new Date(matchmaker.created_at ?? Date.now()).toLocaleDateString()}</TableCell>
                                         <TableCell>{matchmaker.agency?.name || matchmaker.agency || t('admin.dashboard.noAgency')}</TableCell>
                                         <TableCell><Badge className="bg-neutral-100 text-neutral-800 capitalize">{t('admin.dashboard.matchmaker')}</Badge></TableCell>
-                                        <TableCell className="text-right">
+                                        <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                                             <div className="flex space-x-2 justify-end">
                                                 <Button
                                                     size="sm"
@@ -482,6 +528,197 @@ export default function AdminDashboard() {
                             {t('admin.dashboard.updateRole')}
                         </Button>
                     </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Staff Details Modal */}
+            <Dialog open={!!selectedStaff} onOpenChange={() => setSelectedStaff(null)}>
+                <DialogContent className="w-[95vw] sm:w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+                    {selectedStaff && (
+                        <>
+                            {/* Header Section with Profile Picture */}
+                            <div className="flex flex-col items-center gap-4 pb-6 border-b">
+                                <div className="relative">
+                                    <img
+                                        src={getProfilePicture(selectedStaff)}
+                                        alt={selectedStaff.name}
+                                        className="w-24 h-24 sm:w-32 sm:h-32 rounded-full object-cover"
+                                        onError={(e) => {
+                                            e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedStaff.name)}&background=random`;
+                                        }}
+                                    />
+                                    <div className="absolute bottom-0 right-0 bg-blue-600 rounded-full p-1.5 border-2 border-white">
+                                        <Check className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
+                                    </div>
+                                </div>
+                                <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 w-full px-2 sm:px-0">
+                                    <div className="text-center sm:text-left flex-1">
+                                        <h2 className="text-lg sm:text-xl font-semibold break-words">{selectedStaff.name}</h2>
+                                        <p className="text-xs sm:text-sm text-muted-foreground break-all">{selectedStaff.email}</p>
+                                    </div>
+                                    <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                                        {selectedStaff?.username && (
+                                            <>
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={handleCopyLink}
+                                                    className="flex items-center justify-center gap-2 w-full sm:w-auto"
+                                                >
+                                                    <Copy className="w-4 h-4" />
+                                                    {t('staff.userInfo.copyLink')}
+                                                </Button>
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={handleViewProfile}
+                                                    className="flex items-center justify-center gap-2 w-full sm:w-auto"
+                                                >
+                                                    {t('staff.userInfo.viewProfile')}
+                                                </Button>
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Form Fields Section - Read Only */}
+                            <div className="space-y-6 py-4 px-2 sm:px-0">
+                                {/* Name Fields */}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="firstName">{t('staff.userInfo.firstName')}</Label>
+                                        <Input
+                                            id="firstName"
+                                            value={(selectedStaff.name || '').split(' ')[0] || ''}
+                                            disabled
+                                            className="bg-muted"
+                                            placeholder={t('staff.userInfo.firstName')}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="lastName" className="opacity-0">{t('staff.userInfo.lastName')}</Label>
+                                        <Input
+                                            id="lastName"
+                                            value={(selectedStaff.name || '').split(' ').slice(1).join(' ') || ''}
+                                            disabled
+                                            className="bg-muted"
+                                            placeholder={t('staff.userInfo.lastName')}
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Email Address */}
+                                <div className="space-y-2">
+                                    <Label htmlFor="email">{t('staff.userInfo.email')}</Label>
+                                    <div className="relative">
+                                        <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                        <Input
+                                            id="email"
+                                            type="email"
+                                            value={selectedStaff.email || ''}
+                                            disabled
+                                            className="pl-10 bg-muted"
+                                            placeholder="Email address"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Username */}
+                                {selectedStaff?.username && (
+                                    <div className="space-y-2">
+                                        <Label htmlFor="username">{t('staff.userInfo.username')}</Label>
+                                        <div className="relative">
+                                            <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-xs sm:text-sm text-muted-foreground whitespace-nowrap">
+                                                untitledui.com/
+                                            </div>
+                                            <Input
+                                                id="username"
+                                                value={selectedStaff.username || ''}
+                                                disabled
+                                                className="pl-[120px] sm:pl-[140px] pr-10 bg-muted text-sm sm:text-base"
+                                                placeholder="username"
+                                            />
+                                            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                                                <Check className="w-4 h-4 text-blue-600" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Phone */}
+                                {selectedStaff?.phone && (
+                                    <div className="space-y-2">
+                                        <Label htmlFor="phone">{t('common.phone')}</Label>
+                                        <Input
+                                            id="phone"
+                                            value={selectedStaff.phone || ''}
+                                            disabled
+                                            className="bg-muted"
+                                            placeholder={t('common.phone')}
+                                        />
+                                    </div>
+                                )}
+
+                                {/* Agency */}
+                                <div className="space-y-2">
+                                    <Label htmlFor="agency">{t('admin.dashboard.agency')}</Label>
+                                    <Input
+                                        id="agency"
+                                        value={selectedStaff.agency?.name || selectedStaff.agency || t('admin.dashboard.noAgency')}
+                                        disabled
+                                        className="bg-muted"
+                                    />
+                                </div>
+
+                                {/* Role */}
+                                <div className="space-y-2">
+                                    <Label htmlFor="role">{t('admin.dashboard.role')}</Label>
+                                    <div className="flex items-center gap-2">
+                                        <Input
+                                            id="role"
+                                            value={selectedStaff.roles?.[0]?.name || (selectedStaff.hasRole?.('manager') ? t('admin.dashboard.manager') : t('admin.dashboard.matchmaker'))}
+                                            disabled
+                                            className="bg-muted capitalize"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Status */}
+                                <div className="space-y-2">
+                                    <Label htmlFor="status">{t('common.status')}</Label>
+                                    <div className="flex items-center gap-2">
+                                        {getStatusBadge(selectedStaff.approval_status)}
+                                    </div>
+                                </div>
+
+                                {/* Profile Photo */}
+                                <div className="space-y-2">
+                                    <Label>{t('profile.profilePicture')}</Label>
+                                    <div className="flex items-center gap-4">
+                                        <img
+                                            src={getProfilePicture(selectedStaff)}
+                                            alt={selectedStaff.name}
+                                            className="w-16 h-16 rounded-full object-cover flex-shrink-0"
+                                            onError={(e) => {
+                                                e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedStaff.name)}&background=random`;
+                                            }}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Footer Buttons */}
+                            <DialogFooter className="flex justify-end">
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setSelectedStaff(null)}
+                                >
+                                    {t('common.cancel')}
+                                </Button>
+                            </DialogFooter>
+                        </>
+                    )}
                 </DialogContent>
             </Dialog>
         </AppLayout>
