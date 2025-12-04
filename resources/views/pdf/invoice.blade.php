@@ -169,7 +169,7 @@
         }
         .stamp-box {
             display: inline-block;
-            border: 2px solid #0066cc;
+            /* border: 2px solid #0066cc; */
             padding: 8px;
             text-align: center;
             min-width: 180px;
@@ -421,12 +421,18 @@
     <!-- Stamp & Signature -->
     <div class="stamp-section">
         <div class="stamp-box">
-            <div class="stamp-company">ZCM CONSULTING S.A.R.L AU</div>
+            {{-- <div class="stamp-company">ZCM CONSULTING S.A.R.L AU</div>
             <div class="stamp-address">59, Bd Emile Zola, 1er Etage Bureau n° 2 - Casablanca</div>
             <div class="stamp-phone">Tél. 1: 07 02 75 84 70</div>
-            <div class="stamp-phone">Tél. 2: 07 14 57 06 37</div>
-            <div style="margin-top: 10px; height: 25px;">
-                <div style="font-size: 8px; margin-top: 15px;">CACHET & SIGNATURE</div>
+            <div class="stamp-phone">Tél. 2: 07 14 57 06 37</div> --}}
+            <div style="margin-top: 10px; min-height: 120px; text-align: center; position: relative;">
+                <div style="font-size: 12px; padding-top: 60px; position: relative; z-index: 1;">CACHET & SIGNATURE</div>
+                @php
+                    $cachetPath = public_path('images/cachet.png');
+                @endphp
+                @if(file_exists($cachetPath))
+                <img src="{{ $cachetPath }}" alt="Cachet" style="max-width: 450px; max-height: 120px; width: auto; height: auto; object-fit: contain; position: absolute; top: -10px; left: 50%; transform: translateX(-50%); z-index: 2; pointer-events: none;">
+                @endif
             </div>
         </div>
     </div>
