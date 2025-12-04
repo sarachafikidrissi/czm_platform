@@ -30,11 +30,7 @@ class AccountStatusController extends Controller
 
         $user = User::findOrFail($userId);
         
-        // Check if user is a prospect
-        if ($user->status !== 'prospect') {
-            return redirect()->back()->with('error', 'Can only activate prospect accounts.');
-        }
-
+        // Admin can activate any user (prospect, member, client, client_expire)
         $profile = $user->profile ?? $user->profile()->create([]);
         
         $profile->update([
@@ -64,11 +60,7 @@ class AccountStatusController extends Controller
 
         $user = User::findOrFail($userId);
         
-        // Check if user is a prospect
-        if ($user->status !== 'prospect') {
-            return redirect()->back()->with('error', 'Can only deactivate prospect accounts.');
-        }
-
+        // Admin can deactivate any user (prospect, member, client, client_expire)
         $profile = $user->profile ?? $user->profile()->create([]);
         
         $profile->update([
@@ -81,7 +73,9 @@ class AccountStatusController extends Controller
     }
 
     /**
-     * Matchmaker: Activate member/client account (only assigned to them)
+rrr     * Matchmaker/Admin: Activate member/client account
+     * Matchmaker: only assigned to them
+     * Admin: any user
      */
     public function activateMemberClient(Request $request, $userId)
     {
@@ -92,20 +86,23 @@ class AccountStatusController extends Controller
         $me = Auth::user();
         $roleName = $this->getUserRole($me);
 
-        if ($roleName !== 'matchmaker') {
-            abort(403, 'Only matchmakers can activate member/client accounts.');
+        if (!in_array($roleName, ['matchmaker', 'admin'])) {
+            abort(403, 'Only matchmakers and admins can activate member/client accounts.');
         }
 
         $user = User::findOrFail($userId);
         
-        // Check if user is a member or client
-        if (!in_array($user->status, ['member', 'client', 'client_expire'])) {
-            return redirect()->back()->with('error', 'Can only activate member or client accounts.');
-        }
+        // Check if user is a member or client (for matchmakers)
+        // Admin can activate any user
+        if ($roleName === 'matchmaker') {
+            if (!in_array($user->status, ['member', 'client', 'client_expire'])) {
+                return redirect()->back()->with('error', 'Can only activate member or client accounts.');
+            }
 
-        // Check if matchmaker is assigned to this user
-        if ($user->assigned_matchmaker_id !== $me->id) {
-            abort(403, 'You can only activate accounts assigned to you.');
+            // Check if matchmaker is assigned to this user
+            if ($user->assigned_matchmaker_id !== $me->id) {
+                abort(403, 'You can only activate accounts assigned to you.');
+            }
         }
 
         $profile = $user->profile ?? $user->profile()->create([]);
@@ -120,7 +117,9 @@ class AccountStatusController extends Controller
     }
 
     /**
-     * Matchmaker: Deactivate member/client account (only assigned to them)
+     * Matchmaker/Admin: Deactivate member/client account
+     * Matchmaker: only assigned to them
+     * Admin: any user
      */
     public function deactivateMemberClient(Request $request, $userId)
     {
@@ -131,20 +130,23 @@ class AccountStatusController extends Controller
         $me = Auth::user();
         $roleName = $this->getUserRole($me);
 
-        if ($roleName !== 'matchmaker') {
-            abort(403, 'Only matchmakers can deactivate member/client accounts.');
+        if (!in_array($roleName, ['matchmaker', 'admin'])) {
+            abort(403, 'Only matchmakers and admins can deactivate member/client accounts.');
         }
 
         $user = User::findOrFail($userId);
         
-        // Check if user is a member or client
-        if (!in_array($user->status, ['member', 'client', 'client_expire'])) {
-            return redirect()->back()->with('error', 'Can only deactivate member or client accounts.');
-        }
+        // Check if user is a member or client (for matchmakers)
+        // Admin can deactivate any user
+        if ($roleName === 'matchmaker') {
+            if (!in_array($user->status, ['member', 'client', 'client_expire'])) {
+                return redirect()->back()->with('error', 'Can only deactivate member or client accounts.');
+            }
 
-        // Check if matchmaker is assigned to this user
-        if ($user->assigned_matchmaker_id !== $me->id) {
-            abort(403, 'You can only deactivate accounts assigned to you.');
+            // Check if matchmaker is assigned to this user
+            if ($user->assigned_matchmaker_id !== $me->id) {
+                abort(403, 'You can only deactivate accounts assigned to you.');
+            }
         }
 
         $profile = $user->profile ?? $user->profile()->create([]);
