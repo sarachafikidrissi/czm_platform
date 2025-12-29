@@ -99,7 +99,7 @@ class MatchmakingService
                 $q->where('is_completed', true)
                   ->where('account_status', 'active');
             })
-            ->with(['profile']);
+            ->with(['profile', 'assignedMatchmaker']);
 
         // Apply dynamic filters with mixed logic:
         // - Unchanged/default filters: OR logic (at least one must match)

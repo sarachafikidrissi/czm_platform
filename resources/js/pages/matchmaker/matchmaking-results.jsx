@@ -1572,6 +1572,20 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
                                                 </Badge>
                                             )}
                                         </div>
+                                        {match.isAssignedToMe ? (
+    <Badge variant="default" className="bg-green-600">
+        Assigné à moi
+    </Badge>
+) : match.assigned_matchmaker ? (
+    <Badge variant="outline" className="border-orange-500 text-orange-600">
+        Assigné à: {match.assigned_matchmaker.name}
+    </Badge>
+) : (
+    <Badge variant="outline" className="border-gray-300 text-gray-600">
+        Non assigné
+    </Badge>
+)}
+
 
                                         <Separator />
 

@@ -2502,8 +2502,9 @@ class MatchmakerController extends Controller
         try {
             $result = $matchmakingService->findMatches($userAId, $filterOverrides);
             
+            $me = Auth::user();
             // Format matches for Inertia (ensure proper serialization)
-            $formattedMatches = array_map(function($match) {
+            $formattedMatches = array_map(function($match) use ($me) {
                 return [
                     'user' => [
                         'id' => $match['user']->id,
@@ -2513,7 +2514,14 @@ class MatchmakerController extends Controller
                         'gender' => $match['user']->gender,
                         'created_at' => $match['user']->created_at,
                         'updated_at' => $match['user']->updated_at,
+                        'assigned_matchmaker_id' => $match['user']->assigned_matchmaker_id,
                     ],
+                    'assigned_matchmaker' => $match['user']->assignedMatchmaker ? [
+                        'id' => $match['user']->assignedMatchmaker->id,
+                        'name' => $match['user']->assignedMatchmaker->name,
+                        'username' => $match['user']->assignedMatchmaker->username,
+                    ] : null,
+                    'isAssignedToMe' => $match['user']->assigned_matchmaker_id === $me->id,
                     'profile' => $match['profile']->toArray(),
                     'score' => $match['score'],
                     'scoreDetails' => $match['scoreDetails'],
@@ -2533,6 +2541,10 @@ class MatchmakerController extends Controller
                 'matches' => $formattedMatches,
                 'defaultFilters' => $result['defaultFilters'],
                 'appliedFilters' => $result['appliedFilters'],
+                'authenticatedMatchmaker' => [
+                    'id' => $me->id,
+                    'name' => $me->name,
+                ]
             ]);
         } catch (\Exception $e) {
             return redirect()->route('staff.match.search')
@@ -2648,7 +2660,7 @@ class MatchmakerController extends Controller
             $result = $matchmakingService->findMatches($userAId, $filterOverrides);
             
             // Format matches for JSON response
-            $formattedMatches = array_map(function($match) {
+            $formattedMatches = array_map(function($match) use ($me) {
                 return [
                     'user' => [
                         'id' => $match['user']->id,
@@ -2658,7 +2670,14 @@ class MatchmakerController extends Controller
                         'gender' => $match['user']->gender,
                         'created_at' => $match['user']->created_at,
                         'updated_at' => $match['user']->updated_at,
+                        'assigned_matchmaker_id' => $match['user']->assigned_matchmaker_id,
                     ],
+                    'assignedMatchmaker' => $match['user']->assignedMatchmaker ? [
+                        'id' => $match['user']->assignedMatchmaker->id,
+                        'name' => $match['user']->assignedMatchmaker->name,
+                        'username' => $match['user']->assignedMatchmaker->username,
+                    ] : null,
+                    'isAssignedToMe' => $match['user']->assigned_matchmaker_id === $me->id,
                     'profile' => $match['profile']->toArray(),
                     'score' => $match['score'],
                     'scoreDetails' => $match['scoreDetails'],
