@@ -6,7 +6,7 @@ import { GlobalSearch } from '@/components/global-search';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { CalendarHeart, Flame, HeartHandshake, Images, LayoutGrid, User, UserRoundSearch, Users, UserCheck, Plus, ShoppingCart, CreditCard, RotateCcw, Building2, Target, ArrowRightLeft, List, Search, UserCog } from 'lucide-react';
+import { CalendarHeart, Flame, HeartHandshake, Images, LayoutGrid, User, UserRoundSearch, Users, UserCheck, Plus, ShoppingCart, CreditCard, RotateCcw, Building2, Target, ArrowRightLeft, List, Search, UserCog, Newspaper } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 const getMainNavItems = (t: (key: string) => string, role: string): NavItem[] => [
@@ -15,6 +15,12 @@ const getMainNavItems = (t: (key: string) => string, role: string): NavItem[] =>
         url: '/dashboard',
         icon: LayoutGrid,
         roles: ['user', 'admin', 'matchmaker', 'manager'],
+    },
+    {
+        title: t('navigation.newsFeed', { defaultValue: 'Fil d\'actualité' }),
+        url: '/staff/news-feed',
+        icon: Newspaper,
+        roles: ['admin', 'matchmaker', 'manager'],
     },
     {
         title: t('navigation.myProfile'),

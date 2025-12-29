@@ -5,8 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\Post;
 use App\Models\PostLike;
 use App\Models\PostComment;
+use App\Models\User;
+use App\Models\Agency;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
@@ -47,15 +50,35 @@ class PostController extends Controller
         $user = Auth::user();
         $isManager = $user->hasRole('manager');
         
-        $request->validate([
-            'content' => 'required|string|max:2000',
+        // Conditional validation: content is required only for text type
+        $rules = [
             'type' => 'required|in:text,image,youtube',
             'media_url' => 'nullable|string|max:500',
             'media_thumbnail' => 'nullable|string|max:500',
             'images' => 'nullable|array|max:10',
             'images.*' => 'image|mimes:jpeg,png,jpg,gif,webp|max:10240', // 10MB max per image
             'agency_id' => 'nullable|exists:agencies,id'
-        ]);
+        ];
+
+        // Content is required only for text type, optional for image and youtube
+        if ($request->type === 'text') {
+            $rules['content'] = 'required|string|max:2000';
+        } else {
+            $rules['content'] = 'nullable|string|max:2000';
+        }
+
+        $request->validate($rules);
+
+        // Additional validation: ensure image/youtube posts have required media
+        if ($request->type === 'image') {
+            if (!$request->hasFile('images') && !$request->media_url) {
+                return redirect()->back()->withErrors(['images' => 'Please upload images or provide an image URL for image posts.']);
+            }
+        } elseif ($request->type === 'youtube') {
+            if (!$request->media_url) {
+                return redirect()->back()->withErrors(['media_url' => 'Please provide a YouTube URL for YouTube posts.']);
+            }
+        }
 
         $mediaUrl = $request->media_url;
         $mediaThumbnail = $request->media_thumbnail;
@@ -79,7 +102,7 @@ class PostController extends Controller
 
         $postData = [
             'user_id' => $user->id,
-            'content' => $request->content,
+            'content' => $request->content ?: null, // Allow null for image and youtube types
             'type' => $request->type,
             'media_url' => $mediaUrl,
             'media_thumbnail' => $mediaThumbnail
@@ -193,5 +216,253 @@ class PostController extends Controller
         $post->delete();
 
         return redirect()->back()->with('success', 'Post deleted successfully!');
+    }
+
+    public function staffNewsFeed()
+    {
+        $user = Auth::user();
+        $role = $this->getUserRole($user);
+        
+        // Get all staff user IDs (matchmakers, managers, admins)
+        $matchmakerIds = User::role('matchmaker')->pluck('id');
+        $managerIds = User::role('manager')->pluck('id');
+        $adminIds = User::role('admin')->pluck('id');
+        
+        // Merge all staff IDs
+        $staffIds = $matchmakerIds->merge($managerIds)->merge($adminIds)->unique();
+        
+        // Get posts from all staff members
+        $posts = Post::with(['user.profile', 'user.roles', 'agency', 'likes', 'comments.user.roles', 'comments.user.profile'])
+            ->whereIn('user_id', $staffIds)
+            ->orderBy('created_at', 'desc')
+            ->paginate(10);
+
+        // Add like status for current user and append accessor attributes
+        if (Auth::check()) {
+            $posts->getCollection()->each(function ($post) {
+                $post->is_liked = $post->isLikedBy(Auth::id());
+                $post->likes_count = $post->likes_count;
+                $post->comments_count = $post->comments_count;
+                
+                // Parse media_url if it's JSON (multiple images)
+                if ($post->type === 'image' && $post->media_url) {
+                    $decoded = json_decode($post->media_url, true);
+                    if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                        $post->media_urls = $decoded;
+                    } else {
+                        $post->media_urls = [$post->media_url];
+                    }
+                }
+            });
+        }
+
+        // Get statistics based on user role
+        $statistics = $this->getStaffStatistics($user, $role);
+
+        return Inertia::render('staff/news-feed', [
+            'posts' => $posts,
+            'statistics' => $statistics
+        ]);
+    }
+
+    private function getUserRole(?User $user): ?string
+    {
+        if (!$user) {
+            return null;
+        }
+
+        return DB::table('model_has_roles')
+            ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+            ->where('model_has_roles.model_id', $user->id)
+            ->value('roles.name');
+    }
+
+    private function getStaffStatistics(User $user, ?string $role): array
+    {
+        $stats = [];
+
+        if ($role === 'matchmaker') {
+            // Matchmaker statistics
+            $baseQuery = User::role('user')
+                ->where(function($query) use ($user) {
+                    $query->where('approved_by', $user->id)
+                          ->orWhere('assigned_matchmaker_id', $user->id);
+                });
+
+            $prospectsQuery = (clone $baseQuery)->where('status', 'prospect');
+            $clientsQuery = (clone $baseQuery)->whereIn('status', ['client', 'en_rdv']);
+            $membersQuery = (clone $baseQuery)->where('status', 'member');
+
+            // For untreated prospects, we need prospects assigned to this matchmaker that are not validated
+            $untreatedProspectsQuery = User::role('user')
+                ->where('status', 'prospect')
+                ->where('assigned_matchmaker_id', $user->id)
+                ->whereNull('approved_at');
+
+            $stats = [
+                'prospects' => [
+                    'total' => $prospectsQuery->count(),
+                    'late' => $prospectsQuery->where('created_at', '<', now()->subDays(7))->whereNull('approved_at')->count(),
+                    'untreated' => $untreatedProspectsQuery->count(),
+                ],
+                'clients' => [
+                    'total' => $clientsQuery->count(),
+                    'inAppointment' => (clone $baseQuery)->where('status', 'en_rdv')->count(),
+                    'notInAppointment' => (clone $baseQuery)->where('status', 'client')->count(),
+                    'notContacted' => (clone $baseQuery)->where('status', 'client')->where(function($q) {
+                        $q->where('updated_at', '<', now()->subWeek())
+                          ->orWhereNull('updated_at');
+                    })->count(),
+                ],
+                'activeMembers' => [
+                    'total' => $membersQuery->count(),
+                    'notUpToDate' => $membersQuery->where(function($q) {
+                        $q->whereHas('profile', function($profileQuery) {
+                            $profileQuery->where('is_completed', false);
+                        })->orWhereDoesntHave('subscriptions', function($subQuery) {
+                            $subQuery->where('status', 'active')
+                              ->where('subscription_end', '>=', now());
+                        });
+                    })->count(),
+                ],
+                'latestMembers' => (clone $baseQuery)
+                    ->whereIn('status', ['member', 'client'])
+                    ->orderBy('created_at', 'desc')
+                    ->limit(5)
+                    ->get(['id', 'name', 'email', 'profile_picture']),
+            ];
+        } elseif ($role === 'manager' && $user->agency_id) {
+            // Manager statistics
+            $baseQuery = User::role('user')
+                ->where(function($query) use ($user) {
+                    $query->where('agency_id', $user->agency_id)
+                          ->orWhere('validated_by_manager_id', $user->id);
+                });
+
+            $prospectsQuery = (clone $baseQuery)->where('status', 'prospect');
+            $clientsQuery = (clone $baseQuery)->whereIn('status', ['client', 'en_rdv']);
+            $membersQuery = (clone $baseQuery)->where('status', 'member');
+
+            // For untreated prospects, we need prospects from manager's agency that are not validated
+            $untreatedProspectsQuery = User::role('user')
+                ->where('status', 'prospect')
+                ->where('agency_id', $user->agency_id)
+                ->whereNull('approved_at');
+
+            $stats = [
+                'prospects' => [
+                    'total' => $prospectsQuery->count(),
+                    'late' => $prospectsQuery->where('created_at', '<', now()->subDays(7))->whereNull('approved_at')->count(),
+                    'untreated' => $untreatedProspectsQuery->count(),
+                ],
+                'clients' => [
+                    'total' => $clientsQuery->count(),
+                    'inAppointment' => (clone $baseQuery)->where('status', 'en_rdv')->count(),
+                    'notInAppointment' => (clone $baseQuery)->where('status', 'client')->count(),
+                    'notContacted' => (clone $baseQuery)->where('status', 'client')->where(function($q) {
+                        $q->where('updated_at', '<', now()->subWeek())
+                          ->orWhereNull('updated_at');
+                    })->count(),
+                ],
+                'activeMembers' => [
+                    'total' => $membersQuery->count(),
+                    'notUpToDate' => $membersQuery->where(function($q) {
+                        $q->whereHas('profile', function($profileQuery) {
+                            $profileQuery->where('is_completed', false);
+                        })->orWhereDoesntHave('subscriptions', function($subQuery) {
+                            $subQuery->where('status', 'active')
+                              ->where('subscription_end', '>=', now());
+                        });
+                    })->count(),
+                ],
+                'productionByAgency' => $this->getProductionByAgency($user->agency_id),
+                'matchmakers' => User::role('matchmaker')
+                    ->where('agency_id', $user->agency_id)
+                    ->where('approval_status', 'approved')
+                    ->limit(5)
+                    ->get(['id', 'name', 'email', 'profile_picture']),
+                'latestMembers' => (clone $baseQuery)
+                    ->whereIn('status', ['member', 'client'])
+                    ->orderBy('created_at', 'desc')
+                    ->limit(5)
+                    ->get(['id', 'name', 'email', 'profile_picture']),
+            ];
+        } elseif ($role === 'admin') {
+            // Admin statistics
+            $prospectsQuery = User::role('user')->where('status', 'prospect');
+            $clientsQuery = User::role('user')->whereIn('status', ['client', 'en_rdv']);
+            $membersQuery = User::role('user')->where('status', 'member');
+
+            // For untreated prospects, we need all prospects that are not validated
+            $untreatedProspectsQuery = User::role('user')
+                ->where('status', 'prospect')
+                ->whereNull('approved_at');
+
+            $stats = [
+                'prospects' => [
+                    'total' => $prospectsQuery->count(),
+                    'late' => $prospectsQuery->where('created_at', '<', now()->subDays(7))->whereNull('approved_at')->count(),
+                    'untreated' => $untreatedProspectsQuery->count(),
+                ],
+                'clients' => [
+                    'total' => $clientsQuery->count(),
+                    'inAppointment' => User::role('user')->where('status', 'en_rdv')->count(),
+                    'notInAppointment' => User::role('user')->where('status', 'client')->count(),
+                    'notContacted' => User::role('user')->where('status', 'client')->where(function($q) {
+                        $q->where('updated_at', '<', now()->subWeek())
+                          ->orWhereNull('updated_at');
+                    })->count(),
+                ],
+                'activeMembers' => [
+                    'total' => $membersQuery->count(),
+                    'notUpToDate' => $membersQuery->where(function($q) {
+                        $q->whereHas('profile', function($profileQuery) {
+                            $profileQuery->where('is_completed', false);
+                        })->orWhereDoesntHave('subscriptions', function($subQuery) {
+                            $subQuery->where('status', 'active')
+                              ->where('subscription_end', '>=', now());
+                        });
+                    })->count(),
+                ],
+                'productionByAgency' => $this->getProductionByAgency(),
+                'matchmakers' => User::role('matchmaker')
+                    ->where('approval_status', 'approved')
+                    ->limit(5)
+                    ->get(['id', 'name', 'email', 'profile_picture']),
+                'latestMembers' => User::role('user')
+                    ->whereIn('status', ['member', 'client'])
+                    ->orderBy('created_at', 'desc')
+                    ->limit(5)
+                    ->get(['id', 'name', 'email', 'profile_picture']),
+            ];
+        }
+
+        return $stats;
+    }
+
+    private function getProductionByAgency(?int $agencyId = null): array
+    {
+        $agencies = $agencyId 
+            ? Agency::where('id', $agencyId)->get()
+            : Agency::all();
+
+        $production = [];
+        foreach ($agencies as $agency) {
+            $usersCount = User::role('user')
+                ->where('agency_id', $agency->id)
+                ->whereIn('status', ['member', 'client', 'client_expire'])
+                ->count();
+            
+            $totalUsers = User::role('user')->whereIn('status', ['member', 'client', 'client_expire'])->count();
+            $percentage = $totalUsers > 0 ? round(($usersCount / $totalUsers) * 100, 1) : 0;
+
+            $production[] = [
+                'name' => $agency->name,
+                'count' => $usersCount,
+                'percentage' => $percentage,
+            ];
+        }
+
+        return $production;
     }
 }

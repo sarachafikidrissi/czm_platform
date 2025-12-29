@@ -162,7 +162,7 @@ export default function PostCard({ post }) {
                             <img
                                 src={imageUrls[currentImageIndex]}
                                 alt={`Post image ${currentImageIndex + 1}`}
-                                className="bg-muted max-h-96 w-full rounded-lg object-cover"
+                                className="bg-muted max-h-[600px] w-full rounded-lg object-contain"
                             />
                             {imageUrls.length > 1 && (
                                 <>
@@ -201,7 +201,7 @@ export default function PostCard({ post }) {
 
                 {post.type === 'youtube' && post.media_url && (
                     <div className="mb-4">
-                        <div className="bg-muted relative h-64 w-full overflow-hidden rounded-lg">
+                        <div className="bg-muted relative aspect-video w-full overflow-hidden rounded-lg">
                             <iframe
                                 src={`https://www.youtube.com/embed/${getYouTubeVideoId(post.media_url)}`}
                                 title="YouTube video"

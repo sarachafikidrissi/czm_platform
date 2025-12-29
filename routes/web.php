@@ -455,6 +455,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('/posts/{post}', [\App\Http\Controllers\PostController::class, 'destroy'])->name('posts.destroy');
     });
 
+    // Staff news feed route (accessible by staff members only)
+    Route::middleware(['role:admin|manager|matchmaker'])->group(function () {
+        Route::get('/staff/news-feed', [\App\Http\Controllers\PostController::class, 'staffNewsFeed'])->name('staff.news-feed');
+    });
+
     // Agency routes (accessible by all authenticated users)
     Route::middleware(['auth'])->group(function () {
         Route::get('/agencies', [\App\Http\Controllers\AgencyController::class, 'index'])->name('agencies.index');
