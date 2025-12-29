@@ -599,7 +599,7 @@ export default function ValidatedProspects() {
                                             <Badge className={`${getStatusInfo(u.status).className} text-xs px-2 py-1`}>
                                                 {getStatusInfo(u.status).label}
                                             </Badge>
-                                            {u.to_rappeler && (
+                                            {!!u.to_rappeler && (
                                                 <Badge className="bg-warning text-warning-foreground text-xs px-2 py-1">
                                                     A rappeler
                                                 </Badge>
@@ -773,7 +773,8 @@ export default function ValidatedProspects() {
                                     <TableHeader>
                                         <TableRow>
                                             <TableHead>Name</TableHead>
-                                            <TableHead>Email</TableHead>
+                                            <TableHead>{t('staff.tableHeaders.gender')}</TableHead>
+                                            {/* <TableHead>Email</TableHead> */}
                                             <TableHead className="hidden md:table-cell">Phone</TableHead>
                                             <TableHead className="hidden lg:table-cell">City</TableHead>
                                             <TableHead>Step</TableHead>
@@ -788,6 +789,7 @@ export default function ValidatedProspects() {
                                             [1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
                                                 <TableRow key={i}>
                                                     <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                                                    <TableCell><Skeleton className="h-4 w-20" /></TableCell>
                                                     <TableCell><Skeleton className="h-4 w-40" /></TableCell>
                                                     <TableCell className="hidden md:table-cell"><Skeleton className="h-4 w-24" /></TableCell>
                                                     <TableCell className="hidden lg:table-cell"><Skeleton className="h-4 w-28" /></TableCell>
@@ -811,7 +813,8 @@ export default function ValidatedProspects() {
                                                 onClick={() => handleUserInfoClick(u)}
                                             >
                                                 <TableCell className="font-medium">{u.name}</TableCell>
-                                                <TableCell>{u.email || 'N/A'}</TableCell>
+                                                <TableCell>{u.gender || 'N/A'}</TableCell>
+                                                {/* <TableCell>{u.email || 'N/A'}</TableCell> */}
                                                 <TableCell className="hidden md:table-cell">{u.phone || 'N/A'}</TableCell>
                                                 <TableCell className="hidden lg:table-cell">{getLocation(u)}</TableCell>
                                                 <TableCell>
@@ -828,7 +831,7 @@ export default function ValidatedProspects() {
                                                         <Badge className={`${getStatusInfo(u.status).className} w-fit text-xs`}>
                                                             {getStatusInfo(u.status).label}
                                                         </Badge>
-                                                        {u.to_rappeler && (
+                                                        {(u.to_rappeler === true || u.to_rappeler === 1) && (
                                                             <Badge className="bg-warning text-warning-foreground w-fit text-xs">
                                                                 A rappeler
                                                             </Badge>

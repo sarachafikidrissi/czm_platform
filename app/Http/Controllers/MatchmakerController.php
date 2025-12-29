@@ -20,6 +20,7 @@ use Illuminate\Validation\Rules;
 use Inertia\Inertia;
 use App\Models\Service;
 use Illuminate\Support\Facades\Schema;
+use App\Services\MatchmakingService;
 
 class MatchmakerController extends Controller
 {
@@ -1116,7 +1117,7 @@ class MatchmakerController extends Controller
             }
         }
 
-        $prospects = $query->select(['id','name','username','email','phone','country','city','status','agency_id','assigned_matchmaker_id','rejection_reason','rejected_by','rejected_at','to_rappeler','created_at'])
+        $prospects = $query->select(['id','name','username','email','phone','country','city','gender','status','agency_id','assigned_matchmaker_id','rejection_reason','rejected_by','rejected_at','to_rappeler','created_at'])
             ->with(['profile', 'assignedMatchmaker', 'agency'])
             ->paginate(8)
             ->withQueryString();
@@ -2285,5 +2286,393 @@ class MatchmakerController extends Controller
         ]);
 
         return redirect()->back()->with('success', 'Transfer request rejected.');
+    }
+
+    /**
+     * Display propositions list page (to be implemented)
+     */
+    public function propositionsList(Request $request)
+    {
+        $me = Auth::user();
+        $roleName = null;
+        if ($me) {
+            $roleName = \Illuminate\Support\Facades\DB::table('model_has_roles')
+                ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+                ->where('model_has_roles.model_id', $me->id)
+                ->value('roles.name');
+        }
+        
+        // Check approval status for matchmaker and manager
+        if (in_array($roleName, ['manager','matchmaker'], true)) {
+            if ($me->approval_status !== 'approved') {
+                abort(403, 'Your account is not validated yet.');
+            }
+        }
+
+        return Inertia::render('matchmaker/propositions-list');
+    }
+
+    /**
+     * Display matchmaker change page (to be implemented)
+     */
+    public function matchmakerChange(Request $request)
+    {
+        $me = Auth::user();
+        $roleName = null;
+        if ($me) {
+            $roleName = \Illuminate\Support\Facades\DB::table('model_has_roles')
+                ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+                ->where('model_has_roles.model_id', $me->id)
+                ->value('roles.name');
+        }
+        
+        // Check approval status for matchmaker and manager
+        if (in_array($roleName, ['manager','matchmaker'], true)) {
+            if ($me->approval_status !== 'approved') {
+                abort(403, 'Your account is not validated yet.');
+            }
+        }
+
+        return Inertia::render('matchmaker/matchmaker-change');
+    }
+
+    /**
+     * Display match list page (to be implemented)
+     */
+    public function matchList(Request $request)
+    {
+        $me = Auth::user();
+        $roleName = null;
+        if ($me) {
+            $roleName = \Illuminate\Support\Facades\DB::table('model_has_roles')
+                ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+                ->where('model_has_roles.model_id', $me->id)
+                ->value('roles.name');
+        }
+        
+        // Check approval status for matchmaker and manager
+        if (in_array($roleName, ['manager','matchmaker'], true)) {
+            if ($me->approval_status !== 'approved') {
+                abort(403, 'Your account is not validated yet.');
+            }
+        }
+
+        return Inertia::render('matchmaker/match-list');
+    }
+
+    /**
+     * Display matchmaking entry page - list all eligible prospects
+     * This page allows matchmaker to select User A
+     */
+    public function searchMatchProfiles(Request $request)
+    {
+        $me = Auth::user();
+        $roleName = null;
+        if ($me) {
+            $roleName = \Illuminate\Support\Facades\DB::table('model_has_roles')
+                ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+                ->where('model_has_roles.model_id', $me->id)
+                ->value('roles.name');
+        }
+        
+        // Check approval status for matchmaker and manager
+        if (in_array($roleName, ['manager','matchmaker'], true)) {
+            if ($me->approval_status !== 'approved') {
+                abort(403, 'Your account is not validated yet.');
+            }
+        }
+
+        $matchmakingService = new MatchmakingService();
+        
+        // Get eligible members/clients based on role
+        $matchmakerId = ($roleName === 'matchmaker') ? $me->id : null;
+        $agencyId = ($roleName === 'manager') ? $me->agency_id : (($roleName === 'matchmaker') ? $me->agency_id : null);
+        
+        $prospects = $matchmakingService->getEligibleProspects($matchmakerId, $agencyId);
+        
+        // Format prospects for frontend (ensure proper serialization)
+        $formattedProspects = $prospects->map(function($prospect) {
+            return [
+                'id' => $prospect->id,
+                'name' => $prospect->name,
+                'email' => $prospect->email,
+                'username' => $prospect->username,
+                'status' => $prospect->status,
+                'gender' => $prospect->gender,
+                'assigned_matchmaker_id' => $prospect->assigned_matchmaker_id,
+                'approved_by' => $prospect->approved_by,
+                'profile' => $prospect->profile ? $prospect->profile->toArray() : null,
+            ];
+        })->values();
+
+        return Inertia::render('matchmaker/matchmaking-entry', [
+            'prospects' => $formattedProspects,
+        ]);
+    }
+
+    /**
+     * Display smart matchmaking results page
+     * Shows compatible matches for selected User A
+     */
+    public function matchmakingResults(Request $request, $userAId)
+    {
+        $me = Auth::user();
+        $roleName = null;
+        if ($me) {
+            $roleName = \Illuminate\Support\Facades\DB::table('model_has_roles')
+                ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+                ->where('model_has_roles.model_id', $me->id)
+                ->value('roles.name');
+        }
+        
+        // Check approval status
+        if (in_array($roleName, ['manager','matchmaker'], true)) {
+            if ($me->approval_status !== 'approved') {
+                abort(403, 'Your account is not validated yet.');
+            }
+        }
+
+        $matchmakingService = new MatchmakingService();
+        
+        // Get filter overrides from request
+        $filterOverrides = $request->only([
+            'age_min', 'age_max', 'pays_recherche', 'villes_recherche', 'religion',
+            'revenu_minimum', 'niveau_etudes', 'situation_professionnelle',
+            'etat_matrimonial', 'etat_sante', 'fumeur', 'buveur', 'has_children',
+            'origine', 'logement', 'taille_min', 'taille_max', 'poids_min', 'poids_max',
+            'pays_residence', 'pays_origine', 'ville_residence', 'ville_origine',
+            'situation_sante', 'motorise', 'children_count',
+            'hijab_choice', 'veil', 'niqab_acceptance', 'sport', 'secteur',
+            'polygamy', 'foreign_marriage', 'work_after_marriage'
+        ]);
+
+        // Handle array fields
+        if ($request->has('pays_recherche')) {
+            if (is_array($request->pays_recherche)) {
+                $filterOverrides['pays_recherche'] = $request->pays_recherche;
+            } elseif (is_string($request->pays_recherche)) {
+                $filterOverrides['pays_recherche'] = json_decode($request->pays_recherche, true) ?? [$request->pays_recherche];
+            }
+        }
+        if ($request->has('villes_recherche')) {
+            if (is_array($request->villes_recherche)) {
+                $filterOverrides['villes_recherche'] = $request->villes_recherche;
+            } elseif (is_string($request->villes_recherche)) {
+                $filterOverrides['villes_recherche'] = json_decode($request->villes_recherche, true) ?? [$request->villes_recherche];
+            }
+        }
+        if ($request->has('etat_matrimonial')) {
+            if (is_array($request->etat_matrimonial)) {
+                $filterOverrides['etat_matrimonial'] = $request->etat_matrimonial;
+            } elseif (is_string($request->etat_matrimonial)) {
+                $filterOverrides['etat_matrimonial'] = json_decode($request->etat_matrimonial, true) ?? [$request->etat_matrimonial];
+            }
+        }
+        if ($request->has('situation_sante')) {
+            if (is_array($request->situation_sante)) {
+                $filterOverrides['situation_sante'] = $request->situation_sante;
+            } elseif (is_string($request->situation_sante)) {
+                $filterOverrides['situation_sante'] = json_decode($request->situation_sante, true) ?? [$request->situation_sante];
+            }
+        }
+        if ($request->has('pays_residence') && is_string($request->pays_residence)) {
+            $filterOverrides['pays_residence'] = json_decode($request->pays_residence, true) ?? [$request->pays_residence];
+        }
+        if ($request->has('pays_origine') && is_string($request->pays_origine)) {
+            $filterOverrides['pays_origine'] = json_decode($request->pays_origine, true) ?? [$request->pays_origine];
+        }
+        if ($request->has('ville_residence') && is_string($request->ville_residence)) {
+            $filterOverrides['ville_residence'] = json_decode($request->ville_residence, true) ?? [$request->ville_residence];
+        }
+        if ($request->has('ville_origine') && is_string($request->ville_origine)) {
+            $filterOverrides['ville_origine'] = json_decode($request->ville_origine, true) ?? [$request->ville_origine];
+        }
+        if ($request->has('situation_sante') && is_string($request->situation_sante)) {
+            $filterOverrides['situation_sante'] = json_decode($request->situation_sante, true) ?? [$request->situation_sante];
+        }
+
+        // Remove empty values
+        $filterOverrides = array_filter($filterOverrides, function($value) {
+            if (is_array($value)) {
+                return !empty($value);
+            }
+            return $value !== null && $value !== '';
+        });
+
+        try {
+            $result = $matchmakingService->findMatches($userAId, $filterOverrides);
+            
+            // Format matches for Inertia (ensure proper serialization)
+            $formattedMatches = array_map(function($match) {
+                return [
+                    'user' => [
+                        'id' => $match['user']->id,
+                        'name' => $match['user']->name,
+                        'email' => $match['user']->email,
+                        'username' => $match['user']->username,
+                        'gender' => $match['user']->gender,
+                        'created_at' => $match['user']->created_at,
+                        'updated_at' => $match['user']->updated_at,
+                    ],
+                    'profile' => $match['profile']->toArray(),
+                    'score' => $match['score'],
+                    'scoreDetails' => $match['scoreDetails'],
+                    'completeness' => $match['completeness'],
+                ];
+            }, $result['matches']);
+            
+            return Inertia::render('matchmaker/matchmaking-results', [
+                'userA' => [
+                    'id' => $result['userA']->id,
+                    'name' => $result['userA']->name,
+                    'email' => $result['userA']->email,
+                    'username' => $result['userA']->username,
+                    'gender' => $result['userA']->gender,
+                    'profile' => $result['userA']->profile ? $result['userA']->profile->toArray() : null,
+                ],
+                'matches' => $formattedMatches,
+                'defaultFilters' => $result['defaultFilters'],
+                'appliedFilters' => $result['appliedFilters'],
+            ]);
+        } catch (\Exception $e) {
+            return redirect()->route('staff.match.search')
+                ->with('error', $e->getMessage());
+        }
+    }
+
+    /**
+     * API endpoint for dynamic filtering
+     * Allows matchmaker to update filters and get refreshed results
+     */
+    public function updateMatchmakingFilters(Request $request, $userAId)
+    {
+        $me = Auth::user();
+        
+        // Check approval status
+        $roleName = null;
+        if ($me) {
+            $roleName = \Illuminate\Support\Facades\DB::table('model_has_roles')
+                ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+                ->where('model_has_roles.model_id', $me->id)
+                ->value('roles.name');
+        }
+        
+        if (in_array($roleName, ['manager','matchmaker'], true)) {
+            if ($me->approval_status !== 'approved') {
+                return response()->json(['error' => 'Unauthorized'], 403);
+            }
+        }
+
+        $matchmakingService = new MatchmakingService();
+        
+        // Get filter overrides from request
+        $filterOverrides = $request->only([
+            'age_min', 'age_max', 'pays_recherche', 'villes_recherche', 'religion',
+            'revenu_minimum', 'niveau_etudes', 'situation_professionnelle',
+            'etat_matrimonial', 'etat_sante', 'fumeur', 'buveur', 'has_children',
+            'origine', 'logement', 'taille_min', 'taille_max', 'poids_min', 'poids_max',
+            'pays_residence', 'pays_origine', 'ville_residence', 'ville_origine',
+            'situation_sante', 'motorise', 'children_count',
+            'hijab_choice', 'veil', 'niqab_acceptance', 'sport', 'secteur',
+            'polygamy', 'foreign_marriage', 'work_after_marriage'
+        ]);
+
+        // Handle array fields
+        if ($request->has('pays_recherche')) {
+            if (is_array($request->pays_recherche)) {
+                $filterOverrides['pays_recherche'] = $request->pays_recherche;
+            } elseif (is_string($request->pays_recherche)) {
+                $filterOverrides['pays_recherche'] = json_decode($request->pays_recherche, true) ?? [$request->pays_recherche];
+            }
+        }
+        if ($request->has('villes_recherche')) {
+            if (is_array($request->villes_recherche)) {
+                $filterOverrides['villes_recherche'] = $request->villes_recherche;
+            } elseif (is_string($request->villes_recherche)) {
+                $filterOverrides['villes_recherche'] = json_decode($request->villes_recherche, true) ?? [$request->villes_recherche];
+            }
+        }
+        if ($request->has('etat_matrimonial')) {
+            if (is_array($request->etat_matrimonial)) {
+                $filterOverrides['etat_matrimonial'] = $request->etat_matrimonial;
+            } elseif (is_string($request->etat_matrimonial)) {
+                $filterOverrides['etat_matrimonial'] = json_decode($request->etat_matrimonial, true) ?? [$request->etat_matrimonial];
+            }
+        }
+        if ($request->has('situation_sante')) {
+            if (is_array($request->situation_sante)) {
+                $filterOverrides['situation_sante'] = $request->situation_sante;
+            } elseif (is_string($request->situation_sante)) {
+                $filterOverrides['situation_sante'] = json_decode($request->situation_sante, true) ?? [$request->situation_sante];
+            }
+        }
+        if ($request->has('pays_residence') && is_string($request->pays_residence)) {
+            $filterOverrides['pays_residence'] = json_decode($request->pays_residence, true) ?? [$request->pays_residence];
+        }
+        if ($request->has('pays_origine') && is_string($request->pays_origine)) {
+            $filterOverrides['pays_origine'] = json_decode($request->pays_origine, true) ?? [$request->pays_origine];
+        }
+        if ($request->has('ville_residence') && is_string($request->ville_residence)) {
+            $filterOverrides['ville_residence'] = json_decode($request->ville_residence, true) ?? [$request->ville_residence];
+        }
+        if ($request->has('ville_origine') && is_string($request->ville_origine)) {
+            $filterOverrides['ville_origine'] = json_decode($request->ville_origine, true) ?? [$request->ville_origine];
+        }
+        if ($request->has('situation_sante') && is_string($request->situation_sante)) {
+            $filterOverrides['situation_sante'] = json_decode($request->situation_sante, true) ?? [$request->situation_sante];
+        }
+
+        // Convert numeric strings to integers for age and numeric filters
+        $numericFields = ['age_min', 'age_max', 'taille_min', 'taille_max', 'poids_min', 'poids_max', 'children_count'];
+        foreach ($numericFields as $field) {
+            if (isset($filterOverrides[$field])) {
+                // Convert to integer if it's a numeric string, or set to null if empty
+                if ($filterOverrides[$field] === '' || $filterOverrides[$field] === null) {
+                    unset($filterOverrides[$field]);
+                } else {
+                    $filterOverrides[$field] = (int)$filterOverrides[$field];
+                }
+            }
+        }
+
+        // Remove empty values
+        $filterOverrides = array_filter($filterOverrides, function($value) {
+            if (is_array($value)) {
+                return !empty($value);
+            }
+            return $value !== null && $value !== '';
+        });
+
+        try {
+            // Mixed logic: unchanged filters use OR, manually changed filters use AND
+            $result = $matchmakingService->findMatches($userAId, $filterOverrides);
+            
+            // Format matches for JSON response
+            $formattedMatches = array_map(function($match) {
+                return [
+                    'user' => [
+                        'id' => $match['user']->id,
+                        'name' => $match['user']->name,
+                        'email' => $match['user']->email,
+                        'username' => $match['user']->username,
+                        'gender' => $match['user']->gender,
+                        'created_at' => $match['user']->created_at,
+                        'updated_at' => $match['user']->updated_at,
+                    ],
+                    'profile' => $match['profile']->toArray(),
+                    'score' => $match['score'],
+                    'scoreDetails' => $match['scoreDetails'],
+                    'completeness' => $match['completeness'],
+                ];
+            }, $result['matches']);
+            
+            return response()->json([
+                'matches' => $formattedMatches,
+                'defaultFilters' => $result['defaultFilters'],
+                'appliedFilters' => $result['appliedFilters'],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
     }
 }

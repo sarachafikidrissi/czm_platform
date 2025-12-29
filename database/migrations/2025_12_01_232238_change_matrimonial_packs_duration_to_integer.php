@@ -15,7 +15,15 @@ return new class extends Migration
         // First, extract numbers from existing duration strings and update them
         $packs = DB::table('matrimonial_packs')->get();
         foreach ($packs as $pack) {
-            if (preg_match('/(\d+)\s*mois/', $pack->duration, $matches)) {
+            $durationValue = $pack->duration;
+            
+            // If it's already a number, skip
+            if (is_numeric($durationValue)) {
+                continue;
+            }
+            
+            // Extract number from string like "6 mois"
+            if (is_string($durationValue) && preg_match('/(\d+)/', $durationValue, $matches)) {
                 DB::table('matrimonial_packs')
                     ->where('id', $pack->id)
                     ->update(['duration' => (int)$matches[1]]);
@@ -38,16 +46,17 @@ return new class extends Migration
      */
     public function down(): void
     {
-        // Convert integers back to strings with "mois" suffix
+        // First, change column type back to string
+        Schema::table('matrimonial_packs', function (Blueprint $table) {
+            $table->string('duration')->change();
+        });
+
+        // Then, convert integers back to strings with "mois" suffix
         $packs = DB::table('matrimonial_packs')->get();
         foreach ($packs as $pack) {
             DB::table('matrimonial_packs')
                 ->where('id', $pack->id)
                 ->update(['duration' => $pack->duration . ' mois']);
         }
-
-        Schema::table('matrimonial_packs', function (Blueprint $table) {
-            $table->string('duration')->change();
-        });
     }
 };

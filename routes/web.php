@@ -398,6 +398,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/transfer-requests', [\App\Http\Controllers\MatchmakerController::class, 'getTransferRequests'])->name('transfer-requests');
         Route::post('/transfer-requests/{id}/accept', [\App\Http\Controllers\MatchmakerController::class, 'acceptTransferRequest'])->name('transfer-requests.accept');
         Route::post('/transfer-requests/{id}/reject', [\App\Http\Controllers\MatchmakerController::class, 'rejectTransferRequest'])->name('transfer-requests.reject');
+        // Matchmaker section routes
+        Route::get('/matchmaker/propositions', [\App\Http\Controllers\MatchmakerController::class, 'propositionsList'])->name('matchmaker.propositions');
+        Route::get('/matchmaker/change', [\App\Http\Controllers\MatchmakerController::class, 'matchmakerChange'])->name('matchmaker.change');
+        // Match section routes
+        Route::get('/match/list', [\App\Http\Controllers\MatchmakerController::class, 'matchList'])->name('match.list');
+        Route::get('/match/search', [\App\Http\Controllers\MatchmakerController::class, 'searchMatchProfiles'])->name('match.search');
+        Route::get('/match/results/{userAId}', [\App\Http\Controllers\MatchmakerController::class, 'matchmakingResults'])->name('match.results');
+        Route::post('/match/filters/{userAId}', [\App\Http\Controllers\MatchmakerController::class, 'updateMatchmakingFilters'])->name('match.filters.update');
     });
 
     // Objectives routes - accessible to admin, manager, and matchmaker

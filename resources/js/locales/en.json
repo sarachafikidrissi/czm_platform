@@ -69,6 +69,12 @@
         "transferRequests": "Transfer Requests",
         "receivedRequests": "Received Requests",
         "sentRequests": "Sent Requests",
+        "matchmaker": "Matchmaker",
+        "propositionsList": "List of Proposals",
+        "matchmakerChange": "Matchmaker Change",
+        "match": "Match",
+        "matchList": "List of Matches",
+        "searchMatchProfiles": "Search Match Profiles",
         "agencies": "Agencies"
     },
     "breadcrumbs": {
@@ -514,6 +520,7 @@
         "noResults": "No results found for \"{{query}}\". Please try another search.",
         "tableHeaders": {
             "name": "Name",
+            "gender": "Gender",
             "country": "Country",
             "city": "City",
             "phone": "Phone",

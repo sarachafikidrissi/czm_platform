@@ -736,6 +736,7 @@ export default function AgencyProspects() {
                                     <TableHeader>
                                         <TableRow>
                                             <TableHead>Name</TableHead>
+                                            <TableHead>{t('staff.tableHeaders.gender')}</TableHead>
                                             <TableHead>Email</TableHead>
                                             <TableHead className="hidden md:table-cell">Phone</TableHead>
                                             <TableHead className="hidden lg:table-cell">City</TableHead>
@@ -749,6 +750,7 @@ export default function AgencyProspects() {
                                             [1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
                                                 <TableRow key={i}>
                                                     <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                                                    <TableCell><Skeleton className="h-4 w-20" /></TableCell>
                                                     <TableCell><Skeleton className="h-4 w-40" /></TableCell>
                                                     <TableCell className="hidden md:table-cell"><Skeleton className="h-4 w-24" /></TableCell>
                                                     <TableCell className="hidden lg:table-cell"><Skeleton className="h-4 w-28" /></TableCell>
@@ -770,6 +772,7 @@ export default function AgencyProspects() {
                                                 onClick={() => handleUserInfoClick(p)}
                                             >
                                                 <TableCell className="font-medium">{p.name}</TableCell>
+                                                <TableCell>{p.gender || 'N/A'}</TableCell>
                                                 <TableCell>{p.email || 'N/A'}</TableCell>
                                                 <TableCell className="hidden md:table-cell">{p.phone || 'N/A'}</TableCell>
                                                 <TableCell className="hidden lg:table-cell">{p.city || 'N/A'}</TableCell>

@@ -69,6 +69,12 @@
         "transferRequests": "طلبات النقل",
         "receivedRequests": "الطلبات المستلمة",
         "sentRequests": "الطلبات المرسلة",
+        "matchmaker": "وسيط الزواج",
+        "propositionsList": "قائمة الاقتراحات",
+        "matchmakerChange": "تغيير وسيط الزواج",
+        "match": "المطابقة",
+        "matchList": "قائمة المطابقات",
+        "searchMatchProfiles": "البحث عن ملفات المطابقة",
         "agencies": "الوكالات"
     },
     "breadcrumbs": {
@@ -514,6 +520,7 @@
         "noResults": "لم يتم العثور على نتائج لـ \"{{query}}\". يرجى المحاولة بالبحث مرة أخرى.",
         "tableHeaders": {
             "name": "الاسم",
+            "gender": "الجنس",
             "country": "البلد",
             "city": "المدينة",
             "phone": "الهاتف",

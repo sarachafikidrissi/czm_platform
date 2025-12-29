@@ -6,7 +6,7 @@ import { GlobalSearch } from '@/components/global-search';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { CalendarHeart, Flame, HeartHandshake, Images, LayoutGrid, User, UserRoundSearch, Users, UserCheck, Plus, ShoppingCart, CreditCard, RotateCcw, Building2, Target, ArrowRightLeft } from 'lucide-react';
+import { CalendarHeart, Flame, HeartHandshake, Images, LayoutGrid, User, UserRoundSearch, Users, UserCheck, Plus, ShoppingCart, CreditCard, RotateCcw, Building2, Target, ArrowRightLeft, List, Search, UserCog } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 const getMainNavItems = (t: (key: string) => string, role: string): NavItem[] => [
@@ -154,6 +154,26 @@ const getMainNavItems = (t: (key: string) => string, role: string): NavItem[] =>
         children: [
             { title: t('navigation.receivedRequests', { defaultValue: 'Demandes reçues' }), url: '/staff/transfer-requests?type=received', roles: ['matchmaker', 'manager'] },
             { title: t('navigation.sentRequests', { defaultValue: 'Demandes envoyées' }), url: '/staff/transfer-requests?type=sent', roles: ['matchmaker', 'manager'] },
+        ],
+    },
+    {
+        title: t('navigation.matchmaker', { defaultValue: 'Matchmaker' }),
+        url: '/staff/matchmaker/propositions',
+        icon: UserCog,
+        roles: ['matchmaker', 'manager'],
+        children: [
+            { title: t('navigation.propositionsList', { defaultValue: 'Liste des propositions' }), url: '/staff/matchmaker/propositions', roles: ['matchmaker', 'manager'] },
+            { title: t('navigation.matchmakerChange', { defaultValue: 'Changement matchmaker' }), url: '/staff/matchmaker/change', roles: ['matchmaker', 'manager'] },
+        ],
+    },
+    {
+        title: t('navigation.match', { defaultValue: 'Match' }),
+        url: '/staff/match/list',
+        icon: HeartHandshake,
+        roles: ['matchmaker', 'manager'],
+        children: [
+            { title: t('navigation.matchList', { defaultValue: 'Liste des Match' }), url: '/staff/match/list', roles: ['matchmaker', 'manager'] },
+            { title: t('navigation.searchMatchProfiles', { defaultValue: 'Rechercher Profils Match' }), url: '/staff/match/search', roles: ['matchmaker', 'manager'] },
         ],
     },
     {

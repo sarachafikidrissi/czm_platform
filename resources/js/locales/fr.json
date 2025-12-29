@@ -69,6 +69,12 @@
         "transferRequests": "Demandes de Transfert",
         "receivedRequests": "Demandes reçues",
         "sentRequests": "Demandes envoyées",
+        "matchmaker": "Matchmaker",
+        "propositionsList": "Liste des propositions",
+        "matchmakerChange": "Changement matchmaker",
+        "match": "Match",
+        "matchList": "Liste des Match",
+        "searchMatchProfiles": "Rechercher Profils Match",
         "agencies": "Agences"
     },
     "breadcrumbs": {
@@ -517,6 +523,7 @@
         "noResults": "Aucun résultat trouvé pour \"{{query}}\". Veuillez essayer une autre recherche.",
         "tableHeaders": {
             "name": "Nom",
+            "gender": "Genre",
             "country": "Pays",
             "city": "Ville",
             "phone": "Téléphone",
