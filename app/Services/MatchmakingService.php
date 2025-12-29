@@ -1025,17 +1025,28 @@ class MatchmakingService
             $details = [];
 
             // Age compatibility (+20 points)
-            if ($profileA->date_naissance && $profileB->date_naissance) {
+            // If User A has age_minimum preference: symmetric range [userAAge - age_minimum, userAAge + age_minimum] (minimum 18)
+            // Default: [userAAge - 10, userAAge + 10] if no preference
+            if ($profileA->date_naissance && $profileB->date_naissance && $userAAge) {
                 $ageB = Carbon::parse($profileB->date_naissance)->age;
-                if ($userAAge && $profileA->age_minimum) {
-                    $ageDiff = abs($userAAge - $ageB);
-                    if ($ageDiff <= $profileA->age_minimum) {
-                        $score += 20;
-                        $details['age'] = 20;
-                    } elseif ($ageDiff <= $profileA->age_minimum + 5) {
-                        $score += 10;
-                        $details['age'] = 10;
-                    }
+                
+                if ($profileA->age_minimum) {
+                    // Use symmetric range based on age_minimum preference
+                    $ageRange = $profileA->age_minimum;
+                    $ageMinRange = max(18, $userAAge - $ageRange);
+                    $ageMaxRange = $userAAge + $ageRange;
+                } else {
+                    // Default: [userAAge - 10, userAAge + 10]
+                    $ageMinRange = max(18, $userAAge - 10);
+                    $ageMaxRange = $userAAge + 10;
+                }
+                
+                if ($ageB >= $ageMinRange && $ageB <= $ageMaxRange) {
+                    $score += 20;
+                    $details['age'] = 20;
+                } elseif ($ageB >= ($ageMinRange - 5) && $ageB <= ($ageMaxRange + 5)) {
+                    $score += 10;
+                    $details['age'] = 10;
                 }
             }
 
@@ -1050,7 +1061,18 @@ class MatchmakingService
                 }
             }
 
+            // Country compatibility (+10 points)
+            // Matches if candidate's pays_residence or pays_origine is in User A's preferred countries
+            if ($profileA->pays_recherche && is_array($profileA->pays_recherche)) {
+                if (in_array($profileB->pays_residence, $profileA->pays_recherche) ||
+                    in_array($profileB->pays_origine, $profileA->pays_recherche)) {
+                    $score += 10;
+                    $details['country'] = 10;
+                }
+            }
+
             // City compatibility (+10 points)
+            // Matches if candidate's ville_residence or ville_origine is in User A's preferred cities
             if ($profileA->villes_recherche && is_array($profileA->villes_recherche)) {
                 if (in_array($profileB->ville_residence, $profileA->villes_recherche) ||
                     in_array($profileB->ville_origine, $profileA->villes_recherche)) {
@@ -1075,31 +1097,88 @@ class MatchmakingService
                 }
             }
 
-            // Health compatibility (+10 points)
-            if ($profileA->situation_sante && $profileB->etat_sante) {
-                if (is_array($profileA->situation_sante) && in_array($profileB->etat_sante, $profileA->situation_sante)) {
+            // Employment status compatibility (+10 points)
+            // Exact match with candidate's situation_professionnelle
+            if ($profileA->statut_emploi_recherche && $profileB->situation_professionnelle) {
+                if ($profileB->situation_professionnelle === $profileA->statut_emploi_recherche) {
+                    $score += 10;
+                    $details['employment'] = 10;
+                }
+            }
+
+            // Marital status compatibility (+10 points)
+            // Candidate's etat_matrimonial must be in User A's preferred statuses
+            if ($profileA->situation_matrimoniale_recherche && $profileB->etat_matrimonial) {
+                $preferredStatuses = is_array($profileA->situation_matrimoniale_recherche) 
+                    ? $profileA->situation_matrimoniale_recherche 
+                    : [$profileA->situation_matrimoniale_recherche];
+                $candidateStatus = is_array($profileB->etat_matrimonial) 
+                    ? $profileB->etat_matrimonial 
+                    : [$profileB->etat_matrimonial];
+                
+                if (count(array_intersect($preferredStatuses, $candidateStatus)) > 0) {
+                    $score += 10;
+                    $details['marital_status'] = 10;
+                }
+            }
+
+            // Health status compatibility (+10 points)
+            // Candidate's situation_sante must be in User A's preferred health statuses
+            if ($profileA->situation_sante && $profileB->situation_sante) {
+                $preferredHealth = is_array($profileA->situation_sante) 
+                    ? $profileA->situation_sante 
+                    : [$profileA->situation_sante];
+                $candidateHealth = is_array($profileB->situation_sante) 
+                    ? $profileB->situation_sante 
+                    : [$profileB->situation_sante];
+                
+                if (count(array_intersect($preferredHealth, $candidateHealth)) > 0) {
                     $score += 10;
                     $details['health'] = 10;
                 }
             }
 
-            // Lifestyle compatibility (+10 points)
+            // Smoking compatibility (+5 points)
+            // Exact match with candidate's fumeur
+            if ($profileA->fumeur && $profileB->fumeur) {
+                if ($profileB->fumeur === $profileA->fumeur) {
+                    $score += 5;
+                    $details['smoking'] = 5;
+                }
+            }
+
+            // Drinking compatibility (+5 points)
+            // Exact match with candidate's buveur
+            if ($profileA->buveur && $profileB->buveur) {
+                if ($profileB->buveur === $profileA->buveur) {
+                    $score += 5;
+                    $details['drinking'] = 5;
+                }
+            }
+
+            // Has children compatibility (+5 points)
+            // Exact match with candidate's has_children
+            if ($profileA->has_children !== null && $profileB->has_children !== null) {
+                if ($profileB->has_children === $profileA->has_children) {
+                    $score += 5;
+                    $details['has_children'] = 5;
+                }
+            }
+
+            // Housing compatibility (+5 points)
+            // Exact match with candidate's logement
+            if ($profileA->logement && $profileB->logement) {
+                if ($profileB->logement === $profileA->logement) {
+                    $score += 5;
+                    $details['housing'] = 5;
+                }
+            }
+
+            // Lifestyle compatibility (sport) (+5 points)
             if ($profileB->sport && $profileA->sport) {
                 if ($profileB->sport === $profileA->sport) {
                     $score += 5;
-                    $details['lifestyle'] = ($details['lifestyle'] ?? 0) + 5;
-                }
-            }
-            if ($profileB->fumeur && $profileA->fumeur) {
-                if ($profileB->fumeur === $profileA->fumeur) {
-                    $score += 2.5;
-                    $details['lifestyle'] = ($details['lifestyle'] ?? 0) + 2.5;
-                }
-            }
-            if ($profileB->buveur && $profileA->buveur) {
-                if ($profileB->buveur === $profileA->buveur) {
-                    $score += 2.5;
-                    $details['lifestyle'] = ($details['lifestyle'] ?? 0) + 2.5;
+                    $details['sport'] = 5;
                 }
             }
 
@@ -1122,10 +1201,8 @@ class MatchmakingService
                 }
             }
 
-            // Calculate profile completeness bonus
+            // Calculate profile completeness (for display only, not included in score)
             $completeness = $this->calculateProfileCompleteness($profileB);
-            $completenessBonus = $completeness * 0.1; // Up to 10 points for 100% complete
-            $score += $completenessBonus;
 
             $scoredMatches[] = [
                 'user' => $candidate,

@@ -10,6 +10,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { SearchableMultiSelect } from '@/components/ui/searchable-multi-select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { 
     ArrowLeft, 
     Filter, 
@@ -22,7 +23,10 @@ import {
     Briefcase,
     DollarSign,
     Heart,
-    TrendingUp
+    TrendingUp,
+    CheckCircle2,
+    XCircle,
+    Info
 } from 'lucide-react';
 import axios from 'axios';
 
@@ -31,6 +35,8 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
     const [appliedFilters, setAppliedFilters] = useState(initialAppliedFilters || {});
     const [isLoading, setIsLoading] = useState(false);
     const [showFilters, setShowFilters] = useState(false);
+    const [selectedMatch, setSelectedMatch] = useState(null);
+    const [showCompatibilityModal, setShowCompatibilityModal] = useState(false);
     
     // Countries and cities state
     const [countries, setCountries] = useState([]);
@@ -398,6 +404,456 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
         if (score >= 70) return 'text-green-600';
         if (score >= 50) return 'text-yellow-600';
         return 'text-orange-600';
+    };
+
+    const getCompatibilityDetails = (scoreDetails, profileA, profileB) => {
+        const details = [];
+        const maxScores = {
+            age: 20,
+            country: 10,
+            city: 10,
+            religion: 10,
+            income: 10,
+            education: 15,
+            employment: 10,
+            marital_status: 10,
+            health: 10,
+            smoking: 5,
+            drinking: 5,
+            has_children: 5,
+            housing: 5,
+            sport: 5,
+            hobbies: 5,
+            origin: 5,
+        };
+
+        // Age compatibility
+        // Symmetric range: [userAAge - age_minimum, userAAge + age_minimum] (minimum 18)
+        // Default: [userAAge - 10, userAAge + 10] if no preference
+        if (scoreDetails.age !== undefined) {
+            const ageB = getAge(profileB);
+            const ageA = getAge(profileA);
+            if (ageA && ageB) {
+                const ageDiff = Math.abs(ageA - ageB);
+                let ageRange = '';
+                if (profileA.age_minimum) {
+                    const ageMinRange = Math.max(18, ageA - profileA.age_minimum);
+                    const ageMaxRange = ageA + profileA.age_minimum;
+                    ageRange = `Plage recherchée: ${ageMinRange}-${ageMaxRange} ans`;
+                } else {
+                    const ageMinRange = Math.max(18, ageA - 10);
+                    const ageMaxRange = ageA + 10;
+                    ageRange = `Plage recherchée (défaut): ${ageMinRange}-${ageMaxRange} ans`;
+                }
+                details.push({
+                    label: 'Âge',
+                    score: scoreDetails.age,
+                    maxScore: maxScores.age,
+                    matched: true,
+                    description: `${ageB} ans (différence: ${ageDiff} ans). ${ageRange}`
+                });
+            }
+        } else if (profileA.date_naissance && profileB.date_naissance) {
+            const ageA = getAge(profileA);
+            const ageB = getAge(profileB);
+            let ageRange = '';
+            if (profileA.age_minimum) {
+                const ageMinRange = Math.max(18, ageA - profileA.age_minimum);
+                const ageMaxRange = ageA + profileA.age_minimum;
+                ageRange = `Plage recherchée: ${ageMinRange}-${ageMaxRange} ans`;
+            } else {
+                const ageMinRange = Math.max(18, ageA - 10);
+                const ageMaxRange = ageA + 10;
+                ageRange = `Plage recherchée (défaut): ${ageMinRange}-${ageMaxRange} ans`;
+            }
+            details.push({
+                label: 'Âge',
+                score: 0,
+                maxScore: maxScores.age,
+                matched: false,
+                description: `${ageB} ans ne correspond pas. ${ageRange}`
+            });
+        }
+
+        // Education compatibility
+        // Exact match with candidate's niveau_etudes
+        if (scoreDetails.education !== undefined) {
+            details.push({
+                label: 'Niveau d\'études',
+                score: scoreDetails.education,
+                maxScore: maxScores.education,
+                matched: true,
+                description: `${profileB.niveau_etudes || 'Non spécifié'} - Correspond au niveau recherché: ${profileA.niveau_etudes_recherche || 'Non spécifié'}`
+            });
+        } else if (profileA.niveau_etudes_recherche) {
+            details.push({
+                label: 'Niveau d\'études',
+                score: 0,
+                maxScore: maxScores.education,
+                matched: false,
+                description: `${profileB.niveau_etudes || 'Non spécifié'} ne correspond pas au niveau recherché: ${profileA.niveau_etudes_recherche}`
+            });
+        }
+
+        // Employment status compatibility
+        // Exact match with candidate's situation_professionnelle
+        if (scoreDetails.employment !== undefined) {
+            details.push({
+                label: 'Situation professionnelle',
+                score: scoreDetails.employment,
+                maxScore: maxScores.employment,
+                matched: true,
+                description: `${profileB.situation_professionnelle || 'Non spécifié'} - Correspond au statut recherché: ${profileA.statut_emploi_recherche || 'Non spécifié'}`
+            });
+        } else if (profileA.statut_emploi_recherche) {
+            details.push({
+                label: 'Situation professionnelle',
+                score: 0,
+                maxScore: maxScores.employment,
+                matched: false,
+                description: `${profileB.situation_professionnelle || 'Non spécifié'} ne correspond pas au statut recherché: ${profileA.statut_emploi_recherche}`
+            });
+        }
+
+        // Marital status compatibility
+        // Candidate's etat_matrimonial must be in User A's preferred statuses
+        if (scoreDetails.marital_status !== undefined) {
+            const preferredStatuses = profileA.situation_matrimoniale_recherche || [];
+            const preferredArray = Array.isArray(preferredStatuses) ? preferredStatuses : [preferredStatuses];
+            const candidateStatus = profileB.etat_matrimonial || '';
+            const candidateArray = Array.isArray(candidateStatus) ? candidateStatus : [candidateStatus];
+            details.push({
+                label: 'État matrimonial',
+                score: scoreDetails.marital_status,
+                maxScore: maxScores.marital_status,
+                matched: true,
+                description: `${candidateArray.join(', ')} - Correspond aux statuts recherchés: ${preferredArray.join(', ')}`
+            });
+        } else if (profileA.situation_matrimoniale_recherche && (Array.isArray(profileA.situation_matrimoniale_recherche) ? profileA.situation_matrimoniale_recherche.length > 0 : profileA.situation_matrimoniale_recherche)) {
+            const preferredStatuses = profileA.situation_matrimoniale_recherche || [];
+            const preferredArray = Array.isArray(preferredStatuses) ? preferredStatuses : [preferredStatuses];
+            const candidateStatus = profileB.etat_matrimonial || '';
+            const candidateArray = Array.isArray(candidateStatus) ? candidateStatus : [candidateStatus];
+            details.push({
+                label: 'État matrimonial',
+                score: 0,
+                maxScore: maxScores.marital_status,
+                matched: false,
+                description: `${candidateArray.join(', ')} ne correspond pas aux statuts recherchés: ${preferredArray.join(', ')}`
+            });
+        }
+
+        // Country compatibility
+        // Matches if candidate's pays_residence or pays_origine is in User A's preferred countries
+        if (scoreDetails.country !== undefined) {
+            const paysResidence = profileB.pays_residence || '';
+            const paysOrigine = profileB.pays_origine || '';
+            const paysRecherche = profileA.pays_recherche || [];
+            const paysArray = Array.isArray(paysRecherche) ? paysRecherche : [paysRecherche];
+            
+            let matchedCountry = '';
+            let matchedType = '';
+            if (paysResidence && paysArray.includes(paysResidence)) {
+                matchedCountry = paysResidence;
+                matchedType = 'résidence';
+            } else if (paysOrigine && paysArray.includes(paysOrigine)) {
+                matchedCountry = paysOrigine;
+                matchedType = 'origine';
+            }
+            
+            details.push({
+                label: 'Pays',
+                score: scoreDetails.country,
+                maxScore: maxScores.country,
+                matched: true,
+                description: `${matchedCountry} (${matchedType}) - Correspond aux pays recherchés: ${paysArray.join(', ')}`
+            });
+        } else if (profileA.pays_recherche && (Array.isArray(profileA.pays_recherche) ? profileA.pays_recherche.length > 0 : profileA.pays_recherche)) {
+            const paysRecherche = profileA.pays_recherche || [];
+            const paysArray = Array.isArray(paysRecherche) ? paysRecherche : [paysRecherche];
+            details.push({
+                label: 'Pays',
+                score: 0,
+                maxScore: maxScores.country,
+                matched: false,
+                description: `Ne correspond pas aux pays recherchés: ${paysArray.join(', ')}`
+            });
+        }
+
+        // City compatibility
+        // Matches if candidate's ville_residence or ville_origine is in User A's preferred cities
+        if (scoreDetails.city !== undefined) {
+            const cityResidence = profileB.ville_residence || '';
+            const cityOrigine = profileB.ville_origine || '';
+            const villesRecherche = profileA.villes_recherche || [];
+            const villesArray = Array.isArray(villesRecherche) ? villesRecherche : [villesRecherche];
+            
+            let matchedCity = '';
+            let matchedType = '';
+            if (cityResidence && villesArray.includes(cityResidence)) {
+                matchedCity = cityResidence;
+                matchedType = 'résidence';
+            } else if (cityOrigine && villesArray.includes(cityOrigine)) {
+                matchedCity = cityOrigine;
+                matchedType = 'origine';
+            }
+            
+            details.push({
+                label: 'Ville',
+                score: scoreDetails.city,
+                maxScore: maxScores.city,
+                matched: true,
+                description: `${matchedCity} (${matchedType}) - Correspond aux villes recherchées: ${villesArray.join(', ')}`
+            });
+        } else if (profileA.villes_recherche && Array.isArray(profileA.villes_recherche) && profileA.villes_recherche.length > 0) {
+            details.push({
+                label: 'Ville',
+                score: 0,
+                maxScore: maxScores.city,
+                matched: false,
+                description: `Ne correspond pas aux villes recherchées: ${profileA.villes_recherche.join(', ')}`
+            });
+        }
+
+        // Religion compatibility
+        // Exact match with candidate's religion
+        if (scoreDetails.religion !== undefined) {
+            details.push({
+                label: 'Religion',
+                score: scoreDetails.religion,
+                maxScore: maxScores.religion,
+                matched: true,
+                description: `${profileB.religion || 'Non spécifié'} - Correspond à la religion recherchée: ${profileA.religion_recherche || 'Non spécifié'}`
+            });
+        } else if (profileA.religion_recherche) {
+            details.push({
+                label: 'Religion',
+                score: 0,
+                maxScore: maxScores.religion,
+                matched: false,
+                description: `${profileB.religion || 'Non spécifié'} ne correspond pas à la religion recherchée: ${profileA.religion_recherche}`
+            });
+        }
+
+        // Income compatibility
+        // Income hierarchy: 0-2500 (1), 2500-5000 (2), 5000-10000 (3), 10000-20000 (4), 20000-50000 (5), 50000+ (6)
+        // Candidate's income must be at or above User A's minimum level
+        if (scoreDetails.income !== undefined) {
+            const incomeHierarchy = {
+                '0-2500': 1,
+                '2500-5000': 2,
+                '5000-10000': 3,
+                '10000-20000': 4,
+                '20000-50000': 5,
+                '50000+': 6
+            };
+            const candidateLevel = incomeHierarchy[profileB.revenu] || 0;
+            const minimumLevel = incomeHierarchy[profileA.revenu_minimum] || 0;
+            details.push({
+                label: 'Revenu',
+                score: scoreDetails.income,
+                maxScore: maxScores.income,
+                matched: true,
+                description: `${profileB.revenu || 'Non spécifié'} (niveau ${candidateLevel}) - Supérieur ou égal au minimum recherché: ${profileA.revenu_minimum || 'Non spécifié'} (niveau ${minimumLevel})`
+            });
+        } else if (profileA.revenu_minimum) {
+            const incomeHierarchy = {
+                '0-2500': 1,
+                '2500-5000': 2,
+                '5000-10000': 3,
+                '10000-20000': 4,
+                '20000-50000': 5,
+                '50000+': 6
+            };
+            const candidateLevel = incomeHierarchy[profileB.revenu] || 0;
+            const minimumLevel = incomeHierarchy[profileA.revenu_minimum] || 0;
+            details.push({
+                label: 'Revenu',
+                score: 0,
+                maxScore: maxScores.income,
+                matched: false,
+                description: `${profileB.revenu || 'Non spécifié'} (niveau ${candidateLevel}) est inférieur au minimum recherché: ${profileA.revenu_minimum} (niveau ${minimumLevel})`
+            });
+        }
+
+        // Health status compatibility
+        // Candidate's situation_sante must be in User A's preferred health statuses
+        if (scoreDetails.health !== undefined) {
+            const preferredHealth = profileA.situation_sante || [];
+            const preferredArray = Array.isArray(preferredHealth) ? preferredHealth : [preferredHealth];
+            const candidateHealth = profileB.situation_sante || [];
+            const candidateArray = Array.isArray(candidateHealth) ? candidateHealth : [candidateHealth];
+            
+            // Get human-readable labels for health situations
+            const healthLabels = {
+                'sante_tres_bonne': 'Santé très bonne',
+                'maladie_chronique': 'Maladie chronique',
+                'personne_handicap': 'Personne en situation de handicap',
+                'non_voyant_malvoyant': 'Non voyant / Malvoyant',
+                'cecite_totale': 'مكفوف (Cécité totale)',
+                'troubles_psychiques': 'Troubles psychiques',
+                'autres': 'Autres'
+            };
+            
+            const candidateLabels = candidateArray.map(s => healthLabels[s] || s).join(', ');
+            const preferredLabels = preferredArray.map(s => healthLabels[s] || s).join(', ');
+            
+            details.push({
+                label: 'Situation de santé',
+                score: scoreDetails.health,
+                maxScore: maxScores.health,
+                matched: true,
+                description: `${candidateLabels || 'Non spécifié'} - Correspond aux situations recherchées: ${preferredLabels}`
+            });
+        } else if (profileA.situation_sante && (Array.isArray(profileA.situation_sante) ? profileA.situation_sante.length > 0 : profileA.situation_sante)) {
+            const preferredHealth = profileA.situation_sante || [];
+            const preferredArray = Array.isArray(preferredHealth) ? preferredHealth : [preferredHealth];
+            const candidateHealth = profileB.situation_sante || [];
+            const candidateArray = Array.isArray(candidateHealth) ? candidateHealth : [candidateHealth];
+            
+            // Get human-readable labels for health situations
+            const healthLabels = {
+                'sante_tres_bonne': 'Santé très bonne',
+                'maladie_chronique': 'Maladie chronique',
+                'personne_handicap': 'Personne en situation de handicap',
+                'non_voyant_malvoyant': 'Non voyant / Malvoyant',
+                'cecite_totale': 'مكفوف (Cécité totale)',
+                'troubles_psychiques': 'Troubles psychiques',
+                'autres': 'Autres'
+            };
+            
+            const candidateLabels = candidateArray.length > 0 ? candidateArray.map(s => healthLabels[s] || s).join(', ') : 'Non spécifié';
+            const preferredLabels = preferredArray.map(s => healthLabels[s] || s).join(', ');
+            
+            details.push({
+                label: 'Situation de santé',
+                score: 0,
+                maxScore: maxScores.health,
+                matched: false,
+                description: `${candidateLabels} ne correspond pas aux situations recherchées: ${preferredLabels}`
+            });
+        }
+
+        // Smoking compatibility
+        // Exact match with candidate's fumeur
+        if (scoreDetails.smoking !== undefined) {
+            details.push({
+                label: 'Fumeur',
+                score: scoreDetails.smoking,
+                maxScore: maxScores.smoking,
+                matched: true,
+                description: `${profileB.fumeur || 'Non spécifié'} - Correspond à la préférence: ${profileA.fumeur || 'Non spécifié'}`
+            });
+        } else if (profileA.fumeur) {
+            details.push({
+                label: 'Fumeur',
+                score: 0,
+                maxScore: maxScores.smoking,
+                matched: false,
+                description: `${profileB.fumeur || 'Non spécifié'} ne correspond pas à la préférence: ${profileA.fumeur}`
+            });
+        }
+
+        // Drinking compatibility
+        // Exact match with candidate's buveur
+        if (scoreDetails.drinking !== undefined) {
+            details.push({
+                label: 'Buveur',
+                score: scoreDetails.drinking,
+                maxScore: maxScores.drinking,
+                matched: true,
+                description: `${profileB.buveur || 'Non spécifié'} - Correspond à la préférence: ${profileA.buveur || 'Non spécifié'}`
+            });
+        } else if (profileA.buveur) {
+            details.push({
+                label: 'Buveur',
+                score: 0,
+                maxScore: maxScores.drinking,
+                matched: false,
+                description: `${profileB.buveur || 'Non spécifié'} ne correspond pas à la préférence: ${profileA.buveur}`
+            });
+        }
+
+        // Has children compatibility
+        // Exact match with candidate's has_children
+        if (scoreDetails.has_children !== undefined) {
+            details.push({
+                label: 'Avoir des enfants',
+                score: scoreDetails.has_children,
+                maxScore: maxScores.has_children,
+                matched: true,
+                description: `${profileB.has_children ? 'Oui' : 'Non'} - Correspond à la préférence: ${profileA.has_children ? 'Oui' : 'Non'}`
+            });
+        } else if (profileA.has_children !== null && profileA.has_children !== undefined) {
+            details.push({
+                label: 'Avoir des enfants',
+                score: 0,
+                maxScore: maxScores.has_children,
+                matched: false,
+                description: `${profileB.has_children ? 'Oui' : 'Non'} ne correspond pas à la préférence: ${profileA.has_children ? 'Oui' : 'Non'}`
+            });
+        }
+
+        // Housing compatibility
+        // Exact match with candidate's logement
+        if (scoreDetails.housing !== undefined) {
+            details.push({
+                label: 'Logement',
+                score: scoreDetails.housing,
+                maxScore: maxScores.housing,
+                matched: true,
+                description: `${profileB.logement || 'Non spécifié'} - Correspond à la préférence: ${profileA.logement || 'Non spécifié'}`
+            });
+        } else if (profileA.logement) {
+            details.push({
+                label: 'Logement',
+                score: 0,
+                maxScore: maxScores.housing,
+                matched: false,
+                description: `${profileB.logement || 'Non spécifié'} ne correspond pas à la préférence: ${profileA.logement}`
+            });
+        }
+
+        // Sport compatibility
+        if (scoreDetails.sport !== undefined) {
+            details.push({
+                label: 'Sport',
+                score: scoreDetails.sport,
+                maxScore: maxScores.sport,
+                matched: true,
+                description: `${profileB.sport || 'Non spécifié'} - Correspond à la préférence: ${profileA.sport || 'Non spécifié'}`
+            });
+        }
+
+
+        // Hobbies compatibility
+        if (scoreDetails.hobbies !== undefined) {
+            details.push({
+                label: 'Loisirs',
+                score: scoreDetails.hobbies,
+                maxScore: maxScores.hobbies,
+                matched: true,
+                description: `${scoreDetails.hobbies} loisir(s) en commun`
+            });
+        }
+
+        // Origin compatibility
+        if (scoreDetails.origin !== undefined) {
+            details.push({
+                label: 'Origine',
+                score: scoreDetails.origin,
+                maxScore: maxScores.origin,
+                matched: true,
+                description: profileB.origine || 'Non spécifié'
+            });
+        }
+
+        return details;
+    };
+
+    const handleCardClick = (match) => {
+        setSelectedMatch(match);
+        setShowCompatibilityModal(true);
     };
 
     return (
@@ -1050,7 +1506,11 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
                     ) : (
                         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                             {matches.map((match) => (
-                                <Card key={match.user.id} className="hover:shadow-md transition-shadow">
+                                <Card 
+                                    key={match.user.id} 
+                                    className="hover:shadow-md transition-shadow cursor-pointer"
+                                    onClick={() => handleCardClick(match)}
+                                >
                                     <CardHeader>
                                         <div className="flex items-start justify-between">
                                             <div className="flex items-start gap-4 flex-1">
@@ -1130,6 +1590,139 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
                     )}
                 </div>
             </div>
+
+            {/* Compatibility Details Modal */}
+            <Dialog open={showCompatibilityModal} onOpenChange={setShowCompatibilityModal}>
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <TrendingUp className="w-5 h-5" />
+                            Détails de compatibilité
+                        </DialogTitle>
+                        <DialogDescription>
+                            Analyse détaillée de la compatibilité avec le profil de référence
+                        </DialogDescription>
+                    </DialogHeader>
+                    
+                    {selectedMatch && (
+                        <div className="space-y-6">
+                            {/* Profile Summary */}
+                            <div className="flex items-start gap-4 p-4 bg-muted rounded-lg">
+                                <img
+                                    src={getProfilePicture(selectedMatch.user, selectedMatch.profile)}
+                                    alt={selectedMatch.user.name}
+                                    className="w-16 h-16 rounded-full object-cover"
+                                />
+                                <div className="flex-1">
+                                    <h3 className="font-semibold text-lg">{selectedMatch.user.name}</h3>
+                                    <p className="text-sm text-muted-foreground">{selectedMatch.user.email}</p>
+                                    <div className="mt-2 flex items-center gap-4 text-sm">
+                                        {getAge(selectedMatch.profile) && (
+                                            <span className="flex items-center gap-1">
+                                                <Calendar className="w-4 h-4" />
+                                                {getAge(selectedMatch.profile)} ans
+                                            </span>
+                                        )}
+                                        <span className="flex items-center gap-1">
+                                            <MapPin className="w-4 h-4" />
+                                            {getLocation(selectedMatch.profile)}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div className="text-right">
+                                    <div className={`text-2xl font-bold ${getScoreColor(selectedMatch.score)}`}>
+                                        {selectedMatch.score.toFixed(1)}%
+                                    </div>
+                                    <div className="text-xs text-muted-foreground">
+                                        Compatibilité totale
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Compatibility Breakdown */}
+                            <div className="space-y-4">
+                                <h4 className="font-semibold text-base">Critères de compatibilité</h4>
+                                <div className="space-y-3">
+                                    {getCompatibilityDetails(selectedMatch.scoreDetails || {}, userA.profile, selectedMatch.profile).map((detail, index) => (
+                                        <div key={index} className="border rounded-lg p-4">
+                                            <div className="flex items-start justify-between mb-2">
+                                                <div className="flex items-center gap-2">
+                                                    {detail.matched ? (
+                                                        <CheckCircle2 className="w-5 h-5 text-green-600" />
+                                                    ) : (
+                                                        <XCircle className="w-5 h-5 text-red-600" />
+                                                    )}
+                                                    <span className="font-medium">{detail.label}</span>
+                                                </div>
+                                                <div className="text-right">
+                                                    <span className={`font-semibold ${detail.matched ? 'text-green-600' : 'text-red-600'}`}>
+                                                        {detail.score.toFixed(1)} / {detail.maxScore}
+                                                    </span>
+                                                    <div className="text-xs text-muted-foreground">
+                                                        {detail.maxScore > 0 ? ((detail.score / detail.maxScore) * 100).toFixed(0) : 0}%
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="mt-2">
+                                                <div className="w-full bg-muted rounded-full h-2">
+                                                    <div
+                                                        className={`h-2 rounded-full ${detail.matched ? 'bg-green-600' : 'bg-red-600'}`}
+                                                        style={{ width: `${detail.maxScore > 0 ? (detail.score / detail.maxScore) * 100 : 0}%` }}
+                                                    />
+                                                </div>
+                                            </div>
+                                            <p className="text-sm text-muted-foreground mt-2">{detail.description}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Profile Completeness */}
+                            <div className="border rounded-lg p-4 bg-muted/50">
+                                <div className="flex items-center justify-between mb-2">
+                                    <span className="font-medium flex items-center gap-2">
+                                        <Info className="w-4 h-4" />
+                                        Complétude du profil
+                                    </span>
+                                    <span className="font-semibold">
+                                        {selectedMatch.completeness.toFixed(0)}%
+                                    </span>
+                                </div>
+                                <div className="w-full bg-muted rounded-full h-2">
+                                    <div
+                                        className="bg-blue-600 h-2 rounded-full"
+                                        style={{ width: `${selectedMatch.completeness}%` }}
+                                    />
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-2">
+                                    Information à titre indicatif uniquement (non incluse dans le score de compatibilité)
+                                </p>
+                            </div>
+
+                            {/* Actions */}
+                            <div className="flex gap-2 pt-4 border-t">
+                                <Button
+                                    variant="outline"
+                                    className="flex-1"
+                                    onClick={() => setShowCompatibilityModal(false)}
+                                >
+                                    Fermer
+                                </Button>
+                                <Button
+                                    className="flex-1"
+                                    onClick={() => {
+                                        setShowCompatibilityModal(false);
+                                        router.visit(`/profile/${selectedMatch.user.username || selectedMatch.user.id}`);
+                                    }}
+                                >
+                                    <User className="w-4 h-4 mr-2" />
+                                    Voir le profil complet
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
         </AppLayout>
     );
 }
