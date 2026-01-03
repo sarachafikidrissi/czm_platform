@@ -43,6 +43,7 @@ class User extends Authenticatable
         'identity_card_back_hash',
         'cin_hash',
         'assigned_matchmaker_id',
+        'matchmaker_assignment_history',
         'approved_at',
         'approved_by',
         'validated_by_manager_id',
@@ -50,6 +51,7 @@ class User extends Authenticatable
         'rejected_by',
         'rejected_at',
         'to_rappeler',
+        'is_traite',
         'acceptance_reason',
         'accepted_by',
         'accepted_at'
@@ -76,6 +78,8 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'condition' => 'boolean',
+            'matchmaker_assignment_history' => 'array',
+            'is_traite' => 'boolean',
         ];
     }
 

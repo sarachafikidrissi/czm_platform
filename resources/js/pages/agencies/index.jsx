@@ -287,7 +287,7 @@ export default function AgenciesIndex() {
                                                                         </p>
                                                                     )}
                                                                 </div>
-                                                                <Link href={`/profile/${matchmaker.username || matchmaker.id}`}>
+                                                                <a href={`/profile/${matchmaker.username || matchmaker.id}`} target="_blank" rel="noopener noreferrer">
                                                                     <Button
                                                                         size="sm"
                                                                         variant="outline"
@@ -297,7 +297,7 @@ export default function AgenciesIndex() {
                                                                         {t('common.view')} {t('common.profile')}
                                                                         <ExternalLink className="h-3 w-3" />
                                                                     </Button>
-                                                                </Link>
+                                                                </a>
                                                             </div>
                                                         </CardContent>
                                                     </Card>
@@ -331,7 +331,7 @@ export default function AgenciesIndex() {
                                                                     <h5 className="truncate font-semibold">{manager.name}</h5>
                                                                     <p className="text-muted-foreground truncate text-sm">{manager.email}</p>
                                                                 </div>
-                                                                <Link href={`/profile/${manager.username || manager.id}`}>
+                                                                <a href={`/profile/${manager.username || manager.id}`} target="_blank" rel="noopener noreferrer">
                                                                     <Button
                                                                         size="sm"
                                                                         variant="outline"
@@ -341,7 +341,7 @@ export default function AgenciesIndex() {
                                                                         {t('common.view')} {t('common.profile')}
                                                                         <ExternalLink className="h-3 w-3" />
                                                                     </Button>
-                                                                </Link>
+                                                                </a>
                                                             </div>
                                                         </CardContent>
                                                     </Card>

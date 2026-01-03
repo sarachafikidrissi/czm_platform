@@ -1592,7 +1592,7 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
                                         <Button
                                             variant="outline"
                                             className="w-full"
-                                            onClick={() => router.visit(`/profile/${match.user.username || match.user.id}`)}
+                                            onClick={() => window.open(`/profile/${match.user.username || match.user.id}`, '_blank', 'noopener,noreferrer')}
                                         >
                                             <User className="w-4 h-4 mr-2" />
                                             Voir le profil
@@ -1726,7 +1726,7 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
                                     className="flex-1"
                                     onClick={() => {
                                         setShowCompatibilityModal(false);
-                                        router.visit(`/profile/${selectedMatch.user.username || selectedMatch.user.id}`);
+                                        window.open(`/profile/${selectedMatch.user.username || selectedMatch.user.id}`, '_blank', 'noopener,noreferrer');
                                     }}
                                 >
                                     <User className="w-4 h-4 mr-2" />

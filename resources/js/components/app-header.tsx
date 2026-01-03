@@ -120,9 +120,9 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
                         >
                             <ArrowLeft className="h-5 w-5" />
                         </Button>
-                        <Link href="/dashboard" prefetch className="flex items-center space-x-2">
+                        <a href="/dashboard" target="_blank" rel="noopener noreferrer" className="flex items-center space-x-2">
                             <AppLogo />
-                        </Link>
+                        </a>
                     </div>
 
                     {/* Desktop Navigation */}

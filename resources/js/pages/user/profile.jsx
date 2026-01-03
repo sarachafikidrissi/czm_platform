@@ -4,15 +4,24 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import AppLayout from '@/layouts/app-layout';
 import { Head, router, usePage } from '@inertiajs/react';
-import { BookOpen, Camera, Facebook, Heart, Instagram, Linkedin, MapPin, MessageSquareWarning, User, X, Youtube } from 'lucide-react';
+import { BookOpen, Camera, Facebook, Heart, Instagram, Linkedin, MapPin, MessageSquareWarning, User, X, Youtube, Trash2, MoreVertical, UserCircle, Image, ThumbsUp, CheckCircle, Coffee, CreditCard, Lightbulb, Phone, ArrowRightLeft, Pencil, FileText, Calendar, Search, ShoppingCart, GraduationCap, Briefcase } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 
-export default function UserProfile({ user, profile, agency, matchmakerNotes = [], matchmakerEvaluation = null, photos = [] }) {
+export default function UserProfile({ user, profile, agency, matchmakerNotes = [], matchmakerEvaluation = null, photos = [], bills = [], subscriptions = [], matchmakingSearch = null, matchmakingResults = null }) {
     const { t } = useTranslation();
     const { auth } = usePage().props;
 
@@ -144,6 +153,32 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
         (viewerRole === 'manager' && user?.agency_id && user?.agency_id === auth?.user?.agency_id);
     viewerRole === 'manager' && user?.agency_id && user?.agency_id === auth?.user?.agency_id;
 
+    // Can delete photos: user can delete their own, matchmaker can delete assigned user's photos
+    const canDeletePhotos =
+        isOwnProfile ||
+        (viewerRole === 'matchmaker' && user?.assigned_matchmaker_id === auth?.user?.id) ||
+        (viewerRole === 'admin');
+
+    // Photo deletion state
+    const [photoToDelete, setPhotoToDelete] = useState(null);
+
+    // Handle photo deletion
+    const handleDeletePhoto = (photoId) => {
+        const photo = photos.find(p => p.id === photoId);
+        setPhotoToDelete(photo);
+    };
+
+    const confirmDeletePhoto = () => {
+        if (photoToDelete) {
+            router.delete(`/photos/${photoToDelete.id}`, {
+                preserveScroll: true,
+                onSuccess: () => {
+                    setPhotoToDelete(null);
+                },
+            });
+        }
+    };
+
     // Notes form
     const [newNote, setNewNote] = useState('');
     const [contactType, setContactType] = useState('');
@@ -189,6 +224,167 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
     const saveEvaluation = (e) => {
         e.preventDefault();
         router.post(`/users/${user.id}/evaluation`, evaluation);
+    };
+
+    // Transfer handlers
+    const handleTransferClick = async () => {
+        setSelectedMatchmakerId('');
+        setTransferReason('');
+        setLoadingMatchmakers(true);
+        setTransferDialogOpen(true);
+        
+        try {
+            const response = await fetch('/staff/matchmakers-for-transfer');
+            const data = await response.json();
+            setMatchmakers(data);
+        } catch (error) {
+            console.error('Error fetching matchmakers:', error);
+        } finally {
+            setLoadingMatchmakers(false);
+        }
+    };
+
+    const handleTransferSubmit = () => {
+        if (!selectedMatchmakerId) {
+            return;
+        }
+        
+        setTransferring(true);
+        router.post('/staff/transfer-requests', {
+            user_id: user.id,
+            to_matchmaker_id: selectedMatchmakerId,
+            reason: transferReason,
+        }, {
+            onSuccess: () => {
+                setTransferDialogOpen(false);
+                setSelectedMatchmakerId('');
+                setTransferReason('');
+                setTransferring(false);
+                router.reload();
+            },
+            onError: () => {
+                setTransferring(false);
+            }
+        });
+    };
+
+    // Helper function to get step
+    const getStep = () => {
+        return user?.profile?.matrimonial_pack?.name || 
+               (user?.profile?.service_id ? 'Service' : null) || 
+               'N/A';
+    };
+
+    // Helper function to get status info
+    const getStatusInfo = (userStatus) => {
+        switch (userStatus) {
+            case 'member':
+                return { label: 'Member', className: 'bg-blue-500 text-white' };
+            case 'client':
+                return { label: 'Client', className: 'bg-green-500 text-white' };
+            case 'client_expire':
+                return { label: 'Client Expiré', className: 'bg-orange-500 text-white' };
+            default:
+                return { label: userStatus || 'Unknown', className: 'bg-gray-500 text-white' };
+        }
+    };
+
+    // Handle profile picture upload for matchmakers
+    const handleProfilePictureUpload = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        if (!file.type.startsWith('image/')) {
+            alert('Please select a valid image file.');
+            return;
+        }
+
+        if (file.size > 2 * 1024 * 1024) {
+            alert('Image size must be less than 2MB.');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('profile_picture', file);
+        formData.append('user_id', user.id);
+        formData.append('from_matchmaker', '1');
+
+        router.post('/staff/users/upload-profile-picture', formData, {
+            forceFormData: true,
+            preserveScroll: true,
+            onSuccess: () => {
+                router.reload({ only: ['user', 'profile'] });
+            },
+            onError: (errors) => {
+                if (errors.profile_picture) {
+                    alert(errors.profile_picture);
+                } else {
+                    alert('An error occurred while uploading the profile picture.');
+                }
+            },
+        });
+    };
+
+    // Handle cover picture upload for matchmakers
+    const handleCoverPictureUpload = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        if (!file.type.startsWith('image/')) {
+            alert('Please select a valid image file.');
+            return;
+        }
+
+        if (file.size > 5 * 1024 * 1024) {
+            alert('Image size must be less than 5MB.');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('banner_image', file);
+        formData.append('user_id', user.id);
+        formData.append('from_matchmaker', '1');
+
+        router.post('/staff/users/upload-cover-picture', formData, {
+            forceFormData: true,
+            preserveScroll: true,
+            onSuccess: () => {
+                router.reload({ only: ['user', 'profile'] });
+            },
+            onError: (errors) => {
+                if (errors.banner_image) {
+                    alert(errors.banner_image);
+                } else {
+                    alert('An error occurred while uploading the cover picture.');
+                }
+            },
+        });
+    };
+
+    // Handle activate account
+    const handleActivateAccount = () => {
+        router.post(`/staff/users/${user.id}/activate`, {
+            reason: statusReason,
+        }, {
+            onSuccess: () => {
+                setActivateDialogOpen(false);
+                setStatusReason('');
+                router.reload();
+            },
+        });
+    };
+
+    // Handle deactivate account
+    const handleDeactivateAccount = () => {
+        router.post(`/staff/users/${user.id}/deactivate`, {
+            reason: statusReason,
+        }, {
+            onSuccess: () => {
+                setDeactivateDialogOpen(false);
+                setStatusReason('');
+                router.reload();
+            },
+        });
     };
 
     // Get profile picture
@@ -331,6 +527,31 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
         return role === 'user' ? 'personal' : 'info';
     });
 
+    // Active matchmaker action tab state (for matchmakers viewing user profiles)
+    const [activeMatchmakerTab, setActiveMatchmakerTab] = useState('actions');
+
+    // Transfer dialog state
+    const [transferDialogOpen, setTransferDialogOpen] = useState(false);
+    const [matchmakers, setMatchmakers] = useState([]);
+    const [selectedMatchmakerId, setSelectedMatchmakerId] = useState('');
+    const [transferReason, setTransferReason] = useState('');
+    const [loadingMatchmakers, setLoadingMatchmakers] = useState(false);
+    const [transferring, setTransferring] = useState(false);
+
+    // Activate/Deactivate dialog state
+    const [activateDialogOpen, setActivateDialogOpen] = useState(false);
+    const [deactivateDialogOpen, setDeactivateDialogOpen] = useState(false);
+    const [statusReason, setStatusReason] = useState('');
+
+    // Check if current user is the assigned matchmaker viewing their assigned user profile
+    // Only the assigned matchmaker can see the action tabs
+    const isMatchmakerViewingUser = 
+        viewerRole === 'matchmaker' && 
+        userRole === 'user' && 
+        user?.assigned_matchmaker_id != null &&
+        (Number(user?.assigned_matchmaker_id) === Number(auth?.user?.id) || 
+         String(user?.assigned_matchmaker_id) === String(auth?.user?.id));
+
     return (
         <AppLayout>
             <Head title={`${user?.name} - ${t('common.profile')}`}>
@@ -377,10 +598,16 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                     ) : (
                         <div className="h-full w-full bg-gradient-to-r from-blue-600 to-purple-600" />
                     )}
-                    {isOwnProfile && (
+                    {(isOwnProfile || (isMatchmakerViewingUser && canWrite)) && (
                         <div className="absolute top-4 right-4 z-20 flex gap-2">
                             <label htmlFor="banner-upload-input" className="cursor-pointer">
-                                <input type="file" accept="image/*" onChange={handleBannerUpload} className="hidden" id="banner-upload-input" />
+                                <input 
+                                    type="file" 
+                                    accept="image/*" 
+                                    onChange={isOwnProfile ? handleBannerUpload : handleCoverPictureUpload} 
+                                    className="hidden" 
+                                    id="banner-upload-input" 
+                                />
                                 <Button
                                     type="button"
                                     variant="secondary"
@@ -436,13 +663,13 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                                     </div>
                                                 )}
                                             </div>
-                                            {isOwnProfile && (
+                                            {(isOwnProfile || (isMatchmakerViewingUser && canWrite)) && (
                                                 <label className="absolute -right-2 -bottom-2 cursor-pointer">
                                                     <input
                                                         type="file"
                                                         accept="image/*"
                                                         id="profile-picture-upload"
-                                                        onChange={(e) => {
+                                                        onChange={isOwnProfile ? (e) => {
                                                             const file = e.target.files[0];
                                                             if (!file) return;
 
@@ -466,7 +693,7 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
 
                                                             const formData = new FormData();
                                                             formData.append('profile_picture', file);
-                                                            formData.append('from_profile_page', '1'); // Flag to indicate we're coming from profile page
+                                                            formData.append('from_profile_page', '1');
 
                                                             router.post('/settings/profile', formData, {
                                                                 forceFormData: true,
@@ -487,7 +714,7 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                                                     }
                                                                 },
                                                             });
-                                                        }}
+                                                        } : handleProfilePictureUpload}
                                                         className="hidden"
                                                     />
                                                     <Button
@@ -525,6 +752,8 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                             <div className="mt-3">
                                                 <a
                                                     href={`/agencies/${user.agency.id}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
                                                     className="text-sm font-medium text-[#096725] transition-colors hover:text-[#07501d] hover:underline"
                                                 >
                                                     {user.agency.name}
@@ -652,6 +881,644 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
 
                         {/* Main Content Area */}
                         <div className="space-y-6 lg:col-span-9">
+                            {/* Matchmaker Action Tabs Navigation - Only for matchmakers viewing user profiles */}
+                            {isMatchmakerViewingUser && (
+                                <div className="w-full">
+                                    {/* <div className="mb-2 flex items-center justify-end">
+                                        <span className="rounded bg-red-600 px-3 py-1 text-sm font-semibold text-white">
+                                            Message prive
+                                        </span>
+                                    </div> */}
+                                    <div className="flex items-center gap-1 rounded-lg border border-black bg-[#F5F5DC] p-1">
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                setActiveMatchmakerTab('actions');
+                                            }}
+                                            className={`flex flex-1 items-center justify-center gap-2 rounded px-3 py-2 text-sm font-medium transition-colors ${
+                                                activeMatchmakerTab === 'actions'
+                                                    ? 'bg-red-600 text-white'
+                                                    : 'text-red-600 hover:bg-red-50'
+                                            }`}
+                                        >
+                                            <UserCircle className="h-5 w-5" />
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                setActiveMatchmakerTab('photos');
+                                            }}
+                                            className={`flex flex-1 items-center justify-center gap-2 rounded px-3 py-2 text-sm font-medium transition-colors ${
+                                                activeMatchmakerTab === 'photos'
+                                                    ? 'bg-red-600 text-white'
+                                                    : 'text-red-600 hover:bg-red-50'
+                                            }`}
+                                        >
+                                            <Image className="h-5 w-5" />
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                setActiveMatchmakerTab('likes');
+                                            }}
+                                            className={`flex flex-1 items-center justify-center gap-2 rounded px-3 py-2 text-sm font-medium transition-colors ${
+                                                activeMatchmakerTab === 'likes'
+                                                    ? 'bg-red-600 text-white'
+                                                    : 'text-red-600 hover:bg-red-50'
+                                            }`}
+                                        >
+                                            <ThumbsUp className="h-5 w-5" />
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                setActiveMatchmakerTab('rdv');
+                                            }}
+                                            className={`flex flex-1 items-center justify-center gap-2 rounded px-3 py-2 text-sm font-medium transition-colors ${
+                                                activeMatchmakerTab === 'rdv'
+                                                    ? 'bg-red-600 text-white'
+                                                    : 'text-red-600 hover:bg-red-50'
+                                            }`}
+                                        >
+                                            {/* <CheckCircle className="h-5 w-5" /> */}
+                                            <Coffee className="h-5 w-5" />
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                setActiveMatchmakerTab('orders');
+                                            }}
+                                            className={`flex flex-1 items-center justify-center gap-2 rounded px-3 py-2 text-sm font-medium transition-colors ${
+                                                activeMatchmakerTab === 'orders'
+                                                    ? 'bg-red-600 text-white'
+                                                    : 'text-red-600 hover:bg-red-50'
+                                            }`}
+                                        >
+                                            <ShoppingCart className="h-5 w-5" />
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                setActiveMatchmakerTab('subscription');
+                                            }}
+                                            className={`flex flex-1 items-center justify-center gap-2 rounded px-3 py-2 text-sm font-medium transition-colors ${
+                                                activeMatchmakerTab === 'subscription'
+                                                    ? 'bg-red-600 text-white'
+                                                    : 'text-red-600 hover:bg-red-50'
+                                            }`}
+                                        >
+                                            <CreditCard className="h-5 w-5" />
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                setActiveMatchmakerTab('matchmaking');
+                                            }}
+                                            className={`flex flex-1 items-center justify-center gap-2 rounded px-3 py-2 text-sm font-medium transition-colors ${
+                                                activeMatchmakerTab === 'matchmaking'
+                                                    ? 'bg-red-600 text-white'
+                                                    : 'text-red-600 hover:bg-red-50'
+                                            }`}
+                                        >
+                                            <Lightbulb className="h-5 w-5" />
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                            {/* Matchmaker Action Tabs Content - Only for matchmakers viewing user profiles */}
+                            {isMatchmakerViewingUser && (
+                                <div className="w-full">
+                                    {/* Actions Tab */}
+                                    {activeMatchmakerTab === 'actions' && (
+                                            <div className="mt-6 space-y-4">
+                                                <Card className="border-gray-200 bg-white">
+                                                    <CardContent className="p-6">
+                                                        <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-gray-900">
+                                                            <UserCircle className="h-5 w-5 text-red-600" />
+                                                            Actions du membre
+                                                        </h3>
+                                                        
+                                                        {/* Step and Status Display */}
+                                                        <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+                                                            <div>
+                                                                <p className="text-sm font-medium text-gray-600 mb-2">Étape</p>
+                                                                <Badge className="bg-foreground text-background">
+                                                                    {getStep()}
+                                                                </Badge>
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-sm font-medium text-gray-600 mb-2">Statut</p>
+                                                                <Badge className={getStatusInfo(user?.status).className}>
+                                                                    {getStatusInfo(user?.status).label}
+                                                                </Badge>
+                                                            </div>
+                                                            {user?.profile?.account_status && (
+                                                                <div>
+                                                                    <p className="text-sm font-medium text-gray-600 mb-2">Statut du compte</p>
+                                                                    <Badge className={user.profile.account_status === 'active' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}>
+                                                                        {user.profile.account_status === 'active' ? 'Actif' : 'Désactivé'}
+                                                                    </Badge>
+                                                                </div>
+                                                            )}
+                                                        </div>
+
+                                                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                                            {(user?.status === 'member' || user?.status === 'client_expire') && !user?.has_bill && (
+                                                                <Button
+                                                                    variant="default"
+                                                                    size="sm"
+                                                                    className="bg-info hover:opacity-90"
+                                                                    onClick={() => router.visit(`/staff/prospects/${user.id}/subscription`)}
+                                                                >
+                                                                    <CreditCard className="w-4 h-4 mr-2" />
+                                                                    Abonnement
+                                                                </Button>
+                                                            )}
+                                                            {(user?.status === 'member' || user?.status === 'client_expire') && user?.has_bill && (
+                                                                <Button
+                                                                    variant="default"
+                                                                    size="sm"
+                                                                    className="bg-success hover:opacity-90"
+                                                                    onClick={() => {
+                                                                        router.post('/staff/mark-as-client', {
+                                                                            user_id: user.id
+                                                                        });
+                                                                    }}
+                                                                >
+                                                                    <CheckCircle className="w-4 h-4 mr-2" />
+                                                                    Marquer comme Client
+                                                                </Button>
+                                                            )}
+                                                            {canWrite && (
+                                                                <Button
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    className="border-blue-500 text-blue-600 hover:bg-blue-50"
+                                                                    onClick={() => router.visit(`/staff/prospects/${user.id}/profile/edit`)}
+                                                                >
+                                                                    <Pencil className="w-4 h-4 mr-2" />
+                                                                    Modifier le profil
+                                                                </Button>
+                                                            )}
+                                                            {user?.status === 'client_expire' && !user?.to_rappeler && (
+                                                                <Button
+                                                                    variant="default"
+                                                                    size="sm"
+                                                                    className="bg-warning hover:opacity-90"
+                                                                    onClick={() => {
+                                                                        router.post(`/staff/prospects/${user.id}/rappeler`, {}, {
+                                                                            onSuccess: () => router.reload()
+                                                                        });
+                                                                    }}
+                                                                >
+                                                                    <Phone className="w-4 h-4 mr-2" />
+                                                                    Rappeler
+                                                                </Button>
+                                                            )}
+                                                            {canWrite && (
+                                                                <Button
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    onClick={handleTransferClick}
+                                                                >
+                                                                    <ArrowRightLeft className="w-4 h-4 mr-2" />
+                                                                    Transférer
+                                                                </Button>
+                                                            )}
+                                                            {canWrite && (
+                                                                user?.profile?.account_status === 'desactivated' ? (
+                                                                    <Button
+                                                                        variant="default"
+                                                                        size="sm"
+                                                                        className="bg-green-600 hover:bg-green-700"
+                                                                        onClick={() => {
+                                                                            setStatusReason('');
+                                                                            setActivateDialogOpen(true);
+                                                                        }}
+                                                                    >
+                                                                        <CheckCircle className="w-4 h-4 mr-2" />
+                                                                        Activer le compte
+                                                                    </Button>
+                                                                ) : (
+                                                                    <Button
+                                                                        variant="destructive"
+                                                                        size="sm"
+                                                                        onClick={() => {
+                                                                            setStatusReason('');
+                                                                            setDeactivateDialogOpen(true);
+                                                                        }}
+                                                                    >
+                                                                        <X className="w-4 h-4 mr-2" />
+                                                                        Désactiver le compte
+                                                                    </Button>
+                                                                )
+                                                            )}
+                                                            {(!canWrite && 
+                                                              !((user?.status === 'member' || user?.status === 'client_expire') && !user?.has_bill) &&
+                                                              !((user?.status === 'member' || user?.status === 'client_expire') && user?.has_bill) &&
+                                                              !(user?.status === 'client_expire' && !user?.to_rappeler)) && (
+                                                                <p className="text-gray-500 text-sm">Aucune action disponible pour ce membre.</p>
+                                                            )}
+                                                        </div>
+                                                    </CardContent>
+                                                </Card>
+                                            </div>
+                                        )}
+
+                                        {/* Subscription Details Tab */}
+                                        {activeMatchmakerTab === 'subscription' && (
+                                            <div className="mt-6 space-y-4">
+                                                <Card className="border-gray-200 bg-white">
+                                                    <CardContent className="p-6">
+                                                        <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-gray-900">
+                                                            <CreditCard className="h-5 w-5 text-red-600" />
+                                                            Détails de l'abonnement
+                                                        </h3>
+                                                        {subscriptions && subscriptions.length > 0 ? (
+                                                            <div className="space-y-4">
+                                                                {subscriptions.map((subscription) => (
+                                                                    <Card key={subscription.id} className="border-gray-200">
+                                                                        <CardContent className="p-4">
+                                                                            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                                                                <div>
+                                                                                    <p className="text-sm font-medium text-gray-600">Pack</p>
+                                                                                    <p className="text-base font-semibold">{subscription.matrimonial_pack?.name || 'N/A'}</p>
+                                                                                </div>
+                                                                                <div>
+                                                                                    <p className="text-sm font-medium text-gray-600">Statut</p>
+                                                                                    <Badge className={subscription.status === 'active' ? 'bg-green-600' : subscription.status === 'expired' ? 'bg-red-600' : 'bg-gray-600'}>
+                                                                                        {subscription.status === 'active' ? 'Actif' : subscription.status === 'expired' ? 'Expiré' : 'Annulé'}
+                                                                                    </Badge>
+                                                                                </div>
+                                                                                <div>
+                                                                                    <p className="text-sm font-medium text-gray-600">Date de début</p>
+                                                                                    <p className="text-base">{subscription.subscription_start ? new Date(subscription.subscription_start).toLocaleDateString('fr-FR') : 'N/A'}</p>
+                                                                                </div>
+                                                                                <div>
+                                                                                    <p className="text-sm font-medium text-gray-600">Date de fin</p>
+                                                                                    <p className="text-base">{subscription.subscription_end ? new Date(subscription.subscription_end).toLocaleDateString('fr-FR') : 'N/A'}</p>
+                                                                                </div>
+                                                                                <div>
+                                                                                    <p className="text-sm font-medium text-gray-600">Durée</p>
+                                                                                    <p className="text-base">{subscription.duration_months} mois</p>
+                                                                                </div>
+                                                                                <div>
+                                                                                    <p className="text-sm font-medium text-gray-600">Prix</p>
+                                                                                    <p className="text-base font-semibold">{subscription.pack_price} MAD</p>
+                                                                                </div>
+                                                                                {subscription.days_remaining !== null && subscription.days_remaining > 0 && (
+                                                                                    <div>
+                                                                                        <p className="text-sm font-medium text-gray-600">Jours restants</p>
+                                                                                        <p className="text-base">{subscription.days_remaining} jours</p>
+                                                                                    </div>
+                                                                                )}
+                                                                            </div>
+                                                                        </CardContent>
+                                                                    </Card>
+                                                                ))}
+                                                            </div>
+                                                        ) : (
+                                                            <p className="text-gray-500">Aucun abonnement trouvé</p>
+                                                        )}
+                                                    </CardContent>
+                                                </Card>
+                                            </div>
+                                        )}
+
+                                        {/* Order Details (Bills) Tab */}
+                                        {activeMatchmakerTab === 'orders' && (
+                                            <div className="mt-6 space-y-4">
+                                                <Card className="border-gray-200 bg-white">
+                                                    <CardContent className="p-6">
+                                                        <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-gray-900">
+                                                            <FileText className="h-5 w-5 text-red-600" />
+                                                            Détails des commandes (Factures)
+                                                        </h3>
+                                                        {bills && bills.length > 0 ? (
+                                                            <div className="overflow-x-auto">
+                                                                <Table>
+                                                                    <TableHeader>
+                                                                        <TableRow>
+                                                                            <TableHead>Numéro de facture</TableHead>
+                                                                            <TableHead>Numéro de commande</TableHead>
+                                                                            <TableHead>Date</TableHead>
+                                                                            <TableHead>Montant</TableHead>
+                                                                            <TableHead>Statut</TableHead>
+                                                                            <TableHead>Mode de paiement</TableHead>
+                                                                        </TableRow>
+                                                                    </TableHeader>
+                                                                    <TableBody>
+                                                                        {bills.map((bill) => (
+                                                                            <TableRow key={bill.id}>
+                                                                                <TableCell className="font-medium">{bill.bill_number}</TableCell>
+                                                                                <TableCell>{bill.order_number}</TableCell>
+                                                                                <TableCell>{bill.bill_date ? new Date(bill.bill_date).toLocaleDateString('fr-FR') : 'N/A'}</TableCell>
+                                                                                <TableCell>{bill.total_amount} {bill.currency}</TableCell>
+                                                                                <TableCell>
+                                                                                    <Badge className={bill.status === 'paid' ? 'bg-green-600' : bill.status === 'unpaid' ? 'bg-red-600' : 'bg-gray-600'}>
+                                                                                        {bill.status === 'paid' ? 'Payé' : bill.status === 'unpaid' ? 'Non payé' : bill.status}
+                                                                                    </Badge>
+                                                                                </TableCell>
+                                                                                <TableCell>{bill.payment_method}</TableCell>
+                                                                            </TableRow>
+                                                                        ))}
+                                                                    </TableBody>
+                                                                </Table>
+                                                            </div>
+                                                        ) : (
+                                                            <p className="text-gray-500">Aucune facture trouvée</p>
+                                                        )}
+                                                    </CardContent>
+                                                </Card>
+                                            </div>
+                                        )}
+
+                                        {/* Rendez-vous Details Tab */}
+                                        {activeMatchmakerTab === 'rdv' && (
+                                            <div className="mt-6 space-y-4">
+                                                <Card className="border-gray-200 bg-white">
+                                                    <CardContent className="p-6">
+                                                        <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-gray-900">
+                                                            <Calendar className="h-5 w-5 text-red-600" />
+                                                            Détails des rendez-vous
+                                                        </h3>
+                                                        <div className="space-y-4">
+                                                            <div>
+                                                                <p className="text-sm font-medium text-gray-600">Statut</p>
+                                                                <Badge className={user?.status === 'en_rdv' ? 'bg-blue-600' : 'bg-gray-400'}>
+                                                                    {user?.status === 'en_rdv' ? 'En rendez-vous' : 'Pas de rendez-vous'}
+                                                                </Badge>
+                                                            </div>
+                                                            {user?.status === 'en_rdv' && (
+                                                                <div>
+                                                                    <p className="text-sm font-medium text-gray-600">Informations</p>
+                                                                    <p className="text-base text-gray-700">Le membre est actuellement en rendez-vous.</p>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </CardContent>
+                                                </Card>
+                                            </div>
+                                        )}
+
+                                        {/* Matchmaking Search Tab */}
+                                        {activeMatchmakerTab === 'matchmaking' && (
+                                            <div className="mt-6 space-y-4">
+                                                <Card className="border-gray-200 bg-white">
+                                                    <CardContent className="p-6">
+                                                        <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-gray-900">
+                                                            <Search className="h-5 w-5 text-red-600" />
+                                                            Recherche de Matchmaking
+                                                        </h3>
+                                                        {matchmakingSearch ? (
+                                                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                                                {matchmakingSearch.age_minimum && matchmakingSearch.age_maximum && (
+                                                                    <div>
+                                                                        <p className="text-sm font-medium text-gray-600">Tranche d'âge</p>
+                                                                        <p className="text-base">{matchmakingSearch.age_minimum} - {matchmakingSearch.age_maximum} ans</p>
+                                                                    </div>
+                                                                )}
+                                                                {matchmakingSearch.situation_matrimoniale_recherche && (
+                                                                    <div>
+                                                                        <p className="text-sm font-medium text-gray-600">Situation matrimoniale recherchée</p>
+                                                                        <p className="text-base">
+                                                                            {Array.isArray(matchmakingSearch.situation_matrimoniale_recherche)
+                                                                                ? matchmakingSearch.situation_matrimoniale_recherche.join(', ')
+                                                                                : matchmakingSearch.situation_matrimoniale_recherche}
+                                                                        </p>
+                                                                    </div>
+                                                                )}
+                                                                {matchmakingSearch.pays_recherche && (
+                                                                    <div>
+                                                                        <p className="text-sm font-medium text-gray-600">Pays recherché</p>
+                                                                        <p className="text-base">
+                                                                            {Array.isArray(matchmakingSearch.pays_recherche)
+                                                                                ? matchmakingSearch.pays_recherche.join(', ')
+                                                                                : matchmakingSearch.pays_recherche}
+                                                                        </p>
+                                                                    </div>
+                                                                )}
+                                                                {matchmakingSearch.villes_recherche && matchmakingSearch.villes_recherche.length > 0 && (
+                                                                    <div>
+                                                                        <p className="text-sm font-medium text-gray-600">Villes recherchées</p>
+                                                                        <p className="text-base">
+                                                                            {Array.isArray(matchmakingSearch.villes_recherche)
+                                                                                ? matchmakingSearch.villes_recherche.join(', ')
+                                                                                : matchmakingSearch.villes_recherche}
+                                                                        </p>
+                                                                    </div>
+                                                                )}
+                                                                {matchmakingSearch.niveau_etudes_recherche && (
+                                                                    <div>
+                                                                        <p className="text-sm font-medium text-gray-600">Niveau d'études recherché</p>
+                                                                        <p className="text-base">{matchmakingSearch.niveau_etudes_recherche}</p>
+                                                                    </div>
+                                                                )}
+                                                                {matchmakingSearch.statut_emploi_recherche && (
+                                                                    <div>
+                                                                        <p className="text-sm font-medium text-gray-600">Statut d'emploi recherché</p>
+                                                                        <p className="text-base">{matchmakingSearch.statut_emploi_recherche}</p>
+                                                                    </div>
+                                                                )}
+                                                                {matchmakingSearch.revenu_minimum && (
+                                                                    <div>
+                                                                        <p className="text-sm font-medium text-gray-600">Revenu minimum recherché</p>
+                                                                        <p className="text-base">{matchmakingSearch.revenu_minimum}</p>
+                                                                    </div>
+                                                                )}
+                                                                {matchmakingSearch.religion_recherche && (
+                                                                    <div>
+                                                                        <p className="text-sm font-medium text-gray-600">Religion recherchée</p>
+                                                                        <p className="text-base">{matchmakingSearch.religion_recherche}</p>
+                                                                    </div>
+                                                                )}
+                                                                {matchmakingSearch.profil_recherche_description && (
+                                                                    <div className="md:col-span-2">
+                                                                        <p className="text-sm font-medium text-gray-600">Description du profil recherché</p>
+                                                                        <p className="text-base">{matchmakingSearch.profil_recherche_description}</p>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        ) : (
+                                                            <p className="text-gray-500">Aucune information de recherche de matchmaking disponible</p>
+                                                        )}
+                                                    </CardContent>
+                                                </Card>
+
+                                                {/* Matchmaking Results (À proposer) */}
+                                                {matchmakingResults && matchmakingResults.length > 0 && (
+                                                    <Card className="border-gray-200 bg-white">
+                                                        <CardContent className="p-6">
+                                                            <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-gray-900">
+                                                                <Heart className="h-5 w-5 text-red-600" />
+                                                                Résultats de Matchmaking ({matchmakingResults.length} profil{matchmakingResults.length > 1 ? 's' : ''} compatible{matchmakingResults.length > 1 ? 's' : ''})
+                                                            </h3>
+                                                            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                                                                {matchmakingResults.map((match) => {
+                                                                    // Helper functions for display
+                                                                    const getProfilePicture = (user, profile) => {
+                                                                        const profilePicturePath = profile?.profile_picture_path;
+                                                                        if (profilePicturePath) {
+                                                                            return `/storage/${profilePicturePath}`;
+                                                                        }
+                                                                        return `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=random`;
+                                                                    };
+
+                                                                    const getLocation = (profile) => {
+                                                                        const city = profile?.ville_residence || profile?.ville_origine || '';
+                                                                        const country = profile?.pays_residence || profile?.pays_origine || '';
+                                                                        if (city && country) {
+                                                                            return `${city}, ${country}`;
+                                                                        }
+                                                                        return city || country || 'Non spécifié';
+                                                                    };
+
+                                                                    const getAge = (profile) => {
+                                                                        if (!profile?.date_naissance) return null;
+                                                                        const birthDate = new Date(profile.date_naissance);
+                                                                        const today = new Date();
+                                                                        let age = today.getFullYear() - birthDate.getFullYear();
+                                                                        const monthDiff = today.getMonth() - birthDate.getMonth();
+                                                                        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+                                                                            age--;
+                                                                        }
+                                                                        return age;
+                                                                    };
+
+                                                                    const getScoreColor = (score) => {
+                                                                        if (score >= 70) return 'text-green-600 border-green-600';
+                                                                        if (score >= 50) return 'text-yellow-600 border-yellow-600';
+                                                                        return 'text-orange-600 border-orange-600';
+                                                                    };
+
+                                                                    return (
+                                                                        <Card 
+                                                                            key={match.user.id} 
+                                                                            className="hover:shadow-md transition-shadow"
+                                                                        >
+                                                                            <CardContent className="p-4">
+                                                                                <div className="flex items-start gap-3 mb-3">
+                                                                                    <img
+                                                                                        src={getProfilePicture(match.user, match.profile)}
+                                                                                        alt={match.user.name}
+                                                                                        className="w-12 h-12 rounded-full object-cover"
+                                                                                    />
+                                                                                    <div className="flex-1 min-w-0">
+                                                                                        <h4 className="font-semibold text-sm truncate">{match.user.name}</h4>
+                                                                                        <p className="text-xs text-gray-500 truncate">{match.user.email}</p>
+                                                                                    </div>
+                                                                                    <Badge 
+                                                                                        variant="outline" 
+                                                                                        className={`${getScoreColor(match.score)} text-xs font-semibold`}
+                                                                                    >
+                                                                                        {match.score.toFixed(1)}%
+                                                                                    </Badge>
+                                                                                </div>
+                                                                                <div className="space-y-1.5 text-xs text-gray-600">
+                                                                                    {getAge(match.profile) && (
+                                                                                        <div className="flex items-center gap-1">
+                                                                                            <Calendar className="w-3 h-3" />
+                                                                                            <span>{getAge(match.profile)} ans</span>
+                                                                                        </div>
+                                                                                    )}
+                                                                                    <div className="flex items-center gap-1">
+                                                                                        <MapPin className="w-3 h-3" />
+                                                                                        <span className="truncate">{getLocation(match.profile)}</span>
+                                                                                    </div>
+                                                                                    {match.profile.niveau_etudes && (
+                                                                                        <div className="flex items-center gap-1">
+                                                                                            <GraduationCap className="w-3 h-3" />
+                                                                                            <span className="truncate">{match.profile.niveau_etudes}</span>
+                                                                                        </div>
+                                                                                    )}
+                                                                                    {match.profile.situation_professionnelle && (
+                                                                                        <div className="flex items-center gap-1">
+                                                                                            <Briefcase className="w-3 h-3" />
+                                                                                            <span className="truncate">{match.profile.situation_professionnelle}</span>
+                                                                                        </div>
+                                                                                    )}
+                                                                                </div>
+                                                                                <div className="mt-3 pt-3 border-t">
+                                                                                    <Button
+                                                                                        variant="outline"
+                                                                                        size="sm"
+                                                                                        className="w-full text-xs"
+                                                                                        onClick={() => window.open(`/profile/${match.user.username || match.user.id}`, '_blank', 'noopener,noreferrer')}
+                                                                                    >
+                                                                                        <User className="w-3 h-3 mr-1" />
+                                                                                        Voir le profil
+                                                                                    </Button>
+                                                                                </div>
+                                                                            </CardContent>
+                                                                        </Card>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        </CardContent>
+                                                    </Card>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {/* Photos Tab (reuse existing photos tab) */}
+                                        {activeMatchmakerTab === 'photos' && (
+                                            <div className="mt-6 space-y-6">
+                                                <Card className="border-gray-200 bg-white">
+                                                    <CardContent className="p-6">
+                                                        <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-gray-900">
+                                                            <Image className="h-5 w-5 text-red-600" />
+                                                            Photos
+                                                        </h3>
+                                                        {photos && photos.length > 0 ? (
+                                                            <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
+                                                                {photos.map((photo) => (
+                                                                    <div
+                                                                        key={photo.id}
+                                                                        className="group relative aspect-square overflow-hidden rounded-lg border border-gray-200 bg-gray-100"
+                                                                    >
+                                                                        <img
+                                                                            src={photo.url}
+                                                                            alt={photo.file_name || 'User photo'}
+                                                                            className="h-full w-full object-cover"
+                                                                        />
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        ) : (
+                                                            <div className="py-12 text-center text-gray-500">
+                                                                <Image className="mx-auto mb-4 h-12 w-12 text-gray-400" />
+                                                                <p>Aucune photo téléchargée</p>
+                                                            </div>
+                                                        )}
+                                                    </CardContent>
+                                                </Card>
+                                            </div>
+                                        )}
+
+                                        {/* Likes Tab (placeholder) */}
+                                        {activeMatchmakerTab === 'likes' && (
+                                            <div className="mt-6 space-y-4">
+                                                <Card className="border-gray-200 bg-white">
+                                                    <CardContent className="p-6">
+                                                        <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-gray-900">
+                                                            <ThumbsUp className="h-5 w-5 text-red-600" />
+                                                            J'aimes
+                                                        </h3>
+                                                        <p className="text-gray-500">Fonctionnalité à venir</p>
+                                                    </CardContent>
+                                                </Card>
+                                            </div>
+                                        )}
+                                </div>
+                            )}
+
                             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                                 {/* Tabs for regular users */}
                                 {userRole === 'user' && (
@@ -1841,7 +2708,7 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                                         {photos.map((photo) => (
                                                             <div
                                                                 key={photo.id}
-                                                                className="aspect-square overflow-hidden rounded-lg border border-gray-200 bg-gray-100"
+                                                                className="group relative aspect-square overflow-hidden rounded-lg border border-gray-200 bg-gray-100"
                                                             >
                                                                 <img
                                                                     src={photo.url}
@@ -1853,6 +2720,31 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                                                             'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200"%3E%3Crect fill="%23e5e7eb" width="200" height="200"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dominant-baseline="middle" fill="%239ca3af" font-family="Arial" font-size="14"%3EImage non disponible%3C/text%3E%3C/svg%3E';
                                                                     }}
                                                                 />
+                                                                {/* Delete button - Only show if user can delete this specific photo */}
+                                                                {photo.can_delete && (
+                                                                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                        <DropdownMenu>
+                                                                            <DropdownMenuTrigger asChild>
+                                                                                <Button
+                                                                                    variant="ghost"
+                                                                                    size="sm"
+                                                                                    className="h-8 w-8 p-0 bg-black/50 hover:bg-black/70 text-white"
+                                                                                >
+                                                                                    <MoreVertical className="h-4 w-4" />
+                                                                                </Button>
+                                                                            </DropdownMenuTrigger>
+                                                                            <DropdownMenuContent align="end">
+                                                                                <DropdownMenuItem
+                                                                                    onClick={() => handleDeletePhoto(photo.id)}
+                                                                                    className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                                                                                >
+                                                                                    <Trash2 className="w-4 h-4 mr-2" />
+                                                                                    Supprimer
+                                                                                </DropdownMenuItem>
+                                                                            </DropdownMenuContent>
+                                                                        </DropdownMenu>
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         ))}
                                                     </div>
@@ -1867,10 +2759,179 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                     </TabsContent>
                                 )}
                             </Tabs>
+
+                            
                         </div>
                     </div>
                 </div>
             </div>
+
+            {/* Delete Photo Confirmation Dialog */}
+            <Dialog open={!!photoToDelete} onOpenChange={(open) => { if (!open) setPhotoToDelete(null); }}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Supprimer la photo</DialogTitle>
+                        <DialogDescription>
+                            Êtes-vous sûr de vouloir supprimer cette photo ? Cette action est irréversible.
+                            {photoToDelete && (
+                                <span className="block mt-2 text-sm font-medium">{photoToDelete.file_name}</span>
+                            )}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => setPhotoToDelete(null)}
+                        >
+                            Annuler
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={confirmDeletePhoto}
+                        >
+                            Supprimer
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Transfer Dialog */}
+            <Dialog open={transferDialogOpen} onOpenChange={setTransferDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Transférer le membre</DialogTitle>
+                        <DialogDescription>
+                            Sélectionnez le matchmaker vers lequel transférer {user?.name}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                        {loadingMatchmakers ? (
+                            <p className="text-sm text-gray-500">Chargement des matchmakers...</p>
+                        ) : (
+                            <>
+                                <div className="space-y-2">
+                                    <Label>Matchmaker</Label>
+                                    <Select
+                                        value={selectedMatchmakerId}
+                                        onValueChange={setSelectedMatchmakerId}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Sélectionnez un matchmaker" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {matchmakers.map((matchmaker) => (
+                                                <SelectItem key={matchmaker.id} value={String(matchmaker.id)}>
+                                                    {matchmaker.name} {matchmaker.email ? `(${matchmaker.email})` : ''}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Raison (optionnel)</Label>
+                                    <textarea
+                                        className="w-full min-h-[100px] rounded-md border border-gray-300 px-3 py-2"
+                                        value={transferReason}
+                                        onChange={(e) => setTransferReason(e.target.value)}
+                                        placeholder="Raison du transfert..."
+                                    />
+                                </div>
+                            </>
+                        )}
+                    </div>
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => setTransferDialogOpen(false)}
+                            disabled={transferring}
+                        >
+                            Annuler
+                        </Button>
+                        <Button
+                            onClick={handleTransferSubmit}
+                            disabled={!selectedMatchmakerId || transferring || loadingMatchmakers}
+                        >
+                            {transferring ? 'Envoi...' : 'Envoyer la demande'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Activate Account Dialog */}
+            <Dialog open={activateDialogOpen} onOpenChange={setActivateDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Activer le compte</DialogTitle>
+                        <DialogDescription>
+                            Vous êtes sur le point d'activer le compte de {user?.name}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                            <Label>Raison (optionnel)</Label>
+                            <textarea
+                                className="w-full min-h-[100px] rounded-md border border-gray-300 px-3 py-2"
+                                value={statusReason}
+                                onChange={(e) => setStatusReason(e.target.value)}
+                                placeholder="Raison de l'activation..."
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => setActivateDialogOpen(false)}
+                        >
+                            Annuler
+                        </Button>
+                        <Button
+                            onClick={handleActivateAccount}
+                            className="bg-green-600 hover:bg-green-700"
+                        >
+                            <CheckCircle className="w-4 h-4 mr-2" />
+                            Activer
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Deactivate Account Dialog */}
+            <Dialog open={deactivateDialogOpen} onOpenChange={setDeactivateDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Désactiver le compte</DialogTitle>
+                        <DialogDescription>
+                            Vous êtes sur le point de désactiver le compte de {user?.name}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                            <Label>Raison (optionnel)</Label>
+                            <textarea
+                                className="w-full min-h-[100px] rounded-md border border-gray-300 px-3 py-2"
+                                value={statusReason}
+                                onChange={(e) => setStatusReason(e.target.value)}
+                                placeholder="Raison de la désactivation..."
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => setDeactivateDialogOpen(false)}
+                        >
+                            Annuler
+                        </Button>
+                        <Button
+                            onClick={handleDeactivateAccount}
+                            variant="destructive"
+                        >
+                            <X className="w-4 h-4 mr-2" />
+                            Désactiver
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </AppLayout>
     );
 }

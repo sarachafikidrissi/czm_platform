@@ -9,6 +9,7 @@ class UserPhoto extends Model
 {
     protected $fillable = [
         'user_id',
+        'uploaded_by',
         'file_path',
         'file_name',
         'file_disk',
@@ -23,6 +24,11 @@ class UserPhoto extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function uploader(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'uploaded_by');
     }
 
     public function getUrlAttribute(): string

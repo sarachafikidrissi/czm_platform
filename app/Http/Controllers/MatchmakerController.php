@@ -8,6 +8,7 @@ use App\Models\MatrimonialPack;
 use App\Models\MatchmakerNote;
 use App\Models\MatchmakerEvaluation;
 use App\Models\TransferRequest;
+use App\Models\UserPhoto;
 use App\Mail\BillEmail;
 use App\Mail\ProspectCredentialsMail;
 use Illuminate\Http\Request;
@@ -21,6 +22,7 @@ use Inertia\Inertia;
 use App\Models\Service;
 use Illuminate\Support\Facades\Schema;
 use App\Services\MatchmakingService;
+use Illuminate\Support\Facades\Storage;
 
 class MatchmakerController extends Controller
 {
@@ -102,8 +104,13 @@ class MatchmakerController extends Controller
             if ($roleName === 'matchmaker') {
                 $query->where('rejected_by', $me->id);
             }
+        } elseif ($statusFilter === 'traite') {
+            // Show only treated prospects (but still active, not rejected)
+            $query->where('is_traite', true);
+            $query->whereNull('rejection_reason');
         } else {
-            // Default to active (non-rejected) prospects
+            // Default to active (non-rejected) prospects - show ALL active prospects regardless of is_traite
+            // is_traite is just a marker to show if matchmaker has seen/contacted, not a filter
             $query->whereNull('rejection_reason');
         }
 
@@ -117,7 +124,7 @@ class MatchmakerController extends Controller
             });
         }
 
-        $prospects = $query->get(['id','name','username','email','phone','country','city','status','agency_id','assigned_matchmaker_id','rejection_reason','rejected_by','rejected_at','created_at']);
+        $prospects = $query->orderBy('created_at', 'desc')->get(['id','name','username','email','phone','country','city','status','agency_id','assigned_matchmaker_id','rejection_reason','rejected_by','rejected_at','is_traite','created_at']);
         $prospects->load(['profile', 'assignedMatchmaker', 'agency']);
         
         $services = [];
@@ -317,6 +324,30 @@ class MatchmakerController extends Controller
             }
         }
 
+        // Record initial matchmaker assignment in history when prospect becomes member
+        $history = $prospect->matchmaker_assignment_history ?? [];
+        $oldAssignedId = $prospect->assigned_matchmaker_id;
+        
+        // If assigned_matchmaker_id is being set/changed and not already in history, record it
+        if ($assignedId && ($oldAssignedId !== $assignedId || empty($history))) {
+            // Check if this matchmaker is already in history
+            $alreadyRecorded = false;
+            foreach ($history as $entry) {
+                if (isset($entry['matchmaker_id']) && $entry['matchmaker_id'] == $assignedId) {
+                    $alreadyRecorded = true;
+                    break;
+                }
+            }
+            
+            // If not already recorded, add initial assignment
+            if (!$alreadyRecorded) {
+                $history[] = [
+                    'matchmaker_id' => $assignedId,
+                    'assigned_at' => now()->toIso8601String(),
+                ];
+            }
+        }
+        
         $prospect->update([
             'assigned_matchmaker_id' => $assignedId,
             'approval_status' => 'approved',
@@ -324,6 +355,7 @@ class MatchmakerController extends Controller
             'approved_by' => Auth::id(),
             'approved_at' => now(),
             'validated_by_manager_id' => $validatedByManagerId,
+            'matchmaker_assignment_history' => $history,
             // Note: agency_id is preserved to maintain original agency tracking
         ]);
 
@@ -524,6 +556,59 @@ class MatchmakerController extends Controller
         return redirect()->back()->with('success', $userType . ' marqué comme "A rappeler" avec succès.');
     }
 
+    /**
+     * Toggle traité status for a prospect
+     */
+    public function toggleTraite(Request $request, $id)
+    {
+        $me = Auth::user();
+        if (!$me) {
+            abort(403, 'Unauthorized.');
+        }
+
+        $roleName = \Illuminate\Support\Facades\DB::table('model_has_roles')
+            ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+            ->where('model_has_roles.model_id', $me->id)
+            ->value('roles.name');
+
+        if (!in_array($roleName, ['matchmaker', 'manager', 'admin'])) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $prospect = User::findOrFail($id);
+
+        // Check if prospect status is still 'prospect'
+        if ($prospect->status !== 'prospect') {
+            return redirect()->back()->with('error', 'Ce prospect n\'est plus un prospect.');
+        }
+
+        // Check authorization: admin, assigned matchmaker, or manager from same agency
+        $canToggle = false;
+        if ($roleName === 'admin') {
+            $canToggle = true;
+        } elseif ($roleName === 'matchmaker') {
+            if ($prospect->assigned_matchmaker_id === $me->id) {
+                $canToggle = true;
+            }
+        } elseif ($roleName === 'manager') {
+            if ($prospect->agency_id === $me->agency_id || $prospect->assigned_matchmaker_id === $me->id) {
+                $canToggle = true;
+            }
+        }
+
+        if (!$canToggle) {
+            abort(403, 'You are not authorized to toggle this prospect\'s status.');
+        }
+
+        // Toggle the is_traite status
+        $prospect->update([
+            'is_traite' => !$prospect->is_traite,
+        ]);
+
+        $status = $prospect->is_traite ? 'traité' : 'pas traité';
+        return redirect()->back()->with('success', "Prospect marqué comme {$status}.");
+    }
+
     public function validatedProspects(Request $request)
     {
         // Allow roles: admin, manager, matchmaker (middleware handles role)
@@ -556,11 +641,8 @@ class MatchmakerController extends Controller
         // Role-based filtering
         if ($me) {
             if ($roleName === 'matchmaker') {
-                // Matchmaker: see users they validated OR assigned to them (not all from agency)
-                $query->where(function($q) use ($me) {
-                    $q->where('approved_by', $me->id)
-                      ->orWhere('assigned_matchmaker_id', $me->id);
-                });
+                // Matchmaker: see only users assigned to them (removed from old matchmaker's list when transferred)
+                $query->where('assigned_matchmaker_id', $me->id);
             } elseif ($roleName === 'manager') {
                 // Manager: see all members/clients validated from prospects assigned to their agency
                 // This includes:
@@ -670,7 +752,7 @@ class MatchmakerController extends Controller
             },
             'subscriptions.matrimonialPack',
             'subscriptions.assignedMatchmaker'
-        ])->paginate(8)->withQueryString();
+        ])->orderBy('created_at', 'desc')->paginate(8)->withQueryString();
         
         // Ensure to_rappeler is included in the response
         $prospects->each(function($prospect) {
@@ -1104,8 +1186,13 @@ class MatchmakerController extends Controller
             if ($roleName === 'matchmaker') {
                 $query->where('rejected_by', $me->id);
             }
+        } elseif ($statusFilter === 'traite') {
+            // Show only treated prospects (but still active, not rejected)
+            $query->where('is_traite', true);
+            $query->whereNull('rejection_reason');
         } else {
-            // Default to active (non-rejected) prospects
+            // Default to active (non-rejected) prospects - show ALL active prospects regardless of is_traite
+            // is_traite is just a marker to show if matchmaker has seen/contacted, not a filter
             $query->whereNull('rejection_reason');
         }
 
@@ -1117,8 +1204,9 @@ class MatchmakerController extends Controller
             }
         }
 
-        $prospects = $query->select(['id','name','username','email','phone','country','city','gender','status','agency_id','assigned_matchmaker_id','rejection_reason','rejected_by','rejected_at','to_rappeler','created_at'])
+        $prospects = $query->select(['id','name','username','email','phone','country','city','gender','status','agency_id','assigned_matchmaker_id','rejection_reason','rejected_by','rejected_at','to_rappeler','is_traite','created_at'])
             ->with(['profile', 'assignedMatchmaker', 'agency'])
+            ->orderBy('created_at', 'desc')
             ->paginate(8)
             ->withQueryString();
         
@@ -1739,6 +1827,65 @@ class MatchmakerController extends Controller
     }
 
     /**
+     * Show subscription creation page for a member/client
+     */
+    public function createSubscriptionPage($id)
+    {
+        $me = Auth::user();
+        if (!$me) {
+            abort(403, 'Unauthorized.');
+        }
+
+        $roleName = \Illuminate\Support\Facades\DB::table('model_has_roles')
+            ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+            ->where('model_has_roles.model_id', $me->id)
+            ->value('roles.name');
+
+        if (!in_array($roleName, ['matchmaker', 'manager', 'admin'])) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $user = User::findOrFail($id);
+        
+        // Check if user is a member or client_expire
+        if (!in_array($user->status, ['member', 'client_expire'])) {
+            return redirect()->back()->with('error', 'Seuls les membres ou clients expirés peuvent avoir un abonnement créé.');
+        }
+
+        $profile = $user->profile;
+        if (!$profile) {
+            return redirect()->back()->with('error', 'Profil utilisateur non trouvé.');
+        }
+
+        // Check authorization
+        $canCreate = false;
+        if ($roleName === 'admin') {
+            $canCreate = true;
+        } elseif ($roleName === 'matchmaker') {
+            if ($user->assigned_matchmaker_id === $me->id) {
+                $canCreate = true;
+            }
+        } elseif ($roleName === 'manager') {
+            if ($user->agency_id === $me->agency_id || $user->assigned_matchmaker_id === $me->id) {
+                $canCreate = true;
+            }
+        }
+
+        if (!$canCreate) {
+            abort(403, 'Vous n\'êtes pas autorisé à créer un abonnement pour cet utilisateur.');
+        }
+
+        // Get matrimonial packs
+        $matrimonialPacks = \App\Models\MatrimonialPack::all();
+
+        return Inertia::render('matchmaker/create-subscription', [
+            'user' => $user,
+            'profile' => $profile,
+            'matrimonialPacks' => $matrimonialPacks,
+        ]);
+    }
+
+    /**
      * Update prospect profile (staff can fill/edit)
      */
     public function updateProspectProfile(Request $request, $id)
@@ -1811,6 +1958,11 @@ class MatchmakerController extends Controller
                 $profile->current_step = 4;
                 $profile->is_completed = true;
                 $profile->completed_at = now();
+                
+                // Handle photo uploads
+                if ($request->hasFile('photos')) {
+                    $this->handlePhotoUploads($prospect, $request);
+                }
                 break;
         }
 
@@ -2061,6 +2213,33 @@ class MatchmakerController extends Controller
     }
 
     /**
+     * Handle photo uploads for user gallery
+     */
+    private function handlePhotoUploads(User $user, Request $request)
+    {
+        $request->validate([
+            'photos' => 'required|array|min:1|max:10',
+            'photos.*' => 'image|mimes:jpeg,png,jpg,gif,webp|max:10240', // 10MB max per image
+        ]);
+
+        $currentUser = Auth::user(); // Get the matchmaker/admin who is uploading
+
+        foreach ($request->file('photos') as $file) {
+            $path = $file->store('user-photos', 'public');
+            
+            UserPhoto::create([
+                'user_id' => $user->id,
+                'uploaded_by' => $currentUser->id, // Track who uploaded the photo
+                'file_path' => $path,
+                'file_name' => $file->getClientOriginalName(),
+                'file_disk' => 'public',
+                'file_size' => $file->getSize(),
+                'mime_type' => $file->getMimeType(),
+            ]);
+        }
+    }
+
+    /**
      * Get list of all matchmakers for transfer selection
      */
     public function getMatchmakersForTransfer()
@@ -2230,10 +2409,59 @@ class MatchmakerController extends Controller
             return redirect()->back()->with('error', 'This transfer request has already been processed.');
         }
 
-        // Update user's assigned matchmaker
+        // Update user's assigned matchmaker and record history
         $user = $transferRequest->user;
+        $oldMatchmakerId = $user->assigned_matchmaker_id;
+        
+        // Get existing history or initialize empty array
+        $history = $user->matchmaker_assignment_history ?? [];
+        
+        // Add old matchmaker to history if exists
+        if ($oldMatchmakerId) {
+            // Check if old matchmaker is already in history
+            $found = false;
+            foreach ($history as &$entry) {
+                if (isset($entry['matchmaker_id']) && $entry['matchmaker_id'] == $oldMatchmakerId) {
+                    // Update existing entry with transfer timestamp
+                    $entry['transferred_at'] = now()->toIso8601String();
+                    $found = true;
+                    break;
+                }
+            }
+            
+            // If not found, add new entry
+            if (!$found) {
+                $history[] = [
+                    'matchmaker_id' => $oldMatchmakerId,
+                    'assigned_at' => $user->updated_at ? $user->updated_at->toIso8601String() : now()->toIso8601String(),
+                    'transferred_at' => now()->toIso8601String(),
+                ];
+            }
+        }
+        
+        // Add new matchmaker to history
+        $newMatchmakerId = $me->id;
+        // Check if new matchmaker is already in history
+        $alreadyRecorded = false;
+        foreach ($history as $entry) {
+            if (isset($entry['matchmaker_id']) && $entry['matchmaker_id'] == $newMatchmakerId) {
+                $alreadyRecorded = true;
+                break;
+            }
+        }
+        
+        // If not already recorded, add new assignment entry
+        if (!$alreadyRecorded) {
+            $history[] = [
+                'matchmaker_id' => $newMatchmakerId,
+                'assigned_at' => now()->toIso8601String(),
+            ];
+        }
+        
+        // Update user's assigned matchmaker and history
         $user->update([
             'assigned_matchmaker_id' => $me->id,
+            'matchmaker_assignment_history' => $history,
         ]);
 
         // Update transfer request status
@@ -2693,5 +2921,104 @@ class MatchmakerController extends Controller
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 500);
         }
+    }
+
+    /**
+     * Upload profile picture for a member (matchmaker only)
+     */
+    public function uploadProfilePicture(Request $request)
+    {
+        $me = Auth::user();
+        $roleName = null;
+        if ($me) {
+            $roleName = \Illuminate\Support\Facades\DB::table('model_has_roles')
+                ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+                ->where('model_has_roles.model_id', $me->id)
+                ->value('roles.name');
+        }
+
+        if (!in_array($roleName, ['matchmaker', 'manager', 'admin'])) {
+            abort(403, 'Unauthorized.');
+        }
+
+        $request->validate([
+            'profile_picture' => 'required|image|mimes:jpeg,png,jpg|max:2048',
+            'user_id' => 'required|exists:users,id',
+        ]);
+
+        $targetUser = User::findOrFail($request->user_id);
+
+        // Check permissions
+        if ($roleName === 'matchmaker' && $targetUser->assigned_matchmaker_id !== $me->id) {
+            abort(403, 'You can only upload pictures for users assigned to you.');
+        }
+
+        if ($request->hasFile('profile_picture')) {
+            $profilePicturePath = $request->file('profile_picture')->store('profile-pictures', 'public');
+            
+            $profile = $targetUser->profile;
+            if (!$profile) {
+                $profile = $targetUser->profile()->create([]);
+            }
+            
+            // Delete old profile picture if exists
+            if ($profile->profile_picture_path) {
+                Storage::disk('public')->delete($profile->profile_picture_path);
+            }
+            
+            $profile->update(['profile_picture_path' => $profilePicturePath]);
+        }
+
+        return redirect()->back()->with('success', 'Profile picture uploaded successfully.');
+    }
+
+    /**
+     * Upload cover picture for a member (matchmaker only)
+     */
+    public function uploadCoverPicture(Request $request)
+    {
+        $me = Auth::user();
+        $roleName = null;
+        if ($me) {
+            $roleName = \Illuminate\Support\Facades\DB::table('model_has_roles')
+                ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+                ->where('model_has_roles.model_id', $me->id)
+                ->value('roles.name');
+        }
+
+        if (!in_array($roleName, ['matchmaker', 'manager', 'admin'])) {
+            abort(403, 'Unauthorized.');
+        }
+
+        $request->validate([
+            'banner_image' => 'required|image|mimes:jpeg,png,jpg|max:5120',
+            'user_id' => 'required|exists:users,id',
+        ]);
+
+        $targetUser = User::findOrFail($request->user_id);
+
+        // Check permissions
+        if ($roleName === 'matchmaker' && $targetUser->assigned_matchmaker_id !== $me->id) {
+            abort(403, 'You can only upload pictures for users assigned to you.');
+        }
+
+        if ($request->hasFile('banner_image')) {
+            $bannerImagePath = $request->file('banner_image')->store('banner-images', 'public');
+            
+            // For regular users, store in profiles table
+            $profile = $targetUser->profile;
+            if (!$profile) {
+                $profile = $targetUser->profile()->create([]);
+            }
+            
+            // Delete old banner image if exists
+            if ($profile->banner_image_path) {
+                Storage::disk('public')->delete($profile->banner_image_path);
+            }
+            
+            $profile->update(['banner_image_path' => $bannerImagePath]);
+        }
+
+        return redirect()->back()->with('success', 'Cover picture uploaded successfully.');
     }
 }

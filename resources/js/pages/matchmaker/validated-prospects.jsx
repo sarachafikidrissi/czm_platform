@@ -267,19 +267,16 @@ export default function ValidatedProspects() {
         }
     };
 
-    // Helper function to check if current user can edit profile (for incomplete profiles)
+    // Helper function to check if current user can edit profile
+    // Matches backend authorization logic in MatchmakerController::editProspectProfile
     const canEditProfile = (user) => {
         if (!auth?.user || !user) {
             return false;
         }
 
-        // Only allow editing if profile is incomplete
-        if (user.profile?.is_completed) {
-            return false;
-        }
-
         const viewerRole = auth?.user?.roles?.[0]?.name || 'user';
         const userId = auth?.user?.id;
+        const profile = user.profile;
 
         // Admin should NOT see edit profile button
         if (viewerRole === 'admin') {
@@ -287,22 +284,38 @@ export default function ValidatedProspects() {
         }
 
         // Matchmaker can edit if:
-        // 1. User is assigned to them, OR
-        // 2. User was approved by them
+        // 1. User is assigned to them (always allowed, regardless of profile completion), OR
+        // 2. User is a member/client/client_expire with incomplete profile AND was approved by them
         if (viewerRole === 'matchmaker') {
-            return user.assigned_matchmaker_id === userId || user.approved_by === userId;
+            // If assigned, always allow editing (matches backend updateProspectProfile logic)
+            if (user.assigned_matchmaker_id === userId) {
+                return true;
+            }
+            // If not assigned but approved by them, only allow if profile is incomplete
+            if (user.approved_by === userId && ['member', 'client', 'client_expire'].includes(user.status)) {
+                return !profile || !profile.is_completed;
+            }
+            return false;
         }
 
         // Manager can edit if:
         // 1. Prospect is not dispatched yet (assigned_matchmaker_id is null) and from their agency, OR
-        // 2. They are the one that validated/approved the member/client
+        // 2. Prospect/member/client is assigned to them, OR
+        // 3. User is a member/client/client_expire with incomplete profile AND was validated by them
         if (viewerRole === 'manager') {
             // If prospect is not dispatched and from manager's agency, manager can edit
             if (user.status === 'prospect' && !user.assigned_matchmaker_id && user.agency_id === auth?.user?.agency_id) {
                 return true;
             }
-            // For members/clients, only if they validated them
-            return user.validated_by_manager_id === userId;
+            // If assigned to manager, always allow editing
+            if (user.assigned_matchmaker_id === userId) {
+                return true;
+            }
+            // If not assigned but validated by them, only allow if profile is incomplete
+            if (user.validated_by_manager_id === userId && ['member', 'client', 'client_expire'].includes(user.status)) {
+                return !profile || !profile.is_completed;
+            }
+            return false;
         }
 
         return false;
@@ -337,7 +350,7 @@ export default function ValidatedProspects() {
     // Handle view profile
     const handleViewProfile = () => {
         if (selectedUserForInfo) {
-            router.visit(`/profile/${selectedUserForInfo.username || selectedUserForInfo.id}`);
+            window.open(`/profile/${selectedUserForInfo.username || selectedUserForInfo.id}`, '_blank', 'noopener,noreferrer');
         }
     };
     
@@ -681,7 +694,7 @@ export default function ValidatedProspects() {
                                                 variant="outline"
                                                 size="sm"
                                                 className="text-xs hover:bg-[#096725] hover:text-white"
-                                                onClick={() => router.visit(`/profile/${u.username || u.id}`)}
+                                                onClick={() => window.open(`/profile/${u.username || u.id}`, '_blank', 'noopener,noreferrer')}
                                             >
                                                 {t('staff.validatedProspects.findStory')}
                                             </Button>
@@ -939,7 +952,7 @@ export default function ValidatedProspects() {
                                                             size="sm"
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
-                                                                router.visit(`/profile/${u.username || u.id}`);
+                                                                window.open(`/profile/${u.username || u.id}`, '_blank', 'noopener,noreferrer');
                                                             }}
                                                         >
                                                             <Pencil className="w-4 h-4" />

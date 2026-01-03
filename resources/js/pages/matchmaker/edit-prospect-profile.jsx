@@ -68,6 +68,7 @@ export default function EditProspectProfile() {
         cin: profile?.cin || '',
         identityCardFront: null,
         identityCardFrontPath: profile?.identityCardFrontPath || '',
+        photos: [], // Array for multiple photo uploads
     });
 
     // Update current step when profile changes
@@ -128,6 +129,13 @@ export default function EditProspectProfile() {
                         formDataToSend.append('profilePicture', formData[key].file);
                     } else if (key === 'identityCardFront' && formData[key] instanceof File) {
                         formDataToSend.append('identityCardFront', formData[key]);
+                    } else if (key === 'photos' && Array.isArray(formData[key]) && formData[key].length > 0) {
+                        // Handle multiple photo uploads
+                        formData[key].forEach((photo, index) => {
+                            if (photo.file) {
+                                formDataToSend.append('photos[]', photo.file);
+                            }
+                        });
                     } else if (key === 'villesRecherche') {
                         if (Array.isArray(formData[key]) && formData[key].length > 0) {
                             formDataToSend.append(key, JSON.stringify(formData[key]));
@@ -221,6 +229,42 @@ export default function EditProspectProfile() {
         }
     };
 
+    const handleStepClick = (stepNumber) => {
+        // Allow navigation to any step that is:
+        // 1. The current step (no change)
+        // 2. A previous step (always allowed)
+        // 3. The next step (only if current step is valid)
+        if (stepNumber === currentStep) {
+            return; // Already on this step
+        }
+        
+        if (stepNumber < currentStep) {
+            // Going back - always allowed
+            setCurrentStep(stepNumber);
+        } else if (stepNumber === currentStep + 1) {
+            // Going forward - validate current step first
+            if (validateStep(currentStep)) {
+                setCurrentStep(stepNumber);
+            } else {
+                alert('Veuillez remplir tous les champs obligatoires de l\'étape actuelle avant de continuer.');
+            }
+        } else {
+            // Jumping more than one step forward - validate all intermediate steps
+            let canNavigate = true;
+            for (let i = currentStep; i < stepNumber; i++) {
+                if (!validateStep(i)) {
+                    canNavigate = false;
+                    break;
+                }
+            }
+            if (canNavigate) {
+                setCurrentStep(stepNumber);
+            } else {
+                alert('Veuillez compléter toutes les étapes précédentes avant de continuer.');
+            }
+        }
+    };
+
     const stepProps = {
         formData,
         setFormData,
@@ -253,9 +297,13 @@ export default function EditProspectProfile() {
                                         <div className={`h-1 flex-1 ${currentStep >= step.number ? 'bg-button-primary' : 'bg-border'}`} />
                                     )}
                                     <div
-                                        className={`flex h-10 w-10 items-center justify-center rounded-full border-2 ${
-                                            currentStep >= step.number ? 'bg-button-primary text-primary-foreground' : 'border-border bg-card text-muted-foreground'
+                                        onClick={() => handleStepClick(step.number)}
+                                        className={`flex h-10 w-10 items-center justify-center rounded-full border-2 transition-all ${
+                                            currentStep >= step.number 
+                                                ? 'bg-button-primary text-primary-foreground cursor-pointer hover:scale-110 hover:shadow-md' 
+                                                : 'border-border bg-card text-muted-foreground cursor-pointer hover:border-button-primary hover:bg-muted'
                                         } text-sm font-semibold`}
+                                        title={`Aller à l'étape ${step.number}: ${step.label}`}
                                     >
                                         {step.number}
                                     </div>
@@ -264,7 +312,11 @@ export default function EditProspectProfile() {
                                     )}
                                 </div>
                                 <span
-                                    className={`mt-2 text-xs font-medium ${currentStep >= step.number ? 'text-button-primary' : 'text-muted-foreground'} hidden sm:block`}
+                                    onClick={() => handleStepClick(step.number)}
+                                    className={`mt-2 text-xs font-medium cursor-pointer transition-colors hover:underline ${
+                                        currentStep >= step.number ? 'text-button-primary hover:text-button-secondary' : 'text-muted-foreground hover:text-button-primary'
+                                    } hidden sm:block`}
+                                    title={`Aller à l'étape ${step.number}: ${step.label}`}
                                 >
                                     {step.label}
                                 </span>

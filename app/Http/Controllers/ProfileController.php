@@ -17,12 +17,17 @@ class ProfileController extends Controller
      */
     public function index()
     {
-        $profile = Profile::where('user_id', Auth::id())->first();
+        $user = Auth::user();
+        $profile = Profile::where('user_id', $user->id)->first();
+        
+        // Check if user is validated
+        $isValidated = $user->approved_at !== null;
 
         return Inertia::render('profile/index', [
             'auth' => [
-                'user' => Auth::user(),
+                'user' => $user,
             ],
+            'isValidated' => $isValidated,
             'profile' => $profile ? [
                 // Step 1
                 'nom' => $profile->nom,
@@ -103,6 +108,16 @@ class ProfileController extends Controller
      */
     public function store(Request $request)
     {
+        $user = Auth::user();
+        
+        // Check if user is validated (has approved_at)
+        // If validated, only their matchmaker can update the profile
+        if ($user->approved_at) {
+            return redirect()->back()->withErrors([
+                'validation' => 'Votre profil a été validé. Seul votre matchmaker peut modifier vos informations. Veuillez contacter votre matchmaker pour toute modification.'
+            ]);
+        }
+
         $request->validate([
             'currentStep' => 'required|integer|between:1,4',
         ]);
@@ -157,6 +172,16 @@ class ProfileController extends Controller
      */
     public function complete(Request $request)
     {
+        $user = Auth::user();
+        
+        // Check if user is validated (has approved_at)
+        // If validated, only their matchmaker can update the profile
+        if ($user->approved_at) {
+            return redirect()->back()->withErrors([
+                'validation' => 'Votre profil a été validé. Seul votre matchmaker peut modifier vos informations. Veuillez contacter votre matchmaker pour toute modification.'
+            ]);
+        }
+        
         $profile = Profile::where('user_id', Auth::id())->firstOrFail();
         
         $profile->is_completed = true;

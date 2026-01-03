@@ -53,11 +53,11 @@ export default function ProfileHeader({ user, profile, isOwnProfile, age }) {
                             })()}
                         </div>
                         {isOwnProfile && (
-                            <Link href="/settings/profile">
+                            <a href="/settings/profile" target="_blank" rel="noopener noreferrer">
                                 <Button size="sm" className="absolute -right-2 -bottom-2 h-8 w-8 rounded-full p-0" variant="outline">
                                     <Edit className="h-4 w-4" />
                                 </Button>
-                            </Link>
+                            </a>
                         )}
                     </div>
 

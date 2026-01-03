@@ -73,9 +73,9 @@ export default function EvaluatedUsers() {
     // Handle view profile
     const handleViewProfile = (username, userId) => {
         if (username) {
-            router.visit(`/profile/${username}`);
+            window.open(`/profile/${username}`, '_blank', 'noopener,noreferrer');
         } else {
-            router.visit(`/profile/${userId}`);
+            window.open(`/profile/${userId}`, '_blank', 'noopener,noreferrer');
         }
     };
 

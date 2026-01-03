@@ -201,7 +201,7 @@ export default function ManagerTracking() {
                                                     variant="outline"
                                                     size="sm"
                                                     className="w-full"
-                                                    onClick={() => router.visit(`/profile/${prospect.username || prospect.id}`)}
+                                                    onClick={() => window.open(`/profile/${prospect.username || prospect.id}`, '_blank', 'noopener,noreferrer')}
                                                 >
                                                     View Profile
                                                 </Button>
@@ -246,7 +246,7 @@ export default function ManagerTracking() {
                                                     <Button
                                                         variant="ghost"
                                                         size="sm"
-                                                        onClick={() => router.visit(`/profile/${prospect.username || prospect.id}`)}
+                                                        onClick={() => window.open(`/profile/${prospect.username || prospect.id}`, '_blank', 'noopener,noreferrer')}
                                                     >
                                                         <Pencil className="w-4 h-4" />
                                                     </Button>

@@ -5,7 +5,7 @@ import PartnerInfo from './partnerInfo';
 import PersonalInfo from './personalInfo';
 import UploadPicture from './uploadPicture';
 
-export default function Profile({ auth, profile }) {
+export default function Profile({ auth, profile, isValidated = false }) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [currentStep, setCurrentStep] = useState(profile?.currentStep || 1);
     const [formData, setFormData] = useState({
@@ -149,7 +149,8 @@ export default function Profile({ auth, profile }) {
                     },
                     onError: (errors) => {
                         console.error('Error saving step:', errors);
-                        alert('Erreur lors de la sauvegarde: ' + (errors.message || Object.values(errors).join(', ')));
+                        const errorMessage = errors.validation || errors.message || Object.values(errors).join(', ');
+                        alert('Erreur lors de la sauvegarde: ' + errorMessage);
                         resolve(false); // Use resolve instead of reject to continue flow
                     },
                 });

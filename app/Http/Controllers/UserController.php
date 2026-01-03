@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
+use App\Services\MatchmakingService;
 
 class UserController extends Controller
 {
@@ -107,7 +108,7 @@ class UserController extends Controller
         }
         
         $user = User::with([
-            'profile', 
+            'profile.matrimonialPack', 
             'agency', 
             'roles', 
             'assignedMatchmaker:id,agency_id,name,email', // Include more fields for better debugging
@@ -170,9 +171,10 @@ class UserController extends Controller
         $evaluation = \App\Models\MatchmakerEvaluation::where('user_id', $user->id)->first();
 
         // Format photos for frontend - ensure photos are loaded
+        $currentUser = Auth::user();
         $photos = collect([]);
         if ($user->relationLoaded('photos') && $user->photos && $user->photos->isNotEmpty()) {
-            $photos = $user->photos->map(function ($photo) {
+            $photos = $user->photos->map(function ($photo) use ($currentUser, $user) {
                 $filePath = $photo->file_path;
                 
                 // Generate URL - for public disk, use /storage/ prefix
@@ -186,17 +188,145 @@ class UserController extends Controller
                     $url = '/storage/' . $cleanPath;
                 }
                 
+                // Check if current user can delete this specific photo
+                $canDeleteThisPhoto = false;
+                if ($currentUser && $currentUser->hasRole('user') && $user->id === $currentUser->id) {
+                    // User can only delete photos they uploaded themselves
+                    $canDeleteThisPhoto = ($photo->uploaded_by === $currentUser->id || $photo->uploaded_by === null);
+                } elseif ($currentUser && $currentUser->hasRole('matchmaker') && $user->assigned_matchmaker_id === $currentUser->id) {
+                    // Matchmaker can delete photos of assigned users
+                    $canDeleteThisPhoto = true;
+                } elseif ($currentUser && $currentUser->hasRole('admin')) {
+                    // Admin can delete any photo
+                    $canDeleteThisPhoto = true;
+                }
+                
                 return [
                     'id' => $photo->id,
                     'file_path' => $filePath,
                     'file_name' => $photo->file_name ?? 'photo',
                     'url' => $url,
                     'created_at' => $photo->created_at,
+                    'uploaded_by' => $photo->uploaded_by,
+                    'can_delete' => $canDeleteThisPhoto,
                 ];
             })->filter(function ($photo) {
                 // Filter out photos with no file path or URL
                 return !empty($photo['file_path']) && !empty($photo['url']);
             })->values();
+        }
+
+        // Load additional data for matchmakers viewing profiles
+        $bills = collect([]);
+        $subscriptions = collect([]);
+        $matchmakingSearch = null;
+        $matchmakingResults = null;
+        $hasBill = false;
+        
+        if ($currentUser && ($currentUser->hasRole('matchmaker') || $currentUser->hasRole('admin') || $currentUser->hasRole('manager'))) {
+            // Load bills
+            $bills = $user->bills()
+                ->with('matchmaker:id,name,email')
+                ->orderBy('created_at', 'desc')
+                ->get()
+                ->map(function ($bill) {
+                    return [
+                        'id' => $bill->id,
+                        'bill_number' => $bill->bill_number,
+                        'order_number' => $bill->order_number,
+                        'bill_date' => $bill->bill_date,
+                        'due_date' => $bill->due_date,
+                        'status' => $bill->status,
+                        'amount' => $bill->amount,
+                        'tax_rate' => $bill->tax_rate,
+                        'tax_amount' => $bill->tax_amount,
+                        'total_amount' => $bill->total_amount,
+                        'currency' => $bill->currency,
+                        'payment_method' => $bill->payment_method,
+                        'pack_name' => $bill->pack_name,
+                        'pack_price' => $bill->pack_price,
+                        'pack_advantages' => $bill->pack_advantages,
+                        'notes' => $bill->notes,
+                        'matchmaker' => $bill->matchmaker,
+                    ];
+                });
+
+            // Add has_bill flag
+            $hasBill = $user->bills()->where('status', '!=', 'paid')->exists();
+
+            // Load subscriptions
+            $subscriptions = $user->subscriptions()
+                ->with(['matrimonialPack', 'assignedMatchmaker:id,name,email'])
+                ->orderBy('created_at', 'desc')
+                ->get()
+                ->map(function ($subscription) {
+                    return [
+                        'id' => $subscription->id,
+                        'matrimonial_pack_id' => $subscription->matrimonial_pack_id,
+                        'subscription_start' => $subscription->subscription_start,
+                        'subscription_end' => $subscription->subscription_end,
+                        'duration_months' => $subscription->duration_months,
+                        'pack_price' => $subscription->pack_price,
+                        'pack_advantages' => $subscription->pack_advantages,
+                        'payment_mode' => $subscription->payment_mode,
+                        'status' => $subscription->status,
+                        'notes' => $subscription->notes,
+                        'matrimonial_pack' => $subscription->matrimonialPack,
+                        'assigned_matchmaker' => $subscription->assignedMatchmaker,
+                        'is_active' => $subscription->is_active,
+                        'is_expired' => $subscription->is_expired,
+                        'days_remaining' => $subscription->days_remaining,
+                    ];
+                });
+
+            // Load matchmaking search criteria from profile
+            if ($user->profile) {
+                $matchmakingSearch = [
+                    'age_minimum' => $user->profile->age_minimum,
+                    'age_maximum' => $user->profile->age_maximum,
+                    'situation_matrimoniale_recherche' => $user->profile->situation_matrimoniale_recherche,
+                    'pays_recherche' => $user->profile->pays_recherche,
+                    'villes_recherche' => $user->profile->villes_recherche,
+                    'niveau_etudes_recherche' => $user->profile->niveau_etudes_recherche,
+                    'statut_emploi_recherche' => $user->profile->statut_emploi_recherche,
+                    'revenu_minimum' => $user->profile->revenu_minimum,
+                    'religion_recherche' => $user->profile->religion_recherche,
+                    'profil_recherche_description' => $user->profile->profil_recherche_description,
+                ];
+            }
+
+            // Load matchmaking results (À proposer functionality)
+            if ($user->profile && $user->profile->is_completed) {
+                try {
+                    $matchmakingService = new MatchmakingService();
+                    $result = $matchmakingService->findMatches($user->id);
+                    
+                    // Format matches for frontend
+                    $matchmakingResults = array_map(function($match) {
+                        return [
+                            'user' => [
+                                'id' => $match['user']->id,
+                                'name' => $match['user']->name,
+                                'email' => $match['user']->email,
+                                'username' => $match['user']->username,
+                                'gender' => $match['user']->gender,
+                            ],
+                            'profile' => $match['profile']->toArray(),
+                            'score' => $match['score'],
+                            'scoreDetails' => $match['scoreDetails'],
+                            'completeness' => $match['completeness'],
+                        ];
+                    }, $result['matches']);
+                } catch (\Exception $e) {
+                    // If matchmaking fails, just set to empty array
+                    $matchmakingResults = [];
+                }
+            }
+        }
+
+        // Add has_bill to user object if it's a matchmaker/admin/manager viewing
+        if ($currentUser && ($currentUser->hasRole('matchmaker') || $currentUser->hasRole('admin') || $currentUser->hasRole('manager'))) {
+            $user->has_bill = $hasBill;
         }
 
         return Inertia::render('user/profile', [
@@ -206,6 +336,10 @@ class UserController extends Controller
             'matchmakerNotes' => $notes,
             'matchmakerEvaluation' => $evaluation,
             'photos' => $photos,
+            'bills' => $bills,
+            'subscriptions' => $subscriptions,
+            'matchmakingSearch' => $matchmakingSearch,
+            'matchmakingResults' => $matchmakingResults ?? null,
         ]);
     }
 

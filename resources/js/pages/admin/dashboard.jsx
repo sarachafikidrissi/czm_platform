@@ -128,7 +128,7 @@ export default function AdminDashboard() {
     // Handle view profile
     const handleViewProfile = () => {
         if (selectedStaff?.username) {
-            router.visit(`/profile/${selectedStaff.username}`);
+            window.open(`/profile/${selectedStaff.username}`, '_blank', 'noopener,noreferrer');
         }
     };
 

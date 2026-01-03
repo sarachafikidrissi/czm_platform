@@ -26,6 +26,7 @@ Route::middleware(['auth'])->group(function () {
             'auth' => [
                 'user' => $user,
             ],
+            'isValidated' => $user && $user->approved_at !== null,
             'profile' => $profile ? [
                 // Step 1
                 'nom' => $profile->nom,
@@ -371,10 +372,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/prospects/store', [\App\Http\Controllers\MatchmakerController::class, 'storeProspect'])->name('prospects.store');
         Route::get('/prospects/{user}/profile/edit', [\App\Http\Controllers\MatchmakerController::class, 'editProspectProfile'])->name('prospects.profile.edit');
         Route::post('/prospects/{user}/profile', [\App\Http\Controllers\MatchmakerController::class, 'updateProspectProfile'])->name('prospects.profile.update');
+        Route::get('/prospects/{user}/subscription', [\App\Http\Controllers\MatchmakerController::class, 'createSubscriptionPage'])->name('prospects.subscription');
         Route::post('/prospects/{user}/validate', [\App\Http\Controllers\MatchmakerController::class, 'validateProspect'])->name('prospects.validate');
         Route::post('/prospects/{user}/reject', [\App\Http\Controllers\MatchmakerController::class, 'rejectProspect'])->name('prospects.reject');
         Route::post('/prospects/{user}/accept', [\App\Http\Controllers\MatchmakerController::class, 'acceptRejectedProspect'])->name('prospects.accept');
         Route::post('/prospects/{user}/rappeler', [\App\Http\Controllers\MatchmakerController::class, 'markAsRappeler'])->name('prospects.rappeler');
+        Route::post('/prospects/{user}/toggle-traite', [\App\Http\Controllers\MatchmakerController::class, 'toggleTraite'])->name('prospects.toggle-traite');
         Route::get('/validated-prospects', [\App\Http\Controllers\MatchmakerController::class, 'validatedProspects'])->name('prospects.validated');
         Route::get('/evaluated-users', [\App\Http\Controllers\MatchmakerController::class, 'evaluatedUsers'])->name('evaluated-users');
         Route::post('/mark-as-client', [\App\Http\Controllers\MatchmakerController::class, 'markAsClient'])->name('mark-as-client');
@@ -398,6 +401,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/transfer-requests', [\App\Http\Controllers\MatchmakerController::class, 'getTransferRequests'])->name('transfer-requests');
         Route::post('/transfer-requests/{id}/accept', [\App\Http\Controllers\MatchmakerController::class, 'acceptTransferRequest'])->name('transfer-requests.accept');
         Route::post('/transfer-requests/{id}/reject', [\App\Http\Controllers\MatchmakerController::class, 'rejectTransferRequest'])->name('transfer-requests.reject');
+        // Upload profile and cover pictures for members
+        Route::post('/users/upload-profile-picture', [\App\Http\Controllers\MatchmakerController::class, 'uploadProfilePicture'])->name('users.upload-profile-picture');
+        Route::post('/users/upload-cover-picture', [\App\Http\Controllers\MatchmakerController::class, 'uploadCoverPicture'])->name('users.upload-cover-picture');
         // Matchmaker section routes
         Route::get('/matchmaker/propositions', [\App\Http\Controllers\MatchmakerController::class, 'propositionsList'])->name('matchmaker.propositions');
         Route::get('/matchmaker/change', [\App\Http\Controllers\MatchmakerController::class, 'matchmakerChange'])->name('matchmaker.change');

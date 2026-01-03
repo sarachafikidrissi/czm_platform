@@ -1142,5 +1142,10 @@
         "footerQuickLinks": "Liens Rapides",
         "footerRights": "Tous droits réservés",
         "contact": "Contact"
+    },
+    "auth": {
+        "phoneWarning": "Veuillez saisir un numéro de téléphone valide afin que nous puissions vous contacter facilement.",
+        "phoneNumber": "Numéro de téléphone",
+        "phoneNumberPlaceholder": "Entrez votre numéro de téléphone"
     }
 }

@@ -197,7 +197,7 @@ export default function ProspectsDispatch() {
     // Handle view profile
     const handleViewProfile = () => {
         if (selectedUserForInfo) {
-            router.visit(`/profile/${selectedUserForInfo.username}`);
+            window.open(`/profile/${selectedUserForInfo.username}`, '_blank', 'noopener,noreferrer');
         }
     };
 

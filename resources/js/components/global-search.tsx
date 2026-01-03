@@ -163,7 +163,7 @@ export function GlobalSearch({ role }: GlobalSearchProps) {
     }, [shouldShow]);
 
     const handleUserClick = (user: SearchUser) => {
-        router.visit(`/profile/${user.username}`);
+        window.open(`/profile/${user.username}`, '_blank', 'noopener,noreferrer');
         setIsOpen(false);
         setSearchQuery('');
         setUsers([]);
@@ -225,8 +225,8 @@ export function GlobalSearch({ role }: GlobalSearchProps) {
                                     ref={searchInputRef}
                                     type="text"
                                     placeholder={role === 'admin' 
-                                        ? "Search for users and staff members by name, username, phone, or email..."
-                                        : "Search for users by name, username, phone, or email..."
+                                        ? "Search for users and staff members by name, username, phone, email, or CIN..."
+                                        : "Search for users by name, username, phone, email, or CIN..."
                                     }
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}

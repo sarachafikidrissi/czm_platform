@@ -1139,5 +1139,10 @@
         "footerQuickLinks": "روابط سريعة",
         "footerRights": "جميع الحقوق محفوظة",
         "contact": "اتصل"
+    },
+    "auth": {
+        "phoneWarning": "يرجى إدخال رقم هاتف صحيح حتى نتمكن من الاتصال بك بسهولة.",
+        "phoneNumber": "رقم الهاتف",
+        "phoneNumberPlaceholder": "أدخل رقم هاتفك"
     }
 }

@@ -588,25 +588,27 @@ export default function MesCommandes({ bills = [] }) {
                                 <p className="text-sm text-muted-foreground">
                                     {t('orders.becomeClientMessage')}
                                 </p>
-                                <Link 
+                                <a 
                                     href={assignedMatchmaker.username ? `/profile/${assignedMatchmaker.username}` : '/matchmaker'}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
                                     className="w-full"
                                 >
                                     <Button className="w-full">
                                         {t('orders.viewMatchmakerProfile')}
                                     </Button>
-                                </Link>
+                                </a>
                             </div>
                         ) : (
                             <div className="flex flex-col gap-4">
                                 <p className="text-sm text-muted-foreground">
                                     {t('orders.becomeClientNoMatchmaker')}
                                 </p>
-                                <Link href="/user/matchmakers" className="w-full">
+                                <a href="/user/matchmakers" target="_blank" rel="noopener noreferrer" className="w-full">
                                     <Button className="w-full">
                                         {t('orders.chooseMatchmakerButton')}
                                     </Button>
-                                </Link>
+                                </a>
                             </div>
                         )}
                     </DialogContent>

@@ -32,7 +32,7 @@ export default function NewsFeedSidebar({ statistics, role }) {
             {statistics.prospects && (
                 <Card className="border-2 border-black">
                     <CardHeader>
-                        <CardTitle className="text-3xl font-bold text-[#890505]">
+                        <CardTitle className="text-3xl font-bold text-[#096725]">
                             Mes prospects <span className="text-black font-normal">{statistics.prospects.total || 0}</span>
                         </CardTitle>
                     </CardHeader>
@@ -53,7 +53,7 @@ export default function NewsFeedSidebar({ statistics, role }) {
             {statistics.clients && (
                 <Card className="border-2 border-black">
                     <CardHeader>
-                        <CardTitle className="text-3xl font-bold text-[#890505]">
+                        <CardTitle className="text-3xl font-bold text-[#096725]">
                             Mes Clients <span className="text-black font-normal">{statistics.clients.total || 0}</span>
                         </CardTitle>
                     </CardHeader>
@@ -78,7 +78,7 @@ export default function NewsFeedSidebar({ statistics, role }) {
             {statistics.activeMembers && (
                 <Card className="border-2 border-black">
                     <CardHeader>
-                        <CardTitle className="text-3xl font-bold text-[#890505]">
+                        <CardTitle className="text-3xl font-bold text-[#096725]">
                             Mes Membres Actifs
                         </CardTitle>
                     </CardHeader>
@@ -101,30 +101,63 @@ export default function NewsFeedSidebar({ statistics, role }) {
             {statistics.latestMembers && statistics.latestMembers.length > 0 && (
                 <Card className="border-2 border-black">
                     <CardHeader>
-                        <CardTitle className="text-3xl font-bold">Derniers Membres</CardTitle>
+                        <CardTitle className="text-3xl font-bold text-[#096725]">Derniers Membres</CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-2">
-                        {statistics.latestMembers.map((member) => (
-                            <div key={member.id} className="flex items-center gap-2">
-                                <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center overflow-hidden">
-                                    {member.profile_picture ? (
-                                        <img
-                                            src={`/storage/${member.profile_picture}`}
-                                            alt={member.name}
-                                            className="h-full w-full object-cover"
-                                        />
-                                    ) : (
-                                        <span className="text-xs font-medium text-muted-foreground">
-                                            {member.name?.charAt(0)?.toUpperCase() || 'U'}
-                                        </span>
-                                    )}
+                    <CardContent className="space-y-3">
+                        {statistics.latestMembers.map((member) => {
+                            const formatDate = (dateString) => {
+                                if (!dateString) return 'N/A';
+                                return new Date(dateString).toLocaleDateString('fr-FR', {
+                                    day: '2-digit',
+                                    month: '2-digit',
+                                    year: 'numeric'
+                                });
+                            };
+
+                            return (
+                                <div key={member.id} className="flex items-start gap-3 p-2 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">
+                                    <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
+                                        {member.profile_picture ? (
+                                            <img
+                                                src={`/storage/${member.profile_picture}`}
+                                                alt={member.name}
+                                                className="h-full w-full object-cover"
+                                            />
+                                        ) : (
+                                            <span className="text-xs font-medium text-muted-foreground">
+                                                {member.name?.charAt(0)?.toUpperCase() || 'U'}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div className="flex-1 min-w-0 space-y-1">
+                                        <div>
+                                            <p className="text-sm font-medium text-[#890505]">{member.name}</p>
+                                            {member.username && (
+                                                <p className="text-xs text-muted-foreground italic">@{member.username}</p>
+                                            )}
+                                        </div>
+                                        <div className="space-y-0.5">
+                                            <p className="text-xs text-muted-foreground truncate">{member.email}</p>
+                                            {member.created_at && (
+                                                <p className="text-xs text-muted-foreground">
+                                                    Inscrit le: {formatDate(member.created_at)}
+                                                </p>
+                                            )}
+                                            {member.assigned_matchmaker_name && (
+                                                <p className="text-xs text-muted-foreground">
+                                                    Matchmaker: {member.assigned_matchmaker_name}
+                                                </p>
+                                            )}
+                                            {member.agency_name && (
+                                                <p className="text-xs text-muted-foreground">
+                                                    Agence: {member.agency_name}
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
                                 </div>
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-medium truncate">{member.name}</p>
-                                    <p className="text-xs text-muted-foreground truncate">{member.email}</p>
-                                </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </CardContent>
                 </Card>
             )}

@@ -8,7 +8,7 @@ import PersonalInfo from './profile/personalInfo';
 import UploadPicture from './profile/uploadPicture';
 
 export default function ProfileInfo() {
-    const { auth, profile } = usePage().props;
+    const { auth, profile, isValidated = false } = usePage().props;
     
     const { t } = useTranslation();
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -322,6 +322,26 @@ export default function ProfileInfo() {
 
     // If profile is not completed OR user is editing, show the multistep form
     if (!profile?.isCompleted || isEditing) {
+        // Check if user is validated - if so, prevent editing
+        if (isValidated && isEditing) {
+            return (
+                <AppLayout breadcrumbs={[{ title: t('breadcrumbs.myProfile'), href: '/profile-info' }]}>
+                    <Head title={t('breadcrumbs.myProfile')} />
+                    <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
+                        <div className="rounded-lg bg-yellow-50 border-2 border-yellow-400 p-6 text-center">
+                            <h2 className="text-xl font-bold text-yellow-800 mb-2">
+                                Modification non autorisée
+                            </h2>
+                            <p className="text-yellow-700">
+                                Votre profil a été validé. Seul votre matchmaker peut modifier vos informations. 
+                                Veuillez contacter votre matchmaker pour toute modification.
+                            </p>
+                        </div>
+                    </div>
+                </AppLayout>
+            );
+        }
+
         return (
             <AppLayout breadcrumbs={[{ title: t('breadcrumbs.myProfile'), href: '/profile-info' }]}>
                 <Head title={t('breadcrumbs.myProfile')} />
@@ -911,7 +931,13 @@ export default function ProfileInfo() {
                     <div className="flex gap-4 pt-6">
                         <button 
                             onClick={handleEditProfile}
-                            className="rounded-lg bg-success text-white hover:bg-green-600! hover:text-black! cursor-pointer! px-6 py-2 font-medium text-info-foreground transition-colors hover:opacity-90"
+                            disabled={isValidated}
+                            className={`rounded-lg px-6 py-2 font-medium text-info-foreground transition-colors ${
+                                isValidated 
+                                    ? 'bg-gray-400 cursor-not-allowed opacity-50' 
+                                    : 'bg-success text-white hover:bg-green-600! hover:text-black! cursor-pointer! hover:opacity-90'
+                            }`}
+                            title={isValidated ? 'Votre profil a été validé. Seul votre matchmaker peut modifier vos informations.' : ''}
                         >
                             {t('profile.editProfileButton')}
                         </button>

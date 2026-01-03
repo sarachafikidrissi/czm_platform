@@ -327,9 +327,26 @@ class PostController extends Controller
                 ],
                 'latestMembers' => (clone $baseQuery)
                     ->whereIn('status', ['member', 'client'])
+                    ->with([
+                        'profile:id,user_id,profile_picture_path',
+                        'assignedMatchmaker:id,name',
+                        'agency:id,name'
+                    ])
                     ->orderBy('created_at', 'desc')
                     ->limit(5)
-                    ->get(['id', 'name', 'email', 'profile_picture']),
+                    ->get(['id', 'name', 'email', 'username', 'created_at', 'assigned_matchmaker_id', 'agency_id'])
+                    ->map(function ($user) {
+                        return [
+                            'id' => $user->id,
+                            'name' => $user->name,
+                            'email' => $user->email,
+                            'username' => $user->username,
+                            'created_at' => $user->created_at,
+                            'profile_picture' => $user->profile->profile_picture_path ?? null,
+                            'assigned_matchmaker_name' => $user->assignedMatchmaker->name ?? null,
+                            'agency_name' => $user->agency->name ?? null,
+                        ];
+                    }),
             ];
         } elseif ($role === 'manager' && $user->agency_id) {
             // Manager statistics
@@ -383,9 +400,26 @@ class PostController extends Controller
                     ->get(['id', 'name', 'email', 'profile_picture']),
                 'latestMembers' => (clone $baseQuery)
                     ->whereIn('status', ['member', 'client'])
+                    ->with([
+                        'profile:id,user_id,profile_picture_path',
+                        'assignedMatchmaker:id,name',
+                        'agency:id,name'
+                    ])
                     ->orderBy('created_at', 'desc')
                     ->limit(5)
-                    ->get(['id', 'name', 'email', 'profile_picture']),
+                    ->get(['id', 'name', 'email', 'username', 'created_at', 'assigned_matchmaker_id', 'agency_id'])
+                    ->map(function ($user) {
+                        return [
+                            'id' => $user->id,
+                            'name' => $user->name,
+                            'email' => $user->email,
+                            'username' => $user->username,
+                            'created_at' => $user->created_at,
+                            'profile_picture' => $user->profile->profile_picture_path ?? null,
+                            'assigned_matchmaker_name' => $user->assignedMatchmaker->name ?? null,
+                            'agency_name' => $user->agency->name ?? null,
+                        ];
+                    }),
             ];
         } elseif ($role === 'admin') {
             // Admin statistics
@@ -431,9 +465,18 @@ class PostController extends Controller
                     ->get(['id', 'name', 'email', 'profile_picture']),
                 'latestMembers' => User::role('user')
                     ->whereIn('status', ['member', 'client'])
+                    ->with('profile:id,user_id,profile_picture_path')
                     ->orderBy('created_at', 'desc')
                     ->limit(5)
-                    ->get(['id', 'name', 'email', 'profile_picture']),
+                    ->get(['id', 'name', 'email'])
+                    ->map(function ($user) {
+                        return [
+                            'id' => $user->id,
+                            'name' => $user->name,
+                            'email' => $user->email,
+                            'profile_picture' => $user->profile->profile_picture_path ?? null,
+                        ];
+                    }),
             ];
         }
 

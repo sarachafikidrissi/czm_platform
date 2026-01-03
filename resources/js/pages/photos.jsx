@@ -93,6 +93,11 @@ export default function PhotosPage({
             formData.append('photos[]', file);
         });
 
+        // If viewing another user's photos (matchmaker/admin), include user_id
+        if (targetUser && targetUser.id !== auth?.user?.id) {
+            formData.append('user_id', targetUser.id);
+        }
+
         router.post('/photos', formData, {
             forceFormData: true,
             preserveScroll: true,
@@ -275,8 +280,8 @@ export default function PhotosPage({
                                             {photo.created_at}
                                         </p>
                                     </div>
-                                    {/* Options Menu - Only show if canDelete */}
-                                    {canDelete && (
+                                    {/* Options Menu - Only show if user can delete this specific photo */}
+                                    {photo.can_delete && (
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
                                                 <Button

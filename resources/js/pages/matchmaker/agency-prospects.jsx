@@ -263,6 +263,15 @@ export default function AgencyProspects() {
             }
         });
     };
+
+    const handleToggleTraite = (prospect) => {
+        router.post(`/staff/prospects/${prospect.id}/toggle-traite`, {}, {
+            preserveScroll: true,
+            onSuccess: () => {
+                router.reload({ only: ['prospects'] });
+            },
+        });
+    };
     
     // Filter prospects based on search query (client-side filtering on current page)
     const filteredProspects = useMemo(() => {
@@ -330,7 +339,7 @@ export default function AgencyProspects() {
     // Handle view profile
     const handleViewProfile = () => {
         if (selectedUserForInfo && selectedUserForInfo.username) {
-            router.visit(`/profile/${selectedUserForInfo.username}`);
+            window.open(`/profile/${selectedUserForInfo.username}`, '_blank', 'noopener,noreferrer');
         }
     };
     
@@ -482,6 +491,7 @@ export default function AgencyProspects() {
                                     <SelectItem value="active">Actifs</SelectItem>
                                     <SelectItem value="rejected">Rejetés</SelectItem>
                                     <SelectItem value="rappeler">A rappeler</SelectItem>
+                                    <SelectItem value="traite">Traité</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
@@ -588,6 +598,14 @@ export default function AgencyProspects() {
                                         <div className="grid grid-cols-2 gap-1.5 mb-1.5">
                                             {statusFilter === 'active' ? (
                                                 <>
+                                                    <Button
+                                                        variant={p.is_traite ? "default" : "outline"}
+                                                        size="sm"
+                                                        className="text-xs"
+                                                        onClick={() => handleToggleTraite(p)}
+                                                    >
+                                                        {p.is_traite ? '✓ Traité' : 'Pas traité'}
+                                                    </Button>
                                                     {canRejectProspect(p) && (
                                                         <Button
                                                             variant="destructive"
@@ -646,6 +664,14 @@ export default function AgencyProspects() {
                                                 </>
                                             ) : (
                                                 <>
+                                                    <Button
+                                                        variant={p.is_traite ? "default" : "outline"}
+                                                        size="sm"
+                                                        className="text-xs"
+                                                        onClick={() => handleToggleTraite(p)}
+                                                    >
+                                                        {p.is_traite ? '✓ Traité' : 'Pas traité'}
+                                                    </Button>
                                                     {canMarkAsRappeler(p) && !p.to_rappeler && (
                                                         <Button
                                                             variant="default"
@@ -793,8 +819,15 @@ export default function AgencyProspects() {
                                                 </TableCell>
                                                 <TableCell onClick={(e) => e.stopPropagation()}>
                                                     <div className="flex gap-2">
-                                                        {statusFilter === 'active' ? (
+                                                        {statusFilter === 'active' || statusFilter === 'traite' ? (
                                                             <>
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant={p.is_traite ? "default" : "outline"}
+                                                                    onClick={() => handleToggleTraite(p)}
+                                                                >
+                                                                    {p.is_traite ? '✓ Traité' : 'Pas traité'}
+                                                                </Button>
                                                                 {canRejectProspect(p) && (
                                                                     <Button
                                                                         size="sm"
@@ -843,6 +876,13 @@ export default function AgencyProspects() {
                                                             </>
                                                         ) : (
                                                             <>
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant={p.is_traite ? "default" : "outline"}
+                                                                    onClick={() => handleToggleTraite(p)}
+                                                                >
+                                                                    {p.is_traite ? '✓ Traité' : 'Pas traité'}
+                                                                </Button>
                                                                 {canMarkAsRappeler(p) && !p.to_rappeler && (
                                                                     <Button
                                                                         size="sm"

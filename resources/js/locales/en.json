@@ -1139,5 +1139,10 @@
         "footerQuickLinks": "Quick Links",
         "footerRights": "All rights reserved",
         "contact": "Contact"
+    },
+    "auth": {
+        "phoneWarning": "Please enter a valid phone number so we can contact you easily.",
+        "phoneNumber": "Phone Number",
+        "phoneNumberPlaceholder": "Enter your phone number"
     }
 }

@@ -2,6 +2,12 @@ import { Head, useForm } from '@inertiajs/react';
 import { Eye, EyeOff, LoaderCircle } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
+import PhoneInput, { getCountries, getCountryCallingCode } from 'react-phone-number-input';
+import 'react-phone-number-input/style.css';
+import { isValidPhoneNumber } from 'react-phone-number-input';
+import enLocale from 'react-phone-number-input/locale/en.json';
+import frLocale from 'react-phone-number-input/locale/fr.json';
+import { useTranslation } from 'react-i18next';
 
 import InputError from '@/components/input-error';
 import TextLink from '@/components/text-link';
@@ -11,9 +17,68 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import AuthLayout from '@/layouts/auth-layout';
 
+// Helper function to get flag emoji from country code
+function getFlagEmoji(countryCode) {
+    if (!countryCode) return '';
+    const codePoints = countryCode
+        .toUpperCase()
+        .split('')
+        .map(char => 127397 + char.charCodeAt(0));
+    return String.fromCodePoint(...codePoints);
+}
+
+// Custom Country Select Component with flags
+function CustomCountrySelect({ value, onChange, labels, disabled, ...rest }) {
+    const { i18n } = useTranslation();
+    const phoneCountries = getCountries();
+    
+    // Get country name based on current language
+    const getLocalizedCountryName = (countryCode) => {
+        try {
+            if (i18n.language === 'fr') {
+                return frLocale[countryCode] || labels?.[countryCode] || enLocale[countryCode] || countryCode;
+            } else if (i18n.language === 'ar') {
+                // For Arabic, we'll use English names as fallback since Arabic names might not be available
+                return labels?.[countryCode] || enLocale[countryCode] || countryCode;
+            }
+            return enLocale[countryCode] || labels?.[countryCode] || countryCode;
+        } catch (e) {
+            return labels?.[countryCode] || countryCode;
+        }
+    };
+
+    return (
+        <Select value={value || ''} onValueChange={onChange} disabled={disabled} {...rest}>
+            <SelectTrigger className="border-[#096626] border-2 w-auto min-w-[140px] h-full">
+                <div className="flex items-center gap-2">
+                    {value && (
+                        <span className="text-xl flex-shrink-0">{getFlagEmoji(value)}</span>
+                    )}
+                    <SelectValue placeholder="Country" />
+                </div>
+            </SelectTrigger>
+            <SelectContent className="max-h-[300px]">
+                {phoneCountries.map((country) => (
+                    <SelectItem key={country} value={country}>
+                        <div className="flex items-center gap-2 w-full">
+                            {/* <span className="text-xl flex-shrink-0">{getFlagEmoji(country)}</span> */}
+                            <span className="flex-1">{getLocalizedCountryName(country)}</span>
+                            {/* <span className="text-muted-foreground text-sm">
+                                +{getCountryCallingCode(country)}
+                            </span> */}
+                        </div>
+                    </SelectItem>
+                ))}
+            </SelectContent>
+        </Select>
+    );
+}
+
 export default function Register() {
+    const { t } = useTranslation();
     const containerRef = useRef(null);
     const [showPassword, setShowPassword] = useState(false);
     const [showPasswordConfirmation, setShowPasswordConfirmation] = useState(false);
@@ -23,6 +88,7 @@ export default function Register() {
     const [selectedCountryCode, setSelectedCountryCode] = useState('');
     const [loadingCountries, setLoadingCountries] = useState(false);
     const [errorCountries, setErrorCountries] = useState('');
+    const [phoneError, setPhoneError] = useState('');
 
     const { data, setData, post, processing, errors, reset } = useForm({
         name: '',
@@ -85,7 +151,17 @@ export default function Register() {
     const availableCities = useMemo(() => {
         if (!selectedCountryCode) return [];
         const list = countryCodeToCities[selectedCountryCode] || [];
-        return list;
+        
+        // Deduplicate cities using Set and sort them
+        const uniqueCities = Array.from(new Set(list))
+            .filter(city => city && city.trim() !== '') // Remove empty strings
+            .sort((a, b) => a.localeCompare(b, 'fr'));
+        
+        // Convert to format expected by SearchableSelect
+        return uniqueCities.map(city => ({
+            value: city,
+            label: city,
+        }));
     }, [selectedCountryCode, countryCodeToCities]);
 
     // Ensure background expands with content height
@@ -110,12 +186,39 @@ export default function Register() {
         };
     }, [data]); // Re-run when form data changes
 
+    const handlePhoneChange = (value) => {
+        setPhoneError('');
+        if (value && !isValidPhoneNumber(value)) {
+            setPhoneError('Please enter a valid phone number');
+        } else if (value && /[a-zA-Z]/.test(value)) {
+            setPhoneError('Phone number must not contain text');
+        } else {
+            setPhoneError('');
+        }
+        setData('phone', value || '');
+    };
+
     const submit = (e) => {
         e.preventDefault();
         if (!termsAccepted) {
             alert('Please accept the terms and conditions to continue.');
             return;
         }
+        
+        // Validate phone number
+        if (!data.phone) {
+            setPhoneError('Phone number is required');
+            return;
+        }
+        if (!isValidPhoneNumber(data.phone)) {
+            setPhoneError('Please enter a valid phone number');
+            return;
+        }
+        if (/[a-zA-Z]/.test(data.phone)) {
+            setPhoneError('Phone number must not contain text');
+            return;
+        }
+        
         // setData('condition', termsAccepted);
         data.condition = termsAccepted;
         post(route('register'), {
@@ -205,19 +308,26 @@ export default function Register() {
                                         Numéro de téléphone
                                     </Label>
                                     <p className="text-sm font-medium leading-none mt-0.5" dir="rtl">رقم الهاتف</p>
-                                    <Input
-                                        id="phone"
-                                        type="tel"
-                                        required
-                                        tabIndex={3}
-                                        autoComplete="tel"
-                                        value={data.phone}
-                                        onChange={(e) => setData('phone', e.target.value)}
-                                        disabled={processing}
-                                        placeholder="+212 6-XX-XX-XX-XX"
-                                        className="border-[#096626] border-2"
-                                    />
-                                    <InputError message={errors.phone} />
+                                    <p className="text-xs text-muted-foreground mb-2">
+                                        {t('auth.phoneWarning')}
+                                    </p>
+                                    <div className="phone-input-wrapper">
+                                        <PhoneInput
+                                            international
+                                            defaultCountry="MA"
+                                            value={data.phone}
+                                            onChange={handlePhoneChange}
+                                            disabled={processing}
+                                            className="phone-input-custom"
+                                            countrySelectComponent={CustomCountrySelect}
+                                            inputProps={{
+                                                className: "border-[#096626] border-2 rounded-md px-3 py-2 w-full",
+                                                tabIndex: 3,
+                                                autoComplete: "tel"
+                                            }}
+                                        />
+                                    </div>
+                                    <InputError message={phoneError || errors.phone} />
                                 </div>
 
                                 <div className="grid gap-2">
@@ -272,30 +382,25 @@ export default function Register() {
                                             Ville
                                         </Label>
                                         <p className="text-sm font-medium leading-none mt-0.5" dir="rtl">المدينة</p>
-                                        <Select
-                                            value={data.city}
-                                            onValueChange={(value) => setData('city', value)}
-                                            disabled={processing || !selectedCountryCode || availableCities.length === 0}
-                                        >
-                                            <SelectTrigger tabIndex={6} className="border-[#096626] border-2">
-                                                <SelectValue
-                                                    placeholder={
-                                                        !selectedCountryCode
-                                                            ? 'Sélectionnez d\'abord un pays'
-                                                            : availableCities.length
-                                                              ? 'Sélectionnez votre ville'
-                                                              : 'Aucune ville disponible'
-                                                    }
-                                                />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {availableCities.map((city) => (
-                                                    <SelectItem key={city} value={city}>
-                                                        {city}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
+                                        {!selectedCountryCode ? (
+                                            <div className="rounded-lg border border-border px-4 py-3 text-sm text-muted-foreground">
+                                                Sélectionnez d'abord un pays
+                                            </div>
+                                        ) : availableCities.length === 0 ? (
+                                            <div className="rounded-lg border border-border px-4 py-3 text-sm text-muted-foreground">
+                                                Aucune ville disponible
+                                            </div>
+                                        ) : (
+                                            <SearchableSelect
+                                                options={availableCities}
+                                                value={data.city}
+                                                onValueChange={(value) => setData('city', value)}
+                                                placeholder="Sélectionnez votre ville"
+                                                searchPlaceholder="Rechercher une ville..."
+                                                emptyMessage="Aucune ville trouvée"
+                                                disabled={processing || !selectedCountryCode}
+                                            />
+                                        )}
                                         <InputError message={errors.city} />
                                     </div>
                                 </div>
@@ -730,19 +835,26 @@ export default function Register() {
                                         Numéro de téléphone
                                     </Label>
                                     <p className="text-sm font-medium leading-none mt-0.5" dir="rtl">رقم الهاتف</p>
-                                    <Input
-                                        id="phone"
-                                        type="tel"
-                                        required
-                                        tabIndex={3}
-                                        autoComplete="tel"
-                                        value={data.phone}
-                                        onChange={(e) => setData('phone', e.target.value)}
-                                        disabled={processing}
-                                        placeholder="+212 6-XX-XX-XX-XX"
-                                        className="border-[#096626] border-2"
-                                    />
-                                    <InputError message={errors.phone} />
+                                    <p className="text-xs text-muted-foreground mb-2">
+                                        {t('auth.phoneWarning')}
+                                    </p>
+                                    <div className="phone-input-wrapper">
+                                        <PhoneInput
+                                            international
+                                            defaultCountry="MA"
+                                            value={data.phone}
+                                            onChange={handlePhoneChange}
+                                            disabled={processing}
+                                            className="phone-input-custom"
+                                            countrySelectComponent={CustomCountrySelect}
+                                            inputProps={{
+                                                className: "border-[#096626] border-2 rounded-md px-3 py-2 w-full",
+                                                tabIndex: 3,
+                                                autoComplete: "tel"
+                                            }}
+                                        />
+                                    </div>
+                                    <InputError message={phoneError || errors.phone} />
                                 </div>
 
                                 <div className="grid gap-2">
@@ -797,30 +909,25 @@ export default function Register() {
                                             Ville
                                         </Label>
                                         <p className="text-sm font-medium leading-none mt-0.5" dir="rtl">المدينة</p>
-                                        <Select
-                                            value={data.city}
-                                            onValueChange={(value) => setData('city', value)}
-                                            disabled={processing || !selectedCountryCode || availableCities.length === 0}
-                                        >
-                                            <SelectTrigger tabIndex={6} className="border-[#096626] border-2">
-                                                <SelectValue
-                                                    placeholder={
-                                                        !selectedCountryCode
-                                                            ? 'Sélectionnez d\'abord un pays'
-                                                            : availableCities.length
-                                                              ? 'Sélectionnez votre ville'
-                                                              : 'Aucune ville disponible'
-                                                    }
-                                                />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {availableCities.map((city) => (
-                                                    <SelectItem key={city} value={city}>
-                                                        {city}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
+                                        {!selectedCountryCode ? (
+                                            <div className="rounded-lg border border-border px-4 py-3 text-sm text-muted-foreground">
+                                                Sélectionnez d'abord un pays
+                                            </div>
+                                        ) : availableCities.length === 0 ? (
+                                            <div className="rounded-lg border border-border px-4 py-3 text-sm text-muted-foreground">
+                                                Aucune ville disponible
+                                            </div>
+                                        ) : (
+                                            <SearchableSelect
+                                                options={availableCities}
+                                                value={data.city}
+                                                onValueChange={(value) => setData('city', value)}
+                                                placeholder="Sélectionnez votre ville"
+                                                searchPlaceholder="Rechercher une ville..."
+                                                emptyMessage="Aucune ville trouvée"
+                                                disabled={processing || !selectedCountryCode}
+                                            />
+                                        )}
                                         <InputError message={errors.city} />
                                     </div>
                                 </div>

@@ -61,6 +61,15 @@ export default function MatchmakerProspects() {
         return false;
     };
     
+    const handleToggleTraite = (prospect) => {
+        router.post(`/staff/prospects/${prospect.id}/toggle-traite`, {}, {
+            preserveScroll: true,
+            onSuccess: () => {
+                router.reload({ only: ['prospects'] });
+            },
+        });
+    };
+
     const handleReject = (prospect) => {
         setSelectedProspect(prospect);
         setRejectionReason('');
@@ -272,6 +281,7 @@ export default function MatchmakerProspects() {
                             <SelectContent>
                                 <SelectItem value="active">Actifs</SelectItem>
                                 <SelectItem value="rejected">Rejetés</SelectItem>
+                                <SelectItem value="traite">Traité</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
@@ -362,8 +372,15 @@ export default function MatchmakerProspects() {
                                     )}
                                     <TableCell className="text-right">
                                         <div className="flex justify-end gap-2">
-                                            {statusFilter === 'active' ? (
+                                            {statusFilter === 'active' || statusFilter === 'traite' ? (
                                                 <>
+                                                    <Button
+                                                        size="sm"
+                                                        variant={prospect.is_traite ? "default" : "outline"}
+                                                        onClick={() => handleToggleTraite(prospect)}
+                                                    >
+                                                        {prospect.is_traite ? '✓ Traité' : 'Pas traité'}
+                                                    </Button>
                                                     {canRejectProspect(prospect) && (
                                                         <Button
                                                             size="sm"

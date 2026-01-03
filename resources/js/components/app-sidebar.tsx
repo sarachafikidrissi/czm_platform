@@ -238,7 +238,7 @@ export function AppSidebar() {
                             <Link href="/dashboard" prefetch>
                                 {/* to be changed when user upload his picture */}
                                 <div className="flex w-full items-center justify-between gap-x-1">
-                                    <img src="/images/Czm-white-logo.png" alt="profile-picture" className="size-10 fill-current object-cover" />
+                                    <img src="/images/czm_Logo.png" alt="profile-picture" className="size-10 fill-current object-cover bg-white rounded-full" />
                                     <span className="text-white">{t('common.centreZawajMaroc')}</span>
                                 </div>
                                 <div className="ml-1 grid flex-1 text-left text-sm">

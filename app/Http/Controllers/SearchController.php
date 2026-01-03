@@ -34,80 +34,45 @@ class SearchController extends Controller
             return response()->json(['users' => []]);
         }
 
-        // Base query for users
+        // Prepare CIN hash for search if query looks like a CIN (alphanumeric, typically uppercase)
+        $cinHash = null;
+        $cinUpper = strtoupper(trim($query));
+        // Check if query might be a CIN (alphanumeric, typically 6-12 characters)
+        if (preg_match('/^[A-Z0-9]{6,12}$/i', $cinUpper)) {
+            $appKey = (string) config('app.key');
+            if (str_starts_with($appKey, 'base64:')) {
+                $decoded = base64_decode(substr($appKey, 7));
+                if ($decoded !== false) {
+                    $appKey = $decoded;
+                }
+            }
+            $cinHash = hash_hmac('sha256', $cinUpper, $appKey);
+        }
+
+        // Base query for users - matchmakers and managers can now search all users
         $usersQuery = User::role('user')
-            ->where(function($q) use ($query) {
+            ->where(function($q) use ($query, $cinHash) {
                 $q->where('name', 'like', "%{$query}%")
                   ->orWhere('username', 'like', "%{$query}%")
                   ->orWhere('email', 'like', "%{$query}%")
                   ->orWhere('phone', 'like', "%{$query}%");
+                
+                // Add CIN search if hash was generated
+                if ($cinHash) {
+                    $q->orWhereHas('profile', function($profileQ) use ($cinHash) {
+                        $profileQ->where('cin_hash', $cinHash);
+                    });
+                }
             })
             ->with(['profile', 'agency', 'assignedMatchmaker']);
 
-        // Apply role-based filtering
-        if ($roleName === 'admin') {
-            // Admin can see all users
-            // No additional filtering needed
-        } elseif ($roleName === 'matchmaker') {
-            // Matchmaker can only see users assigned to them
-            $usersQuery->where('assigned_matchmaker_id', $user->id);
-        } elseif ($roleName === 'manager') {
-            // Manager can see all users from their agency (including those assigned to matchmakers in their agency)
-            // but excluding users assigned to other managers in the same agency
-            if ($user->agency_id) {
-                // Get all matchmaker IDs in the manager's agency
-                $matchmakerIds = User::role('matchmaker')
-                    ->where('agency_id', $user->agency_id)
-                    ->pluck('id')
-                    ->toArray();
-                
-                // Get all manager IDs in the manager's agency (excluding themselves)
-                $otherManagerIds = User::role('manager')
-                    ->where('agency_id', $user->agency_id)
-                    ->where('id', '!=', $user->id)
-                    ->pluck('id')
-                    ->toArray();
-                
-                $usersQuery->where(function($q) use ($user, $matchmakerIds, $otherManagerIds) {
-                    // Users validated by this manager
-                    $q->where('validated_by_manager_id', $user->id)
-                      // OR users from their agency
-                      ->orWhere(function($subQ) use ($user, $matchmakerIds) {
-                          $subQ->where('agency_id', $user->agency_id)
-                            ->where(function($subSubQ) use ($user, $matchmakerIds) {
-                          // Users assigned to matchmakers in their agency
-                                if (!empty($matchmakerIds)) {
-                                    $subSubQ->whereIn('assigned_matchmaker_id', $matchmakerIds);
-                                }
-                                // OR users assigned to them (prospects they created)
-                                $subSubQ->orWhere('assigned_matchmaker_id', $user->id);
-                                // OR unassigned users from their agency
-                                $subSubQ->orWhereNull('assigned_matchmaker_id');
-                            });
-                      })
-                      // OR users assigned to matchmakers in their agency (even if agency_id doesn't match)
-                      ->orWhere(function($subQ) use ($matchmakerIds) {
-                          if (!empty($matchmakerIds)) {
-                              $subQ->whereIn('assigned_matchmaker_id', $matchmakerIds);
-                          }
-                      });
-                    
-                    // Exclude users assigned to other managers in the same agency
-                    if (!empty($otherManagerIds)) {
-                        $q->whereNotIn('assigned_matchmaker_id', $otherManagerIds);
-                    }
-                });
-            } else {
-                // If manager has no agency, return empty results
-                return response()->json(['users' => []]);
-            }
-        }
+        // No role-based filtering - matchmakers and managers can search all users
 
-        $users = $usersQuery->limit(20)->get();
+        $users = $usersQuery->orderBy('created_at', 'desc')->limit(20)->get();
 
-        // If admin, also search for staff members
+        // Search for staff members (admin, matchmaker, manager can all see staff)
         $staffMembers = collect();
-        if ($roleName === 'admin') {
+        if (in_array($roleName, ['admin', 'matchmaker', 'manager'])) {
             $staffQuery = User::whereHas('roles', function($q) {
                     $q->whereIn('name', ['admin', 'manager', 'matchmaker']);
                 })
@@ -118,6 +83,7 @@ class SearchController extends Controller
                       ->orWhere('phone', 'like', "%{$query}%");
                 })
                 ->with(['roles', 'agency'])
+                ->orderBy('created_at', 'desc')
                 ->limit(20)
                 ->get();
             

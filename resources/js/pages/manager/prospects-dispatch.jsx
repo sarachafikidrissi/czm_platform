@@ -129,7 +129,7 @@ export default function ManagerProspectsDispatch() {
     // Handle view profile
     const handleViewProfile = () => {
         if (selectedUserForInfo) {
-            router.visit(`/profile/${selectedUserForInfo.username || selectedUserForInfo.id}`);
+            window.open(`/profile/${selectedUserForInfo.username || selectedUserForInfo.id}`, '_blank', 'noopener,noreferrer');
         }
     };
 

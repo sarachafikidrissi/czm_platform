@@ -129,11 +129,11 @@ export default function UserMatchmakers() {
                                             </div>
                                         </div>
                                         <div className="flex justify-end pt-4 space-x-2">
-                                            <Link href={`/profile/${selected?.username || selected?.id}`}>
+                                            <a href={`/profile/${selected?.username || selected?.id}`} target="_blank" rel="noopener noreferrer">
                                                 <Button size="sm" className="bg-info hover:opacity-90">
                                                     View Full Profile
                                                 </Button>
-                                            </Link>
+                                            </a>
                                             {assignedMatchmaker && assignedMatchmaker.id === selected?.id ? (
                                                 <Button size="sm" variant="outline" disabled>
                                                     Selected

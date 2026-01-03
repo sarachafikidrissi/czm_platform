@@ -80,7 +80,7 @@ export default function TransferRequests() {
 
     const handleViewProfile = () => {
         if (selectedUserForInfo) {
-            router.visit(`/profile/${selectedUserForInfo.username || selectedUserForInfo.id}`);
+            window.open(`/profile/${selectedUserForInfo.username || selectedUserForInfo.id}`, '_blank', 'noopener,noreferrer');
         }
     };
 
