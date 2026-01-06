@@ -3,8 +3,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { router, usePage } from '@inertiajs/react';
-import { ChevronLeft, ChevronRight, Heart, MessageCircle, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { ChevronLeft, ChevronRight, Heart, MessageCircle, Trash2, Edit2, X, Send } from 'lucide-react';
+import { useState, useEffect } from 'react';
 
 export default function PostCard({ post }) {
     const { auth } = usePage().props;
@@ -18,9 +18,49 @@ export default function PostCard({ post }) {
     const [comments, setComments] = useState(post.comments || []);
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
+    const [editingCommentId, setEditingCommentId] = useState(null);
+    const [editCommentContent, setEditCommentContent] = useState('');
+    const [replyingToCommentId, setReplyingToCommentId] = useState(null);
+    const [replyContent, setReplyContent] = useState('');
+    const [isReplying, setIsReplying] = useState(false);
+    const [isUpdatingComment, setIsUpdatingComment] = useState(false);
+    const [commentToDelete, setCommentToDelete] = useState(null);
 
     // Handle multiple images
     const imageUrls = post.media_urls || (post.media_url ? [post.media_url] : []);
+
+    // Sync comments when post data updates from server (after Inertia reloads)
+    useEffect(() => {
+        if (post.comments) {
+            setComments(prevComments => {
+                // Create a hash of comment IDs to detect real changes
+                const newCommentIds = post.comments.map(c => c.id).sort().join(',');
+                const currentCommentIds = prevComments.map(c => c.id).sort().join(',');
+                
+                // Check if current comments OR their replies have temporary IDs (Date.now() values are very large, > 1000000000000)
+                const hasTempIds = prevComments.some(c => {
+                    // Check top-level comment
+                    if (c.id > 1000000000000) return true;
+                    // Check replies
+                    if (c.replies && c.replies.some(r => r.id > 1000000000000)) return true;
+                    return false;
+                });
+                
+                // Only update if:
+                // 1. The IDs are different (new comment/reply from server or structure changed)
+                // 2. OR the current comments/replies have temporary IDs (need to replace with real IDs)
+                if (newCommentIds !== currentCommentIds || hasTempIds) {
+                    return post.comments;
+                }
+                return prevComments; // Keep current state if no meaningful change
+            });
+            
+            // Always sync comment count from server
+            if (post.comments_count !== undefined) {
+                setCommentsCount(post.comments_count);
+            }
+        }
+    }, [post.comments, post.comments_count, post.id]); // Sync when post changes or comments update
 
     const handleLike = () => {
         setIsLiking(true);
@@ -64,7 +104,9 @@ export default function PostCard({ post }) {
             id: Date.now(), // Temporary ID
             content: commentContent,
             user: auth.user,
+            user_id: auth.user.id,
             created_at: new Date().toISOString(),
+            replies: [],
         };
 
         // Update comments count and add comment to list
@@ -80,8 +122,10 @@ export default function PostCard({ post }) {
             },
             {
                 preserveScroll: true,
+                only: ['posts'], // Allow Inertia to update posts data (will trigger useEffect to sync)
                 onFinish: () => {
                     setIsCommenting(false);
+                    // useEffect will sync the comment with real ID from server
                 },
                 onError: () => {
                     // Revert on error
@@ -92,6 +136,251 @@ export default function PostCard({ post }) {
                 },
             },
         );
+    };
+
+    const handleReply = (e, parentCommentId) => {
+        e.preventDefault();
+        if (!replyContent.trim()) return;
+
+        const replyText = replyContent.trim();
+        setIsReplying(true);
+
+        // Optimistically add reply to UI
+        const tempReply = {
+            id: Date.now(), // Temporary ID
+            content: replyText,
+            user: auth.user,
+            user_id: auth.user.id,
+            created_at: new Date().toISOString(),
+        };
+
+        // Update comments state to add reply
+        setComments(comments.map(comment => {
+            if (comment.id === parentCommentId) {
+                return {
+                    ...comment,
+                    replies: [...(comment.replies || []), tempReply]
+                };
+            }
+            return comment;
+        }));
+
+        setReplyContent('');
+        setReplyingToCommentId(null);
+
+        router.post(
+            '/posts/comment',
+            {
+                post_id: post.id,
+                content: replyText,
+                parent_id: parentCommentId,
+            },
+            {
+                preserveScroll: true,
+                only: ['posts'], // Allow Inertia to update posts data (will trigger useEffect to sync)
+                onFinish: () => {
+                    setIsReplying(false);
+                    // useEffect will sync the reply with real ID from server
+                },
+                onError: () => {
+                    // Revert on error
+                    setComments(comments.map(comment => {
+                        if (comment.id === parentCommentId) {
+                            return {
+                                ...comment,
+                                replies: (comment.replies || []).filter(r => r.id !== tempReply.id)
+                            };
+                        }
+                        return comment;
+                    }));
+                    setReplyContent(replyText);
+                    setReplyingToCommentId(parentCommentId);
+                    setIsReplying(false);
+                },
+            },
+        );
+    };
+
+    const handleEditComment = (comment) => {
+        setEditingCommentId(comment.id);
+        setEditCommentContent(comment.content);
+    };
+
+    const handleUpdateComment = (e, commentId) => {
+        e.preventDefault();
+        if (!editCommentContent.trim()) return;
+
+        const updatedContent = editCommentContent.trim();
+        setIsUpdatingComment(true);
+
+        // Find the comment to get its original content
+        let originalContent = '';
+        let isReply = false;
+        let parentCommentId = null;
+
+        // Check if it's a top-level comment or a reply
+        for (const comment of comments) {
+            if (comment.id === commentId) {
+                originalContent = comment.content;
+                break;
+            }
+            if (comment.replies) {
+                for (const reply of comment.replies) {
+                    if (reply.id === commentId) {
+                        originalContent = reply.content;
+                        isReply = true;
+                        parentCommentId = comment.id;
+                        break;
+                    }
+                }
+                if (isReply) break;
+            }
+        }
+
+        // Optimistically update comment in UI
+        if (isReply) {
+            setComments(comments.map(comment => {
+                if (comment.id === parentCommentId) {
+                    return {
+                        ...comment,
+                        replies: (comment.replies || []).map(reply => 
+                            reply.id === commentId 
+                                ? { ...reply, content: updatedContent }
+                                : reply
+                        )
+                    };
+                }
+                return comment;
+            }));
+        } else {
+            setComments(comments.map(comment => 
+                comment.id === commentId 
+                    ? { ...comment, content: updatedContent }
+                    : comment
+            ));
+        }
+
+        setEditingCommentId(null);
+        setEditCommentContent('');
+
+        router.put(
+            `/posts/comments/${commentId}`,
+            {
+                content: updatedContent,
+            },
+            {
+                preserveScroll: true,
+                only: [],
+                onFinish: () => {
+                    setIsUpdatingComment(false);
+                },
+                onError: () => {
+                    // Revert on error
+                    if (isReply) {
+                        setComments(comments.map(comment => {
+                            if (comment.id === parentCommentId) {
+                                return {
+                                    ...comment,
+                                    replies: (comment.replies || []).map(reply => 
+                                        reply.id === commentId 
+                                            ? { ...reply, content: originalContent }
+                                            : reply
+                                    )
+                                };
+                            }
+                            return comment;
+                        }));
+                    } else {
+                        setComments(comments.map(comment => 
+                            comment.id === commentId 
+                                ? { ...comment, content: originalContent }
+                                : comment
+                        ));
+                    }
+                    setEditingCommentId(commentId);
+                    setEditCommentContent(originalContent);
+                    setIsUpdatingComment(false);
+                },
+            },
+        );
+    };
+
+    const handleDeleteComment = (commentId) => {
+        // Find if it's a top-level comment or a reply
+        let isReply = false;
+        let parentCommentId = null;
+        let deletedComment = null;
+
+        for (const comment of comments) {
+            if (comment.id === commentId) {
+                deletedComment = comment;
+                break;
+            }
+            if (comment.replies) {
+                for (const reply of comment.replies) {
+                    if (reply.id === commentId) {
+                        deletedComment = reply;
+                        isReply = true;
+                        parentCommentId = comment.id;
+                        break;
+                    }
+                }
+                if (isReply) break;
+            }
+        }
+
+        // Optimistically remove comment from UI
+        if (isReply) {
+            setComments(comments.map(comment => {
+                if (comment.id === parentCommentId) {
+                    return {
+                        ...comment,
+                        replies: (comment.replies || []).filter(reply => reply.id !== commentId)
+                    };
+                }
+                return comment;
+            }));
+        } else {
+            setComments(comments.filter(comment => comment.id !== commentId));
+            setCommentsCount(commentsCount - 1);
+        }
+
+        setCommentToDelete(null);
+
+        router.delete(`/posts/comments/${commentId}`, {
+            preserveScroll: true,
+            only: [],
+            onSuccess: () => {
+                // Success - state already updated
+            },
+            onError: () => {
+                // Revert on error
+                if (isReply && deletedComment) {
+                    setComments(comments.map(comment => {
+                        if (comment.id === parentCommentId) {
+                            return {
+                                ...comment,
+                                replies: [...(comment.replies || []), deletedComment]
+                            };
+                        }
+                        return comment;
+                    }));
+                } else if (deletedComment) {
+                    setComments([...comments, deletedComment]);
+                    setCommentsCount(commentsCount);
+                }
+            },
+        });
+    };
+
+    const cancelEdit = () => {
+        setEditingCommentId(null);
+        setEditCommentContent('');
+    };
+
+    const cancelReply = () => {
+        setReplyingToCommentId(null);
+        setReplyContent('');
     };
 
     const handleDelete = () => {
@@ -252,37 +541,178 @@ export default function PostCard({ post }) {
                         {comments && comments.length > 0 && (
                             <div className="mb-4 space-y-3">
                                 {comments.map((comment) => (
-                                    <div key={comment.id} className="flex items-start gap-3">
-                                        <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-red-600 bg-gray-200">
-                                            {comment.user?.roles?.[0]?.name !== 'user' && comment.user?.profile_picture ? (
-                                                <img
-                                                    src={`/storage/${comment.user.profile_picture}`}
-                                                    alt={comment.user.name}
-                                                    className="h-full w-full rounded-full object-cover"
-                                                />
-                                            ) : comment.user?.roles?.[0]?.name === 'user' && comment.user?.profile?.profile_picture_path ? (
-                                                <img
-                                                    src={`/storage/${comment.user.profile.profile_picture_path}`}
-                                                    alt={comment.user.name}
-                                                    className="h-full w-full rounded-full object-cover"
-                                                />
-                                            ) : (
-                                                <span className="text-xs font-medium text-gray-600">
-                                                    {comment.user?.name?.charAt(0)?.toUpperCase() || 'U'}
-                                                </span>
-                                            )}
-                                        </div>
-                                        <div className="flex-1">
-                                            <div className="bg-muted rounded-lg p-3">
-                                                <h4 className="text-foreground text-sm font-medium">{comment.user?.name || 'Unknown User'}</h4>
-                                                <p className="text-foreground mt-1 text-sm">{comment.content}</p>
+                                    <div key={comment.id} className="space-y-2">
+                                        <div className="flex items-start gap-3">
+                                            <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-red-600 bg-gray-200">
+                                                {comment.user?.roles?.[0]?.name !== 'user' && comment.user?.profile_picture ? (
+                                                    <img
+                                                        src={`/storage/${comment.user.profile_picture}`}
+                                                        alt={comment.user.name}
+                                                        className="h-full w-full rounded-full object-cover"
+                                                    />
+                                                ) : comment.user?.roles?.[0]?.name === 'user' && comment.user?.profile?.profile_picture_path ? (
+                                                    <img
+                                                        src={`/storage/${comment.user.profile.profile_picture_path}`}
+                                                        alt={comment.user.name}
+                                                        className="h-full w-full rounded-full object-cover"
+                                                    />
+                                                ) : (
+                                                    <span className="text-xs font-medium text-gray-600">
+                                                        {comment.user?.name?.charAt(0)?.toUpperCase() || 'U'}
+                                                    </span>
+                                                )}
                                             </div>
-                                            <div className="text-muted-foreground mt-2 flex items-center gap-4 text-xs">
-                                                <span>{formatTimeAgo(comment.created_at)}</span>
-                                                <button className="hover:text-foreground">J'aime</button>
-                                                <button className="hover:text-foreground">Répondre</button>
+                                            <div className="flex-1">
+                                                {editingCommentId === comment.id ? (
+                                                    <form onSubmit={(e) => handleUpdateComment(e, comment.id)} className="space-y-2">
+                                                        <Textarea
+                                                            value={editCommentContent}
+                                                            onChange={(e) => setEditCommentContent(e.target.value)}
+                                                            className="min-h-[60px] resize-none"
+                                                        />
+                                                        <div className="flex items-center gap-2">
+                                                            <Button type="submit" size="sm" disabled={isUpdatingComment || !editCommentContent.trim()}>
+                                                                {isUpdatingComment ? '...' : 'Enregistrer'}
+                                                            </Button>
+                                                            <Button type="button" variant="outline" size="sm" onClick={cancelEdit}>
+                                                                Annuler
+                                                            </Button>
+                                                        </div>
+                                                    </form>
+                                                ) : (
+                                                    <>
+                                                        <div className="bg-muted rounded-lg p-3">
+                                                            <h4 className="text-foreground text-sm font-medium">{comment.user?.name || 'Unknown User'}</h4>
+                                                            <p className="text-foreground mt-1 text-sm">{comment.content}</p>
+                                                        </div>
+                                                        <div className="text-muted-foreground mt-2 flex items-center gap-4 text-xs">
+                                                            <span>{formatTimeAgo(comment.created_at)}</span>
+                                                            <button 
+                                                                className="hover:text-foreground"
+                                                                onClick={() => {
+                                                                    setReplyingToCommentId(replyingToCommentId === comment.id ? null : comment.id);
+                                                                    setReplyContent('');
+                                                                }}
+                                                            >
+                                                                Répondre
+                                                            </button>
+                                                            {auth.user.id === comment.user_id && (
+                                                                <>
+                                                                    <button 
+                                                                        className="hover:text-foreground"
+                                                                        onClick={() => handleEditComment(comment)}
+                                                                    >
+                                                                        Modifier
+                                                                    </button>
+                                                                    <button 
+                                                                        className="hover:text-destructive"
+                                                                        onClick={() => setCommentToDelete(comment.id)}
+                                                                    >
+                                                                        Supprimer
+                                                                    </button>
+                                                                </>
+                                                            )}
+                                                        </div>
+                                                    </>
+                                                )}
                                             </div>
                                         </div>
+
+                                        {/* Reply Form */}
+                                        {replyingToCommentId === comment.id && (
+                                            <div className="ml-11 mt-2">
+                                                <form onSubmit={(e) => handleReply(e, comment.id)} className="flex gap-2">
+                                                    <Textarea
+                                                        value={replyContent}
+                                                        onChange={(e) => setReplyContent(e.target.value)}
+                                                        placeholder="Écrire une réponse..."
+                                                        className="min-h-[40px] flex-1 resize-none"
+                                                    />
+                                                    <div className="flex flex-col gap-2">
+                                                        <Button type="submit" size="sm" disabled={isReplying || !replyContent.trim()}>
+                                                            <Send className="h-4 w-4" />
+                                                        </Button>
+                                                        <Button type="button" variant="ghost" size="sm" onClick={cancelReply}>
+                                                            <X className="h-4 w-4" />
+                                                        </Button>
+                                                    </div>
+                                                </form>
+                                            </div>
+                                        )}
+
+                                        {/* Replies */}
+                                        {comment.replies && comment.replies.length > 0 && (
+                                            <div className="ml-11 mt-2 space-y-2 border-l-2 border-gray-200 pl-4">
+                                                {comment.replies.map((reply) => (
+                                                    <div key={reply.id} className="flex items-start gap-2">
+                                                        <div className="flex h-6 w-6 items-center justify-center rounded-full border border-red-600 bg-gray-200">
+                                                            {reply.user?.roles?.[0]?.name !== 'user' && reply.user?.profile_picture ? (
+                                                                <img
+                                                                    src={`/storage/${reply.user.profile_picture}`}
+                                                                    alt={reply.user.name}
+                                                                    className="h-full w-full rounded-full object-cover"
+                                                                />
+                                                            ) : reply.user?.roles?.[0]?.name === 'user' && reply.user?.profile?.profile_picture_path ? (
+                                                                <img
+                                                                    src={`/storage/${reply.user.profile.profile_picture_path}`}
+                                                                    alt={reply.user.name}
+                                                                    className="h-full w-full rounded-full object-cover"
+                                                                />
+                                                            ) : (
+                                                                <span className="text-xs font-medium text-gray-600">
+                                                                    {reply.user?.name?.charAt(0)?.toUpperCase() || 'U'}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <div className="flex-1">
+                                                            {editingCommentId === reply.id ? (
+                                                                <form onSubmit={(e) => handleUpdateComment(e, reply.id)} className="space-y-2">
+                                                                    <Textarea
+                                                                        value={editCommentContent}
+                                                                        onChange={(e) => setEditCommentContent(e.target.value)}
+                                                                        className="min-h-[60px] resize-none"
+                                                                    />
+                                                                    <div className="flex items-center gap-2">
+                                                                        <Button type="submit" size="sm" disabled={isUpdatingComment || !editCommentContent.trim()}>
+                                                                            {isUpdatingComment ? '...' : 'Enregistrer'}
+                                                                        </Button>
+                                                                        <Button type="button" variant="outline" size="sm" onClick={cancelEdit}>
+                                                                            Annuler
+                                                                        </Button>
+                                                                    </div>
+                                                                </form>
+                                                            ) : (
+                                                                <>
+                                                                    <div className="bg-muted rounded-lg p-2">
+                                                                        <h5 className="text-foreground text-xs font-medium">{reply.user?.name || 'Unknown User'}</h5>
+                                                                        <p className="text-foreground mt-1 text-xs">{reply.content}</p>
+                                                                    </div>
+                                                                    <div className="text-muted-foreground mt-1 flex items-center gap-3 text-xs">
+                                                                        <span>{formatTimeAgo(reply.created_at)}</span>
+                                                                        {auth.user.id === reply.user_id && (
+                                                                            <>
+                                                                                <button 
+                                                                                    className="hover:text-foreground"
+                                                                                    onClick={() => handleEditComment(reply)}
+                                                                                >
+                                                                                    Modifier
+                                                                                </button>
+                                                                                <button 
+                                                                                    className="hover:text-destructive"
+                                                                                    onClick={() => setCommentToDelete(reply.id)}
+                                                                                >
+                                                                                    Supprimer
+                                                                                </button>
+                                                                            </>
+                                                                        )}
+                                                                    </div>
+                                                                </>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
                                 ))}
                             </div>
@@ -311,19 +741,37 @@ export default function PostCard({ post }) {
                 )}
             </CardContent>
 
-            {/* Delete Confirmation Dialog */}
+            {/* Delete Post Confirmation Dialog */}
             <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Are you sure?</DialogTitle>
-                        <DialogDescription>This action cannot be undone. This will permanently delete your post.</DialogDescription>
+                        <DialogTitle>Êtes-vous sûr ?</DialogTitle>
+                        <DialogDescription>Cette action est irréversible. Cela supprimera définitivement votre publication.</DialogDescription>
                     </DialogHeader>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
-                            Cancel
+                            Annuler
                         </Button>
                         <Button variant="destructive" onClick={handleDelete}>
-                            Delete
+                            Supprimer
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Delete Comment Confirmation Dialog */}
+            <Dialog open={commentToDelete !== null} onOpenChange={(open) => !open && setCommentToDelete(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Êtes-vous sûr ?</DialogTitle>
+                        <DialogDescription>Cette action est irréversible. Cela supprimera définitivement votre commentaire.</DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setCommentToDelete(null)}>
+                            Annuler
+                        </Button>
+                        <Button variant="destructive" onClick={() => handleDeleteComment(commentToDelete)}>
+                            Supprimer
                         </Button>
                     </DialogFooter>
                 </DialogContent>

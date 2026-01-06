@@ -458,6 +458,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/posts', [\App\Http\Controllers\PostController::class, 'store'])->name('posts.store');
         Route::post('/posts/like', [\App\Http\Controllers\PostController::class, 'like'])->name('posts.like');
         Route::post('/posts/comment', [\App\Http\Controllers\PostController::class, 'comment'])->name('posts.comment');
+        Route::put('/posts/comments/{comment}', [\App\Http\Controllers\PostController::class, 'updateComment'])->name('posts.comments.update');
+        Route::delete('/posts/comments/{comment}', [\App\Http\Controllers\PostController::class, 'deleteComment'])->name('posts.comments.delete');
         Route::delete('/posts/{post}', [\App\Http\Controllers\PostController::class, 'destroy'])->name('posts.destroy');
     });
 

@@ -7,9 +7,11 @@ use App\Models\PostLike;
 use App\Models\PostComment;
 use App\Models\User;
 use App\Models\Agency;
+use App\Mail\CommentReplyNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
@@ -17,7 +19,15 @@ class PostController extends Controller
 {
     public function index()
     {
-        $posts = Post::with(['user.profile', 'agency', 'likes', 'comments.user.roles', 'comments.user.profile'])
+        $posts = Post::with([
+            'user.profile', 
+            'agency', 
+            'likes', 
+            'comments' => function($query) {
+                $query->whereNull('parent_id')
+                    ->with(['user.roles', 'user.profile', 'replies.user.roles', 'replies.user.profile']);
+            }
+        ])
             ->orderBy('created_at', 'desc')
             ->paginate(10);
 
@@ -167,18 +177,71 @@ class PostController extends Controller
     {
         $request->validate([
             'post_id' => 'required|exists:posts,id',
-            'content' => 'required|string|max:1000'
+            'content' => 'required|string|max:1000',
+            'parent_id' => 'nullable|exists:post_comments,id'
         ]);
 
         $comment = PostComment::create([
             'post_id' => $request->post_id,
             'user_id' => Auth::id(),
+            'parent_id' => $request->parent_id,
             'content' => $request->content
         ]);
 
-        $comment->load('user');
+        $comment->load(['user.roles', 'user.profile']);
+
+        // If this is a reply, send notification to the parent comment owner
+        if ($request->parent_id) {
+            $parentComment = PostComment::with('user')->findOrFail($request->parent_id);
+            
+            // Don't send notification if replying to own comment
+            if ($parentComment->user_id !== Auth::id()) {
+                try {
+                    Mail::to($parentComment->user->email)->send(
+                        new CommentReplyNotification($comment, $parentComment, Auth::user())
+                    );
+                } catch (\Exception $e) {
+                    // Log error but don't fail the request
+                    \Log::error('Failed to send comment reply notification: ' . $e->getMessage());
+                }
+            }
+        }
 
         return redirect()->back();
+    }
+
+    public function updateComment(Request $request, PostComment $comment)
+    {
+        $user = Auth::user();
+        
+        // Only the comment owner can update
+        if ($comment->user_id !== $user->id && !$user->hasRole('admin')) {
+            abort(403, 'Unauthorized');
+        }
+
+        $request->validate([
+            'content' => 'required|string|max:1000'
+        ]);
+
+        $comment->update([
+            'content' => $request->content
+        ]);
+
+        return redirect()->back()->with('success', 'Comment updated successfully!');
+    }
+
+    public function deleteComment(PostComment $comment)
+    {
+        $user = Auth::user();
+        
+        // Only the comment owner can delete (or admin)
+        if ($comment->user_id !== $user->id && !$user->hasRole('admin')) {
+            abort(403, 'Unauthorized');
+        }
+
+        $comment->delete();
+
+        return redirect()->back()->with('success', 'Comment deleted successfully!');
     }
 
     public function destroy(Post $post)
@@ -232,7 +295,16 @@ class PostController extends Controller
         $staffIds = $matchmakerIds->merge($managerIds)->merge($adminIds)->unique();
         
         // Get posts from all staff members
-        $posts = Post::with(['user.profile', 'user.roles', 'agency', 'likes', 'comments.user.roles', 'comments.user.profile'])
+        $posts = Post::with([
+            'user.profile', 
+            'user.roles', 
+            'agency', 
+            'likes', 
+            'comments' => function($query) {
+                $query->whereNull('parent_id')
+                    ->with(['user.roles', 'user.profile', 'replies.user.roles', 'replies.user.profile']);
+            }
+        ])
             ->whereIn('user_id', $staffIds)
             ->orderBy('created_at', 'desc')
             ->paginate(10);
