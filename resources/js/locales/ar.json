@@ -75,7 +75,8 @@
         "match": "المطابقة",
         "matchList": "قائمة المطابقات",
         "searchMatchProfiles": "البحث عن ملفات المطابقة",
-        "agencies": "الوكالات"
+        "agencies": "الوكالات",
+        "appointmentRequests": "طلبات المواعيد"
     },
     "breadcrumbs": {
         "photos": "الصور",

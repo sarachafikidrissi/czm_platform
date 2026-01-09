@@ -75,7 +75,8 @@
         "match": "Match",
         "matchList": "Liste des Match",
         "searchMatchProfiles": "Rechercher Profils Match",
-        "agencies": "Agences"
+        "agencies": "Agences",
+        "appointmentRequests": "Demandes de Rendez-vous"
     },
     "breadcrumbs": {
         "photos": "Photos",

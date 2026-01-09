@@ -6,7 +6,7 @@ import { GlobalSearch } from '@/components/global-search';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { CalendarHeart, Flame, HeartHandshake, Images, LayoutGrid, User, UserRoundSearch, Users, UserCheck, Plus, ShoppingCart, CreditCard, RotateCcw, Building2, Target, ArrowRightLeft, List, Search, UserCog, Newspaper } from 'lucide-react';
+import { CalendarHeart, Flame, HeartHandshake, Images, LayoutGrid, User, UserRoundSearch, Users, UserCheck, Plus, ShoppingCart, CreditCard, RotateCcw, Building2, Target, ArrowRightLeft, List, Search, UserCog, Newspaper, Calendar } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 const getMainNavItems = (t: (key: string) => string, role: string): NavItem[] => [
@@ -93,6 +93,12 @@ const getMainNavItems = (t: (key: string) => string, role: string): NavItem[] =>
         roles: ['admin'],
     },
     {
+        title: t('navigation.appointmentRequests', { defaultValue: 'Appointment Requests' }),
+        url: '/admin/appointment-requests',
+        icon: Calendar,
+        roles: ['admin'],
+    },
+    {
         title: t('navigation.prospects'),
         url: '/staff/agency-prospects',
         icon: UserCheck,
@@ -105,6 +111,12 @@ const getMainNavItems = (t: (key: string) => string, role: string): NavItem[] =>
         roles: ['matchmaker', 'manager'],
     },
     {
+        title: t('navigation.appointmentRequests', { defaultValue: 'Appointment Requests' }),
+        url: '/staff/appointment-requests',
+        icon: Calendar,
+        roles: ['matchmaker'],
+    },
+    {
         title: t('navigation.assignmentTracking'),
         url: '/manager/tracking',
         icon: UserRoundSearch,
@@ -114,6 +126,12 @@ const getMainNavItems = (t: (key: string) => string, role: string): NavItem[] =>
         title: t('navigation.dispatchProspects'),
         url: '/manager/prospects-dispatch',
         icon: UserCheck,
+        roles: ['manager'],
+    },
+    {
+        title: t('navigation.appointmentRequests', { defaultValue: 'Appointment Requests' }),
+        url: '/manager/appointment-requests',
+        icon: Calendar,
         roles: ['manager'],
     },
     {

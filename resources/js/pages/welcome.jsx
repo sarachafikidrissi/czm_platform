@@ -61,6 +61,7 @@ export default function Welcome() {
                 'meet-partner',
                 'for-client',
                 'for-staff',
+                'appointment-request',
                 'faq',
             ];
             const scrollPosition = window.scrollY + 100;
@@ -113,6 +114,7 @@ export default function Welcome() {
             answer: t('welcome.faq4Answer'),
         },
     ];
+
 
     return (
         <>
@@ -824,6 +826,37 @@ export default function Welcome() {
                                 </CardHeader>
                             </Card>
                         </div>
+                    </div>
+                </section>
+
+                {/* Appointment Request Section */}
+                <section id="appointment-request" className="bg-gradient-to-br from-red-50/50 to-green-50/50 py-20 dark:from-gray-800 dark:to-gray-900">
+                    <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
+                        <div className="mb-12 text-center">
+                            <h2 className="mb-4 text-4xl font-bold text-gray-900 md:text-5xl dark:text-white">
+                                {t('welcome.appointmentRequestTitle', 'Demande de Rendez-vous')}
+                            </h2>
+                            <p className="mb-8 text-xl text-gray-600 dark:text-gray-300">
+                                {t('welcome.appointmentRequestSubtitle', 'Remplissez le formulaire pour demander un rendez-vous')}
+                            </p>
+                        </div>
+                        <Card className="border-2 border-[#90080b]/20 shadow-xl dark:border-red-500/30">
+                            <CardContent className="p-8 text-center">
+                                <Calendar className="mx-auto mb-6 h-16 w-16 text-[#90080b] dark:text-red-400" />
+                                <p className="mb-6 text-lg text-gray-600 dark:text-gray-300">
+                                    {t('welcome.appointmentRequestDescription', 'Cliquez sur le bouton ci-dessous pour accéder au formulaire de demande de rendez-vous')}
+                                </p>
+                                <Link href={route('appointment-request.create')}>
+                                    <Button
+                                        size="lg"
+                                        className="bg-[#90080b] text-white hover:bg-[#90080b]/90"
+                                    >
+                                        <Calendar className="mr-2 h-5 w-5" />
+                                        {t('welcome.appointmentRequestButton', 'Demander un Rendez-vous')}
+                                    </Button>
+                                </Link>
+                            </CardContent>
+                        </Card>
                     </div>
                 </section>
 

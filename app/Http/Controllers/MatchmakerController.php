@@ -9,6 +9,7 @@ use App\Models\MatchmakerNote;
 use App\Models\MatchmakerEvaluation;
 use App\Models\TransferRequest;
 use App\Models\UserPhoto;
+use App\Models\AppointmentRequest;
 use App\Mail\BillEmail;
 use App\Mail\ProspectCredentialsMail;
 use Illuminate\Http\Request;
@@ -3020,5 +3021,72 @@ class MatchmakerController extends Controller
         }
 
         return redirect()->back()->with('success', 'Cover picture uploaded successfully.');
+    }
+
+    /**
+     * List appointment requests assigned to matchmaker
+     */
+    public function appointmentRequests(Request $request)
+    {
+        $me = Auth::user();
+        $roleName = null;
+        if ($me) {
+            $roleName = \Illuminate\Support\Facades\DB::table('model_has_roles')
+                ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+                ->where('model_has_roles.model_id', $me->id)
+                ->value('roles.name');
+        }
+
+        // Check approval status for matchmaker
+        if ($roleName === 'matchmaker') {
+            if ($me->approval_status !== 'approved') {
+                abort(403, 'Your account is not validated yet.');
+            }
+        }
+
+        // Restrict matchmaker access: must be linked to an agency
+        if ($roleName === 'matchmaker' && !$me->agency_id) {
+            abort(403, 'You must be linked to an agency to access appointment requests.');
+        }
+
+        $treatmentStatusFilter = $request->string('treatment_status')->toString(); // pending, done
+
+        // Show only requests assigned to current matchmaker
+        $query = AppointmentRequest::where('assigned_matchmaker_id', $me->id)
+            ->with(['assignedAgency', 'assignedMatchmaker']);
+
+        // Filter by treatment_status
+        if ($treatmentStatusFilter && $treatmentStatusFilter !== 'all') {
+            $query->where('treatment_status', $treatmentStatusFilter);
+        }
+
+        $appointmentRequests = $query->orderBy('created_at', 'desc')->get();
+
+        return Inertia::render('matchmaker/appointment-requests', [
+            'appointmentRequests' => $appointmentRequests,
+            'treatmentStatusFilter' => $treatmentStatusFilter ?: 'all',
+        ]);
+    }
+
+    /**
+     * Mark appointment request as done
+     */
+    public function markAppointmentDone(Request $request, AppointmentRequest $appointmentRequest)
+    {
+        $me = Auth::user();
+
+        // Validate matchmaker is assigned to this request
+        if ($appointmentRequest->assigned_matchmaker_id !== $me->id) {
+            abort(403, 'You are not assigned to this appointment request.');
+        }
+
+        // Update treatment status
+        $appointmentRequest->update([
+            'treatment_status' => 'done',
+            'done_at' => now(),
+            'done_by' => $me->id,
+        ]);
+
+        return redirect()->back()->with('success', 'Appointment request marked as done successfully.');
     }
 }

@@ -13,6 +13,9 @@ Route::get('/', function () {
 Route::get('/locations', [LocationController::class, 'getLocations'])->name('locations');
 // Public route for secteurs data
 Route::get('/secteurs', [LocationController::class, 'getSecteurs'])->name('secteurs');
+// Public routes for appointment request
+Route::get('/appointment-request', [\App\Http\Controllers\AppointmentRequestController::class, 'create'])->name('appointment-request.create');
+Route::post('/appointment-request', [\App\Http\Controllers\AppointmentRequestController::class, 'store'])->name('appointment-request.store');
 Route::middleware(['auth'])->group(function () {
     Route::get('/profile', [MainProfileController::class, 'index'])->name('profile.index');
     Route::post('/profile', [MainProfileController::class, 'store'])->name('profile.store');
@@ -356,6 +359,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/reactivation-requests', [\App\Http\Controllers\ReactivationRequestController::class, 'index'])->name('reactivation-requests');
         Route::post('/reactivation-requests/{request}/approve', [\App\Http\Controllers\ReactivationRequestController::class, 'approve'])->name('reactivation-requests.approve');
         Route::post('/reactivation-requests/{request}/reject', [\App\Http\Controllers\ReactivationRequestController::class, 'reject'])->name('reactivation-requests.reject');
+        // Appointment requests routes
+        Route::get('/appointment-requests', [\App\Http\Controllers\AdminController::class, 'appointmentRequests'])->name('appointment-requests');
+        Route::post('/appointment-requests/dispatch', [\App\Http\Controllers\AdminController::class, 'dispatchAppointmentRequest'])->name('appointment-requests.dispatch');
+        Route::post('/appointment-requests/reassign', [\App\Http\Controllers\AdminController::class, 'reassignAppointmentRequest'])->name('appointment-requests.reassign');
+        Route::post('/appointment-requests/{appointmentRequest}/convert', [\App\Http\Controllers\AdminController::class, 'convertToProspect'])->name('appointment-requests.convert');
     });
 
     // Manager-only: track assignments
@@ -363,6 +371,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/tracking', [\App\Http\Controllers\AdminController::class, 'managerTracking'])->name('tracking');
         Route::get('/prospects-dispatch', [\App\Http\Controllers\AdminController::class, 'managerProspectsDispatch'])->name('prospects-dispatch');
         Route::post('/prospects/dispatch', [\App\Http\Controllers\AdminController::class, 'managerDispatchProspects'])->name('prospects.dispatch');
+        // Appointment requests routes
+        Route::get('/appointment-requests', [\App\Http\Controllers\AdminController::class, 'managerAppointmentRequests'])->name('appointment-requests');
+        Route::post('/appointment-requests/dispatch', [\App\Http\Controllers\AdminController::class, 'managerDispatchAppointmentRequest'])->name('appointment-requests.dispatch');
     });
 
     // Staff routes (manager, matchmaker) for viewing dispatched prospects and validated lists
@@ -386,6 +397,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/subscription-form-data/{userId}', [\App\Http\Controllers\MatchmakerController::class, 'getSubscriptionFormData'])->name('subscription-form-data');
         Route::post('/test-subscription-expiration', [\App\Http\Controllers\MatchmakerController::class, 'testSubscriptionExpiration'])->name('test-subscription-expiration');
         Route::post('/test-three-day-reminder', [\App\Http\Controllers\MatchmakerController::class, 'testThreeDayReminder'])->name('test-three-day-reminder');
+        // Appointment requests routes
+        Route::get('/appointment-requests', [\App\Http\Controllers\MatchmakerController::class, 'appointmentRequests'])->name('appointment-requests');
+        Route::post('/appointment-requests/{appointmentRequest}/mark-done', [\App\Http\Controllers\MatchmakerController::class, 'markAppointmentDone'])->name('appointment-requests.mark-done');
         // Matchmaker: activate/deactivate member/client accounts
         Route::post('/users/{user}/activate', [\App\Http\Controllers\AccountStatusController::class, 'activateMemberClient'])->name('users.activate');
         Route::post('/users/{user}/deactivate', [\App\Http\Controllers\AccountStatusController::class, 'deactivateMemberClient'])->name('users.deactivate');

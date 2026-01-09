@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Models\Agency;
 use App\Models\MatrimonialPack;
+use App\Models\AppointmentRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -777,6 +778,408 @@ class AdminController extends Controller
             return redirect()->back()->with('success', $message);
         } catch (\Exception $e) {
             return redirect()->back()->with('error', 'An error occurred while dispatching prospects. Please try again.');
+        }
+    }
+
+    /**
+     * List all appointment requests for admin
+     */
+    public function appointmentRequests(Request $request)
+    {
+        $statusFilter = $request->string('status')->toString(); // pending, dispatched, converted, cancelled
+        $treatmentStatusFilter = $request->string('treatment_status')->toString(); // pending, done
+        $country = $request->string('country')->toString();
+        $city = $request->string('city')->toString();
+        $dispatch = $request->string('dispatch')->toString(); // all, dispatched, not_dispatched
+
+        $query = AppointmentRequest::with(['assignedAgency', 'assignedMatchmaker', 'convertedToProspect']);
+
+        // Filter by status
+        if ($statusFilter && $statusFilter !== 'all') {
+            $query->where('status', $statusFilter);
+        }
+
+        // Filter by treatment_status
+        if ($treatmentStatusFilter && $treatmentStatusFilter !== 'all') {
+            $query->where('treatment_status', $treatmentStatusFilter);
+        }
+
+        // Filter by country
+        if ($country) {
+            $query->where('country', $country);
+        }
+
+        // Filter by city
+        if ($city) {
+            $query->where('city', $city);
+        }
+
+        // Filter by dispatch status
+        if ($dispatch === 'dispatched') {
+            $query->where(function($q) {
+                $q->whereNotNull('assigned_agency_id')->orWhereNotNull('assigned_matchmaker_id');
+            });
+        } elseif ($dispatch === 'not_dispatched') {
+            $query->whereNull('assigned_agency_id')->whereNull('assigned_matchmaker_id');
+        }
+
+        $appointmentRequests = $query->orderBy('created_at', 'desc')->get();
+
+        $agencies = Agency::all(['id', 'name', 'country', 'city']);
+        $matchmakers = User::role('matchmaker')
+            ->where('approval_status', 'approved')
+            ->whereNotNull('agency_id')
+            ->with('agency')
+            ->get(['id', 'name', 'email', 'agency_id']);
+
+        return Inertia::render('admin/appointment-requests', [
+            'appointmentRequests' => $appointmentRequests,
+            'agencies' => $agencies,
+            'matchmakers' => $matchmakers,
+            'filters' => [
+                'status' => $statusFilter ?: 'all',
+                'treatment_status' => $treatmentStatusFilter ?: 'all',
+                'country' => $country ?: null,
+                'city' => $city ?: null,
+                'dispatch' => $dispatch ?: 'all',
+            ],
+        ]);
+    }
+
+    /**
+     * Dispatch appointment requests to agency or matchmaker
+     */
+    public function dispatchAppointmentRequest(Request $request)
+    {
+        $validated = $request->validate([
+            'appointment_request_ids' => ['required', 'array', 'min:1'],
+            'appointment_request_ids.*' => ['required', 'integer', 'exists:appointment_requests,id'],
+            'dispatch_type' => ['required', 'string', 'in:agency,matchmaker'],
+            'agency_id' => ['required_if:dispatch_type,agency', 'nullable', 'integer', 'exists:agencies,id'],
+            'matchmaker_id' => ['required_if:dispatch_type,matchmaker', 'nullable', 'integer', 'exists:users,id'],
+        ]);
+
+        $updated = 0;
+        $message = '';
+
+        if ($validated['dispatch_type'] === 'agency') {
+            $agency = Agency::findOrFail($validated['agency_id']);
+            $updated = AppointmentRequest::whereIn('id', $validated['appointment_request_ids'])
+                ->where('status', 'pending')
+                ->whereNull('assigned_agency_id')
+                ->whereNull('assigned_matchmaker_id')
+                ->update([
+                    'status' => 'dispatched',
+                    'assigned_agency_id' => $agency->id,
+                ]);
+            $message = "{$updated} appointment request(s) dispatched to agency successfully.";
+        } else {
+            try {
+                $matchmaker = User::findOrFail($validated['matchmaker_id']);
+
+                // Ensure matchmaker is approved, has a role, and is linked to an agency
+                if (!$matchmaker->hasRole('matchmaker') || $matchmaker->approval_status !== 'approved') {
+                    return redirect()->back()->with('error', 'Selected matchmaker is not valid or not approved.');
+                }
+
+                if (!$matchmaker->agency_id) {
+                    return redirect()->back()->with('error', 'Selected matchmaker must be linked to an agency to receive appointment requests.');
+                }
+
+                // Store BOTH assigned_matchmaker_id AND assigned_agency_id
+                $updated = AppointmentRequest::whereIn('id', $validated['appointment_request_ids'])
+                    ->where('status', 'pending')
+                    ->whereNull('assigned_agency_id')
+                    ->whereNull('assigned_matchmaker_id')
+                    ->update([
+                        'status' => 'dispatched',
+                        'assigned_matchmaker_id' => $matchmaker->id,
+                        'assigned_agency_id' => $matchmaker->agency_id, // Store agency from matchmaker
+                    ]);
+                $message = "{$updated} appointment request(s) dispatched to matchmaker successfully.";
+            } catch (\Exception $e) {
+                return redirect()->back()->with('error', 'An error occurred while dispatching appointment requests. Please try again.');
+            }
+        }
+
+        if ($updated === 0) {
+            return redirect()->back()->with('warning', 'No appointment requests were dispatched. They might already be assigned.');
+        }
+
+        return redirect()->back()->with('success', $message);
+    }
+
+    /**
+     * Reassign appointment requests to different agency or matchmaker
+     * Only allows reassigning requests that are dispatched but not yet treated
+     */
+    public function reassignAppointmentRequest(Request $request)
+    {
+        $validated = $request->validate([
+            'appointment_request_ids' => ['required', 'array', 'min:1'],
+            'appointment_request_ids.*' => ['required', 'integer', 'exists:appointment_requests,id'],
+            'reassign_type' => ['required', 'string', 'in:agency,matchmaker'],
+            'agency_id' => ['required_if:reassign_type,agency', 'nullable', 'integer', 'exists:agencies,id'],
+            'matchmaker_id' => ['required_if:reassign_type,matchmaker', 'nullable', 'integer', 'exists:users,id'],
+        ]);
+
+        $updated = 0;
+        $message = '';
+
+        try {
+            if ($validated['reassign_type'] === 'agency') {
+                $agency = Agency::findOrFail($validated['agency_id']);
+                // Reassign only requests that are dispatched and not yet treated
+                $updated = AppointmentRequest::whereIn('id', $validated['appointment_request_ids'])
+                    ->where('status', 'dispatched')
+                    ->where('treatment_status', 'pending')
+                    ->update([
+                        'assigned_agency_id' => $agency->id,
+                        'assigned_matchmaker_id' => null, // Clear to remove from old matchmaker's list
+                    ]);
+                $message = "{$updated} appointment request(s) reassigned to agency successfully.";
+            } else {
+                $matchmaker = User::findOrFail($validated['matchmaker_id']);
+
+                // Ensure matchmaker is approved, has a role, and is linked to an agency
+                if (!$matchmaker->hasRole('matchmaker') || $matchmaker->approval_status !== 'approved') {
+                    return redirect()->back()->with('error', 'Selected matchmaker is not valid or not approved.');
+                }
+
+                if (!$matchmaker->agency_id) {
+                    return redirect()->back()->with('error', 'Selected matchmaker must be linked to an agency to receive appointment requests.');
+                }
+
+                // Reassign only requests that are dispatched and not yet treated
+                // Set both assigned_matchmaker_id and assigned_agency_id (from matchmaker's agency)
+                $updated = AppointmentRequest::whereIn('id', $validated['appointment_request_ids'])
+                    ->where('status', 'dispatched')
+                    ->where('treatment_status', 'pending')
+                    ->update([
+                        'assigned_matchmaker_id' => $matchmaker->id,
+                        'assigned_agency_id' => $matchmaker->agency_id, // Store agency from matchmaker
+                    ]);
+                $message = "{$updated} appointment request(s) reassigned to matchmaker successfully.";
+            }
+
+            if ($updated === 0) {
+                return redirect()->back()->with('warning', 'No appointment requests were reassigned. They must be dispatched and not yet treated.');
+            }
+
+            return redirect()->back()->with('success', $message);
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'An error occurred while reassigning appointment requests. Please try again.');
+        }
+    }
+
+    /**
+     * Convert appointment request to prospect
+     */
+    public function convertToProspect(Request $request, AppointmentRequest $appointmentRequest)
+    {
+        // Check if already converted
+        if ($appointmentRequest->status === 'converted') {
+            return redirect()->back()->with('warning', 'This appointment request has already been converted to a prospect.');
+        }
+
+        // Check if email already exists
+        $existingUser = User::where('email', $appointmentRequest->email)->first();
+        if ($existingUser) {
+            return redirect()->back()->with('error', 'A user with this email already exists. Please use a different email or contact the existing user.');
+        }
+
+        // Create new user
+        $user = User::create([
+            'name' => $appointmentRequest->name,
+            'email' => $appointmentRequest->email,
+            'phone' => $appointmentRequest->phone,
+            'city' => $appointmentRequest->city,
+            'country' => $appointmentRequest->country,
+            'password' => Hash::make(Str::random(16)), // Random password, will be reset
+            'status' => 'prospect',
+        ]);
+
+        // Assign role
+        $user->assignRole('user');
+
+        // If appointment was dispatched, assign prospect to same agency/matchmaker
+        if ($appointmentRequest->assigned_matchmaker_id) {
+            $user->assigned_matchmaker_id = $appointmentRequest->assigned_matchmaker_id;
+        }
+        if ($appointmentRequest->assigned_agency_id) {
+            $user->agency_id = $appointmentRequest->assigned_agency_id;
+        }
+        $user->save();
+
+        // Link appointment request to prospect
+        $appointmentRequest->update([
+            'status' => 'converted',
+            'converted_to_prospect_id' => $user->id,
+        ]);
+
+        return redirect()->back()->with('success', 'Appointment request converted to prospect successfully.');
+    }
+
+    /**
+     * List appointment requests for manager's agency
+     * Only shows requests dispatched to matchmakers from manager's agency
+     */
+    public function managerAppointmentRequests(Request $request)
+    {
+        $me = Auth::user();
+        $roleName = null;
+        if ($me) {
+            $roleName = \Illuminate\Support\Facades\DB::table('model_has_roles')
+                ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+                ->where('model_has_roles.model_id', $me->id)
+                ->value('roles.name');
+        }
+
+        // Only managers can access this
+        if ($roleName !== 'manager') {
+            abort(403, 'Only managers can access appointment requests.');
+        }
+
+        // Check approval status
+        if ($me->approval_status !== 'approved') {
+            abort(403, 'Your account is not validated yet.');
+        }
+
+        // Manager must have an agency
+        if (!$me->agency_id) {
+            abort(403, 'You must be linked to an agency to view appointment requests.');
+        }
+
+        $treatmentStatusFilter = $request->string('treatment_status')->toString(); // pending, done
+
+        // Get all matchmaker IDs from manager's agency
+        $matchmakerIds = User::role('matchmaker')
+            ->where('agency_id', $me->agency_id)
+            ->pluck('id');
+
+        // Get matchmakers for dispatch dialog
+        $matchmakers = User::role('matchmaker')
+            ->where('agency_id', $me->agency_id)
+            ->where('approval_status', 'approved')
+            ->get(['id', 'name', 'email']);
+
+        // Include both matchmaker-assigned AND agency-only requests
+        $query = AppointmentRequest::where(function($q) use ($matchmakerIds, $me) {
+                $q->whereIn('assigned_matchmaker_id', $matchmakerIds)
+                  ->orWhere(function($subQ) use ($me) {
+                      $subQ->where('assigned_agency_id', $me->agency_id)
+                            ->whereNull('assigned_matchmaker_id');
+                  });
+            })
+            ->with(['assignedMatchmaker', 'assignedAgency']);
+
+        // Filter by treatment_status
+        if ($treatmentStatusFilter && $treatmentStatusFilter !== 'all') {
+            $query->where('treatment_status', $treatmentStatusFilter);
+        }
+
+        $appointmentRequests = $query->orderBy('created_at', 'desc')->get();
+
+        // Calculate statistics - include both matchmaker-assigned and agency-only requests
+        $pendingCount = AppointmentRequest::where(function($q) use ($matchmakerIds, $me) {
+                $q->whereIn('assigned_matchmaker_id', $matchmakerIds)
+                  ->orWhere(function($subQ) use ($me) {
+                      $subQ->where('assigned_agency_id', $me->agency_id)
+                            ->whereNull('assigned_matchmaker_id');
+                  });
+            })
+            ->where('treatment_status', 'pending')
+            ->count();
+        $doneCount = AppointmentRequest::where(function($q) use ($matchmakerIds, $me) {
+                $q->whereIn('assigned_matchmaker_id', $matchmakerIds)
+                  ->orWhere(function($subQ) use ($me) {
+                      $subQ->where('assigned_agency_id', $me->agency_id)
+                            ->whereNull('assigned_matchmaker_id');
+                  });
+            })
+            ->where('treatment_status', 'done')
+            ->count();
+
+        return Inertia::render('manager/appointment-requests', [
+            'appointmentRequests' => $appointmentRequests,
+            'treatmentStatusFilter' => $treatmentStatusFilter ?: 'all',
+            'matchmakers' => $matchmakers,
+            'statistics' => [
+                'pending' => $pendingCount,
+                'done' => $doneCount,
+                'total' => $pendingCount + $doneCount,
+            ],
+        ]);
+    }
+
+    /**
+     * Manager dispatch appointment requests to matchmakers in their agency
+     * Only allows dispatching agency-only requests (not yet assigned to a matchmaker)
+     */
+    public function managerDispatchAppointmentRequest(Request $request)
+    {
+        $me = Auth::user();
+        $roleName = null;
+        if ($me) {
+            $roleName = \Illuminate\Support\Facades\DB::table('model_has_roles')
+                ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+                ->where('model_has_roles.model_id', $me->id)
+                ->value('roles.name');
+        }
+
+        // Only managers can access this
+        if ($roleName !== 'manager') {
+            abort(403, 'Only managers can dispatch appointment requests.');
+        }
+
+        // Check approval status
+        if ($me->approval_status !== 'approved') {
+            abort(403, 'Your account is not validated yet.');
+        }
+
+        // Manager must have an agency
+        if (!$me->agency_id) {
+            abort(403, 'You must be linked to an agency to dispatch appointment requests.');
+        }
+
+        $validated = $request->validate([
+            'appointment_request_ids' => ['required', 'array', 'min:1'],
+            'appointment_request_ids.*' => ['required', 'integer', 'exists:appointment_requests,id'],
+            'matchmaker_id' => ['required', 'integer', 'exists:users,id'],
+        ]);
+
+        try {
+            $matchmaker = User::findOrFail($validated['matchmaker_id']);
+            
+            // Ensure matchmaker is approved, has a role, and is linked to the same agency
+            if (!$matchmaker->hasRole('matchmaker') || $matchmaker->approval_status !== 'approved') {
+                return redirect()->back()->with('error', 'Selected matchmaker is not valid or not approved.');
+            }
+            
+            if ($matchmaker->agency_id !== $me->agency_id) {
+                return redirect()->back()->with('error', 'Selected matchmaker must be from your agency.');
+            }
+            
+            // Only dispatch agency-only requests (assigned to manager's agency but not to a matchmaker)
+            // And only if not yet treated
+            $updated = AppointmentRequest::whereIn('id', $validated['appointment_request_ids'])
+                ->where('assigned_agency_id', $me->agency_id) // Must be from manager's agency
+                ->whereNull('assigned_matchmaker_id') // Not yet assigned to a matchmaker
+                ->where('treatment_status', 'pending') // Not yet treated
+                ->update([
+                    'assigned_matchmaker_id' => $matchmaker->id,
+                    // Keep assigned_agency_id as is
+                ]);
+            
+            $message = "{$updated} appointment request(s) dispatched to matchmaker successfully.";
+            
+            if ($updated === 0) {
+                return redirect()->back()->with('warning', 'No appointment requests were dispatched. They might already be assigned to a matchmaker, not belong to your agency, or already treated.');
+            }
+
+            return redirect()->back()->with('success', $message);
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'An error occurred while dispatching appointment requests. Please try again.');
         }
     }
 }
