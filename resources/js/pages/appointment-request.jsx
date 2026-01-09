@@ -526,9 +526,13 @@ export default function AppointmentRequest({ status }) {
                             </form>
 
                             <div className="text-muted-foreground text-center text-sm mt-4">
-                                <TextLink href={route('home')}>
+                                <a
+                                    href="https://czm.ma/"
+                                    rel="noopener noreferrer"
+                                    className="text-foreground underline decoration-neutral-300 underline-offset-4 transition-colors duration-300 ease-out hover:decoration-current dark:decoration-neutral-500"
+                                >
                                     {t('common.backToHome', 'Retour à l\'accueil')}
-                                </TextLink>
+                                </a>
                             </div>
                         </AuthLayout>
                     </div>
@@ -711,9 +715,14 @@ export default function AppointmentRequest({ status }) {
                         </form>
 
                         <div className="text-muted-foreground text-center text-sm mt-4">
-                            <TextLink href={route('home')}>
+                            <a
+                                href="https://czm.ma/"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-foreground underline decoration-neutral-300 underline-offset-4 transition-colors duration-300 ease-out hover:decoration-current dark:decoration-neutral-500"
+                            >
                                 {t('common.backToHome', 'Retour à l\'accueil')}
-                            </TextLink>
+                            </a>
                         </div>
                     </AuthLayout>
                 </div>
