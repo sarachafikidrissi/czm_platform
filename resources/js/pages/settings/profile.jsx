@@ -1,6 +1,7 @@
 import { Transition } from '@headlessui/react';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { useEffect, useRef, useState } from 'react';
+import { useToast } from '@/hooks/use-toast';
 
 import DeleteUser from '@/components/delete-user';
 import HeadingSmall from '@/components/heading-small';
@@ -23,6 +24,7 @@ const breadcrumbs = [
 
 export default function Profile({ mustVerifyEmail, status }) {
     const { auth, user } = usePage().props;
+    const { showToast } = useToast();
     
     const fileInputRef = useRef(null);
     const [profilePicture, setProfilePicture] = useState(null);
@@ -64,14 +66,14 @@ export default function Profile({ mustVerifyEmail, status }) {
             // Validate file type
             const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
             if (!allowedTypes.includes(file.type)) {
-                alert('Format de fichier non supporté. Utilisez PNG, JPG ou JPEG.');
+                showToast('Format non supporté', 'Format de fichier non supporté. Utilisez PNG, JPG ou JPEG.', 'error');
                 return;
             }
 
             // Validate file size (2MB max)
             const maxSize = 2 * 1024 * 1024; // 2MB in bytes
             if (file.size > maxSize) {
-                alert('Fichier trop volumineux. Taille maximale: 2MB.');
+                showToast('Fichier trop volumineux', 'Fichier trop volumineux. Taille maximale: 2MB.', 'error');
                 return;
             }
 

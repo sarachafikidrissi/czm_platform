@@ -2,6 +2,7 @@ import AppLayout from '@/layouts/app-layout';
 import { Head, usePage, router } from '@inertiajs/react';
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,6 +14,7 @@ import { CreditCard, ArrowLeft } from 'lucide-react';
 export default function CreateSubscription() {
     const { user, profile, matrimonialPacks } = usePage().props;
     const { t } = useTranslation();
+    const { showToast } = useToast();
     const [loading, setLoading] = useState(false);
     const [subscriptionData, setSubscriptionData] = useState({
         matrimonial_pack_id: profile?.matrimonial_pack_id?.toString() || '',
@@ -37,7 +39,7 @@ export default function CreateSubscription() {
         
         if (!subscriptionData.matrimonial_pack_id || !subscriptionData.pack_price || 
             !subscriptionData.pack_advantages.length || !subscriptionData.payment_mode) {
-            alert('Veuillez remplir tous les champs requis.');
+            showToast('Champs requis', 'Veuillez remplir tous les champs requis.', 'warning');
             return;
         }
 
@@ -53,7 +55,7 @@ export default function CreateSubscription() {
             },
             onError: (errors) => {
                 console.error('Error creating subscription:', errors);
-                alert('Erreur lors de la création de la facture. Veuillez réessayer.');
+                showToast('Erreur', 'Erreur lors de la création de la facture. Veuillez réessayer.', 'error');
                 setLoading(false);
             }
         });

@@ -19,11 +19,13 @@ import { Head, router, usePage } from '@inertiajs/react';
 import { BookOpen, Camera, Facebook, Heart, Instagram, Linkedin, MapPin, MessageSquareWarning, User, X, Youtube, Trash2, MoreVertical, UserCircle, Image, ThumbsUp, CheckCircle, Coffee, CreditCard, Lightbulb, Phone, ArrowRightLeft, Pencil, FileText, Calendar, Search, ShoppingCart, GraduationCap, Briefcase } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useToast } from '@/hooks/use-toast';
 import axios from 'axios';
 
 export default function UserProfile({ user, profile, agency, matchmakerNotes = [], matchmakerEvaluation = null, photos = [], bills = [], subscriptions = [], matchmakingSearch = null, matchmakingResults = null }) {
     const { t } = useTranslation();
     const { auth } = usePage().props;
+    const { showToast } = useToast();
 
     // Use Number conversion to handle string/number type differences in IDs
     // Also check with string comparison as fallback
@@ -295,12 +297,12 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
         if (!file) return;
 
         if (!file.type.startsWith('image/')) {
-            alert('Please select a valid image file.');
+            showToast(t('profile.invalidImageType', { defaultValue: 'Please select a valid image file.' }), undefined, 'error');
             return;
         }
 
         if (file.size > 2 * 1024 * 1024) {
-            alert('Image size must be less than 2MB.');
+            showToast(t('profile.imageTooLarge', { defaultValue: 'Image size must be less than 2MB.' }), undefined, 'error');
             return;
         }
 
@@ -317,9 +319,9 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
             },
             onError: (errors) => {
                 if (errors.profile_picture) {
-                    alert(errors.profile_picture);
+                    showToast(t('profile.uploadError', { defaultValue: 'Error' }), errors.profile_picture, 'error');
                 } else {
-                    alert('An error occurred while uploading the profile picture.');
+                    showToast(t('profile.uploadError', { defaultValue: 'An error occurred while uploading the profile picture.' }), undefined, 'error');
                 }
             },
         });
@@ -331,12 +333,12 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
         if (!file) return;
 
         if (!file.type.startsWith('image/')) {
-            alert('Please select a valid image file.');
+            showToast(t('profile.invalidImageType', { defaultValue: 'Please select a valid image file.' }), undefined, 'error');
             return;
         }
 
         if (file.size > 5 * 1024 * 1024) {
-            alert('Image size must be less than 5MB.');
+            showToast(t('profile.imageTooLarge', { defaultValue: 'Image size must be less than 5MB.' }), undefined, 'error');
             return;
         }
 
@@ -353,9 +355,9 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
             },
             onError: (errors) => {
                 if (errors.banner_image) {
-                    alert(errors.banner_image);
+                    showToast(t('profile.uploadError', { defaultValue: 'Error' }), errors.banner_image, 'error');
                 } else {
-                    alert('An error occurred while uploading the cover picture.');
+                    showToast(t('profile.uploadError', { defaultValue: 'An error occurred while uploading the cover picture.' }), undefined, 'error');
                 }
             },
         });
@@ -418,13 +420,13 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
 
         // Validate file type
         if (!file.type.startsWith('image/')) {
-            alert(t('profile.invalidImageType', { defaultValue: 'Please select a valid image file.' }));
+            showToast(t('profile.invalidImageType', { defaultValue: 'Please select a valid image file.' }), undefined, 'error');
             return;
         }
 
         // Validate file size (max 5MB)
         if (file.size > 5 * 1024 * 1024) {
-            alert(t('profile.imageTooLarge', { defaultValue: 'Image size must be less than 5MB.' }));
+            showToast(t('profile.imageTooLarge', { defaultValue: 'Image size must be less than 5MB.' }), undefined, 'error');
             return;
         }
 
@@ -441,9 +443,9 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
             },
             onError: (errors) => {
                 if (errors.banner_image) {
-                    alert(errors.banner_image);
+                    showToast(t('profile.uploadError', { defaultValue: 'Error' }), errors.banner_image, 'error');
                 } else {
-                    alert(t('profile.uploadError', { defaultValue: 'An error occurred while uploading the banner image.' }));
+                    showToast(t('profile.uploadError', { defaultValue: 'An error occurred while uploading the banner image.' }), undefined, 'error');
                 }
             },
         });
@@ -466,7 +468,7 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                 router.reload({ only: ['user', 'profile'] });
             },
             onError: (errors) => {
-                alert(t('profile.deleteError', { defaultValue: 'An error occurred while deleting the banner image.' }));
+                showToast(t('profile.deleteError', { defaultValue: 'An error occurred while deleting the banner image.' }), undefined, 'error');
             },
         });
     };
@@ -675,18 +677,22 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
 
                                                             // Validate file type
                                                             if (!file.type.startsWith('image/')) {
-                                                                alert(
+                                                                showToast(
                                                                     t('profile.invalidImageType', {
                                                                         defaultValue: 'Please select a valid image file.',
                                                                     }),
+                                                                    undefined,
+                                                                    'error'
                                                                 );
                                                                 return;
                                                             }
 
                                                             // Validate file size (max 2MB)
                                                             if (file.size > 2 * 1024 * 1024) {
-                                                                alert(
+                                                                showToast(
                                                                     t('profile.imageTooLarge', { defaultValue: 'Image size must be less than 2MB.' }),
+                                                                    undefined,
+                                                                    'error'
                                                                 );
                                                                 return;
                                                             }
@@ -703,13 +709,15 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                                                 },
                                                                 onError: (errors) => {
                                                                     if (errors.profile_picture) {
-                                                                        alert(errors.profile_picture);
+                                                                        showToast(t('profile.uploadError', { defaultValue: 'Error' }), errors.profile_picture, 'error');
                                                                     } else {
-                                                                        alert(
+                                                                        showToast(
                                                                             t('profile.uploadError', {
                                                                                 defaultValue:
                                                                                     'An error occurred while uploading the profile picture.',
                                                                             }),
+                                                                            undefined,
+                                                                            'error'
                                                                         );
                                                                     }
                                                                 },

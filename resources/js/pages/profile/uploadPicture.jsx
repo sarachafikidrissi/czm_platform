@@ -1,8 +1,10 @@
 import { useEffect, useState, useRef } from 'react';
 import { X, Upload as UploadIcon, Image as ImageIcon } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 function UploadPicture({ formData, setFormData }) {
     const photosInputRef = useRef(null);
+    const { showToast } = useToast();
     // const [formData, setFormData] = useState({
     //     profilePicture: null,
     //     profilePictureError: '',
@@ -104,7 +106,11 @@ function UploadPicture({ formData, setFormData }) {
         const currentPhotos = formData.photos || [];
         
         if (currentPhotos.length + files.length > maxPhotos) {
-            alert(`Vous ne pouvez télécharger que ${maxPhotos} photos au maximum. Vous avez déjà ${currentPhotos.length} photo(s) sélectionnée(s).`);
+            showToast(
+                'Limite de photos atteinte',
+                `Vous ne pouvez télécharger que ${maxPhotos} photos au maximum. Vous avez déjà ${currentPhotos.length} photo(s) sélectionnée(s).`,
+                'warning'
+            );
             return;
         }
 
@@ -124,7 +130,7 @@ function UploadPicture({ formData, setFormData }) {
         });
 
         if (errors.length > 0) {
-            alert(errors.join('\n'));
+            showToast('Erreurs de validation', errors.join('\n'), 'error');
         }
 
         if (validFiles.length > 0) {
@@ -399,11 +405,11 @@ function UploadPicture({ formData, setFormData }) {
                                     const maxSize = 5 * 1024 * 1024; // 5MB
                                     
                                     if (!allowedTypes.includes(file.type)) {
-                                        alert('Format de fichier non supporté. Utilisez PNG, JPG, JPEG ou PDF.');
+                                        showToast('Format non supporté', 'Format de fichier non supporté. Utilisez PNG, JPG, JPEG ou PDF.', 'error');
                                         return;
                                     }
                                     if (file.size > maxSize) {
-                                        alert('Fichier trop volumineux. Taille maximale: 5MB.');
+                                        showToast('Fichier trop volumineux', 'Fichier trop volumineux. Taille maximale: 5MB.', 'error');
                                         return;
                                     }
                                     setFormData((prev) => ({ ...prev, identityCardFront: file }));

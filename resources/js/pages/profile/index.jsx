@@ -1,11 +1,13 @@
 import { router } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
+import { useToast } from '@/hooks/use-toast';
 import Details from './details';
 import PartnerInfo from './partnerInfo';
 import PersonalInfo from './personalInfo';
 import UploadPicture from './uploadPicture';
 
 export default function Profile({ auth, profile, isValidated = false }) {
+    const { showToast } = useToast();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [currentStep, setCurrentStep] = useState(profile?.currentStep || 1);
     const [formData, setFormData] = useState({
@@ -100,7 +102,7 @@ export default function Profile({ auth, profile, isValidated = false }) {
 
     const saveStep = async (step) => {
         if (!validateStep(step)) {
-            alert('Veuillez remplir tous les champs obligatoires');
+            showToast('Champs obligatoires', 'Veuillez remplir tous les champs obligatoires', 'warning');
             return false;
         }
 
@@ -150,14 +152,14 @@ export default function Profile({ auth, profile, isValidated = false }) {
                     onError: (errors) => {
                         console.error('Error saving step:', errors);
                         const errorMessage = errors.validation || errors.message || Object.values(errors).join(', ');
-                        alert('Erreur lors de la sauvegarde: ' + errorMessage);
+                        showToast('Erreur de sauvegarde', 'Erreur lors de la sauvegarde: ' + errorMessage, 'error');
                         resolve(false); // Use resolve instead of reject to continue flow
                     },
                 });
             });
         } catch (error) {
             console.error('Error in saveStep:', error);
-            alert('Erreur lors de la sauvegarde');
+            showToast('Erreur de sauvegarde', 'Erreur lors de la sauvegarde', 'error');
             return false;
         }
     };
@@ -188,7 +190,7 @@ export default function Profile({ auth, profile, isValidated = false }) {
                             },
                             onError: (errors) => {
                                 console.error('Error completing profile:', errors);
-                                alert('Erreur lors de la finalisation du profil');
+                                showToast('Erreur', 'Erreur lors de la finalisation du profil', 'error');
                             },
                         },
                     );
@@ -196,7 +198,7 @@ export default function Profile({ auth, profile, isValidated = false }) {
             }
         } catch (error) {
             console.error('Error in handleNext:', error);
-            alert('Une erreur est survenue');
+            showToast('Erreur', 'Une erreur est survenue', 'error');
         } finally {
             setIsSubmitting(false);
         }

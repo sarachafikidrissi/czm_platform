@@ -14,10 +14,12 @@ import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import { useState, useEffect, useMemo } from 'react';
 import { LayoutGrid, Table2, Mail, MapPin, CheckCircle, Pencil, TestTube, Link as LinkIcon, Copy, Check, Search, Phone, ArrowRightLeft, AlertCircle } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function ValidatedProspects() {
     const { t } = useTranslation();
+    const { showToast } = useToast();
     const { prospects, status, assignedMatchmaker, auth } = usePage().props;
     const isLoading = prospects === null || prospects === undefined;
     
@@ -124,7 +126,7 @@ export default function ValidatedProspects() {
             .then(response => response.json())
             .then(data => {
                 if (data.error) {
-                    alert(data.error);
+                    showToast('Erreur', data.error, 'error');
                     return;
                 }
                 
@@ -140,7 +142,7 @@ export default function ValidatedProspects() {
             })
             .catch(error => {
                 console.error('Error fetching subscription data:', error);
-                alert('Error loading subscription data');
+                showToast('Erreur', 'Error loading subscription data', 'error');
             });
     };
 

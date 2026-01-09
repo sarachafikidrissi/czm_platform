@@ -1,6 +1,7 @@
 import { Head, router, usePage, useForm } from '@inertiajs/react';
 import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useToast } from '@/hooks/use-toast';
 import AppLayout from '@/layouts/app-layout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -17,6 +18,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 export default function AgencyProspects() {
     const { t } = useTranslation();
+    const { showToast } = useToast();
     const { prospects = [], statusFilter = 'active', services = [], matrimonialPacks = [], auth } = usePage().props;
     const isLoading = prospects === null || prospects === undefined;
     
@@ -1201,7 +1203,7 @@ export default function AgencyProspects() {
                                     // Note: identity_card_front is only required if user didn't upload one
                                     // If user uploaded one, matchmaker can optionally replace it
                                     if ((needsCin && !data.cin) || (needsFront && !data.identity_card_front) || !data.service_id || !data.matrimonial_pack_id || !data.pack_price || !data.payment_mode || data.pack_advantages.length === 0) {
-                                        alert('Please fill in all required fields');
+                                        showToast('Champs requis', 'Please fill in all required fields', 'warning');
                                         return;
                                     }
 
@@ -1210,7 +1212,7 @@ export default function AgencyProspects() {
                                         forceFormData: true,
                                         onError: (err) => {
                                             console.error('Validation error:', err);
-                                            alert('Validation failed: ' + (err.message || 'Please check all fields'));
+                                            showToast('Erreur de validation', 'Validation failed: ' + (err.message || 'Please check all fields'), 'error');
                                         },
                                         onSuccess: () => { 
                                             setValidatingProspect(null); 

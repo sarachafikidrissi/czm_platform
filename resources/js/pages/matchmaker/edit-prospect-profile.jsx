@@ -2,6 +2,7 @@ import AppLayout from '@/layouts/app-layout';
 import { Head, usePage, router } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useToast } from '@/hooks/use-toast';
 import Details from '../profile/details';
 import PartnerInfo from '../profile/partnerInfo';
 import PersonalInfo from '../profile/personalInfo';
@@ -12,6 +13,7 @@ export default function EditProspectProfile() {
     const { auth } = usePage().props;
     
     const { t } = useTranslation();
+    const { showToast } = useToast();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [currentStep, setCurrentStep] = useState(profile?.currentStep || 1);
     const [formData, setFormData] = useState({
@@ -115,7 +117,7 @@ export default function EditProspectProfile() {
 
     const saveStep = async (step) => {
         if (!validateStep(step)) {
-            alert('Veuillez remplir tous les champs obligatoires');
+            showToast('Champs obligatoires', 'Veuillez remplir tous les champs obligatoires', 'warning');
             return false;
         }
 
@@ -181,14 +183,14 @@ export default function EditProspectProfile() {
                     },
                     onError: (errors) => {
                         console.error('Error saving step:', errors);
-                        alert('Erreur lors de la sauvegarde: ' + (errors.message || Object.values(errors).join(', ')));
+                        showToast('Erreur de sauvegarde', 'Erreur lors de la sauvegarde: ' + (errors.message || Object.values(errors).join(', ')), 'error');
                         resolve(false);
                     },
                 });
             });
         } catch (error) {
             console.error('Error in saveStep:', error);
-            alert('Erreur lors de la sauvegarde');
+            showToast('Erreur de sauvegarde', 'Erreur lors de la sauvegarde', 'error');
             return false;
         }
     };
@@ -217,7 +219,7 @@ export default function EditProspectProfile() {
             }
         } catch (error) {
             console.error('Error in handleNext:', error);
-            alert('Une erreur est survenue');
+            showToast('Erreur', 'Une erreur est survenue', 'error');
         } finally {
             setIsSubmitting(false);
         }
@@ -246,7 +248,7 @@ export default function EditProspectProfile() {
             if (validateStep(currentStep)) {
                 setCurrentStep(stepNumber);
             } else {
-                alert('Veuillez remplir tous les champs obligatoires de l\'étape actuelle avant de continuer.');
+                showToast('Champs obligatoires', 'Veuillez remplir tous les champs obligatoires de l\'étape actuelle avant de continuer.', 'warning');
             }
         } else {
             // Jumping more than one step forward - validate all intermediate steps
@@ -260,7 +262,7 @@ export default function EditProspectProfile() {
             if (canNavigate) {
                 setCurrentStep(stepNumber);
             } else {
-                alert('Veuillez compléter toutes les étapes précédentes avant de continuer.');
+                showToast('Étapes incomplètes', 'Veuillez compléter toutes les étapes précédentes avant de continuer.', 'warning');
             }
         }
     };

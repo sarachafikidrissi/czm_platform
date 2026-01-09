@@ -8,6 +8,7 @@ import { isValidPhoneNumber } from 'react-phone-number-input';
 import enLocale from 'react-phone-number-input/locale/en.json';
 import frLocale from 'react-phone-number-input/locale/fr.json';
 import { useTranslation } from 'react-i18next';
+import { useToast } from '@/hooks/use-toast';
 
 import InputError from '@/components/input-error';
 import TextLink from '@/components/text-link';
@@ -78,6 +79,7 @@ function CustomCountrySelect({ value, onChange, labels, disabled, ...rest }) {
 }
 
 export default function Register() {
+    const { showToast } = useToast();
     const { t } = useTranslation();
     const containerRef = useRef(null);
     const [showPassword, setShowPassword] = useState(false);
@@ -201,7 +203,7 @@ export default function Register() {
     const submit = (e) => {
         e.preventDefault();
         if (!termsAccepted) {
-            alert('Please accept the terms and conditions to continue.');
+            showToast('Terms Required', 'Please accept the terms and conditions to continue.', 'warning');
             return;
         }
         

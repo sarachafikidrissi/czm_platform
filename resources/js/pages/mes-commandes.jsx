@@ -10,11 +10,13 @@ import { ShoppingCart, Package, CreditCard, CheckCircle, MoreHorizontal, Eye, Do
 import { useState } from 'react';
 import { Link } from '@inertiajs/react';
 import { useTranslation } from 'react-i18next';
+import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function MesCommandes({ bills = [] }) {
     const { auth } = usePage().props;
     const { t } = useTranslation();
+    const { showToast } = useToast();
     const isLoading = bills === null || bills === undefined;
     const [selectedInvoice, setSelectedInvoice] = useState(null);
     const [showInvoice, setShowInvoice] = useState(false);
@@ -42,11 +44,11 @@ export default function MesCommandes({ bills = [] }) {
     const handleSendEmail = (bill) => {
         router.post(`/user/bills/${bill.id}/send-email`, {}, {
             onSuccess: (response) => {
-                alert(t('orders.invoiceSentSuccess'));
+                showToast(t('orders.invoiceSentSuccess', { defaultValue: 'Success' }), undefined, 'success');
             },
             onError: (errors) => {
                 console.error('Error sending email:', errors);
-                alert(t('orders.errorSendingEmail'));
+                showToast(t('orders.errorSendingEmail', { defaultValue: 'Error sending email' }), undefined, 'error');
             }
         });
     };
