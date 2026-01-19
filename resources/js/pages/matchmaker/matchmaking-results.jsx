@@ -44,6 +44,11 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
     const [sendToCompatible, setSendToCompatible] = useState(true);
     const [isSendingProposition, setIsSendingProposition] = useState(false);
     const [propositionError, setPropositionError] = useState('');
+    const [showRequestModal, setShowRequestModal] = useState(false);
+    const [requestMatch, setRequestMatch] = useState(null);
+    const [requestMessage, setRequestMessage] = useState('');
+    const [requestError, setRequestError] = useState('');
+    const [isSendingRequest, setIsSendingRequest] = useState(false);
     
     // Countries and cities state
     const [countries, setCountries] = useState([]);
@@ -875,6 +880,16 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
         setShowProposeModal(true);
     };
 
+    const openRequestModal = (match, event) => {
+        if (event) {
+            event.stopPropagation();
+        }
+        setRequestMatch(match);
+        setRequestMessage('');
+        setRequestError('');
+        setShowRequestModal(true);
+    };
+
     const handleSendProposition = async (event) => {
         event.preventDefault();
         if (!proposeMatch) return;
@@ -906,6 +921,34 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
             setPropositionError(message);
         } finally {
             setIsSendingProposition(false);
+        }
+    };
+
+    const handleSendRequest = async (event) => {
+        event.preventDefault();
+        if (!requestMatch) return;
+
+        const trimmedMessage = requestMessage.trim();
+        if (!trimmedMessage) {
+            setRequestError('Veuillez saisir un message.');
+            return;
+        }
+
+        setIsSendingRequest(true);
+        setRequestError('');
+        try {
+            await axios.post('/staff/proposition-requests', {
+                reference_user_id: userA.id,
+                compatible_user_id: requestMatch.user.id,
+                message: trimmedMessage,
+            });
+            setShowRequestModal(false);
+            setRequestMatch(null);
+        } catch (error) {
+            const message = error?.response?.data?.message || 'Une erreur est survenue.';
+            setRequestError(message);
+        } finally {
+            setIsSendingRequest(false);
         }
     };
 
@@ -1641,6 +1684,16 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
 
 
                                         <Separator />
+                                        {!match.isAssignedToMe && match.assigned_matchmaker && (
+                                            <Button
+                                                variant="outline"
+                                                className="w-full"
+                                                onClick={(event) => openRequestModal(match, event)}
+                                            >
+                                                <Info className="w-4 h-4 mr-2" />
+                                                Demande de propositions
+                                            </Button>
+                                        )}
                                         {match.isAssignedToMe && (
                                             <Button
                                                 className="w-full bg-[#096725] hover:bg-[#07501d]"
@@ -1863,6 +1916,49 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
                                 disabled={isSendingProposition}
                             >
                                 {isSendingProposition ? 'Envoi...' : 'Envoyer'}
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={showRequestModal} onOpenChange={setShowRequestModal}>
+                <DialogContent className="max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle>Demande de propositions</DialogTitle>
+                        <DialogDescription>
+                            Envoyez un message au matchmaker assigné au profil compatible.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleSendRequest} className="space-y-4">
+                        <div className="text-sm text-muted-foreground">
+                            Profil compatible : {requestMatch?.user?.name} • Matchmaker : {requestMatch?.assigned_matchmaker?.name || 'N/A'}
+                        </div>
+                        <div>
+                            <Label htmlFor="request-message">Message</Label>
+                            <textarea
+                                id="request-message"
+                                className="mt-2 w-full rounded-md border border-gray-300 p-3 focus:border-[#096725] focus:outline-none focus:ring-1 focus:ring-[#096725]"
+                                rows={4}
+                                value={requestMessage}
+                                onChange={(event) => setRequestMessage(event.target.value)}
+                                placeholder="Écrire un message pour la demande..."
+                                required
+                            />
+                        </div>
+                        {requestError && (
+                            <div className="text-sm text-red-600">{requestError}</div>
+                        )}
+                        <DialogFooter>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setShowRequestModal(false)}
+                            >
+                                Annuler
+                            </Button>
+                            <Button type="submit" disabled={isSendingRequest}>
+                                {isSendingRequest ? 'Envoi...' : 'Envoyer'}
                             </Button>
                         </DialogFooter>
                     </form>

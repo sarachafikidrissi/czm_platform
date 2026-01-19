@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\PropositionRequest;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -60,6 +61,69 @@ class HandleInertiaRequests extends Middleware
                     return $user->getRoleNames()->first();
                 }
                 return null;
+            },
+            'notifications' => function () use ($request) {
+                $user = $request->user();
+                if (! $user || !method_exists($user, 'getRoleNames')) {
+                    return null;
+                }
+                if ($user->getRoleNames()->first() !== 'matchmaker') {
+                    return null;
+                }
+
+                $receivedPending = PropositionRequest::where('to_matchmaker_id', $user->id)
+                    ->where('status', 'pending')
+                    ->count();
+                $sentResponded = PropositionRequest::where('from_matchmaker_id', $user->id)
+                    ->whereIn('status', ['accepted', 'rejected'])
+                    ->count();
+                $recentRequests = PropositionRequest::query()
+                    ->where(function ($query) use ($user) {
+                        $query->where('to_matchmaker_id', $user->id)
+                            ->orWhere('from_matchmaker_id', $user->id);
+                    })
+                    ->with(['referenceUser.profile', 'compatibleUser.profile', 'fromMatchmaker', 'toMatchmaker'])
+                    ->orderByDesc('created_at')
+                    ->limit(5)
+                    ->get()
+                    ->map(function (PropositionRequest $request) use ($user) {
+                        $isReceived = (int) $request->to_matchmaker_id === (int) $user->id;
+
+                        return [
+                            'id' => $request->id,
+                            'type' => $isReceived ? 'received' : 'sent',
+                            'status' => $request->status,
+                            'message' => $request->message,
+                            'created_at' => $request->created_at?->toIso8601String(),
+                            'reference_user' => $request->referenceUser ? [
+                                'id' => $request->referenceUser->id,
+                                'name' => $request->referenceUser->name,
+                                'profile_picture_path' => $request->referenceUser->profile->profile_picture_path ?? null,
+                            ] : null,
+                            'compatible_user' => $request->compatibleUser ? [
+                                'id' => $request->compatibleUser->id,
+                                'name' => $request->compatibleUser->name,
+                                'profile_picture_path' => $request->compatibleUser->profile->profile_picture_path ?? null,
+                            ] : null,
+                            'from_matchmaker' => $request->fromMatchmaker ? [
+                                'id' => $request->fromMatchmaker->id,
+                                'name' => $request->fromMatchmaker->name,
+                            ] : null,
+                            'to_matchmaker' => $request->toMatchmaker ? [
+                                'id' => $request->toMatchmaker->id,
+                                'name' => $request->toMatchmaker->name,
+                            ] : null,
+                        ];
+                    });
+
+                return [
+                    'propositionRequests' => [
+                        'receivedPending' => $receivedPending,
+                        'sentResponded' => $sentResponded,
+                        'total' => $receivedPending + $sentResponded,
+                        'items' => $recentRequests,
+                    ],
+                ];
             },
             'ziggy' => fn (): array => [
                 ...(new Ziggy)->toArray(),

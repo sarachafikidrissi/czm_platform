@@ -378,6 +378,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Staff routes (manager, matchmaker) for viewing dispatched prospects and validated lists
     Route::middleware(['role:admin|manager|matchmaker'])->prefix('staff')->name('staff.')->group(function () {
+        Route::get('/proposition-requests', function () {
+            return redirect('/staff/matchmaker/proposition-requests?type=received');
+        });
         Route::get('/prospects', [\App\Http\Controllers\MatchmakerController::class, 'prospects'])->name('prospects');
         Route::get('/prospects/create', [\App\Http\Controllers\MatchmakerController::class, 'createProspect'])->name('prospects.create');
         Route::post('/prospects/store', [\App\Http\Controllers\MatchmakerController::class, 'storeProspect'])->name('prospects.store');
@@ -421,7 +424,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // Matchmaker section routes
         Route::middleware(['role:matchmaker'])->post('/propositions', [\App\Http\Controllers\PropositionController::class, 'store'])->name('propositions.store');
         Route::middleware(['role:matchmaker'])->post('/propositions/send-to-other', [\App\Http\Controllers\PropositionController::class, 'sendToOther'])->name('propositions.send-to-other');
+        Route::middleware(['role:matchmaker'])->post('/proposition-requests', [\App\Http\Controllers\PropositionRequestController::class, 'store'])->name('proposition-requests.store');
+        Route::middleware(['role:matchmaker'])->post('/proposition-requests/{propositionRequest}/respond', [\App\Http\Controllers\PropositionRequestController::class, 'respond'])->name('proposition-requests.respond');
         Route::get('/matchmaker/propositions', [\App\Http\Controllers\MatchmakerController::class, 'propositionsList'])->name('matchmaker.propositions');
+        Route::get('/matchmaker/proposition-requests', [\App\Http\Controllers\PropositionRequestController::class, 'index'])->name('matchmaker.proposition-requests');
         Route::get('/matchmaker/change', [\App\Http\Controllers\MatchmakerController::class, 'matchmakerChange'])->name('matchmaker.change');
         // Match section routes
         Route::get('/match/list', [\App\Http\Controllers\MatchmakerController::class, 'matchList'])->name('match.list');

@@ -144,6 +144,16 @@ class User extends Authenticatable
         return $this->hasMany(Proposition::class, 'matchmaker_id');
     }
 
+    public function sentPropositionRequests()
+    {
+        return $this->hasMany(PropositionRequest::class, 'from_matchmaker_id');
+    }
+
+    public function receivedPropositionRequests()
+    {
+        return $this->hasMany(PropositionRequest::class, 'to_matchmaker_id');
+    }
+
     public function subscriptions() {
         return $this->hasMany(UserSubscription::class);
     }

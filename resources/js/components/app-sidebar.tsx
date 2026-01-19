@@ -191,6 +191,16 @@ const getMainNavItems = (t: (key: string) => string, role: string): NavItem[] =>
         ],
     },
     {
+        title: t('navigation.propositionRequests', { defaultValue: 'Demande de propositions' }),
+        url: '/staff/matchmaker/proposition-requests?type=received',
+        icon: UserCheck,
+        roles: ['matchmaker'],
+        children: [
+            { title: t('navigation.receivedRequests', { defaultValue: 'Demandes reçues' }), url: '/staff/matchmaker/proposition-requests?type=received', roles: ['matchmaker'] },
+            { title: t('navigation.sentRequests', { defaultValue: 'Demandes envoyées' }), url: '/staff/matchmaker/proposition-requests?type=sent', roles: ['matchmaker'] },
+        ],
+    },
+    {
         title: t('navigation.match', { defaultValue: 'Match' }),
         url: '/staff/match/list',
         icon: HeartHandshake,
