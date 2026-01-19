@@ -28,12 +28,9 @@ class MatchmakingService
             ->with(['profile', 'assignedMatchmaker']);
 
         // Filter by matchmaker assignment if provided
-        // Match the same logic as validatedProspects: users they validated OR assigned to them
+        // Only show users currently assigned to this matchmaker
         if ($matchmakerId) {
-            $query->where(function($q) use ($matchmakerId) {
-                $q->where('approved_by', $matchmakerId)
-                  ->orWhere('assigned_matchmaker_id', $matchmakerId);
-            });
+            $query->where('assigned_matchmaker_id', $matchmakerId);
         }
 
         // Filter by agency if provided (for managers)

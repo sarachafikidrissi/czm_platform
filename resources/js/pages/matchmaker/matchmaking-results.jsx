@@ -10,7 +10,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { SearchableMultiSelect } from '@/components/ui/searchable-multi-select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { 
     ArrowLeft, 
     Filter, 
@@ -37,6 +37,13 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
     const [showFilters, setShowFilters] = useState(false);
     const [selectedMatch, setSelectedMatch] = useState(null);
     const [showCompatibilityModal, setShowCompatibilityModal] = useState(false);
+    const [showProposeModal, setShowProposeModal] = useState(false);
+    const [proposeMatch, setProposeMatch] = useState(null);
+    const [proposeMessage, setProposeMessage] = useState('');
+    const [sendToReference, setSendToReference] = useState(true);
+    const [sendToCompatible, setSendToCompatible] = useState(true);
+    const [isSendingProposition, setIsSendingProposition] = useState(false);
+    const [propositionError, setPropositionError] = useState('');
     
     // Countries and cities state
     const [countries, setCountries] = useState([]);
@@ -856,6 +863,52 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
         setShowCompatibilityModal(true);
     };
 
+    const openProposeModal = (match, event) => {
+        if (event) {
+            event.stopPropagation();
+        }
+        setProposeMatch(match);
+        setProposeMessage('');
+        setSendToReference(true);
+        setSendToCompatible(true);
+        setPropositionError('');
+        setShowProposeModal(true);
+    };
+
+    const handleSendProposition = async (event) => {
+        event.preventDefault();
+        if (!proposeMatch) return;
+
+        const trimmedMessage = proposeMessage.trim();
+        if (!trimmedMessage) {
+            setPropositionError('Veuillez saisir un message.');
+            return;
+        }
+        if (!sendToReference && !sendToCompatible) {
+            setPropositionError('Veuillez sélectionner au moins un destinataire.');
+            return;
+        }
+
+        setIsSendingProposition(true);
+        setPropositionError('');
+        try {
+            await axios.post('/staff/propositions', {
+                reference_user_id: userA.id,
+                compatible_user_id: proposeMatch.user.id,
+                message: trimmedMessage,
+                send_to_reference: sendToReference,
+                send_to_compatible: sendToCompatible,
+            });
+            setShowProposeModal(false);
+            setProposeMatch(null);
+        } catch (error) {
+            const message = error?.response?.data?.message || 'Une erreur est survenue.';
+            setPropositionError(message);
+        } finally {
+            setIsSendingProposition(false);
+        }
+    };
+
     return (
         <AppLayout>
             <Head title="Résultats de Matchmaking" />
@@ -1573,9 +1626,9 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
                                             )}
                                         </div>
                                         {match.isAssignedToMe ? (
-    <Badge variant="default" className="bg-green-600">
-        Assigné à moi
-    </Badge>
+                                            <Badge variant="default" className="bg-green-600">
+                                                Assigné à moi
+                                            </Badge>
 ) : match.assigned_matchmaker ? (
     <Badge variant="outline" className="border-orange-500 text-orange-600">
         Assigné à: {match.assigned_matchmaker.name}
@@ -1588,11 +1641,23 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
 
 
                                         <Separator />
+                                        {match.isAssignedToMe && (
+                                            <Button
+                                                className="w-full bg-[#096725] hover:bg-[#07501d]"
+                                                onClick={(event) => openProposeModal(match, event)}
+                                            >
+                                                <Heart className="w-4 h-4 mr-2" />
+                                                Proposer
+                                            </Button>
+                                        )}
 
                                         <Button
                                             variant="outline"
                                             className="w-full"
-                                            onClick={() => window.open(`/profile/${match.user.username || match.user.id}`, '_blank', 'noopener,noreferrer')}
+                                            onClick={(event) => {
+                                                event.stopPropagation();
+                                                window.open(`/profile/${match.user.username || match.user.id}`, '_blank', 'noopener,noreferrer');
+                                            }}
                                         >
                                             <User className="w-4 h-4 mr-2" />
                                             Voir le profil
@@ -1735,6 +1800,72 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
                             </div>
                         </div>
                     )}
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={showProposeModal} onOpenChange={setShowProposeModal}>
+                <DialogContent className="max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle>Envoyer une proposition</DialogTitle>
+                        <DialogDescription>
+                            Cette proposition sera envoyée aux profils sélectionnés.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleSendProposition} className="space-y-4">
+                        <div>
+                            <Label htmlFor="proposition-message">Message</Label>
+                            <textarea
+                                id="proposition-message"
+                                className="mt-2 w-full rounded-md border border-gray-300 p-3 focus:border-[#096725] focus:outline-none focus:ring-1 focus:ring-[#096725]"
+                                rows={4}
+                                value={proposeMessage}
+                                onChange={(event) => setProposeMessage(event.target.value)}
+                                placeholder="Écrire un message pour la proposition..."
+                                required
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <div className="flex items-center space-x-2">
+                                <Checkbox
+                                    id="send-to-reference"
+                                    checked={sendToReference}
+                                    onCheckedChange={(value) => setSendToReference(Boolean(value))}
+                                />
+                                <Label htmlFor="send-to-reference">
+                                    Envoyer au profil de référence ({userA?.name})
+                                </Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <Checkbox
+                                    id="send-to-compatible"
+                                    checked={sendToCompatible}
+                                    onCheckedChange={(value) => setSendToCompatible(Boolean(value))}
+                                />
+                                <Label htmlFor="send-to-compatible">
+                                    Envoyer au profil compatible ({proposeMatch?.user?.name})
+                                </Label>
+                            </div>
+                        </div>
+                        {propositionError && (
+                            <div className="text-sm text-red-600">{propositionError}</div>
+                        )}
+                        <DialogFooter>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setShowProposeModal(false)}
+                            >
+                                Annuler
+                            </Button>
+                            <Button
+                                type="submit"
+                                className="bg-[#096725] hover:bg-[#07501d]"
+                                disabled={isSendingProposition}
+                            >
+                                {isSendingProposition ? 'Envoi...' : 'Envoyer'}
+                            </Button>
+                        </DialogFooter>
+                    </form>
                 </DialogContent>
             </Dialog>
         </AppLayout>

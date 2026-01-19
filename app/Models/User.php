@@ -134,6 +134,16 @@ class User extends Authenticatable
         return $this->hasMany(UserPhoto::class);
     }
 
+    public function receivedPropositions()
+    {
+        return $this->hasMany(Proposition::class, 'recipient_user_id');
+    }
+
+    public function sentPropositions()
+    {
+        return $this->hasMany(Proposition::class, 'matchmaker_id');
+    }
+
     public function subscriptions() {
         return $this->hasMany(UserSubscription::class);
     }

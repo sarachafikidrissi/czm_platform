@@ -419,6 +419,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/users/upload-profile-picture', [\App\Http\Controllers\MatchmakerController::class, 'uploadProfilePicture'])->name('users.upload-profile-picture');
         Route::post('/users/upload-cover-picture', [\App\Http\Controllers\MatchmakerController::class, 'uploadCoverPicture'])->name('users.upload-cover-picture');
         // Matchmaker section routes
+        Route::middleware(['role:matchmaker'])->post('/propositions', [\App\Http\Controllers\PropositionController::class, 'store'])->name('propositions.store');
+        Route::middleware(['role:matchmaker'])->post('/propositions/send-to-other', [\App\Http\Controllers\PropositionController::class, 'sendToOther'])->name('propositions.send-to-other');
         Route::get('/matchmaker/propositions', [\App\Http\Controllers\MatchmakerController::class, 'propositionsList'])->name('matchmaker.propositions');
         Route::get('/matchmaker/change', [\App\Http\Controllers\MatchmakerController::class, 'matchmakerChange'])->name('matchmaker.change');
         // Match section routes
@@ -522,9 +524,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         return Inertia::render('matchmaker');
     })->name('matchmaker');
 
-    Route::get('/propositions', function () {
-        return Inertia::render('propositions');
-    })->name('propositions');
+    Route::middleware(['role:user'])->group(function () {
+        Route::get('/propositions', [\App\Http\Controllers\PropositionController::class, 'index'])->name('propositions');
+        Route::post('/propositions/{proposition}/respond', [\App\Http\Controllers\PropositionController::class, 'respond'])->name('propositions.respond');
+    });
 
     Route::get('/appointments', function () {
         return Inertia::render('appointments');

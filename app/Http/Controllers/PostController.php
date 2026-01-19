@@ -190,19 +190,54 @@ class PostController extends Controller
 
         $comment->load(['user.roles', 'user.profile']);
 
+        \Log::info('Comment created', [
+            'comment_id' => $comment->id,
+            'post_id' => $comment->post_id,
+            'user_id' => $comment->user_id,
+            'parent_id' => $comment->parent_id,
+        ]);
+
         // If this is a reply, send notification to the parent comment owner
         if ($request->parent_id) {
             $parentComment = PostComment::with('user')->findOrFail($request->parent_id);
             
+            \Log::info('Comment reply detected', [
+                'parent_comment_id' => $parentComment->id,
+                'parent_user_id' => $parentComment->user_id,
+                'parent_email' => $parentComment->user?->email,
+                'replier_id' => Auth::id(),
+                'mail_driver' => config('mail.default'),
+            ]);
+
             // Don't send notification if replying to own comment
-            if ($parentComment->user_id !== Auth::id()) {
+            if ($parentComment->user_id === Auth::id()) {
+                \Log::info('Reply notification skipped (self-reply).', [
+                    'parent_comment_id' => $parentComment->id,
+                    'replier_id' => Auth::id(),
+                ]);
+            } elseif (!$parentComment->user?->email) {
+                \Log::warning('Reply notification skipped (missing parent email).', [
+                    'parent_comment_id' => $parentComment->id,
+                    'parent_user_id' => $parentComment->user_id,
+                ]);
+            } else {
                 try {
                     Mail::to($parentComment->user->email)->send(
                         new CommentReplyNotification($comment, $parentComment, Auth::user())
                     );
+                    \Log::info('Reply notification sent.', [
+                        'parent_comment_id' => $parentComment->id,
+                        'parent_email' => $parentComment->user->email,
+                        'replier_id' => Auth::id(),
+                    ]);
                 } catch (\Exception $e) {
                     // Log error but don't fail the request
-                    \Log::error('Failed to send comment reply notification: ' . $e->getMessage());
+                    \Log::error('Failed to send comment reply notification: ' . $e->getMessage(), [
+                        'parent_comment_id' => $parentComment->id,
+                        'parent_email' => $parentComment->user->email,
+                        'replier_id' => Auth::id(),
+                        'mail_driver' => config('mail.default'),
+                    ]);
                 }
             }
         }

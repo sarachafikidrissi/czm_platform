@@ -10,6 +10,7 @@ use App\Models\MatchmakerEvaluation;
 use App\Models\TransferRequest;
 use App\Models\UserPhoto;
 use App\Models\AppointmentRequest;
+use App\Models\Proposition;
 use App\Mail\BillEmail;
 use App\Mail\ProspectCredentialsMail;
 use Illuminate\Http\Request;
@@ -2538,7 +2539,60 @@ class MatchmakerController extends Controller
             }
         }
 
-        return Inertia::render('matchmaker/propositions-list');
+        $propositions = Proposition::query()
+            ->where('matchmaker_id', $me->id)
+            ->with([
+                'recipientUser:id,name,username',
+                'recipientUser.profile:id,user_id,profile_picture_path',
+                'referenceUser:id,name,username',
+                'referenceUser.profile:id,user_id,profile_picture_path',
+                'compatibleUser:id,name,username',
+                'compatibleUser.profile:id,user_id,profile_picture_path',
+            ])
+            ->latest()
+            ->get()
+            ->map(function (Proposition $proposition) {
+                $isExpired = $proposition->status === 'pending'
+                    && $proposition->created_at
+                    && $proposition->created_at->lt(now()->subDays(7));
+
+                return [
+                    'id' => $proposition->id,
+                    'reference_user_id' => $proposition->reference_user_id,
+                    'compatible_user_id' => $proposition->compatible_user_id,
+                    'recipient_user_id' => $proposition->recipient_user_id,
+                    'message' => $proposition->message,
+                    'status' => $proposition->status,
+                    'is_expired' => $isExpired,
+                    'response_message' => $proposition->response_message,
+                    'user_comment' => $proposition->user_comment,
+                    'responded_at' => $proposition->responded_at,
+                    'created_at' => $proposition->created_at,
+                    'recipient_user' => $proposition->recipientUser ? [
+                        'id' => $proposition->recipientUser->id,
+                        'name' => $proposition->recipientUser->name,
+                        'username' => $proposition->recipientUser->username,
+                        'profile' => $proposition->recipientUser->profile,
+                    ] : null,
+                    'reference_user' => $proposition->referenceUser ? [
+                        'id' => $proposition->referenceUser->id,
+                        'name' => $proposition->referenceUser->name,
+                        'username' => $proposition->referenceUser->username,
+                        'profile' => $proposition->referenceUser->profile,
+                    ] : null,
+                    'compatible_user' => $proposition->compatibleUser ? [
+                        'id' => $proposition->compatibleUser->id,
+                        'name' => $proposition->compatibleUser->name,
+                        'username' => $proposition->compatibleUser->username,
+                        'profile' => $proposition->compatibleUser->profile,
+                    ] : null,
+                ];
+            })
+            ->values();
+
+        return Inertia::render('matchmaker/propositions-list', [
+            'propositions' => $propositions,
+        ]);
     }
 
     /**
@@ -2765,6 +2819,8 @@ class MatchmakerController extends Controller
                     'email' => $result['userA']->email,
                     'username' => $result['userA']->username,
                     'gender' => $result['userA']->gender,
+                    'assigned_matchmaker_id' => $result['userA']->assigned_matchmaker_id,
+                    'isAssignedToMe' => $result['userA']->assigned_matchmaker_id === $me->id,
                     'profile' => $result['userA']->profile ? $result['userA']->profile->toArray() : null,
                 ],
                 'matches' => $formattedMatches,
