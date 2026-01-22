@@ -1,4 +1,4 @@
-import { Head, router, usePage } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useMemo, useState } from 'react';
 import AppLayout from '@/layouts/app-layout';
 import { Badge } from '@/components/ui/badge';
@@ -225,6 +225,12 @@ export default function PropositionRequests() {
                                                                     onClick={() => openRespondDialog(request)}
                                                                 >
                                                                     Répondre
+                                                                </Button>
+                                                            ) : type === 'sent' && request.status === 'accepted' ? (
+                                                                <Button size="sm" asChild>
+                                                                    <Link href={`/staff/match/results/${request.reference_user_id}?openPropose=${request.compatible_user_id}`}>
+                                                                        Proposer
+                                                                    </Link>
                                                                 </Button>
                                                             ) : (
                                                                 <span className="text-xs text-muted-foreground">-</span>

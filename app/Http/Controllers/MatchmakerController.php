@@ -11,6 +11,7 @@ use App\Models\TransferRequest;
 use App\Models\UserPhoto;
 use App\Models\AppointmentRequest;
 use App\Models\Proposition;
+use App\Models\PropositionRequest;
 use App\Mail\BillEmail;
 use App\Mail\ProspectCredentialsMail;
 use Illuminate\Http\Request;
@@ -2786,8 +2787,33 @@ class MatchmakerController extends Controller
             $result = $matchmakingService->findMatches($userAId, $filterOverrides);
             
             $me = Auth::user();
+
+            $compatibleIds = array_map(function ($match) {
+                return $match['user']->id;
+            }, $result['matches']);
+
+            $statusMap = [];
+            if (!empty($compatibleIds)) {
+                $requestQuery = PropositionRequest::query()
+                    ->where('from_matchmaker_id', $me->id)
+                    ->whereIn('compatible_user_id', $compatibleIds)
+                    ->orderByDesc('created_at');
+
+                if (Schema::hasColumn('proposition_requests', 'reference_user_id')) {
+                    $requestQuery->where('reference_user_id', $userAId);
+                }
+
+                $sentRequests = $requestQuery->get(['compatible_user_id', 'status']);
+                foreach ($sentRequests as $sent) {
+                    $compId = (int) $sent->compatible_user_id;
+                    if (!array_key_exists($compId, $statusMap)) {
+                        $statusMap[$compId] = $sent->status;
+                    }
+                }
+            }
+
             // Format matches for Inertia (ensure proper serialization)
-            $formattedMatches = array_map(function($match) use ($me) {
+            $formattedMatches = array_map(function($match) use ($me, $statusMap) {
                 return [
                     'user' => [
                         'id' => $match['user']->id,
@@ -2809,6 +2835,7 @@ class MatchmakerController extends Controller
                     'score' => $match['score'],
                     'scoreDetails' => $match['scoreDetails'],
                     'completeness' => $match['completeness'],
+                    'proposition_request_status' => $statusMap[$match['user']->id] ?? null,
                 ];
             }, $result['matches']);
             
@@ -2944,8 +2971,32 @@ class MatchmakerController extends Controller
             // Mixed logic: unchanged filters use OR, manually changed filters use AND
             $result = $matchmakingService->findMatches($userAId, $filterOverrides);
             
+            $compatibleIds = array_map(function ($match) {
+                return $match['user']->id;
+            }, $result['matches']);
+
+            $statusMap = [];
+            if (!empty($compatibleIds)) {
+                $requestQuery = PropositionRequest::query()
+                    ->where('from_matchmaker_id', $me->id)
+                    ->whereIn('compatible_user_id', $compatibleIds)
+                    ->orderByDesc('created_at');
+
+                if (Schema::hasColumn('proposition_requests', 'reference_user_id')) {
+                    $requestQuery->where('reference_user_id', $userAId);
+                }
+
+                $sentRequests = $requestQuery->get(['compatible_user_id', 'status']);
+                foreach ($sentRequests as $sent) {
+                    $compId = (int) $sent->compatible_user_id;
+                    if (!array_key_exists($compId, $statusMap)) {
+                        $statusMap[$compId] = $sent->status;
+                    }
+                }
+            }
+
             // Format matches for JSON response
-            $formattedMatches = array_map(function($match) use ($me) {
+            $formattedMatches = array_map(function($match) use ($me, $statusMap) {
                 return [
                     'user' => [
                         'id' => $match['user']->id,
@@ -2967,6 +3018,7 @@ class MatchmakerController extends Controller
                     'score' => $match['score'],
                     'scoreDetails' => $match['scoreDetails'],
                     'completeness' => $match['completeness'],
+                    'proposition_request_status' => $statusMap[$match['user']->id] ?? null,
                 ];
             }, $result['matches']);
             

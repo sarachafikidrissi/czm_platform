@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\Proposition;
 use App\Models\User;
+use App\Models\PropositionRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
 
 class PropositionController extends Controller
@@ -106,7 +108,22 @@ class PropositionController extends Controller
         $referenceUser = User::select('id', 'assigned_matchmaker_id')->findOrFail($data['reference_user_id']);
         $compatibleUser = User::select('id', 'assigned_matchmaker_id')->findOrFail($data['compatible_user_id']);
 
-        if ($compatibleUser->assigned_matchmaker_id !== $me->id) {
+        $hasAcceptedRequest = PropositionRequest::query()
+            ->where('from_matchmaker_id', $me->id)
+            ->where('to_matchmaker_id', $compatibleUser->assigned_matchmaker_id)
+            ->where('status', 'accepted')
+            ->where(function ($query) use ($referenceUser, $compatibleUser) {
+                if (Schema::hasColumn('proposition_requests', 'reference_user_id')) {
+                    $query->where('reference_user_id', $referenceUser->id)
+                        ->where('compatible_user_id', $compatibleUser->id);
+                } elseif (Schema::hasColumn('proposition_requests', 'user_a_id')) {
+                    $query->where('user_a_id', $referenceUser->id)
+                        ->where('user_b_id', $compatibleUser->id);
+                }
+            })
+            ->exists();
+
+        if (!$hasAcceptedRequest && $compatibleUser->assigned_matchmaker_id !== $me->id) {
             abort(403, 'You can only propose between profiles assigned to you.');
         }
 
@@ -231,7 +248,22 @@ class PropositionController extends Controller
         $referenceUser = User::select('id', 'assigned_matchmaker_id')->findOrFail($data['reference_user_id']);
         $compatibleUser = User::select('id', 'assigned_matchmaker_id')->findOrFail($data['compatible_user_id']);
 
-        if ($compatibleUser->assigned_matchmaker_id !== $me->id) {
+        $hasAcceptedRequest = PropositionRequest::query()
+            ->where('from_matchmaker_id', $me->id)
+            ->where('to_matchmaker_id', $compatibleUser->assigned_matchmaker_id)
+            ->where('status', 'accepted')
+            ->where(function ($query) use ($referenceUser, $compatibleUser) {
+                if (Schema::hasColumn('proposition_requests', 'reference_user_id')) {
+                    $query->where('reference_user_id', $referenceUser->id)
+                        ->where('compatible_user_id', $compatibleUser->id);
+                } elseif (Schema::hasColumn('proposition_requests', 'user_a_id')) {
+                    $query->where('user_a_id', $referenceUser->id)
+                        ->where('user_b_id', $compatibleUser->id);
+                }
+            })
+            ->exists();
+
+        if (!$hasAcceptedRequest && $compatibleUser->assigned_matchmaker_id !== $me->id) {
             abort(403, 'You can only propose between profiles assigned to you.');
         }
 

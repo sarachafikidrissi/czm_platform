@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Models\Proposition;
 use App\Models\Post;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -131,6 +132,63 @@ class UserController extends Controller
         
         // Get user role
         $userRole = $user->roles->first()?->name ?? 'user';
+
+        $propositionToRespond = null;
+        if ($currentUser && $currentUser->hasRole('user') && $userRole === 'user' && $currentUser->id !== $user->id) {
+            $proposition = Proposition::query()
+                ->where('recipient_user_id', $currentUser->id)
+                ->where(function ($query) use ($currentUser, $user) {
+                    $query->where(function ($sub) use ($currentUser, $user) {
+                        $sub->where('reference_user_id', $currentUser->id)
+                            ->where('compatible_user_id', $user->id);
+                    })->orWhere(function ($sub) use ($currentUser, $user) {
+                        $sub->where('reference_user_id', $user->id)
+                            ->where('compatible_user_id', $currentUser->id);
+                    });
+                })
+                ->with([
+                    'matchmaker:id,name,username',
+                    'referenceUser:id,name,username',
+                    'referenceUser.profile:id,user_id,profile_picture_path',
+                    'compatibleUser:id,name,username',
+                    'compatibleUser.profile:id,user_id,profile_picture_path',
+                ])
+                ->latest()
+                ->first();
+
+            if ($proposition) {
+                $isExpired = $proposition->status === 'pending'
+                    && $proposition->created_at
+                    && $proposition->created_at->lt(now()->subDays(7));
+
+                $propositionToRespond = [
+                    'id' => $proposition->id,
+                    'message' => $proposition->message,
+                    'status' => $proposition->status,
+                    'is_expired' => $isExpired,
+                    'response_message' => $proposition->response_message,
+                    'responded_at' => $proposition->responded_at,
+                    'created_at' => $proposition->created_at,
+                    'matchmaker' => $proposition->matchmaker ? [
+                        'id' => $proposition->matchmaker->id,
+                        'name' => $proposition->matchmaker->name,
+                        'username' => $proposition->matchmaker->username,
+                    ] : null,
+                    'reference_user' => $proposition->referenceUser ? [
+                        'id' => $proposition->referenceUser->id,
+                        'name' => $proposition->referenceUser->name,
+                        'username' => $proposition->referenceUser->username,
+                        'profile' => $proposition->referenceUser->profile,
+                    ] : null,
+                    'compatible_user' => $proposition->compatibleUser ? [
+                        'id' => $proposition->compatibleUser->id,
+                        'name' => $proposition->compatibleUser->name,
+                        'username' => $proposition->compatibleUser->username,
+                        'profile' => $proposition->compatibleUser->profile,
+                    ] : null,
+                ];
+            }
+        }
         
         // Add like status for current user and append accessor attributes
         if (Auth::check()) {
@@ -340,6 +398,7 @@ class UserController extends Controller
             'subscriptions' => $subscriptions,
             'matchmakingSearch' => $matchmakingSearch,
             'matchmakingResults' => $matchmakingResults ?? null,
+            'propositionToRespond' => $propositionToRespond,
         ]);
     }
 

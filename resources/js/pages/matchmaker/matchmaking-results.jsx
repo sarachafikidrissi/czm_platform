@@ -49,6 +49,8 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
     const [requestMessage, setRequestMessage] = useState('');
     const [requestError, setRequestError] = useState('');
     const [isSendingRequest, setIsSendingRequest] = useState(false);
+    const [pendingOpenProposeId, setPendingOpenProposeId] = useState(null);
+    const [hasOpenedProposeFromQuery, setHasOpenedProposeFromQuery] = useState(false);
     
     // Countries and cities state
     const [countries, setCountries] = useState([]);
@@ -952,6 +954,40 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
         }
     };
 
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        const params = new URLSearchParams(window.location.search);
+        const openProposeId = params.get('openPropose');
+        if (openProposeId) {
+            const parsed = Number(openProposeId);
+            if (!Number.isNaN(parsed)) {
+                setPendingOpenProposeId(parsed);
+            }
+        }
+    }, []);
+
+    useEffect(() => {
+        if (!pendingOpenProposeId || hasOpenedProposeFromQuery || matches.length === 0) return;
+        const match = matches.find((item) => item?.user?.id === pendingOpenProposeId);
+        if (match && (match.isAssignedToMe || match.proposition_request_status === 'accepted')) {
+            openProposeModal(match);
+            setHasOpenedProposeFromQuery(true);
+        }
+    }, [pendingOpenProposeId, hasOpenedProposeFromQuery, matches]);
+
+    const getRequestButtonLabel = (status) => {
+        if (status === 'pending') {
+            return 'Proposition envoyée (en attente de réponse)';
+        }
+        if (status === 'accepted') {
+            return 'Proposer';
+        }
+        if (status === 'rejected') {
+            return 'Proposition refusée';
+        }
+        return 'Demande de propositions';
+    };
+
     return (
         <AppLayout>
             <Head title="Résultats de Matchmaking" />
@@ -1688,10 +1724,17 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
                                             <Button
                                                 variant="outline"
                                                 className="w-full"
-                                                onClick={(event) => openRequestModal(match, event)}
+                                                onClick={(event) => {
+                                                    if (match.proposition_request_status === 'accepted') {
+                                                        openProposeModal(match, event);
+                                                        return;
+                                                    }
+                                                    openRequestModal(match, event);
+                                                }}
+                                                disabled={match.proposition_request_status === 'pending' || match.proposition_request_status === 'rejected'}
                                             >
                                                 <Info className="w-4 h-4 mr-2" />
-                                                Demande de propositions
+                                                {getRequestButtonLabel(match.proposition_request_status)}
                                             </Button>
                                         )}
                                         {match.isAssignedToMe && (
