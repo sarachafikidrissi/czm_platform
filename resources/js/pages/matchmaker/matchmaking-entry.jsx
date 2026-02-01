@@ -29,6 +29,7 @@ export default function MatchmakingEntry({ prospects }) {
                    city.includes(query);
         });
     }, [prospects, searchQuery]);
+    
 
     // Helper function to get profile picture URL
     const getProfilePicture = (user) => {
@@ -199,9 +200,10 @@ export default function MatchmakingEntry({ prospects }) {
                                                 onClick={() => handlePropose(prospect.id)}
                                                 className="w-full"
                                                 size="sm"
+                                                disabled={prospect.proposition_status === 'pending'}
                                             >
                                                 <Heart className="w-4 h-4 mr-2" />
-                                                À proposer
+                                                {prospect.proposition_status === 'pending' ? 'Proposition envoyée (en attente de réponse)' : 'À proposer'}
                                             </Button>
                                         </CardContent>
                                     </Card>

@@ -2673,9 +2673,24 @@ class MatchmakerController extends Controller
         $agencyId = ($roleName === 'manager') ? $me->agency_id : (($roleName === 'matchmaker') ? $me->agency_id : null);
         
         $prospects = $matchmakingService->getEligibleProspects($matchmakerId, $agencyId);
+        $prospectIds = $prospects->pluck('id');
+        
+        $latest = Proposition::query()
+            ->where('matchmaker_id', $me->id)
+            ->whereIn('reference_user_id', $prospectIds)
+            ->orderByDesc('created_at')
+            ->get(['reference_user_id', 'status', 'created_at']);
+        $statusMap = [];
+        
+        foreach($latest as $prop){
+            $id = (int) $prop->reference_user_id;
+            if(!array_key_exists($id, $statusMap)){
+                $statusMap[$id] = $prop->status;
+            }
+        }
         
         // Format prospects for frontend (ensure proper serialization)
-        $formattedProspects = $prospects->map(function($prospect) {
+        $formattedProspects = $prospects->map(function($prospect) use ($statusMap) {
             return [
                 'id' => $prospect->id,
                 'name' => $prospect->name,
@@ -2686,6 +2701,7 @@ class MatchmakerController extends Controller
                 'assigned_matchmaker_id' => $prospect->assigned_matchmaker_id,
                 'approved_by' => $prospect->approved_by,
                 'profile' => $prospect->profile ? $prospect->profile->toArray() : null,
+                'proposition_status' => $statusMap[$prospect->id] ?? null,
             ];
         })->values();
 
@@ -2793,6 +2809,7 @@ class MatchmakerController extends Controller
             }, $result['matches']);
 
             $statusMap = [];
+            $requestMetaMap = [];
             if (!empty($compatibleIds)) {
                 $requestQuery = PropositionRequest::query()
                     ->where('from_matchmaker_id', $me->id)
@@ -2803,17 +2820,66 @@ class MatchmakerController extends Controller
                     $requestQuery->where('reference_user_id', $userAId);
                 }
 
-                $sentRequests = $requestQuery->get(['compatible_user_id', 'status']);
+                $sentRequests = $requestQuery->get(['compatible_user_id', 'status', 'created_at', 'responded_at']);
                 foreach ($sentRequests as $sent) {
                     $compId = (int) $sent->compatible_user_id;
                     if (!array_key_exists($compId, $statusMap)) {
                         $statusMap[$compId] = $sent->status;
+                        $requestMetaMap[$compId] = [
+                            'status' => $sent->status,
+                            'accepted_at' => $sent->responded_at ?? $sent->created_at,
+                        ];
+                    }
+                }
+            }
+
+            $propositionStatusMap = [];
+            $latestRejectionMap = [];
+            if (!empty($compatibleIds)) {
+                $latestPropositions = Proposition::query()
+                    ->where('matchmaker_id', $me->id)
+                    ->where('reference_user_id', $userAId)
+                    ->whereIn('compatible_user_id', $compatibleIds)
+                    ->orderByDesc('created_at')
+                    ->get(['compatible_user_id', 'status', 'created_at']);
+
+                foreach ($latestPropositions as $proposition) {
+                    $compId = (int) $proposition->compatible_user_id;
+                    if (!array_key_exists($compId, $propositionStatusMap)) {
+                        $isExpired = $proposition->status === 'pending'
+                            && $proposition->created_at
+                            && $proposition->created_at->lt(now()->subDays(7));
+
+                        $propositionStatusMap[$compId] = $isExpired ? 'expired' : $proposition->status;
+                    }
+                }
+
+                $latestRejections = Proposition::query()
+                    ->where('matchmaker_id', $me->id)
+                    ->where('reference_user_id', $userAId)
+                    ->whereIn('compatible_user_id', $compatibleIds)
+                    ->whereIn('status', ['not_interested', 'rejected'])
+                    ->orderByDesc('responded_at')
+                    ->orderByDesc('created_at')
+                    ->get(['compatible_user_id', 'status', 'created_at', 'responded_at']);
+
+                foreach ($latestRejections as $rejection) {
+                    $compId = (int) $rejection->compatible_user_id;
+                    if (!array_key_exists($compId, $latestRejectionMap)) {
+                        $latestRejectionMap[$compId] = $rejection->responded_at ?? $rejection->created_at;
                     }
                 }
             }
 
             // Format matches for Inertia (ensure proper serialization)
-            $formattedMatches = array_map(function($match) use ($me, $statusMap) {
+            $formattedMatches = array_map(function($match) use ($me, $statusMap, $requestMetaMap, $propositionStatusMap, $latestRejectionMap) {
+                $compatId = $match['user']->id;
+                $requestMeta = $requestMetaMap[$compatId] ?? null;
+                $acceptedAt = $requestMeta['accepted_at'] ?? null;
+                $rejectedAt = $latestRejectionMap[$compatId] ?? null;
+                $canProposeFromRequest = ($requestMeta['status'] ?? null) === 'accepted'
+                    && (!$rejectedAt || ($acceptedAt && $acceptedAt->gt($rejectedAt)));
+
                 return [
                     'user' => [
                         'id' => $match['user']->id,
@@ -2836,6 +2902,8 @@ class MatchmakerController extends Controller
                     'scoreDetails' => $match['scoreDetails'],
                     'completeness' => $match['completeness'],
                     'proposition_request_status' => $statusMap[$match['user']->id] ?? null,
+                    'can_propose_from_request' => $canProposeFromRequest,
+                    'proposition_status' => $propositionStatusMap[$match['user']->id] ?? null,
                 ];
             }, $result['matches']);
             

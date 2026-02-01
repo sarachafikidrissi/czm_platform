@@ -235,7 +235,7 @@ export function AppSidebar() {
     
     // Process nav items to handle dynamic URLs and conditional titles
     const processedNavItems = mainNavItems.map(item => {
-        let updatedItem = { ...item };
+        const updatedItem = { ...item };
         
         // Handle dynamic profile URL
         if (item.url === '/user/profile/{username}' && user?.username) {

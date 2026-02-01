@@ -36,7 +36,7 @@ class PropositionController extends Controller
             ->map(function (Proposition $proposition) {
                 $isExpired = $proposition->status === 'pending'
                     && $proposition->created_at
-                    && $proposition->created_at->lt(now()->subDays(7));
+                    && $proposition->created_at->lt(now()->subDays(5));
 
                 return [
                     'id' => $proposition->id,
@@ -108,7 +108,7 @@ class PropositionController extends Controller
         $referenceUser = User::select('id', 'assigned_matchmaker_id')->findOrFail($data['reference_user_id']);
         $compatibleUser = User::select('id', 'assigned_matchmaker_id')->findOrFail($data['compatible_user_id']);
 
-        $hasAcceptedRequest = PropositionRequest::query()
+        $acceptedRequest = PropositionRequest::query()
             ->where('from_matchmaker_id', $me->id)
             ->where('to_matchmaker_id', $compatibleUser->assigned_matchmaker_id)
             ->where('status', 'accepted')
@@ -121,10 +121,32 @@ class PropositionController extends Controller
                         ->where('user_b_id', $compatibleUser->id);
                 }
             })
-            ->exists();
+            ->orderByDesc('responded_at')
+            ->orderByDesc('created_at')
+            ->first();
+
+        $hasAcceptedRequest = (bool) $acceptedRequest;
 
         if (!$hasAcceptedRequest && $compatibleUser->assigned_matchmaker_id !== $me->id) {
             abort(403, 'You can only propose between profiles assigned to you.');
+        }
+
+        $latestRejection = Proposition::query()
+            ->where('matchmaker_id', $me->id)
+            ->where('reference_user_id', $referenceUser->id)
+            ->where('compatible_user_id', $compatibleUser->id)
+            ->whereIn('status', ['not_interested', 'rejected'])
+            ->orderByDesc('responded_at')
+            ->orderByDesc('created_at')
+            ->first();
+
+        if ($latestRejection && $compatibleUser->assigned_matchmaker_id !== $me->id) {
+            $acceptedAt = $acceptedRequest?->responded_at ?? $acceptedRequest?->created_at;
+            $rejectedAt = $latestRejection->responded_at ?? $latestRejection->created_at;
+
+            if (!$acceptedAt || $acceptedAt->lte($rejectedAt)) {
+                abort(403, 'A new proposition request is required after refusal.');
+            }
         }
 
         $latestByRecipient = Proposition::query()
@@ -248,7 +270,7 @@ class PropositionController extends Controller
         $referenceUser = User::select('id', 'assigned_matchmaker_id')->findOrFail($data['reference_user_id']);
         $compatibleUser = User::select('id', 'assigned_matchmaker_id')->findOrFail($data['compatible_user_id']);
 
-        $hasAcceptedRequest = PropositionRequest::query()
+        $acceptedRequest = PropositionRequest::query()
             ->where('from_matchmaker_id', $me->id)
             ->where('to_matchmaker_id', $compatibleUser->assigned_matchmaker_id)
             ->where('status', 'accepted')
@@ -261,10 +283,32 @@ class PropositionController extends Controller
                         ->where('user_b_id', $compatibleUser->id);
                 }
             })
-            ->exists();
+            ->orderByDesc('responded_at')
+            ->orderByDesc('created_at')
+            ->first();
+
+        $hasAcceptedRequest = (bool) $acceptedRequest;
 
         if (!$hasAcceptedRequest && $compatibleUser->assigned_matchmaker_id !== $me->id) {
             abort(403, 'You can only propose between profiles assigned to you.');
+        }
+
+        $latestRejection = Proposition::query()
+            ->where('matchmaker_id', $me->id)
+            ->where('reference_user_id', $referenceUser->id)
+            ->where('compatible_user_id', $compatibleUser->id)
+            ->whereIn('status', ['not_interested', 'rejected'])
+            ->orderByDesc('responded_at')
+            ->orderByDesc('created_at')
+            ->first();
+
+        if ($latestRejection && $compatibleUser->assigned_matchmaker_id !== $me->id) {
+            $acceptedAt = $acceptedRequest?->responded_at ?? $acceptedRequest?->created_at;
+            $rejectedAt = $latestRejection->responded_at ?? $latestRejection->created_at;
+
+            if (!$acceptedAt || $acceptedAt->lte($rejectedAt)) {
+                abort(403, 'A new proposition request is required after refusal.');
+            }
         }
 
         $exists = Proposition::query()

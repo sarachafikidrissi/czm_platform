@@ -2,6 +2,7 @@ import CreatePost from '@/components/posts/CreatePost';
 import PostCard from '@/components/posts/PostCard';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
@@ -22,7 +23,19 @@ import { useTranslation } from 'react-i18next';
 import { useToast } from '@/hooks/use-toast';
 import axios from 'axios';
 
-export default function UserProfile({ user, profile, agency, matchmakerNotes = [], matchmakerEvaluation = null, photos = [], bills = [], subscriptions = [], matchmakingSearch = null, matchmakingResults = null }) {
+export default function UserProfile({
+    user,
+    profile,
+    agency,
+    matchmakerNotes = [],
+    matchmakerEvaluation = null,
+    photos = [],
+    bills = [],
+    subscriptions = [],
+    matchmakingSearch = null,
+    matchmakingResults = null,
+    propositionToRespond = null,
+}) {
     const { t } = useTranslation();
     const { auth } = usePage().props;
     const { showToast } = useToast();
@@ -111,6 +124,61 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
     const [avis, setAvis] = useState('');
     const [commentaire, setCommentaire] = useState('');
 
+    // Proposition response state (for profile view)
+    const [propositionToRespondState, setPropositionToRespondState] = useState(propositionToRespond);
+    const [responseMessages, setResponseMessages] = useState({});
+    const [responseProcessingIds, setResponseProcessingIds] = useState({});
+    const [responseErrors, setResponseErrors] = useState({});
+    const [responseSelections, setResponseSelections] = useState({});
+
+    useEffect(() => {
+        setPropositionToRespondState(propositionToRespond);
+        if (propositionToRespond?.id) {
+            setResponseSelections((prev) => ({
+                ...prev,
+                [propositionToRespond.id]: '',
+            }));
+        }
+    }, [propositionToRespond]);
+
+    const handlePropositionRespond = async (propositionId, status) => {
+        const message = (responseMessages[propositionId] || '').trim();
+        if (!status) {
+            setResponseErrors((prev) => ({ ...prev, [propositionId]: 'Veuillez sélectionner une réponse.' }));
+            return;
+        }
+        if (!message) {
+            setResponseErrors((prev) => ({ ...prev, [propositionId]: 'Veuillez saisir un motif.' }));
+            return;
+        }
+
+        setResponseProcessingIds((prev) => ({ ...prev, [propositionId]: true }));
+        setResponseErrors((prev) => ({ ...prev, [propositionId]: '' }));
+        try {
+            await axios.post(`/propositions/${propositionId}/respond`, {
+                status,
+                response_message: message || null,
+            });
+
+            const mappedStatus = status === 'accepted' ? 'interested' : 'not_interested';
+            setPropositionToRespondState((prev) =>
+                prev && prev.id === propositionId
+                    ? {
+                          ...prev,
+                          status: mappedStatus,
+                          response_message: message || null,
+                          responded_at: new Date().toISOString(),
+                      }
+                    : prev,
+            );
+        } catch (error) {
+            const messageText = error?.response?.data?.message || 'Une erreur est survenue.';
+            setResponseErrors((prev) => ({ ...prev, [propositionId]: messageText }));
+        } finally {
+            setResponseProcessingIds((prev) => ({ ...prev, [propositionId]: false }));
+        }
+    };
+
     // Visibility: who can see notes/evaluation
     const viewerRole = auth?.user?.roles?.[0]?.name || 'user';
 
@@ -160,6 +228,18 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
         isOwnProfile ||
         (viewerRole === 'matchmaker' && user?.assigned_matchmaker_id === auth?.user?.id) ||
         (viewerRole === 'admin');
+
+    const normalizedPropositionStatus = propositionToRespondState
+        ? propositionToRespondState.is_expired
+            ? 'expired'
+            : propositionToRespondState.status === 'interested' || propositionToRespondState.status === 'accepted'
+              ? 'accepted'
+              : propositionToRespondState.status === 'not_interested' || propositionToRespondState.status === 'rejected'
+                ? 'rejected'
+                : 'pending'
+        : null;
+    const isPropositionPending = normalizedPropositionStatus === 'pending';
+    const isPropositionProcessing = propositionToRespondState ? responseProcessingIds[propositionToRespondState.id] : false;
 
     // Photo deletion state
     const [photoToDelete, setPhotoToDelete] = useState(null);
@@ -1909,6 +1989,83 @@ export default function UserProfile({ user, profile, agency, matchmakerNotes = [
                                                 </div>
                                             </CardContent>
                                         </Card>
+
+                                        {propositionToRespondState && (
+                                            <Card className="border border-[#e6d7c3] bg-[#fff7e8]">
+                                                <CardContent className="p-6">
+                                                    <h3 className="mb-4 text-center text-xl font-extrabold text-[#e53935]">Donner votre avis</h3>
+                                                    <div className="space-y-4">
+                                                        <div className="space-y-3">
+                                                            <label className="flex items-center gap-3 text-sm text-gray-700">
+                                                                <input
+                                                                    type="radio"
+                                                                    name={`proposition-${propositionToRespondState.id}`}
+                                                                    value="accepted"
+                                                                    checked={responseSelections[propositionToRespondState.id] === 'accepted'}
+                                                                    disabled={!isPropositionPending || isPropositionProcessing}
+                                                                    onChange={() =>
+                                                                        setResponseSelections((prev) => ({
+                                                                            ...prev,
+                                                                            [propositionToRespondState.id]: 'accepted',
+                                                                        }))
+                                                                    }
+                                                                />
+                                                                Intéressé
+                                                            </label>
+                                                            <label className="flex items-center gap-3 text-sm text-gray-700">
+                                                                <input
+                                                                    type="radio"
+                                                                    name={`proposition-${propositionToRespondState.id}`}
+                                                                    value="rejected"
+                                                                    checked={responseSelections[propositionToRespondState.id] === 'rejected'}
+                                                                    disabled={!isPropositionPending || isPropositionProcessing}
+                                                                    onChange={() =>
+                                                                        setResponseSelections((prev) => ({
+                                                                            ...prev,
+                                                                            [propositionToRespondState.id]: 'rejected',
+                                                                        }))
+                                                                    }
+                                                                />
+                                                                Pas intéressé
+                                                            </label>
+                                                        </div>
+                                                        <Textarea
+                                                            value={responseMessages[propositionToRespondState.id] || ''}
+                                                            onChange={(event) =>
+                                                                setResponseMessages((prev) => ({
+                                                                    ...prev,
+                                                                    [propositionToRespondState.id]: event.target.value,
+                                                                }))
+                                                            }
+                                                            placeholder="Veuillez donner plus de détails"
+                                                            disabled={!isPropositionPending || isPropositionProcessing}
+                                                            className="min-h-[90px] bg-white"
+                                                        />
+                                                        {responseErrors[propositionToRespondState.id] && (
+                                                            <div className="text-sm text-red-600">{responseErrors[propositionToRespondState.id]}</div>
+                                                        )}
+                                                        <Button
+                                                            type="button"
+                                                            className="bg-[#e53935] text-white hover:bg-[#cf2f2b]"
+                                                            disabled={!isPropositionPending || isPropositionProcessing}
+                                                            onClick={() =>
+                                                                handlePropositionRespond(
+                                                                    propositionToRespondState.id,
+                                                                    responseSelections[propositionToRespondState.id],
+                                                                )
+                                                            }
+                                                        >
+                                                            Soumettre
+                                                        </Button>
+                                                        {propositionToRespondState.response_message && !isPropositionPending && (
+                                                            <div className="rounded-lg bg-white p-3 text-sm text-gray-700">
+                                                                Votre réponse: {propositionToRespondState.response_message}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </CardContent>
+                                            </Card>
+                                        )}
                                     </TabsContent>
                                 )}
 

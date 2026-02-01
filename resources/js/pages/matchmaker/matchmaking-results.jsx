@@ -969,7 +969,8 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
     useEffect(() => {
         if (!pendingOpenProposeId || hasOpenedProposeFromQuery || matches.length === 0) return;
         const match = matches.find((item) => item?.user?.id === pendingOpenProposeId);
-        if (match && (match.isAssignedToMe || match.proposition_request_status === 'accepted')) {
+        const canProposeFromRequest = Boolean(match?.can_propose_from_request);
+        if (match && (match.isAssignedToMe || canProposeFromRequest)) {
             openProposeModal(match);
             setHasOpenedProposeFromQuery(true);
         }
@@ -1720,30 +1721,44 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
 
 
                                         <Separator />
-                                        {!match.isAssignedToMe && match.assigned_matchmaker && (
+                                        {!match.isAssignedToMe && match.assigned_matchmaker && (() => {
+                                            const requestStatusForLabel = match.can_propose_from_request
+                                                ? match.proposition_request_status
+                                                : null;
+
+                                            return (
                                             <Button
                                                 variant="outline"
                                                 className="w-full"
                                                 onClick={(event) => {
-                                                    if (match.proposition_request_status === 'accepted') {
+                                                    if (match.can_propose_from_request) {
                                                         openProposeModal(match, event);
                                                         return;
                                                     }
                                                     openRequestModal(match, event);
                                                 }}
-                                                disabled={match.proposition_request_status === 'pending' || match.proposition_request_status === 'rejected'}
+                                                disabled={requestStatusForLabel === 'pending' || requestStatusForLabel === 'rejected'}
                                             >
                                                 <Info className="w-4 h-4 mr-2" />
-                                                {getRequestButtonLabel(match.proposition_request_status)}
+                                                {getRequestButtonLabel(requestStatusForLabel)}
                                             </Button>
-                                        )}
+                                            );
+                                        })()}
                                         {match.isAssignedToMe && (
                                             <Button
                                                 className="w-full bg-[#096725] hover:bg-[#07501d]"
-                                                onClick={(event) => openProposeModal(match, event)}
+                                                onClick={(event) => {
+                                                    if (match.proposition_status === 'pending') {
+                                                        return;
+                                                    }
+                                                    openProposeModal(match, event);
+                                                }}
+                                                disabled={match.proposition_status === 'pending'}
                                             >
                                                 <Heart className="w-4 h-4 mr-2" />
-                                                Proposer
+                                                {match.proposition_status === 'pending'
+                                                    ? 'Proposition envoyée (en attente de réponse)'
+                                                    : 'Proposer'}
                                             </Button>
                                         )}
 
