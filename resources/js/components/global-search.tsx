@@ -189,13 +189,14 @@ export function GlobalSearch({ role }: GlobalSearchProps) {
     return (
         <>
             {/* Search Trigger Button */}
-            <div className="px-2 mb-2">
+            <div className="px-3">
                 <button
                     onClick={() => setIsOpen(true)}
-                    className="w-full flex items-center justify-center px-3 py-2 rounded-md bg-white/10 hover:bg-white/20 text-white transition-colors"
+                    className="w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-white/10 hover:bg-white/15 text-white/80 transition-colors group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:w-[30px] group-data-[collapsible=icon]:h-[30px] group-data-[collapsible=icon]:px-0"
                     title="Search users (⌘K)"
                 >
-                    <Search className="h-5 w-5" />
+                    <Search className="h-4 w-4 text-white/70" />
+                    <span className="text-sm group-data-[collapsible=icon]:hidden">Rechercher...</span>
                 </button>
             </div>
 

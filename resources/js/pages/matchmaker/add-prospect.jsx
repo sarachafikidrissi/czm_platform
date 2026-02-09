@@ -1,16 +1,17 @@
 import { Head, useForm } from '@inertiajs/react';
-import { LoaderCircle } from 'lucide-react';
+import { CheckCircle, CircleAlert, LoaderCircle } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default function AddProspect() {
     const { t } = useTranslation();
@@ -20,7 +21,7 @@ export default function AddProspect() {
     const [loadingCountries, setLoadingCountries] = useState(false);
     const [errorCountries, setErrorCountries] = useState('');
 
-    const { data, setData, post, processing, errors, reset } = useForm({
+    const { data, setData, post, processing, errors, reset, recentlySuccessful } = useForm({
         name: '',
         email: '',
         phone: '',
@@ -28,6 +29,8 @@ export default function AddProspect() {
         country: '',
         city: '',
     });
+    const [successOpen, setSuccessOpen] = useState(false);
+    const [createdProspect, setCreatedProspect] = useState(null);
 
     // Fetch countries and cities
     useEffect(() => {
@@ -83,9 +86,54 @@ export default function AddProspect() {
 
     const submit = (e) => {
         e.preventDefault();
+        setCreatedProspect({
+            name: data.name,
+            username: data.name,
+            email: data.email,
+            phone: data.phone,
+            city: data.city,
+            country: data.country,
+        });
         post(route('staff.prospects.store'), {
             onFinish: () => reset(),
         });
+    };
+
+    useEffect(() => {
+        if (recentlySuccessful) {
+            setSuccessOpen(true);
+        }
+    }, [recentlySuccessful]);
+
+    const getFieldState = (field) => ({
+        hasError: Boolean(errors[field]),
+        hasValue: Boolean(data[field]),
+    });
+
+    const getInputClassName = (field) => {
+        const { hasError, hasValue } = getFieldState(field);
+        return [
+            'h-11 rounded-lg border bg-white px-3 text-sm shadow-sm transition-colors',
+            'placeholder:text-slate-400 focus-visible:ring-2 focus-visible:ring-offset-0',
+            hasError
+                ? 'border-red-500 focus-visible:ring-red-200'
+                : hasValue
+                  ? 'border-emerald-500 focus-visible:ring-emerald-200'
+                  : 'border-slate-200 focus-visible:ring-slate-200',
+        ].join(' ');
+    };
+
+    const getSelectTriggerClassName = (field) => {
+        const { hasError, hasValue } = getFieldState(field);
+        return [
+            'h-11 rounded-lg border bg-white px-3 text-sm shadow-sm transition-colors',
+            'focus-visible:ring-2 focus-visible:ring-offset-0',
+            hasError
+                ? 'border-red-500 focus-visible:ring-red-200'
+                : hasValue
+                  ? 'border-emerald-500 focus-visible:ring-emerald-200'
+                  : 'border-slate-200 focus-visible:ring-slate-200',
+        ].join(' ');
     };
 
     return (
@@ -93,87 +141,116 @@ export default function AddProspect() {
             <Head title={t('breadcrumbs.addProspect')} />
             
             <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Ajouter un nouveau prospect</CardTitle>
-                        <CardDescription>
+                <Card className="border border-slate-200/80 bg-white shadow-sm">
+                    <CardHeader className="border-b border-slate-200/80 bg-slate-50/70">
+                        <CardTitle className="text-lg font-semibold text-slate-900">Ajouter un nouveau prospect</CardTitle>
+                        <CardDescription className="text-sm text-slate-600">
                             Remplissez le formulaire ci-dessous pour créer un compte prospect. Un mot de passe sera généré automatiquement et envoyé par email avec les identifiants.
                         </CardDescription>
                     </CardHeader>
-                    <CardContent>
-                        <form onSubmit={submit} className="space-y-4">
-                            <div className="flex flex-col gap-y-1.5">
-                                <div className="flex flex-col gap-y-1">
-                                    <Label htmlFor="name">
+                    <CardContent className="p-6">
+                        <form onSubmit={submit} className="space-y-6">
+                            <div className="grid gap-5">
+                                <div className="flex flex-col gap-2">
+                                    <Label htmlFor="name" className="text-sm font-medium text-slate-700">
                                         Identifiant
                                     </Label>
-                                    <Input
-                                        id="name"
-                                        type="text"
-                                        required
-                                        autoFocus
-                                        autoComplete="name"
-                                        value={data.name}
-                                        onChange={(e) => setData('name', e.target.value)}
-                                        disabled={processing}
-                                        placeholder="Entrer l'identifiant ex:hajar05"
-                                    />
-                                    <InputError message={errors.name} className="mt-0.5" />
+                                    <div className="relative">
+                                        <Input
+                                            id="name"
+                                            type="text"
+                                            required
+                                            autoFocus
+                                            autoComplete="name"
+                                            value={data.name}
+                                            onChange={(e) => setData('name', e.target.value)}
+                                            disabled={processing}
+                                            placeholder="Entrer l'identifiant ex:hajar05"
+                                            className={getInputClassName('name')}
+                                        />
+                                        {getFieldState('name').hasError && (
+                                            <CircleAlert className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-red-500" />
+                                        )}
+                                        {!getFieldState('name').hasError && getFieldState('name').hasValue && (
+                                            <CheckCircle className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-500" />
+                                        )}
+                                    </div>
+                                    <InputError message={errors.name} className="mt-0.5 text-xs" />
                                 </div>
 
-                                <div>
-                                    <Label htmlFor="email">
-                                        Adresse Email
-                                    </Label>
-                                    <Input
-                                        id="email"
-                                        type="email"
-                                        required
-                                        autoComplete="email"
-                                        value={data.email}
-                                        onChange={(e) => setData('email', e.target.value)}
-                                        disabled={processing}
-                                        placeholder="email@example.com"
-                                    />
-                                    <InputError message={errors.email} />
+                                <div className="grid gap-5 md:grid-cols-2">
+                                    <div className="flex flex-col gap-2">
+                                        <Label htmlFor="email" className="text-sm font-medium text-slate-700">
+                                            Adresse Email
+                                        </Label>
+                                        <div className="relative">
+                                            <Input
+                                                id="email"
+                                                type="email"
+                                                required
+                                                autoComplete="email"
+                                                value={data.email}
+                                                onChange={(e) => setData('email', e.target.value)}
+                                                disabled={processing}
+                                                placeholder="email@example.com"
+                                                className={getInputClassName('email')}
+                                            />
+                                            {getFieldState('email').hasError && (
+                                                <CircleAlert className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-red-500" />
+                                            )}
+                                            {!getFieldState('email').hasError && getFieldState('email').hasValue && (
+                                                <CheckCircle className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-500" />
+                                            )}
+                                        </div>
+                                        <InputError message={errors.email} className="text-xs" />
+                                    </div>
+
+                                    <div className="flex flex-col gap-2">
+                                        <Label htmlFor="phone" className="text-sm font-medium text-slate-700">
+                                            Numéro de téléphone
+                                        </Label>
+                                        <div className="relative">
+                                            <Input
+                                                id="phone"
+                                                type="tel"
+                                                required
+                                                autoComplete="tel"
+                                                value={data.phone}
+                                                onChange={(e) => setData('phone', e.target.value)}
+                                                disabled={processing}
+                                                placeholder="+212 6-XX-XX-XX-XX"
+                                                className={getInputClassName('phone')}
+                                            />
+                                            {getFieldState('phone').hasError && (
+                                                <CircleAlert className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-red-500" />
+                                            )}
+                                            {!getFieldState('phone').hasError && getFieldState('phone').hasValue && (
+                                                <CheckCircle className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-500" />
+                                            )}
+                                        </div>
+                                        <InputError message={errors.phone} className="text-xs" />
+                                    </div>
                                 </div>
 
-                                <div>
-                                    <Label htmlFor="phone">
-                                        Numéro de téléphone
-                                    </Label>
-                                    <Input
-                                        id="phone"
-                                        type="tel"
-                                        required
-                                        autoComplete="tel"
-                                        value={data.phone}
-                                        onChange={(e) => setData('phone', e.target.value)}
-                                        disabled={processing}
-                                        placeholder="+212 6-XX-XX-XX-XX"
-                                    />
-                                    <InputError message={errors.phone} />
-                                </div>
+                                <div className="grid gap-5 md:grid-cols-2">
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="gender" className="text-sm font-medium text-slate-700">
+                                            Sexe
+                                        </Label>
+                                        <Select value={data.gender} onValueChange={(value) => setData('gender', value)} disabled={processing}>
+                                            <SelectTrigger className={getSelectTriggerClassName('gender')}>
+                                                <SelectValue placeholder="Choisir le sexe" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="male">Homme</SelectItem>
+                                                <SelectItem value="female">Femme</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        <InputError message={errors.gender} className="text-xs" />
+                                    </div>
 
-                                <div className="grid gap-2">
-                                    <Label htmlFor="gender">
-                                        Sexe
-                                    </Label>
-                                    <Select value={data.gender} onValueChange={(value) => setData('gender', value)} disabled={processing}>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Choisir le sexe" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="male">Homme</SelectItem>
-                                            <SelectItem value="female">Femme</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                    <InputError message={errors.gender} />
-                                </div>
-
-                                <div className="flex flex-col w-full gap-y-2">
-                                    <div className="grid w-full gap-2 truncate">
-                                        <Label htmlFor="country">
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="country" className="text-sm font-medium text-slate-700">
                                             Pays
                                         </Label>
                                         <Select
@@ -186,7 +263,7 @@ export default function AddProspect() {
                                             }}
                                             disabled={processing || loadingCountries}
                                         >
-                                            <SelectTrigger>
+                                            <SelectTrigger className={getSelectTriggerClassName('country')}>
                                                 <SelectValue placeholder={loadingCountries ? 'Chargement des pays…' : 'Sélectionnez le pays'} />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -197,55 +274,107 @@ export default function AddProspect() {
                                                 ))}
                                             </SelectContent>
                                         </Select>
-                                        {errorCountries && <p className="text-destructive text-sm">{errorCountries}</p>}
-                                        <InputError message={errors.country} />
-                                    </div>
-
-                                    <div className="grid w-full gap-2">
-                                        <Label htmlFor="city">
-                                            Ville
-                                        </Label>
-                                        <Select
-                                            value={data.city}
-                                            onValueChange={(value) => setData('city', value)}
-                                            disabled={processing || !selectedCountryCode || availableCities.length === 0}
-                                        >
-                                            <SelectTrigger>
-                                                <SelectValue
-                                                    placeholder={
-                                                        !selectedCountryCode
-                                                            ? "Sélectionnez d'abord un pays"
-                                                            : availableCities.length
-                                                              ? 'Sélectionnez la ville'
-                                                              : 'Aucune ville disponible'
-                                                    }
-                                                />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {availableCities.map((city) => (
-                                                    <SelectItem key={city} value={city}>
-                                                        {city}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                        <InputError message={errors.city} />
+                                        {errorCountries && <p className="text-xs text-destructive">{errorCountries}</p>}
+                                        <InputError message={errors.country} className="text-xs" />
                                     </div>
                                 </div>
 
+                                <div className="grid gap-2">
+                                    <Label htmlFor="city" className="text-sm font-medium text-slate-700">
+                                        Ville
+                                    </Label>
+                                    <Select
+                                        value={data.city}
+                                        onValueChange={(value) => setData('city', value)}
+                                        disabled={processing || !selectedCountryCode || availableCities.length === 0}
+                                    >
+                                        <SelectTrigger className={getSelectTriggerClassName('city')}>
+                                            <SelectValue
+                                                placeholder={
+                                                    !selectedCountryCode
+                                                        ? "Sélectionnez d'abord un pays"
+                                                        : availableCities.length
+                                                          ? 'Sélectionnez la ville'
+                                                          : 'Aucune ville disponible'
+                                                }
+                                            />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {availableCities.map((city) => (
+                                                <SelectItem key={city} value={city}>
+                                                    {city}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <InputError message={errors.city} className="text-xs" />
+                                </div>
+                            </div>
+
+                            <div className="flex flex-col gap-3 border-t border-slate-200/70 pt-5">
                                 <Button
                                     type="submit"
-                                    className="mt-1 w-full"
+                                    className="h-11 w-full rounded-lg bg-slate-900 text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
                                     disabled={processing}
                                 >
-                                    {processing && <LoaderCircle className="h-4 w-4 animate-spin mr-2" />}
+                                    {processing && <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />}
                                     Créer le prospect
                                 </Button>
+                                <p className="text-center text-xs text-slate-500">
+                                    Veuillez corriger les erreurs pour activer le bouton
+                                </p>
                             </div>
                         </form>
                     </CardContent>
                 </Card>
             </div>
+            <Dialog open={successOpen} onOpenChange={setSuccessOpen}>
+                <DialogContent className="max-w-md rounded-2xl border border-emerald-200/70 bg-white p-6 shadow-2xl">
+                    <div className="flex flex-col items-center gap-4 text-center">
+                        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50">
+                            <CheckCircle className="h-7 w-7 text-emerald-500" />
+                        </div>
+                        <DialogHeader className="space-y-2">
+                            <DialogTitle className="text-lg font-semibold text-slate-900">
+                                Prospect créé avec succès
+                            </DialogTitle>
+                            <DialogDescription className="text-sm text-slate-600">
+                                Le nouveau profil est prêt pour la suite du traitement. Vous pouvez consulter le profil ou ajouter un autre prospect.
+                            </DialogDescription>
+                        </DialogHeader>
+                        {createdProspect?.name && (
+                            <div className="w-full rounded-xl border border-slate-200/70 bg-slate-50 px-4 py-3 text-left">
+                                <p className="text-sm font-semibold text-slate-900">{createdProspect.name}</p>
+                                <p className="text-xs text-slate-500">
+                                    {createdProspect.city || 'Ville'}{createdProspect.country ? ` • ${createdProspect.country}` : ''}
+                                </p>
+                            </div>
+                        )}
+                        <div className="grid w-full gap-3">
+                            <Button
+                                type="button"
+                                className="h-11 w-full rounded-lg bg-emerald-600 text-white shadow-sm transition hover:bg-emerald-700"
+                                onClick={() => {
+                                    if (createdProspect?.username) {
+                                        window.open(`/profile/${createdProspect.username}`, '_blank', 'noopener,noreferrer');
+                                    }
+                                }}
+                                disabled={!createdProspect?.username}
+                            >
+                                Voir le profil
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                className="h-11 w-full rounded-lg border-slate-200 text-slate-700"
+                                onClick={() => setSuccessOpen(false)}
+                            >
+                                Ajouter un autre
+                            </Button>
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </AppLayout>
     );
 }

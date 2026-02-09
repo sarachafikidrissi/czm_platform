@@ -755,7 +755,7 @@ class MatchmakerController extends Controller
             },
             'subscriptions.matrimonialPack',
             'subscriptions.assignedMatchmaker'
-        ])->orderBy('created_at', 'desc')->paginate(8)->withQueryString();
+        ])->orderBy('created_at', 'desc')->paginate(5)->withQueryString();
         
         // Ensure to_rappeler is included in the response
         $prospects->each(function($prospect) {
@@ -1210,7 +1210,7 @@ class MatchmakerController extends Controller
         $prospects = $query->select(['id','name','username','email','phone','country','city','gender','status','agency_id','assigned_matchmaker_id','rejection_reason','rejected_by','rejected_at','to_rappeler','is_traite','created_at'])
             ->with(['profile', 'assignedMatchmaker', 'agency'])
             ->orderBy('created_at', 'desc')
-            ->paginate(8)
+            ->paginate(5)
             ->withQueryString();
         
         // Load pending transfer requests for each prospect
@@ -2543,7 +2543,7 @@ class MatchmakerController extends Controller
         $propositions = Proposition::query()
             ->where('matchmaker_id', $me->id)
             ->with([
-                'recipientUser:id,name,username',
+                'recipientUser:id,name,username,assigned_matchmaker_id',
                 'recipientUser.profile:id,user_id,profile_picture_path',
                 'referenceUser:id,name,username',
                 'referenceUser.profile:id,user_id,profile_picture_path',
@@ -2573,6 +2573,7 @@ class MatchmakerController extends Controller
                         'id' => $proposition->recipientUser->id,
                         'name' => $proposition->recipientUser->name,
                         'username' => $proposition->recipientUser->username,
+                        'assigned_matchmaker_id' => $proposition->recipientUser->assigned_matchmaker_id,
                         'profile' => $proposition->recipientUser->profile,
                     ] : null,
                     'reference_user' => $proposition->referenceUser ? [

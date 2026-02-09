@@ -1,6 +1,6 @@
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, Moon } from 'lucide-react';
 import { NavUser } from '@/components/nav-user';
 import { GlobalSearch } from '@/components/global-search';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
@@ -8,8 +8,9 @@ import { type NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
 import { CalendarHeart, Flame, HeartHandshake, Images, LayoutGrid, User, UserRoundSearch, Users, UserCheck, Plus, ShoppingCart, CreditCard, RotateCcw, Building2, Target, ArrowRightLeft, List, Search, UserCog, Newspaper, Calendar } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 
-const getMainNavItems = (t: (key: string) => string, role: string): NavItem[] => [
+const getMainNavItems = (t: TFunction, role: string): NavItem[] => [
     {
         title: t('common.dashboard'),
         url: '/dashboard',
@@ -258,19 +259,20 @@ export function AppSidebar() {
     
     return (
         // sidebar container
-        <Sidebar collapsible="icon" variant="inset" side={sidebarSide} className="bg-[#890505]">
-            <SidebarHeader>
+        <Sidebar collapsible="icon" variant="inset" side={sidebarSide} className="bg-[#890505] text-white">
+            <SidebarHeader className="pt-4">
                 <SidebarMenu className="">
                     <SidebarMenuItem>
-                        <SidebarMenuButton className="hover:bg-transparent" size="lg" asChild>
+                        <SidebarMenuButton className="hover:bg-white/10 rounded-2xl" size="lg" asChild tooltip={t('common.centreZawajMaroc')}>
                             <Link href="/dashboard" prefetch>
-                                {/* to be changed when user upload his picture */}
-                                <div className="flex w-full items-center justify-between gap-x-1">
-                                    <img src="/images/czm_Logo.png" alt="profile-picture" className="size-10 fill-current object-cover bg-white rounded-full" />
-                                    <span className="text-white">{t('common.centreZawajMaroc')}</span>
-                                </div>
-                                <div className="ml-1 grid flex-1 text-left text-sm">
-                                    <span className="mb-0.5 truncate leading-none font-semibold">{}</span>
+                                <div className="flex w-full items-center gap-3 px-1">
+                                    <div className="h-10 w-10 rounded-full bg-white p-1 shadow-sm">
+                                        <img src="/images/czm_Logo.png" alt="CZM logo" className="h-full w-full object-contain" />
+                                    </div>
+                                    <div className="grid flex-1 text-left leading-tight group-data-[collapsible=icon]:hidden">
+                                        <span className="text-sm font-semibold uppercase tracking-wide">{t('common.centreZawajMaroc')}</span>
+                                        <span className="text-xs uppercase tracking-[0.28em] text-white/70">Maroc Agency</span>
+                                    </div>
                                 </div>
                             </Link>
                         </SidebarMenuButton>
@@ -278,14 +280,15 @@ export function AppSidebar() {
                 </SidebarMenu>
             </SidebarHeader>
 
-            <SidebarContent className="">
+            <SidebarContent className="gap-3 pb-2 group-data-[collapsible=icon]:overflow-auto">
                 <GlobalSearch role={role} />
                 <NavMain items={navitems} />
             </SidebarContent>
 
-            <SidebarFooter>
+            <SidebarFooter className="gap-3 pb-3">
                 <NavFooter items={footerNavItems} className="mt-auto" />
                 <NavUser />
+               
             </SidebarFooter>
         </Sidebar>
     );

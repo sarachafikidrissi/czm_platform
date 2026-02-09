@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
-import { LayoutGrid, Table2, Mail, MapPin, CheckCircle, Pencil, XCircle, Search, Copy, Check, Phone, ArrowRightLeft } from 'lucide-react';
+import { LayoutGrid, Table2, Mail, MapPin, CheckCircle, Pencil, XCircle, Search, Copy, Check, Phone, ArrowRightLeft, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function AgencyProspects() {
@@ -22,11 +22,22 @@ export default function AgencyProspects() {
     const { prospects = [], statusFilter = 'active', services = [], matrimonialPacks = [], auth } = usePage().props;
     const isLoading = prospects === null || prospects === undefined;
     
-    // Handle pagination data structure
-    const prospectsData = prospects?.data || prospects || [];
-    const pagination = prospects?.links || null;
-    const currentPageNum = prospects?.current_page || 1;
-    const lastPage = prospects?.last_page || 1;
+    // Handle pagination data structure (server or client fallback)
+    const DEFAULT_PER_PAGE = 5;
+    const isServerPaginated = Array.isArray(prospects?.data);
+    const allProspects = isServerPaginated ? prospects.data : (Array.isArray(prospects) ? prospects : []);
+    const urlPage = Number(new URLSearchParams(window.location.search).get('page')) || 1;
+    const perPage = isServerPaginated ? (prospects?.per_page || DEFAULT_PER_PAGE) : DEFAULT_PER_PAGE;
+    const currentPageNum = isServerPaginated ? (prospects?.current_page || 1) : Math.max(1, urlPage);
+    const lastPage = isServerPaginated
+        ? (prospects?.last_page || 1)
+        : Math.max(1, Math.ceil(allProspects.length / perPage));
+    const startIndex = isServerPaginated ? 0 : (currentPageNum - 1) * perPage;
+    const prospectsData = isServerPaginated
+        ? allProspects
+        : allProspects.slice(startIndex, startIndex + perPage);
+    const pagination = isServerPaginated ? (prospects?.links || null) : null;
+    const hasPagination = lastPage > 1 || (pagination && pagination.length > 1);
     
     const { data, setData, post, processing, errors, reset } = useForm({
         notes: '',
@@ -300,9 +311,9 @@ export default function AgencyProspects() {
         });
     };
     
-    const showingStart = prospects?.from || 0;
-    const showingEnd = prospects?.to || 0;
-    const total = prospects?.total || 0;
+    const showingStart = isServerPaginated ? (prospects?.from ?? 0) : (allProspects.length ? startIndex + 1 : 0);
+    const showingEnd = isServerPaginated ? (prospects?.to ?? 0) : Math.min(startIndex + prospectsData.length, allProspects.length);
+    const total = isServerPaginated ? (prospects?.total ?? 0) : allProspects.length;
     
     // Helper function to get profile picture URL
     const getProfilePicture = (prospect) => {
@@ -753,39 +764,41 @@ export default function AgencyProspects() {
 
                 {/* Table View */}
                 {viewMode === 'table' && (
-                    <Card className="overflow-hidden">
-                        <CardHeader>
-                            <CardTitle>Prospects for Your Agency</CardTitle>
-                            <CardDescription>Review and validate prospects assigned to your agency</CardDescription>
+                    <Card className="overflow-hidden border border-slate-200/80 bg-white shadow-sm">
+                        <CardHeader className="border-b border-slate-200/80 bg-slate-50/70">
+                            <CardTitle className="text-base font-semibold text-slate-900">Prospects for Your Agency</CardTitle>
+                            <CardDescription className="text-sm text-slate-500">
+                                Review and validate prospects assigned to your agency
+                            </CardDescription>
                         </CardHeader>
                         <CardContent className="p-0">
                             <div className="overflow-x-auto">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Name</TableHead>
-                                            <TableHead>{t('staff.tableHeaders.gender')}</TableHead>
-                                            <TableHead>Email</TableHead>
-                                            <TableHead className="hidden md:table-cell">Phone</TableHead>
-                                            <TableHead className="hidden lg:table-cell">City</TableHead>
-                                            <TableHead className="hidden lg:table-cell">Country</TableHead>
-                                            <TableHead>Dispatched To</TableHead>
-                                            <TableHead>Actions</TableHead>
+                                <Table className="min-w-[1040px]">
+                                    <TableHeader className="bg-slate-50">
+                                        <TableRow className="border-b border-slate-200/80">
+                                            <TableHead className="px-5 py-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Name</TableHead>
+                                            <TableHead className="px-5 py-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t('staff.tableHeaders.gender')}</TableHead>
+                                            <TableHead className="px-5 py-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Email</TableHead>
+                                            <TableHead className="hidden md:table-cell px-5 py-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Phone</TableHead>
+                                            <TableHead className="hidden lg:table-cell px-5 py-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500">City</TableHead>
+                                            <TableHead className="hidden lg:table-cell px-5 py-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Country</TableHead>
+                                            <TableHead className="px-5 py-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Dispatched To</TableHead>
+                                            <TableHead className="px-5 py-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Actions</TableHead>
                                         </TableRow>
                                     </TableHeader>
-                                    <TableBody>
+                                    <TableBody className="divide-y divide-slate-100">
                                         {isLoading ? (
                                             [1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-                                                <TableRow key={i}>
-                                                    <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                                                    <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                                                    <TableCell><Skeleton className="h-4 w-40" /></TableCell>
-                                                    <TableCell className="hidden md:table-cell"><Skeleton className="h-4 w-24" /></TableCell>
-                                                    <TableCell className="hidden lg:table-cell"><Skeleton className="h-4 w-28" /></TableCell>
-                                                    <TableCell className="hidden lg:table-cell"><Skeleton className="h-4 w-24" /></TableCell>
-                                                    <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                                                    <TableCell>
-                                                        <div className="flex gap-2">
+                                                <TableRow key={i} className="h-16">
+                                                    <TableCell className="px-5"><Skeleton className="h-4 w-32" /></TableCell>
+                                                    <TableCell className="px-5"><Skeleton className="h-4 w-20" /></TableCell>
+                                                    <TableCell className="px-5"><Skeleton className="h-4 w-40" /></TableCell>
+                                                    <TableCell className="hidden md:table-cell px-5"><Skeleton className="h-4 w-24" /></TableCell>
+                                                    <TableCell className="hidden lg:table-cell px-5"><Skeleton className="h-4 w-28" /></TableCell>
+                                                    <TableCell className="hidden lg:table-cell px-5"><Skeleton className="h-4 w-24" /></TableCell>
+                                                    <TableCell className="px-5"><Skeleton className="h-4 w-32" /></TableCell>
+                                                    <TableCell className="px-5">
+                                                        <div className="flex items-center gap-2">
                                                             <Skeleton className="h-8 w-20" />
                                                             <Skeleton className="h-8 w-16" />
                                                         </div>
@@ -796,31 +809,31 @@ export default function AgencyProspects() {
                                             filteredProspects.map((p) => (
                                             <TableRow 
                                                 key={p.id}
-                                                className="cursor-pointer hover:bg-muted/50"
+                                                className="h-16 cursor-pointer border-b border-slate-100 hover:bg-slate-50/70"
                                                 onClick={() => handleUserInfoClick(p)}
                                             >
-                                                <TableCell className="font-medium">{p.name}</TableCell>
-                                                <TableCell>{p.gender || 'N/A'}</TableCell>
-                                                <TableCell>{p.email || 'N/A'}</TableCell>
-                                                <TableCell className="hidden md:table-cell">{p.phone || 'N/A'}</TableCell>
-                                                <TableCell className="hidden lg:table-cell">{p.city || 'N/A'}</TableCell>
-                                                <TableCell className="hidden lg:table-cell">{p.country || 'N/A'}</TableCell>
-                                                <TableCell>
+                                                <TableCell className="px-5 font-medium text-slate-900">{p.name}</TableCell>
+                                                <TableCell className="px-5 text-slate-600">{p.gender || 'N/A'}</TableCell>
+                                                <TableCell className="px-5 text-slate-600">{p.email || 'N/A'}</TableCell>
+                                                <TableCell className="hidden md:table-cell px-5 text-slate-600">{p.phone || 'N/A'}</TableCell>
+                                                <TableCell className="hidden lg:table-cell px-5 text-slate-600">{p.city || 'N/A'}</TableCell>
+                                                <TableCell className="hidden lg:table-cell px-5 text-slate-600">{p.country || 'N/A'}</TableCell>
+                                                <TableCell className="px-5">
                                                     {p.assigned_matchmaker_id ? (
-                                                        <div className="text-sm">
+                                                        <div className="text-sm text-slate-600">
                                                             <div className="font-medium text-success">Matchmaker: {p.assigned_matchmaker?.name || 'Unknown'}</div>
                                                             {p.agency_id && (
                                                                 <div className="text-info">Agency: {p.agency?.name || 'Unknown'}</div>
                                                             )}
                                                         </div>
                                                     ) : p.agency_id ? (
-                                                        <span className="text-info">Agency: {p.agency?.name || 'Unknown'}</span>
+                                                        <span className="text-info text-sm">Agency: {p.agency?.name || 'Unknown'}</span>
                                                     ) : (
-                                                        <span className="text-muted-foreground">Not dispatched</span>
+                                                        <span className="text-muted-foreground text-sm">Not dispatched</span>
                                                     )}
                                                 </TableCell>
-                                                <TableCell onClick={(e) => e.stopPropagation()}>
-                                                    <div className="flex gap-2">
+                                                <TableCell className="px-5" onClick={(e) => e.stopPropagation()}>
+                                                    <div className="flex flex-wrap items-center gap-2">
                                                         {statusFilter === 'active' || statusFilter === 'traite' ? (
                                                             <>
                                                                 <Button
@@ -919,8 +932,8 @@ export default function AgencyProspects() {
                             </div>
                             
                             {filteredProspects.length === 0 && !searchQuery.trim() && !isLoading && (
-                                <div className="text-center py-8">
-                                    <p className="text-muted-foreground">
+                                <div className="border-t border-slate-100 px-6 py-10 text-center">
+                                    <p className="text-sm text-slate-500">
                                         {statusFilter === 'rejected' 
                                             ? 'Aucun prospect rejeté pour le moment.'
                                             : statusFilter === 'rappeler'
@@ -934,54 +947,59 @@ export default function AgencyProspects() {
                 )}
 
                 {/* Pagination Controls */}
-                {pagination && lastPage > 1 && (
-                    <div className="flex justify-center items-center gap-2">
-                        {pagination[0]?.url && (
+                {hasPagination && (
+                    <div className="flex flex-col gap-3 rounded-xl border border-slate-200/80 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="text-sm text-slate-500">
+                            Affichage de {showingStart} à {showingEnd} sur {total} prospects
+                        </div>
+                        <div className="flex items-center gap-2">
                             <Button
                                 variant="outline"
-                                size="sm"
+                                size="icon"
                                 onClick={() => handlePageChange(currentPageNum - 1)}
                                 disabled={currentPageNum === 1}
+                                className="h-9 w-9"
+                                aria-label="Previous page"
                             >
-                                Précédent
+                                <ChevronLeft className="h-4 w-4" />
                             </Button>
-                        )}
-                        <div className="flex gap-1">
-                            {Array.from({ length: Math.min(5, lastPage) }, (_, i) => {
-                                let pageNum;
-                                if (lastPage <= 5) {
-                                    pageNum = i + 1;
-                                } else if (currentPageNum <= 3) {
-                                    pageNum = i + 1;
-                                } else if (currentPageNum >= lastPage - 2) {
-                                    pageNum = lastPage - 4 + i;
-                                } else {
-                                    pageNum = currentPageNum - 2 + i;
-                                }
-                                
-                                return (
-                                    <Button
-                                        key={pageNum}
-                                        variant={currentPageNum === pageNum ? 'default' : 'outline'}
-                                        size="sm"
-                                        onClick={() => handlePageChange(pageNum)}
-                                        className="w-10"
-                                    >
-                                        {pageNum}
-                                    </Button>
-                                );
-                            })}
-                        </div>
-                        {pagination[pagination.length - 1]?.url && (
+                            <div className="flex items-center gap-1">
+                                {Array.from({ length: Math.min(5, lastPage) }, (_, i) => {
+                                    let pageNum;
+                                    if (lastPage <= 5) {
+                                        pageNum = i + 1;
+                                    } else if (currentPageNum <= 3) {
+                                        pageNum = i + 1;
+                                    } else if (currentPageNum >= lastPage - 2) {
+                                        pageNum = lastPage - 4 + i;
+                                    } else {
+                                        pageNum = currentPageNum - 2 + i;
+                                    }
+                                    
+                                    return (
+                                        <Button
+                                            key={pageNum}
+                                            variant={currentPageNum === pageNum ? 'default' : 'outline'}
+                                            size="sm"
+                                            onClick={() => handlePageChange(pageNum)}
+                                            className="h-9 w-9"
+                                        >
+                                            {pageNum}
+                                        </Button>
+                                    );
+                                })}
+                            </div>
                             <Button
                                 variant="outline"
-                                size="sm"
+                                size="icon"
                                 onClick={() => handlePageChange(currentPageNum + 1)}
                                 disabled={currentPageNum === lastPage}
+                                className="h-9 w-9"
+                                aria-label="Next page"
                             >
-                                Suivant
+                                <ChevronRight className="h-4 w-4" />
                             </Button>
-                        )}
+                        </div>
                     </div>
                 )}
             </div>

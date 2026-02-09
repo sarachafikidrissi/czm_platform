@@ -13,7 +13,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import { useState, useEffect, useMemo } from 'react';
-import { LayoutGrid, Table2, Mail, MapPin, CheckCircle, Pencil, TestTube, Link as LinkIcon, Copy, Check, Search, Phone, ArrowRightLeft, AlertCircle } from 'lucide-react';
+import { LayoutGrid, Table2, Mail, MapPin, CheckCircle, Pencil, TestTube, Link as LinkIcon, Copy, Check, Search, Phone, ArrowRightLeft, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -98,9 +98,10 @@ export default function ValidatedProspects() {
         });
     };
     
-    const showingStart = prospects?.from || 0;
-    const showingEnd = prospects?.to || 0;
-    const total = prospects?.total || 0;
+    const showingStart = prospects?.from ?? (prospectsData.length > 0 ? 1 : 0);
+    const showingEnd = prospects?.to ?? prospectsData.length;
+    const total = prospects?.total ?? prospectsData.length;
+    const hasPagination = lastPage > 1 || (pagination && pagination.length > 1);
 
     const handleMarkAsClient = (userId) => {
         setLoading(prev => ({ ...prev, [userId]: true }));
@@ -781,38 +782,38 @@ export default function ValidatedProspects() {
 
                 {/* Table View */}
                 {viewMode === 'table' && (
-                    <Card className="overflow-hidden">
+                    <Card className="overflow-hidden border border-slate-200/80 bg-white shadow-sm">
                         <CardContent className="p-0">
                             <div className="overflow-x-auto">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Name</TableHead>
-                                            <TableHead>{t('staff.tableHeaders.gender')}</TableHead>
+                                <Table className="min-w-[960px]">
+                                    <TableHeader className="bg-slate-50">
+                                        <TableRow className="border-b border-slate-200/80">
+                                            <TableHead className="px-5 py-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Name</TableHead>
+                                            <TableHead className="px-5 py-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t('staff.tableHeaders.gender')}</TableHead>
                                             {/* <TableHead>Email</TableHead> */}
-                                            <TableHead className="hidden md:table-cell">Phone</TableHead>
-                                            <TableHead className="hidden lg:table-cell">City</TableHead>
-                                            <TableHead>Step</TableHead>
-                                            <TableHead>Status</TableHead>
-                                            <TableHead>Expiring</TableHead>
-                                            <TableHead>Account Status</TableHead>
-                                            <TableHead>Actions</TableHead>
+                                            <TableHead className="hidden md:table-cell px-5 py-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Phone</TableHead>
+                                            <TableHead className="hidden lg:table-cell px-5 py-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500">City</TableHead>
+                                            <TableHead className="px-5 py-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Step</TableHead>
+                                            <TableHead className="px-5 py-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Status</TableHead>
+                                            <TableHead className="px-5 py-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Expiring</TableHead>
+                                            <TableHead className="px-5 py-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Account Status</TableHead>
+                                            <TableHead className="px-5 py-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Actions</TableHead>
                                         </TableRow>
                                     </TableHeader>
-                                    <TableBody>
+                                    <TableBody className="divide-y divide-slate-100">
                                         {isLoading ? (
                                             [1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-                                                <TableRow key={i}>
-                                                    <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                                                    <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                                                    <TableCell><Skeleton className="h-4 w-40" /></TableCell>
-                                                    <TableCell className="hidden md:table-cell"><Skeleton className="h-4 w-24" /></TableCell>
-                                                    <TableCell className="hidden lg:table-cell"><Skeleton className="h-4 w-28" /></TableCell>
-                                                    <TableCell><Skeleton className="h-6 w-16" /></TableCell>
-                                                    <TableCell><Skeleton className="h-6 w-20" /></TableCell>
-                                                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                                                    <TableCell><Skeleton className="h-6 w-16" /></TableCell>
-                                                    <TableCell>
+                                                <TableRow key={i} className="h-16">
+                                                    <TableCell className="px-5"><Skeleton className="h-4 w-32" /></TableCell>
+                                                    <TableCell className="px-5"><Skeleton className="h-4 w-20" /></TableCell>
+                                                    <TableCell className="px-5"><Skeleton className="h-4 w-40" /></TableCell>
+                                                    <TableCell className="hidden md:table-cell px-5"><Skeleton className="h-4 w-24" /></TableCell>
+                                                    <TableCell className="hidden lg:table-cell px-5"><Skeleton className="h-4 w-28" /></TableCell>
+                                                    <TableCell className="px-5"><Skeleton className="h-6 w-16" /></TableCell>
+                                                    <TableCell className="px-5"><Skeleton className="h-6 w-20" /></TableCell>
+                                                    <TableCell className="px-5"><Skeleton className="h-4 w-24" /></TableCell>
+                                                    <TableCell className="px-5"><Skeleton className="h-6 w-16" /></TableCell>
+                                                    <TableCell className="px-5">
                                                         <div className="flex items-center gap-2">
                                                             <Skeleton className="h-8 w-20" />
                                                             <Skeleton className="h-8 w-8" />
@@ -824,20 +825,20 @@ export default function ValidatedProspects() {
                                             filteredProspects.map((u) => (
                                             <TableRow 
                                                 key={u.id}
-                                                className="cursor-pointer hover:bg-muted/50"
+                                                className="h-16 cursor-pointer border-b border-slate-100 hover:bg-slate-50/70"
                                                 onClick={() => handleUserInfoClick(u)}
                                             >
-                                                <TableCell className="font-medium">{u.name}</TableCell>
-                                                <TableCell>{u.gender || 'N/A'}</TableCell>
+                                                <TableCell className="px-5 font-medium text-slate-900">{u.name}</TableCell>
+                                                <TableCell className="px-5 text-slate-600">{u.gender || 'N/A'}</TableCell>
                                                 {/* <TableCell>{u.email || 'N/A'}</TableCell> */}
-                                                <TableCell className="hidden md:table-cell">{u.phone || 'N/A'}</TableCell>
-                                                <TableCell className="hidden lg:table-cell">{getLocation(u)}</TableCell>
-                                                <TableCell>
+                                                <TableCell className="hidden md:table-cell px-5 text-slate-600">{u.phone || 'N/A'}</TableCell>
+                                                <TableCell className="hidden lg:table-cell px-5 text-slate-600">{getLocation(u)}</TableCell>
+                                                <TableCell className="px-5">
                                                     <Badge className="bg-foreground text-background">
                                                         {getStep(u)}
                                                     </Badge>
                                                 </TableCell>
-                                                <TableCell>
+                                                <TableCell className="px-5">
                                                     <div className="flex flex-col gap-1">
                                                         <Badge className="bg-success-bg text-success flex items-center gap-1 w-fit">
                                                             <CheckCircle className="w-3 h-3" />
@@ -853,7 +854,7 @@ export default function ValidatedProspects() {
                                                         )}
                                                     </div>
                                                 </TableCell>
-                                                <TableCell>
+                                                <TableCell className="px-5">
                                                     {u.expiring_in_3_days ? (
                                                         <div className="flex flex-col gap-1">
                                                             <Badge className="bg-warning text-warning-foreground w-fit text-xs">
@@ -874,13 +875,13 @@ export default function ValidatedProspects() {
                                                         <span className="text-muted-foreground text-xs">-</span>
                                                     )}
                                                 </TableCell>
-                                                <TableCell>
+                                                <TableCell className="px-5">
                                                     <Badge variant={u.profile?.account_status === 'desactivated' ? 'destructive' : 'default'}>
                                                         {u.profile?.account_status === 'desactivated' ? 'Désactivé' : 'Actif'}
                                                     </Badge>
                                                 </TableCell>
-                                                <TableCell>
-                                                    <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                                                <TableCell className="px-5">
+                                                    <div className="flex flex-wrap items-center gap-2" onClick={(e) => e.stopPropagation()}>
                                                         {u.profile?.account_status === 'desactivated' ? (
                                                             <Button
                                                                 size="sm"
@@ -1009,8 +1010,8 @@ export default function ValidatedProspects() {
                             </div>
                             
                             {filteredProspects.length === 0 && !searchQuery.trim() && !isLoading && (
-                                <div className="text-center py-8">
-                                    <p className="text-gray-500">No participants found.</p>
+                                <div className="border-t border-slate-100 px-6 py-10 text-center">
+                                    <p className="text-sm text-slate-500">No participants found.</p>
                                 </div>
                             )}
                         </CardContent>
@@ -1018,54 +1019,62 @@ export default function ValidatedProspects() {
                 )}
 
                 {/* Pagination Controls */}
-                {pagination && lastPage > 1 && (
-                    <div className="flex justify-center items-center gap-2">
-                        {pagination[0]?.url && (
+                {viewMode === 'table' && hasPagination && (
+                    <div className="flex flex-col gap-3 rounded-xl border border-slate-200/80 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="text-sm text-slate-500">
+                            Affichage de {showingStart} à {showingEnd} sur {total} participants
+                        </div>
+                        <div className="flex items-center gap-2">
                             <Button
                                 variant="outline"
-                                size="sm"
+                                size="icon"
                                 onClick={() => handlePageChange(currentPageNum - 1)}
                                 disabled={currentPageNum === 1}
+                                className="h-9 w-9"
+                                aria-label="Previous page"
                             >
-                                Précédent
+                                <ChevronLeft className="h-4 w-4" />
                             </Button>
-                        )}
-                        <div className="flex gap-1">
-                            {Array.from({ length: Math.min(5, lastPage) }, (_, i) => {
-                                let pageNum;
-                                if (lastPage <= 5) {
-                                    pageNum = i + 1;
-                                } else if (currentPageNum <= 3) {
-                                    pageNum = i + 1;
-                                } else if (currentPageNum >= lastPage - 2) {
-                                    pageNum = lastPage - 4 + i;
-                                } else {
-                                    pageNum = currentPageNum - 2 + i;
-                                }
-                                
-                                return (
-                                    <Button
-                                        key={pageNum}
-                                        variant={currentPageNum === pageNum ? 'default' : 'outline'}
-                                        size="sm"
-                                        onClick={() => handlePageChange(pageNum)}
-                                        className="w-10"
-                                    >
-                                        {pageNum}
-                                    </Button>
-                                );
-                            })}
-                        </div>
-                        {pagination[pagination.length - 1]?.url && (
+                            <div className="flex items-center gap-1">
+                                {Array.from({ length: Math.min(3, lastPage) }, (_, i) => {
+                                    let pageNum;
+                                    if (lastPage <= 5) {
+                                        pageNum = i + 1;
+                                    } else if (currentPageNum <= 3) {
+                                        pageNum = i + 1;
+                                    } else if (currentPageNum >= lastPage - 2) {
+                                        pageNum = lastPage - 4 + i;
+                                    } else {
+                                        pageNum = currentPageNum - 2 + i;
+                                    }
+                                    
+                                    return (
+                                        <Button
+                                            key={pageNum}
+                                            variant={currentPageNum === pageNum ? 'default' : 'outline'}
+                                            size="sm"
+                                            onClick={() => handlePageChange(pageNum)}
+                                            className="h-9 w-9"
+                                        >
+                                            {pageNum}
+                                        </Button>
+                                    );
+                                })}
+                                {lastPage > 5 && currentPageNum < lastPage - 2 && (
+                                    <span className="px-2 text-sm text-slate-400">…</span>
+                                )}
+                            </div>
                             <Button
                                 variant="outline"
-                                size="sm"
+                                size="icon"
                                 onClick={() => handlePageChange(currentPageNum + 1)}
                                 disabled={currentPageNum === lastPage}
+                                className="h-9 w-9"
+                                aria-label="Next page"
                             >
-                                Suivant
+                                <ChevronRight className="h-4 w-4" />
                             </Button>
-                        )}
+                        </div>
                     </div>
                 )}
             </div>

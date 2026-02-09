@@ -347,11 +347,22 @@ class PropositionController extends Controller
     public function respond(Request $request, Proposition $proposition)
     {
         $me = Auth::user();
-        if (!$me || !$me->hasRole('user')) {
+        if (!$me) {
             abort(403, 'Unauthorized.');
         }
 
-        if ($proposition->recipient_user_id !== $me->id) {
+        $recipient = User::select(['id', 'assigned_matchmaker_id'])
+            ->find($proposition->recipient_user_id);
+
+        $canRespondAsUser = $me->hasRole('user')
+            && $recipient
+            && $recipient->id === $me->id;
+
+        $canRespondAsMatchmaker = $me->hasRole('matchmaker')
+            && $recipient
+            && $recipient->assigned_matchmaker_id === $me->id;
+
+        if (!$canRespondAsUser && !$canRespondAsMatchmaker) {
             abort(403, 'Unauthorized.');
         }
 

@@ -212,15 +212,15 @@ class AdminController extends Controller
             $query->where('status', $status);
         }
 
-        $prospects = $query->orderBy('created_at', 'desc')->get();
+        $prospects = $query->orderBy('created_at', 'desc')->paginate(5)->withQueryString();
 
         // Add has_bill flag to each prospect
-        $prospects->each(function($prospect) {
+        $prospects->getCollection()->each(function($prospect) {
             $prospect->has_bill = $prospect->bills->where('status', '!=', 'paid')->isNotEmpty();
         });
 
         // Get all matchmakers from agencies where this manager has validated users
-        $agencyIds = $prospects->pluck('agency_id')->filter()->unique()->toArray();
+        $agencyIds = $prospects->getCollection()->pluck('agency_id')->filter()->unique()->toArray();
         $matchmakers = User::role('matchmaker')
             ->whereIn('agency_id', $agencyIds)
             ->where('approval_status', 'approved')

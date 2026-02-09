@@ -1,5 +1,5 @@
 import { Head, router, usePage } from '@inertiajs/react';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,25 +14,27 @@ export default function ManagerTracking() {
     const { prospects = [], status = 'all' } = usePage().props;
     const [selectedStatus, setSelectedStatus] = useState(status);
     const [viewMode, setViewMode] = useState('cards'); // 'cards' or 'table'
-    const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 24;
-
-    // Reset page when prospects change (e.g., filter changes)
-    useEffect(() => {
-        setCurrentPage(1);
-    }, [prospects.length, status]);
-
-    // Pagination logic
-    const totalPages = Math.ceil(prospects.length / itemsPerPage);
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    const paginatedProspects = prospects.slice(startIndex, endIndex);
-    const showingStart = prospects.length > 0 ? startIndex + 1 : 0;
-    const showingEnd = Math.min(endIndex, prospects.length);
+    
+    const prospectsData = prospects?.data || prospects || [];
+    const pagination = prospects?.links || null;
+    const currentPageNum = prospects?.current_page || 1;
+    const lastPage = prospects?.last_page || 1;
+    const showingStart = prospects?.from || 0;
+    const showingEnd = prospects?.to || 0;
+    const total = prospects?.total || prospectsData.length;
 
     const handleStatusFilter = (newStatus) => {
         setSelectedStatus(newStatus);
         router.visit(`/manager/tracking?status=${newStatus}`, { preserveScroll: true, preserveState: true, replace: true });
+    };
+    
+    const handlePageChange = (page) => {
+        const url = new URL(window.location.href);
+        url.searchParams.set('page', page);
+        router.visit(url.toString(), {
+            preserveState: true,
+            preserveScroll: false,
+        });
     };
 
     const getStatusBadge = (status) => {
@@ -111,11 +113,11 @@ export default function ManagerTracking() {
                                 {/* Pagination Info */}
                                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 text-sm text-muted-foreground">
                                     <div>
-                                        Showing {showingStart} to {showingEnd} of {prospects.length} users
+                                        Showing {showingStart} to {showingEnd} of {total} users
                                     </div>
-                                    {totalPages > 1 && (
+                                    {lastPage > 1 && (
                                         <div>
-                                            Page {currentPage} of {totalPages}
+                                            Page {currentPageNum} of {lastPage}
                                         </div>
                                     )}
                                 </div>
@@ -145,7 +147,7 @@ export default function ManagerTracking() {
                         {/* Cards View */}
                         {viewMode === 'cards' && (
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-6">
-                                {paginatedProspects.map((prospect) => (
+                                {prospectsData.map((prospect) => (
                                     <Card key={prospect.id} className="overflow-hidden hover:shadow-lg transition-shadow">
                                         <div className="relative">
                                             <img
@@ -230,7 +232,7 @@ export default function ManagerTracking() {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {paginatedProspects.map((prospect) => (
+                                        {prospectsData.map((prospect) => (
                                             <TableRow key={prospect.id}>
                                                 <TableCell className="font-medium">{prospect.name}</TableCell>
                                                 <TableCell>{prospect.email || 'N/A'}</TableCell>
@@ -258,53 +260,54 @@ export default function ManagerTracking() {
                             </div>
                         )}
 
-                        {paginatedProspects.length === 0 && (
+                        {prospectsData.length === 0 && (
                             <div className="text-center py-8 text-gray-500">
                                 No users found that were validated when you were the manager in charge.
                             </div>
                         )}
 
                         {/* Pagination Controls */}
-                        {totalPages > 1 && (
+                        {pagination && lastPage > 1 && (
                             <div className="flex justify-center items-center gap-2 mt-6">
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                                    disabled={currentPage === 1}
+                                    onClick={() => handlePageChange(currentPageNum - 1)}
+                                    disabled={currentPageNum === 1}
                                 >
                                     Previous
                                 </Button>
                                 <div className="flex gap-1">
-                                    {[...Array(totalPages)].map((_, i) => {
-                                        const pageNum = i + 1;
-                                        if (
-                                            pageNum === 1 ||
-                                            pageNum === totalPages ||
-                                            (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)
-                                        ) {
-                                            return (
-                                                <Button
-                                                    key={pageNum}
-                                                    variant={currentPage === pageNum ? 'default' : 'outline'}
-                                                    size="sm"
-                                                    onClick={() => setCurrentPage(pageNum)}
-                                                    className="w-10"
-                                                >
-                                                    {pageNum}
-                                                </Button>
-                                            );
-                                        } else if (pageNum === currentPage - 2 || pageNum === currentPage + 2) {
-                                            return <span key={pageNum} className="px-2">...</span>;
+                                    {Array.from({ length: Math.min(5, lastPage) }, (_, i) => {
+                                        let pageNum;
+                                        if (lastPage <= 5) {
+                                            pageNum = i + 1;
+                                        } else if (currentPageNum <= 3) {
+                                            pageNum = i + 1;
+                                        } else if (currentPageNum >= lastPage - 2) {
+                                            pageNum = lastPage - 4 + i;
+                                        } else {
+                                            pageNum = currentPageNum - 2 + i;
                                         }
-                                        return null;
+                                        
+                                        return (
+                                            <Button
+                                                key={pageNum}
+                                                variant={currentPageNum === pageNum ? 'default' : 'outline'}
+                                                size="sm"
+                                                onClick={() => handlePageChange(pageNum)}
+                                                className="w-10"
+                                            >
+                                                {pageNum}
+                                            </Button>
+                                        );
                                     })}
                                 </div>
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                                    disabled={currentPage === totalPages}
+                                    onClick={() => handlePageChange(currentPageNum + 1)}
+                                    disabled={currentPageNum === lastPage}
                                 >
                                     Next
                                 </Button>

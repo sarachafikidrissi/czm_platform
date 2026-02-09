@@ -532,6 +532,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::middleware(['role:user'])->group(function () {
         Route::get('/propositions', [\App\Http\Controllers\PropositionController::class, 'index'])->name('propositions');
+    });
+    Route::middleware(['role:user|matchmaker'])->group(function () {
         Route::post('/propositions/{proposition}/respond', [\App\Http\Controllers\PropositionController::class, 'respond'])->name('propositions.respond');
     });
 
