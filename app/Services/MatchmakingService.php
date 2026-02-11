@@ -58,6 +58,42 @@ class MatchmakingService
     }
 
     /**
+     * Get eligible prospects query builder for pagination
+     * Same filters as getEligibleProspects but returns the query
+     */
+    public function getEligibleProspectsQuery($matchmakerId = null, $agencyId = null)
+    {
+        $query = User::role('user')
+            ->whereIn('status', ['member', 'client', 'client_expire'])
+            ->whereHas('profile', function ($q) {
+                $q->where('is_completed', true);
+            })
+            ->with(['profile', 'assignedMatchmaker']);
+
+        if ($matchmakerId) {
+            $query->where('assigned_matchmaker_id', $matchmakerId);
+        }
+
+        if ($agencyId && !$matchmakerId) {
+            $matchmakerIds = User::role('matchmaker')
+                ->where('agency_id', $agencyId)
+                ->pluck('id')
+                ->toArray();
+
+            $query->where(function ($q) use ($agencyId, $matchmakerIds) {
+                $q->where('agency_id', $agencyId)
+                    ->orWhere(function ($subQ) use ($matchmakerIds) {
+                        if (!empty($matchmakerIds)) {
+                            $subQ->whereIn('assigned_matchmaker_id', $matchmakerIds);
+                        }
+                    });
+            });
+        }
+
+        return $query->orderBy('created_at', 'desc');
+    }
+
+    /**
      * Perform smart matchmaking for User A
      * 
      * @param int $userAId The ID of User A

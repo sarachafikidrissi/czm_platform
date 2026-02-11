@@ -2646,7 +2646,7 @@ class MatchmakerController extends Controller
     }
 
     /**
-     * Display matchmaking entry page - list all eligible prospects
+     * Display matchmaking entry page - list all eligible prospects (paginated, 5 per page)
      * This page allows matchmaker to select User A
      */
     public function searchMatchProfiles(Request $request)
@@ -2659,39 +2659,50 @@ class MatchmakerController extends Controller
                 ->where('model_has_roles.model_id', $me->id)
                 ->value('roles.name');
         }
-        
-        // Check approval status for matchmaker and manager
-        if (in_array($roleName, ['manager','matchmaker'], true)) {
+
+        if (in_array($roleName, ['manager', 'matchmaker'], true)) {
             if ($me->approval_status !== 'approved') {
                 abort(403, 'Your account is not validated yet.');
             }
         }
 
         $matchmakingService = new MatchmakingService();
-        
-        // Get eligible members/clients based on role
         $matchmakerId = ($roleName === 'matchmaker') ? $me->id : null;
         $agencyId = ($roleName === 'manager') ? $me->agency_id : (($roleName === 'matchmaker') ? $me->agency_id : null);
-        
-        $prospects = $matchmakingService->getEligibleProspects($matchmakerId, $agencyId);
-        $prospectIds = $prospects->pluck('id');
-        
+
+        $query = $matchmakingService->getEligibleProspectsQuery($matchmakerId, $agencyId);
+
+        // Apply search filter
+        $search = $request->string('search')->trim();
+        if ($search->isNotEmpty()) {
+            $searchLower = $search->lower()->toString();
+            $query->where(function ($q) use ($searchLower) {
+                $q->whereRaw('LOWER(name) LIKE ?', ['%' . $searchLower . '%'])
+                    ->orWhereRaw('LOWER(email) LIKE ?', ['%' . $searchLower . '%'])
+                    ->orWhereRaw('LOWER(username) LIKE ?', ['%' . $searchLower . '%'])
+                    ->orWhereHas('profile', function ($pq) use ($searchLower) {
+                        $pq->whereRaw('LOWER(ville_residence) LIKE ?', ['%' . $searchLower . '%']);
+                    });
+            });
+        }
+
+        $paginated = $query->paginate(3)->withQueryString();
+        $prospectIds = $paginated->pluck('id');
+
         $latest = Proposition::query()
             ->where('matchmaker_id', $me->id)
             ->whereIn('reference_user_id', $prospectIds)
             ->orderByDesc('created_at')
             ->get(['reference_user_id', 'status', 'created_at']);
         $statusMap = [];
-        
-        foreach($latest as $prop){
+        foreach ($latest as $prop) {
             $id = (int) $prop->reference_user_id;
-            if(!array_key_exists($id, $statusMap)){
+            if (!array_key_exists($id, $statusMap)) {
                 $statusMap[$id] = $prop->status;
             }
         }
-        
-        // Format prospects for frontend (ensure proper serialization)
-        $formattedProspects = $prospects->map(function($prospect) use ($statusMap) {
+
+        $formatted = $paginated->getCollection()->map(function ($prospect) use ($statusMap) {
             return [
                 'id' => $prospect->id,
                 'name' => $prospect->name,
@@ -2706,8 +2717,11 @@ class MatchmakerController extends Controller
             ];
         })->values();
 
+        $paginated->setCollection($formatted);
+
         return Inertia::render('matchmaker/matchmaking-entry', [
-            'prospects' => $formattedProspects,
+            'prospects' => $paginated,
+            'search' => $search->toString(),
         ]);
     }
 
