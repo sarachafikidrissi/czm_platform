@@ -13,7 +13,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import { useState, useEffect, useMemo } from 'react';
-import { LayoutGrid, Table2, Mail, MapPin, CheckCircle, Pencil, TestTube, Link as LinkIcon, Copy, Check, Search, Phone, ArrowRightLeft, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { LayoutGrid, Table2, Mail, MapPin, CheckCircle, Pencil, TestTube, Link as LinkIcon, Copy, Check, Search, Phone, ArrowRightLeft, AlertCircle, ChevronLeft, ChevronRight, UserCog, Eye, CreditCard, MessageSquare, UserX, UserCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -340,6 +340,11 @@ export default function ValidatedProspects() {
         setUserInfoModalOpen(true);
     };
 
+    const handleOpenActions = (user) => {
+        setSelectedUserForInfo(user);
+        setUserInfoModalOpen(true);
+    };
+
     // Handle copy link
     const handleCopyLink = () => {
         if (selectedUserForInfo) {
@@ -484,7 +489,7 @@ export default function ValidatedProspects() {
                                 <Table2 className="w-4 h-4" />
                                 Table
                             </Button>
-                            <Button
+                            {/* <Button
                                 variant="outline"
                                 size="sm"
                                 onClick={() => setTestExpirationOpen(true)}
@@ -492,8 +497,8 @@ export default function ValidatedProspects() {
                             >
                                 <TestTube className="w-4 h-4" />
                                 Test Expiration
-                            </Button>
-                            <Button
+                            </Button> */}
+                            {/* <Button
                                 variant="outline"
                                 size="sm"
                                 onClick={() => setTestThreeDayReminderOpen(true)}
@@ -501,7 +506,7 @@ export default function ValidatedProspects() {
                             >
                                 <TestTube className="w-4 h-4" />
                                 Test 3-Day Reminder
-                            </Button>
+                            </Button> */}
                         </div>
                         
                         {/* Pagination Info */}
@@ -825,8 +830,7 @@ export default function ValidatedProspects() {
                                             filteredProspects.map((u) => (
                                             <TableRow 
                                                 key={u.id}
-                                                className="h-16 cursor-pointer border-b border-slate-100 hover:bg-slate-50/70"
-                                                onClick={() => handleUserInfoClick(u)}
+                                                className="h-16 border-b border-slate-100 hover:bg-slate-50/70"
                                             >
                                                 <TableCell className="px-5 font-medium text-slate-900">{u.name}</TableCell>
                                                 <TableCell className="px-5 text-slate-600">{u.gender || 'N/A'}</TableCell>
@@ -881,126 +885,17 @@ export default function ValidatedProspects() {
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell className="px-5">
-                                                    <div className="flex flex-wrap items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                                                        {u.profile?.account_status === 'desactivated' ? (
-                                                            <Button
-                                                                size="sm"
-                                                                variant="default"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    setSelectedUserForStatus(u);
-                                                                    setStatusReason('');
-                                                                    setActivateDialogOpen(true);
-                                                                }}
-                                                            >
-                                                                {t('staff.activate')}
-                                                            </Button>
-                                                        ) : (
-                                                            <Button
-                                                                size="sm"
-                                                                variant="destructive"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    setSelectedUserForStatus(u);
-                                                                    setStatusReason('');
-                                                                    setDeactivateDialogOpen(true);
-                                                                }}
-                                                            >
-                                                                {t('staff.deactivate')}
-                                                            </Button>
-                                                        )}
-                                                        {canMarkAsRappeler(u) && !u.to_rappeler && (
-                                                            <Button
-                                                                variant="default"
-                                                                size="sm"
-                                                                className="bg-warning hover:opacity-90"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    handleMarkAsRappeler(u);
-                                                                }}
-                                                            >
-                                                                <Phone className="w-4 h-4 mr-1" />
-                                                                A rappeler
-                                                            </Button>
-                                                        )}
-                                                        {(u.status === 'member' || u.status === 'client_expire') && !u.has_bill && (
-                                                            <Button
-                                                                variant="default"
-                                                                size="sm"
-                                                                className="bg-info hover:opacity-90"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    handleCreateSubscription(u);
-                                                                }}
-                                                            >
-                                                                {t('staff.validatedProspects.createSubscription')}
-                                                            </Button>
-                                                        )}
-                                                        {(u.status === 'member' || u.status === 'client_expire') && u.has_bill && (
-                                                            <Button
-                                                                variant="default"
-                                                                size="sm"
-                                                                className="bg-success hover:opacity-90"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    handleMarkAsClient(u.id);
-                                                                }}
-                                                                disabled={loading[u.id]}
-                                                            >
-                                                                {loading[u.id] ? t('staff.validatedProspects.processing') : t('staff.validatedProspects.markAsClient')}
-                                                            </Button>
-                                                        )}
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                window.open(`/profile/${u.username || u.id}`, '_blank', 'noopener,noreferrer');
-                                                            }}
-                                                        >
-                                                            <Pencil className="w-4 h-4" />
-                                                        </Button>
-                                                        {canEditProfile(u) && (
-                                                            <Button
-                                                                variant="outline"
-                                                                size="sm"
-                                                                className="border-blue-500 text-blue-600 hover:bg-blue-50"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    router.visit(`/staff/prospects/${u.id}/profile/edit`);
-                                                                }}
-                                                            >
-                                                                <Pencil className="w-4 h-4 mr-1" />
-                                                                {t('staff.editProfile', { defaultValue: 'Edit Profile' })}
-                                                            </Button>
-                                                        )}
-                                                        {canTransferUser(u) && (
-                                                            u.pending_transfer_request ? (
-                                                                <Button
-                                                                    variant="outline"
-                                                                    size="sm"
-                                                                    className="bg-warning/10 border-warning text-warning hover:bg-warning/20"
-                                                                    disabled
-                                                                    onClick={(e) => e.stopPropagation()}
-                                                                >
-                                                                    <ArrowRightLeft className="w-4 h-4 mr-1" />
-                                                                    En attente de réponse
-                                                                </Button>
-                                                            ) : (
-                                                                <Button
-                                                                    variant="outline"
-                                                                    size="sm"
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        handleTransferClick(u);
-                                                                    }}
-                                                                >
-                                                                    <ArrowRightLeft className="w-4 h-4 mr-1" />
-                                                                    Transférer
-                                                                </Button>
-                                                            )
-                                                        )}
-                                                    </div>
+                                                    <Button
+                                                        size="sm"
+                                                        className="bg-rose-800 text-white hover:bg-rose-900 gap-2"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleOpenActions(u);
+                                                        }}
+                                                    >
+                                                        <UserCog className="w-4 h-4" />
+                                                        Gérer le profil
+                                                    </Button>
                                                 </TableCell>
                                             </TableRow>
                                             ))
@@ -1449,155 +1344,154 @@ export default function ValidatedProspects() {
 
             {/* User Info Modal */}
             <Dialog open={userInfoModalOpen} onOpenChange={setUserInfoModalOpen}>
-                <DialogContent className="w-[95vw] sm:w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogContent className="w-[95vw] sm:w-full sm:max-w-md max-h-[90vh] overflow-y-auto rounded-2xl border border-slate-200/70 bg-white p-5 sm:p-6 shadow-2xl">
                     {selectedUserForInfo && (
                         <>
-                            {/* Header Section with Profile Picture */}
-                            <div className="flex flex-col items-center gap-4 pb-6 border-b">
+                            <div className="flex items-center justify-between">
+                                <DialogTitle className="text-lg font-semibold text-slate-900">
+                                    Gestion du Profil
+                                </DialogTitle>
+                            </div>
+                            <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
                                 <div className="relative">
                                     <img
                                         src={getProfilePicture(selectedUserForInfo)}
                                         alt={selectedUserForInfo.name}
-                                        className="w-24 h-24 sm:w-32 sm:h-32 rounded-full object-cover"
+                                        className="h-12 w-12 rounded-full object-cover"
                                         onError={(e) => {
                                             e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedUserForInfo.name)}&background=random`;
                                         }}
                                     />
-                                    <div className="absolute bottom-0 right-0 bg-blue-600 rounded-full p-1.5 border-2 border-white">
-                                        <Check className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
-                                    </div>
+                                    <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white bg-emerald-500" />
                                 </div>
-                                <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 w-full px-2 sm:px-0">
-                                    <div className="text-center sm:text-left flex-1">
-                                        <h2 className="text-lg sm:text-xl font-semibold break-words">{selectedUserForInfo.name}</h2>
-                                        <p className="text-xs sm:text-sm text-muted-foreground break-all">{selectedUserForInfo.email}</p>
-                                    </div>
-                                    <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={handleCopyLink}
-                                            className="flex items-center justify-center gap-2 w-full sm:w-auto"
-                                        >
-                                            <LinkIcon className="w-4 h-4" />
-                                            Copy link
-                                        </Button>
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={handleViewProfile}
-                                            className="flex items-center justify-center gap-2 w-full sm:w-auto"
-                                        >
-                                            View profile
-                                        </Button>
-                                    </div>
+                                <div>
+                                    <div className="text-sm font-semibold text-slate-900">{selectedUserForInfo.name}</div>
+                                    <div className="text-xs text-muted-foreground">ID: #{selectedUserForInfo.id}</div>
                                 </div>
                             </div>
 
-                            {/* Form Fields Section - Read Only */}
-                            <div className="space-y-6 py-4 px-2 sm:px-0">
-                                {/* Name Fields */}
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="firstName">Name</Label>
-                                        <Input
-                                            id="firstName"
-                                            value={userFormData.firstName}
-                                            disabled
-                                            className="bg-muted"
-                                            placeholder="First name"
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="lastName" className="opacity-0">Name</Label>
-                                        <Input
-                                            id="lastName"
-                                            value={userFormData.lastName}
-                                            disabled
-                                            className="bg-muted"
-                                            placeholder="Last name"
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* Email Address */}
-                                <div className="space-y-2">
-                                    <Label htmlFor="email">Email address</Label>
-                                    <div className="relative">
-                                        <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                                        <Input
-                                            id="email"
-                                            type="email"
-                                            value={userFormData.email}
-                                            disabled
-                                            className="pl-10 bg-muted"
-                                            placeholder="Email address"
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* Username */}
-                                <div className="space-y-2">
-                                    <Label htmlFor="username">Username</Label>
-                                    <div className="relative">
-                                        <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-xs sm:text-sm text-muted-foreground whitespace-nowrap">
-                                            untitledui.com/
-                                        </div>
-                                        <Input
-                                            id="username"
-                                            value={userFormData.username}
-                                            disabled
-                                            className="pl-[120px] sm:pl-[140px] pr-10 bg-muted text-sm sm:text-base"
-                                            placeholder="username"
-                                        />
-                                        <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                                            <Check className="w-4 h-4 text-blue-600" />
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Profile Photo */}
-                                <div className="space-y-2">
-                                    <Label>Profile photo</Label>
-                                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                                        <img
-                                            src={getProfilePicture(selectedUserForInfo)}
-                                            alt={selectedUserForInfo.name}
-                                            className="w-16 h-16 rounded-full object-cover flex-shrink-0"
-                                            onError={(e) => {
-                                                e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedUserForInfo.name)}&background=random`;
-                                            }}
-                                        />
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => {
-                                                // Handle profile photo replacement
-                                                const input = document.createElement('input');
-                                                input.type = 'file';
-                                                input.accept = 'image/*';
-                                                input.onchange = (e) => {
-                                                    // Handle file upload here
-                                                };
-                                                input.click();
-                                            }}
-                                            className="w-full sm:w-auto"
-                                        >
-                                            Click to replace
-                                        </Button>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Footer Buttons */}
-                            <DialogFooter className="flex justify-end">
-                                <Button
-                                    variant="outline"
-                                    onClick={() => setUserInfoModalOpen(false)}
+                            <div className="mt-4 space-y-2">
+                                {canEditProfile(selectedUserForInfo) && (
+                                    <button
+                                        type="button"
+                                        className="flex w-full items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/70 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                                        onClick={() => {
+                                            setUserInfoModalOpen(false);
+                                            router.visit(`/staff/prospects/${selectedUserForInfo.id}/profile/edit`);
+                                        }}
+                                    >
+                                        <Pencil className="h-4 w-4 text-rose-700" />
+                                        Éditer le profil
+                                    </button>
+                                )}
+                                <button
+                                    type="button"
+                                    className="flex w-full items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/70 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                                    onClick={() => {
+                                        setUserInfoModalOpen(false);
+                                        handleViewProfile();
+                                    }}
                                 >
-                                    Cancel
-                                </Button>
-                            </DialogFooter>
+                                    <Eye className="h-4 w-4 text-rose-700" />
+                                    Voir les détails
+                                </button>
+                                {(selectedUserForInfo.status === 'member' || selectedUserForInfo.status === 'client_expire') && !selectedUserForInfo.has_bill && (
+                                    <button
+                                        type="button"
+                                        className="flex w-full items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/70 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                                        onClick={() => {
+                                            setUserInfoModalOpen(false);
+                                            handleCreateSubscription(selectedUserForInfo);
+                                        }}
+                                    >
+                                        <CreditCard className="h-4 w-4 text-rose-700" />
+                                        Créer un abonnement
+                                    </button>
+                                )}
+                                {canTransferUser(selectedUserForInfo) && (
+                                    <button
+                                        type="button"
+                                        className="flex w-full items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/70 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                                        onClick={() => {
+                                            setUserInfoModalOpen(false);
+                                            handleTransferClick(selectedUserForInfo);
+                                        }}
+                                    >
+                                        <ArrowRightLeft className="h-4 w-4 text-rose-700" />
+                                        Transférer le dossier
+                                    </button>
+                                )}
+                                {canMarkAsRappeler(selectedUserForInfo) && !selectedUserForInfo.to_rappeler && (
+                                    <button
+                                        type="button"
+                                        className="flex w-full items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/70 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                                        onClick={() => {
+                                            setUserInfoModalOpen(false);
+                                            handleMarkAsRappeler(selectedUserForInfo);
+                                        }}
+                                    >
+                                        <Phone className="h-4 w-4 text-rose-700" />
+                                        Rappeler
+                                    </button>
+                                )}
+                                {(selectedUserForInfo.status === 'member' || selectedUserForInfo.status === 'client_expire') && selectedUserForInfo.has_bill && (
+                                    <button
+                                        type="button"
+                                        className="flex w-full items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/70 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-60"
+                                        onClick={() => {
+                                            setUserInfoModalOpen(false);
+                                            handleMarkAsClient(selectedUserForInfo.id);
+                                        }}
+                                        disabled={loading[selectedUserForInfo.id]}
+                                    >
+                                        <UserCheck className="h-4 w-4 text-rose-700" />
+                                        {loading[selectedUserForInfo.id] ? '...' : 'Passer client'}
+                                    </button>
+                                )}
+                                <button
+                                    type="button"
+                                    className="flex w-full items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/70 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                                    onClick={() => {
+                                        setUserInfoModalOpen(false);
+                                        handleCopyLink();
+                                    }}
+                                >
+                                    <LinkIcon className="h-4 w-4 text-rose-700" />
+                                    Copier le lien
+                                </button>
+                            </div>
+
+                            <div className="mt-4 border-t border-slate-100 pt-4">
+                                {selectedUserForInfo.profile?.account_status === 'desactivated' ? (
+                                    <button
+                                        type="button"
+                                        className="flex w-full items-center gap-3 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700 hover:bg-emerald-100"
+                                        onClick={() => {
+                                            setUserInfoModalOpen(false);
+                                            setSelectedUserForStatus(selectedUserForInfo);
+                                            setStatusReason('');
+                                            setActivateDialogOpen(true);
+                                        }}
+                                    >
+                                        <UserCheck className="h-4 w-4" />
+                                        Activer le compte
+                                    </button>
+                                ) : (
+                                    <button
+                                        type="button"
+                                        className="flex w-full items-center gap-3 rounded-xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700 hover:bg-rose-100"
+                                        onClick={() => {
+                                            setUserInfoModalOpen(false);
+                                            setSelectedUserForStatus(selectedUserForInfo);
+                                            setStatusReason('');
+                                            setDeactivateDialogOpen(true);
+                                        }}
+                                    >
+                                        <UserX className="h-4 w-4" />
+                                        Désactiver le compte
+                                    </button>
+                                )}
+                            </div>
                         </>
                     )}
                 </DialogContent>

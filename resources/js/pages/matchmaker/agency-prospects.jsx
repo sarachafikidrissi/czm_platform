@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
-import { LayoutGrid, Table2, Mail, MapPin, CheckCircle, Pencil, XCircle, Search, Copy, Check, Phone, ArrowRightLeft, ChevronLeft, ChevronRight } from 'lucide-react';
+import { LayoutGrid, Table2, Mail, MapPin, CheckCircle, Pencil, XCircle, Search, Copy, Check, Phone, ArrowRightLeft, ChevronLeft, ChevronRight, UserCog, Eye } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function AgencyProspects() {
@@ -339,6 +339,11 @@ export default function AgencyProspects() {
         setUserInfoModalOpen(true);
     };
 
+    const handleOpenActions = (user) => {
+        setSelectedUserForInfo(user);
+        setUserInfoModalOpen(true);
+    };
+
     // Handle copy link
     const handleCopyLink = () => {
         if (selectedUserForInfo && selectedUserForInfo.username) {
@@ -607,153 +612,14 @@ export default function AgencyProspects() {
                                     )}
                                     
                                     <div className="pt-2">
-                                        {/* Primary Actions - Compact Grid */}
-                                        <div className="grid grid-cols-2 gap-1.5 mb-1.5">
-                                            {statusFilter === 'active' ? (
-                                                <>
-                                                    <Button
-                                                        variant={p.is_traite ? "default" : "outline"}
-                                                        size="sm"
-                                                        className="text-xs"
-                                                        onClick={() => handleToggleTraite(p)}
-                                                    >
-                                                        {p.is_traite ? '✓ Traité' : 'Pas traité'}
-                                                    </Button>
-                                                    {canRejectProspect(p) && (
-                                                        <Button
-                                                            variant="destructive"
-                                                            size="sm"
-                                                            className="text-xs"
-                                                            onClick={() => handleReject(p)}
-                                                        >
-                                                            <XCircle className="w-3 h-3 mr-1" />
-                                                            Rejeter
-                                                        </Button>
-                                                    )}
-                                                    {canValidateProspect(p) && (
-                                                        <Button
-                                                            variant="default"
-                                                            size="sm"
-                                                            className="text-xs"
-                                                            onClick={() => handleValidateClick(p)}
-                                                        >
-                                                            Valider
-                                                        </Button>
-                                                    )}
-                                                    {canEditProspectProfile(p) && (
-                                                        <Button
-                                                            variant="outline"
-                                                            size="sm"
-                                                            className="text-xs"
-                                                            onClick={() => router.visit(`/staff/prospects/${p.id}/profile/edit`)}
-                                                        >
-                                                            <Pencil className="w-3 h-3 mr-1" />
-                                                            Profil
-                                                        </Button>
-                                                    )}
-                                                    {canTransferUser(p) && (
-                                                        p.pending_transfer_request ? (
-                                                            <Button
-                                                                variant="outline"
-                                                                size="sm"
-                                                                className="text-xs bg-warning/10 border-warning text-warning hover:bg-warning/20"
-                                                                disabled
-                                                            >
-                                                                <ArrowRightLeft className="w-3 h-3 mr-1" />
-                                                                En attente
-                                                            </Button>
-                                                        ) : (
-                                                            <Button
-                                                                variant="outline"
-                                                                size="sm"
-                                                                className="text-xs"
-                                                                onClick={() => handleTransferClick(p)}
-                                                            >
-                                                                <ArrowRightLeft className="w-3 h-3 mr-1" />
-                                                                Transférer
-                                                            </Button>
-                                                        )
-                                                    )}
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <Button
-                                                        variant={p.is_traite ? "default" : "outline"}
-                                                        size="sm"
-                                                        className="text-xs"
-                                                        onClick={() => handleToggleTraite(p)}
-                                                    >
-                                                        {p.is_traite ? '✓ Traité' : 'Pas traité'}
-                                                    </Button>
-                                                    {canMarkAsRappeler(p) && !p.to_rappeler && (
-                                                        <Button
-                                                            variant="default"
-                                                            size="sm"
-                                                            className="text-xs bg-warning hover:opacity-90"
-                                                            onClick={() => handleMarkAsRappeler(p)}
-                                                        >
-                                                            <Phone className="w-3 h-3 mr-1" />
-                                                            Rappeler
-                                                        </Button>
-                                                    )}
-                                                    {canAcceptProspect(p) && (
-                                                        <Button
-                                                            variant="default"
-                                                            size="sm"
-                                                            className="text-xs bg-success hover:opacity-90"
-                                                            onClick={() => handleAccept(p)}
-                                                        >
-                                                            <CheckCircle className="w-3 h-3 mr-1" />
-                                                            Accepter
-                                                        </Button>
-                                                    )}
-                                                    {canEditProspectProfile(p) && (
-                                                        <Button
-                                                            variant="outline"
-                                                            size="sm"
-                                                            className="text-xs"
-                                                            onClick={() => router.visit(`/staff/prospects/${p.id}/profile/edit`)}
-                                                        >
-                                                            <Pencil className="w-3 h-3 mr-1" />
-                                                            Profil
-                                                        </Button>
-                                                    )}
-                                                    {canValidateProspect(p) && (
-                                                        <Button
-                                                            variant="default"
-                                                            size="sm"
-                                                            className="text-xs"
-                                                            onClick={() => handleValidateClick(p)}
-                                                        >
-                                                            Valider
-                                                        </Button>
-                                                    )}
-                                                    {canTransferUser(p) && (
-                                                        p.pending_transfer_request ? (
-                                                            <Button
-                                                                variant="outline"
-                                                                size="sm"
-                                                                className="text-xs bg-warning/10 border-warning text-warning hover:bg-warning/20"
-                                                                disabled
-                                                            >
-                                                                <ArrowRightLeft className="w-3 h-3 mr-1" />
-                                                                En attente
-                                                            </Button>
-                                                        ) : (
-                                                            <Button
-                                                                variant="outline"
-                                                                size="sm"
-                                                                className="text-xs"
-                                                                onClick={() => handleTransferClick(p)}
-                                                            >
-                                                                <ArrowRightLeft className="w-3 h-3 mr-1" />
-                                                                Transférer
-                                                            </Button>
-                                                        )
-                                                    )}
-                                                </>
-                                            )}
-                                        </div>
+                                        <Button
+                                            size="sm"
+                                            className="w-full bg-rose-800 text-white hover:bg-rose-900 gap-2"
+                                            onClick={() => handleOpenActions(p)}
+                                        >
+                                            <UserCog className="w-4 h-4" />
+                                            Gérer le profil
+                                        </Button>
                                     </div>
                                 </CardContent>
                             </Card>
@@ -809,8 +675,7 @@ export default function AgencyProspects() {
                                             filteredProspects.map((p) => (
                                             <TableRow 
                                                 key={p.id}
-                                                className="h-16 cursor-pointer border-b border-slate-100 hover:bg-slate-50/70"
-                                                onClick={() => handleUserInfoClick(p)}
+                                                className="h-16 border-b border-slate-100 hover:bg-slate-50/70"
                                             >
                                                 <TableCell className="px-5 font-medium text-slate-900">{p.name}</TableCell>
                                                 <TableCell className="px-5 text-slate-600">{p.gender || 'N/A'}</TableCell>
@@ -832,97 +697,15 @@ export default function AgencyProspects() {
                                                         <span className="text-muted-foreground text-sm">Not dispatched</span>
                                                     )}
                                                 </TableCell>
-                                                <TableCell className="px-5" onClick={(e) => e.stopPropagation()}>
-                                                    <div className="flex flex-wrap items-center gap-2">
-                                                        {statusFilter === 'active' || statusFilter === 'traite' ? (
-                                                            <>
-                                                                <Button
-                                                                    size="sm"
-                                                                    variant={p.is_traite ? "default" : "outline"}
-                                                                    onClick={() => handleToggleTraite(p)}
-                                                                >
-                                                                    {p.is_traite ? '✓ Traité' : 'Pas traité'}
-                                                                </Button>
-                                                                {canRejectProspect(p) && (
-                                                                    <Button
-                                                                        size="sm"
-                                                                        variant="destructive"
-                                                                        onClick={() => handleReject(p)}
-                                                                    >
-                                                                        <XCircle className="w-4 h-4 mr-1" />
-                                                                        Rejeter
-                                                                    </Button>
-                                                                )}
-                                                                {canEditProspectProfile(p) && (
-                                                                    <Button 
-                                                                        size="sm" 
-                                                                        variant="outline"
-                                                                        onClick={() => router.visit(`/staff/prospects/${p.id}/profile/edit`)}
-                                                                    >
-                                                                        <Pencil className="w-4 h-4 mr-1" />
-                                                                        Profil
-                                                                    </Button>
-                                                                )}
-                                                                {canValidateProspect(p) && (
-                                                                    <Button size="sm" onClick={() => handleValidateClick(p)}>Validate</Button>
-                                                                )}
-                                                                {canTransferUser(p) && (
-                                                                    p.pending_transfer_request ? (
-                                                                        <Button
-                                                                            size="sm"
-                                                                            variant="outline"
-                                                                            className="bg-warning/10 border-warning text-warning hover:bg-warning/20"
-                                                                            disabled
-                                                                        >
-                                                                            <ArrowRightLeft className="w-4 h-4 mr-1" />
-                                                                            En attente de réponse
-                                                                        </Button>
-                                                                    ) : (
-                                                                        <Button
-                                                                            size="sm"
-                                                                            variant="outline"
-                                                                            onClick={() => handleTransferClick(p)}
-                                                                        >
-                                                                            <ArrowRightLeft className="w-4 h-4 mr-1" />
-                                                                            Transférer
-                                                                        </Button>
-                                                                    )
-                                                                )}
-                                                            </>
-                                                        ) : (
-                                                            <>
-                                                                <Button
-                                                                    size="sm"
-                                                                    variant={p.is_traite ? "default" : "outline"}
-                                                                    onClick={() => handleToggleTraite(p)}
-                                                                >
-                                                                    {p.is_traite ? '✓ Traité' : 'Pas traité'}
-                                                                </Button>
-                                                                {canMarkAsRappeler(p) && !p.to_rappeler && (
-                                                                    <Button
-                                                                        size="sm"
-                                                                        variant="default"
-                                                                        className="bg-warning hover:opacity-90"
-                                                                        onClick={() => handleMarkAsRappeler(p)}
-                                                                    >
-                                                                        <Phone className="w-4 h-4 mr-1" />
-                                                                        A rappeler
-                                                                    </Button>
-                                                                )}
-                                                                {canAcceptProspect(p) && (
-                                                                    <Button
-                                                                        size="sm"
-                                                                        variant="default"
-                                                                        className="bg-success hover:opacity-90"
-                                                                        onClick={() => handleAccept(p)}
-                                                                    >
-                                                                        <CheckCircle className="w-4 h-4 mr-1" />
-                                                                        Accepter
-                                                                    </Button>
-                                                                )}
-                                                            </>
-                                                        )}
-                                                    </div>
+                                                <TableCell className="px-5">
+                                                    <Button
+                                                        size="sm"
+                                                        className="bg-rose-800 text-white hover:bg-rose-900 gap-2"
+                                                        onClick={() => handleOpenActions(p)}
+                                                    >
+                                                        <UserCog className="w-4 h-4" />
+                                                        Gérer le profil
+                                                    </Button>
                                                 </TableCell>
                                             </TableRow>
                                             ))
@@ -1327,139 +1110,152 @@ export default function AgencyProspects() {
                 </DialogContent>
             </Dialog>
 
-            {/* User Info Modal - Read Only */}
+            {/* User Actions Modal */}
             <Dialog open={userInfoModalOpen} onOpenChange={setUserInfoModalOpen}>
-                <DialogContent className="w-[95vw] sm:w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogContent className="w-[95vw] sm:w-full sm:max-w-md max-h-[90vh] overflow-y-auto rounded-2xl border border-slate-200/70 bg-white p-5 sm:p-6 shadow-2xl">
                     {selectedUserForInfo && (
                         <>
-                            {/* Header Section with Profile Picture */}
-                            <div className="flex flex-col items-center gap-4 pb-6 border-b">
+                            <div className="flex items-center justify-between">
+                                <DialogTitle className="text-lg font-semibold text-slate-900">
+                                    Gestion du Profil
+                                </DialogTitle>
+                            </div>
+                            <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
                                 <div className="relative">
                                     <img
                                         src={getProfilePicture(selectedUserForInfo)}
                                         alt={selectedUserForInfo.name}
-                                        className="w-24 h-24 sm:w-32 sm:h-32 rounded-full object-cover"
+                                        className="h-12 w-12 rounded-full object-cover"
                                         onError={(e) => {
                                             e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedUserForInfo.name)}&background=random`;
                                         }}
                                     />
-                                    <div className="absolute bottom-0 right-0 bg-blue-600 rounded-full p-1.5 border-2 border-white">
-                                        <Check className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
-                                    </div>
+                                    <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white bg-emerald-500" />
                                 </div>
-                                <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 w-full px-2 sm:px-0">
-                                    <div className="text-center sm:text-left flex-1">
-                                        <h2 className="text-lg sm:text-xl font-semibold break-words">{selectedUserForInfo.name}</h2>
-                                        <p className="text-xs sm:text-sm text-muted-foreground break-all">{selectedUserForInfo.email}</p>
-                                    </div>
-                                    <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={handleCopyLink}
-                                            disabled={!selectedUserForInfo?.username}
-                                            className="flex items-center justify-center gap-2 w-full sm:w-auto"
-                                        >
-                                            <Copy className="w-4 h-4" />
-                                            {t('staff.userInfo.copyLink')}
-                                        </Button>
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={handleViewProfile}
-                                            disabled={!selectedUserForInfo?.username}
-                                            className="flex items-center justify-center gap-2 w-full sm:w-auto"
-                                        >
-                                            {t('staff.userInfo.viewProfile')}
-                                        </Button>
-                                    </div>
+                                <div>
+                                    <div className="text-sm font-semibold text-slate-900">{selectedUserForInfo.name}</div>
+                                    <div className="text-xs text-muted-foreground">ID: #{selectedUserForInfo.id}</div>
                                 </div>
                             </div>
 
-                            {/* Form Fields Section - Read Only */}
-                            <div className="space-y-6 py-4 px-2 sm:px-0">
-                                {/* Name Fields */}
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="firstName">{t('staff.userInfo.firstName')}</Label>
-                                        <Input
-                                            id="firstName"
-                                            value={(selectedUserForInfo.name || '').split(' ')[0] || ''}
-                                            disabled
-                                            className="bg-muted"
-                                            placeholder={t('staff.userInfo.firstName')}
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="lastName" className="opacity-0">{t('staff.userInfo.lastName')}</Label>
-                                        <Input
-                                            id="lastName"
-                                            value={(selectedUserForInfo.name || '').split(' ').slice(1).join(' ') || ''}
-                                            disabled
-                                            className="bg-muted"
-                                            placeholder={t('staff.userInfo.lastName')}
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* Email Address */}
-                                <div className="space-y-2">
-                                    <Label htmlFor="email">{t('staff.userInfo.email')}</Label>
-                                    <div className="relative">
-                                        <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                                        <Input
-                                            id="email"
-                                            type="email"
-                                            value={selectedUserForInfo.email || ''}
-                                            disabled
-                                            className="pl-10 bg-muted"
-                                            placeholder="Email address"
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* Username */}
-                                <div className="space-y-2">
-                                    <Label htmlFor="username">{t('staff.userInfo.username')}</Label>
-                                    <div className="relative">
-                                        <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-xs sm:text-sm text-muted-foreground whitespace-nowrap">
-                                            untitledui.com/
-                                        </div>
-                                        <Input
-                                            id="username"
-                                            value={selectedUserForInfo.username || ''}
-                                            disabled
-                                            className="pl-[120px] sm:pl-[140px] pr-10 bg-muted text-sm sm:text-base"
-                                            placeholder="username"
-                                        />
-                                        <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                                            <Check className="w-4 h-4 text-blue-600" />
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Profile Photo */}
-                                <div className="space-y-2">
-                                    <Label>{t('profile.profilePicture')}</Label>
-                                    <div className="flex items-center gap-4">
-                                        <img
-                                            src={getProfilePicture(selectedUserForInfo)}
-                                            alt={selectedUserForInfo.name}
-                                            className="w-16 h-16 rounded-full object-cover flex-shrink-0"
-                                            onError={(e) => {
-                                                e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedUserForInfo.name)}&background=random`;
-                                            }}
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Footer Buttons */}
-                            <DialogFooter className="flex justify-end">
-                                <Button
-                                    variant="outline"
-                                    onClick={() => setUserInfoModalOpen(false)}
+                            <div className="mt-4 space-y-2">
+                                <button
+                                    type="button"
+                                    className="flex w-full items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/70 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                                    onClick={() => {
+                                        setUserInfoModalOpen(false);
+                                        handleViewProfile();
+                                    }}
+                                    disabled={!selectedUserForInfo?.username}
                                 >
+                                    <Eye className="h-4 w-4 text-rose-700" />
+                                    Voir les détails
+                                </button>
+                                {canEditProspectProfile(selectedUserForInfo) && (
+                                    <button
+                                        type="button"
+                                        className="flex w-full items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/70 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                                        onClick={() => {
+                                            setUserInfoModalOpen(false);
+                                            router.visit(`/staff/prospects/${selectedUserForInfo.id}/profile/edit`);
+                                        }}
+                                    >
+                                        <Pencil className="h-4 w-4 text-rose-700" />
+                                        Éditer le profil
+                                    </button>
+                                )}
+                                <button
+                                    type="button"
+                                    className="flex w-full items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/70 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                                    onClick={() => {
+                                        setUserInfoModalOpen(false);
+                                        handleToggleTraite(selectedUserForInfo);
+                                    }}
+                                >
+                                    <Check className="h-4 w-4 text-rose-700" />
+                                    {selectedUserForInfo.is_traite ? 'Marqué comme traité' : 'Marquer traité'}
+                                </button>
+                                {canValidateProspect(selectedUserForInfo) && (
+                                    <button
+                                        type="button"
+                                        className="flex w-full items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/70 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                                        onClick={() => {
+                                            setUserInfoModalOpen(false);
+                                            handleValidateClick(selectedUserForInfo);
+                                        }}
+                                    >
+                                        <CheckCircle className="h-4 w-4 text-rose-700" />
+                                        Valider
+                                    </button>
+                                )}
+                                {canRejectProspect(selectedUserForInfo) && (
+                                    <button
+                                        type="button"
+                                        className="flex w-full items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/70 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                                        onClick={() => {
+                                            setUserInfoModalOpen(false);
+                                            handleReject(selectedUserForInfo);
+                                        }}
+                                    >
+                                        <XCircle className="h-4 w-4 text-rose-700" />
+                                        Rejeter
+                                    </button>
+                                )}
+                                {canAcceptProspect(selectedUserForInfo) && (
+                                    <button
+                                        type="button"
+                                        className="flex w-full items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/70 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                                        onClick={() => {
+                                            setUserInfoModalOpen(false);
+                                            handleAccept(selectedUserForInfo);
+                                        }}
+                                    >
+                                        <CheckCircle className="h-4 w-4 text-rose-700" />
+                                        Accepter
+                                    </button>
+                                )}
+                                {canMarkAsRappeler(selectedUserForInfo) && !selectedUserForInfo.to_rappeler && (
+                                    <button
+                                        type="button"
+                                        className="flex w-full items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/70 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                                        onClick={() => {
+                                            setUserInfoModalOpen(false);
+                                            handleMarkAsRappeler(selectedUserForInfo);
+                                        }}
+                                    >
+                                        <Phone className="h-4 w-4 text-rose-700" />
+                                        Rappeler
+                                    </button>
+                                )}
+                                {canTransferUser(selectedUserForInfo) && (
+                                    <button
+                                        type="button"
+                                        className="flex w-full items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/70 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                                        onClick={() => {
+                                            setUserInfoModalOpen(false);
+                                            handleTransferClick(selectedUserForInfo);
+                                        }}
+                                    >
+                                        <ArrowRightLeft className="h-4 w-4 text-rose-700" />
+                                        Transférer le dossier
+                                    </button>
+                                )}
+                                <button
+                                    type="button"
+                                    className="flex w-full items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/70 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                                    onClick={() => {
+                                        setUserInfoModalOpen(false);
+                                        handleCopyLink();
+                                    }}
+                                    disabled={!selectedUserForInfo?.username}
+                                >
+                                    <Copy className="h-4 w-4 text-rose-700" />
+                                    Copier le lien
+                                </button>
+                            </div>
+
+                            <DialogFooter className="flex justify-end">
+                                <Button variant="outline" onClick={() => setUserInfoModalOpen(false)}>
                                     {t('common.cancel')}
                                 </Button>
                             </DialogFooter>

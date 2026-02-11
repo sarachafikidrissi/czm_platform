@@ -1,12 +1,13 @@
-import { Head, usePage } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import AppLayout from '@/layouts/app-layout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import axios from 'axios';
+import { Plus } from 'lucide-react';
 
 export default function PropositionsList() {
     const { t } = useTranslation();
@@ -17,6 +18,9 @@ export default function PropositionsList() {
     const [responseMessages, setResponseMessages] = useState({});
     const [processingIds, setProcessingIds] = useState({});
     const [responseErrors, setResponseErrors] = useState({});
+    const [isRespondModalOpen, setIsRespondModalOpen] = useState(false);
+    const [activeRecipient, setActiveRecipient] = useState(null);
+    const [activeRecipientLabel, setActiveRecipientLabel] = useState('');
     const currentUserId = auth?.user?.id;
 
     const getProfilePicture = (user) => {
@@ -37,15 +41,15 @@ export default function PropositionsList() {
     const getStatusMeta = (status, isExpired) => {
         const normalized = normalizeStatus(status, isExpired);
         if (normalized === 'accepted') {
-            return { label: 'Acceptée', variant: 'default' };
+            return { label: 'Acceptée', variant: 'default', className: 'bg-emerald-50 text-emerald-700 border border-emerald-100' };
         }
         if (normalized === 'rejected') {
-            return { label: 'Refusée', variant: 'destructive' };
+            return { label: 'Refusée', variant: 'destructive', className: 'bg-rose-50 text-rose-700 border border-rose-100' };
         }
         if (normalized === 'expired') {
-            return { label: 'Expirée', variant: 'secondary' };
+            return { label: 'Expirée', variant: 'secondary', className: 'bg-amber-50 text-amber-700 border border-amber-100' };
         }
-        return { label: 'En attente de réponse', variant: 'outline' };
+        return { label: 'En attente', variant: 'outline', className: 'bg-slate-50 text-slate-600 border border-slate-200' };
     };
 
     const canRespondAsMatchmaker = (proposition) => {
@@ -57,7 +61,7 @@ export default function PropositionsList() {
         const message = (responseMessages[propositionId] || '').trim();
         if (status === 'rejected' && !message) {
             setResponseErrors((prev) => ({ ...prev, [propositionId]: 'Veuillez saisir un motif de rejet.' }));
-            return;
+            return false;
         }
 
         setProcessingIds((prev) => ({ ...prev, [propositionId]: true }));
@@ -81,9 +85,11 @@ export default function PropositionsList() {
                         : item,
                 ),
             );
+            return true;
         } catch (error) {
             const messageText = error?.response?.data?.message || 'Une erreur est survenue.';
             setResponseErrors((prev) => ({ ...prev, [propositionId]: messageText }));
+            return false;
         } finally {
             setProcessingIds((prev) => ({ ...prev, [propositionId]: false }));
         }
@@ -196,259 +202,314 @@ export default function PropositionsList() {
         <AppLayout>
             <Head title={t('navigation.propositionsList')} />
             <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
-                <div className="text-lg font-semibold">{t('navigation.propositionsList')}</div>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <div className="text-2xl font-semibold text-rose-900">
+                            {t('navigation.propositionsList', { defaultValue: 'Liste des propositions' })}
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                            Gérez les mises en relation et les retours des candidats.
+                        </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        {/* <Button variant="outline" size="sm" className="gap-2">
+                            Filtrer
+                        </Button> */}
+                        <Button
+                            size="sm"
+                            className="bg-rose-800 text-white hover:bg-rose-900"
+                            onClick={() => router.visit('/staff/match/search')}
+                        >
+                            <Plus className="w-4 h-4" />
+                            Nouvelle proposition
+                        </Button>
+                    </div>
+                </div>
                 {groupedPropositions.length === 0 ? (
                     <div className="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border p-6 text-sm text-neutral-700 dark:text-neutral-200">
                         Aucune proposition envoyee pour le moment.
                     </div>
                 ) : (
-                <Card>
-                    <CardHeader>
-                        <CardTitle>{t('navigation.propositionsList')}</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Profil de référence</TableHead>
-                                        <TableHead>Profil compatible</TableHead>
-                                        <TableHead>Message</TableHead>
-                                        <TableHead>Statut référence</TableHead>
-                                        <TableHead>Statut compatible</TableHead>
-                                        <TableHead>Statut global</TableHead>
-                                        <TableHead>Réponse référence</TableHead>
-                                        <TableHead>Réponse compatible</TableHead>
-                                        <TableHead>Envoyée le</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {groupedPropositions.map((entry) => {
-                                        const refUser = entry.reference_user;
-                                        const compUser = entry.compatible_user;
-                                        const refRecipient = entry.recipients[refUser?.id];
-                                        const compRecipient = entry.recipients[compUser?.id];
-                                        const refStatusMeta = refRecipient
-                                            ? getStatusMeta(refRecipient?.status, refRecipient?.is_expired)
-                                            : { label: 'Non envoyée', variant: 'outline' };
-                                        const compStatusMeta = compRecipient
-                                            ? getStatusMeta(compRecipient?.status, compRecipient?.is_expired)
-                                            : { label: 'Non envoyée', variant: 'outline' };
-                                        const aggregateMeta = getStatusMeta(getAggregateStatus(entry));
-                                        const refResponse = refRecipient?.response_message || refRecipient?.user_comment;
-                                        const compResponse = compRecipient?.response_message || compRecipient?.user_comment;
-                                        const showSendToOther = canSendToOther(entry);
-                                        const rowError = errorByKey[entry.key];
-                                        const refCanRespond = refRecipient
-                                            && normalizeStatus(refRecipient?.status, refRecipient?.is_expired) === 'pending'
-                                            && !refRecipient?.is_expired
-                                            && canRespondAsMatchmaker(refRecipient);
-                                        const compCanRespond = compRecipient
-                                            && normalizeStatus(compRecipient?.status, compRecipient?.is_expired) === 'pending'
-                                            && !compRecipient?.is_expired
-                                            && canRespondAsMatchmaker(compRecipient);
-                                        const refProcessing = refRecipient ? processingIds[refRecipient.id] : false;
-                                        const compProcessing = compRecipient ? processingIds[compRecipient.id] : false;
-                                        const refError = refRecipient ? responseErrors[refRecipient.id] : '';
-                                        const compError = compRecipient ? responseErrors[compRecipient.id] : '';
+                <Card className="border border-rose-100/60 shadow-sm">
+                    <CardContent className="p-0">
+                        <div className="hidden lg:grid grid-cols-[minmax(220px,1.2fr)_minmax(220px,1.2fr)_minmax(200px,1.6fr)_minmax(220px,1.2fr)_minmax(260px,1.6fr)_minmax(120px,0.6fr)] gap-4 border-b bg-rose-50/60 px-5 py-3 text-xs font-semibold uppercase tracking-wide text-rose-900">
+                            <div>Profil de référence</div>
+                            <div>Profil compatible</div>
+                            <div>Message</div>
+                            <div>Statuts globaux</div>
+                            <div>Actions & réponses</div>
+                            <div>Date d'envoi</div>
+                        </div>
+                        <div className="divide-y">
+                            {groupedPropositions.map((entry) => {
+                                const refUser = entry.reference_user;
+                                const compUser = entry.compatible_user;
+                                const refRecipient = entry.recipients[refUser?.id];
+                                const compRecipient = entry.recipients[compUser?.id];
+                                const refStatusMeta = refRecipient
+                                    ? getStatusMeta(refRecipient?.status, refRecipient?.is_expired)
+                                    : { label: 'Non envoyée', variant: 'outline', className: 'bg-slate-50 text-slate-600 border border-slate-200' };
+                                const compStatusMeta = compRecipient
+                                    ? getStatusMeta(compRecipient?.status, compRecipient?.is_expired)
+                                    : { label: 'Non envoyée', variant: 'outline', className: 'bg-slate-50 text-slate-600 border border-slate-200' };
+                                const aggregateMeta = getStatusMeta(getAggregateStatus(entry));
+                                const refResponse = refRecipient?.response_message || refRecipient?.user_comment;
+                                const compResponse = compRecipient?.response_message || compRecipient?.user_comment;
+                                const showSendToOther = canSendToOther(entry);
+                                const rowError = errorByKey[entry.key];
+                                const refCanRespond = refRecipient
+                                    && normalizeStatus(refRecipient?.status, refRecipient?.is_expired) === 'pending'
+                                    && !refRecipient?.is_expired
+                                    && canRespondAsMatchmaker(refRecipient);
+                                const compCanRespond = compRecipient
+                                    && normalizeStatus(compRecipient?.status, compRecipient?.is_expired) === 'pending'
+                                    && !compRecipient?.is_expired
+                                    && canRespondAsMatchmaker(compRecipient);
+                                const refProcessing = refRecipient ? processingIds[refRecipient.id] : false;
+                                const compProcessing = compRecipient ? processingIds[compRecipient.id] : false;
+                                const refError = refRecipient ? responseErrors[refRecipient.id] : '';
+                                const compError = compRecipient ? responseErrors[compRecipient.id] : '';
+                                const refRespondDisabled = !refCanRespond || refProcessing;
+                                const compRespondDisabled = !compCanRespond || compProcessing;
 
-                                        return (
-                                            <TableRow key={entry.key}>
-                                                <TableCell>
-                                                    <div className="flex items-center gap-2">
-                                                        <img
-                                                            src={getProfilePicture(refUser)}
-                                                            alt={refUser?.name}
-                                                            className="h-8 w-8 rounded-full object-cover"
-                                                        />
-                                                        <div>
-                                                            <div className="text-sm font-medium">
-                                                                {refUser?.name || '-'}
-                                                            </div>
-                                                            <div className="text-xs text-muted-foreground">
-                                                                @{refUser?.username}
-                                                            </div>
-                                                        </div>
+                                return (
+                                    <div
+                                        key={entry.key}
+                                        className="grid grid-cols-1 gap-4 px-5 py-4 lg:grid-cols-[minmax(220px,1.2fr)_minmax(220px,1.2fr)_minmax(200px,1.6fr)_minmax(220px,1.2fr)_minmax(260px,1.6fr)_minmax(120px,0.6fr)]"
+                                    >
+                                        <div>
+                                            <div className="flex items-center gap-2">
+                                                <img
+                                                    src={getProfilePicture(refUser)}
+                                                    alt={refUser?.name}
+                                                    className="h-10 w-10 rounded-full object-cover"
+                                                />
+                                                <div>
+                                                    <div className="text-sm font-semibold text-slate-900">
+                                                        {refUser?.name || '-'}
                                                     </div>
-                                                    {refUser?.username && (
-                                                        <Button
-                                                            variant="outline"
-                                                            size="sm"
-                                                            className="mt-2"
-                                                            onClick={() =>
-                                                                window.open(
-                                                                    `/profile/${refUser.username}`,
-                                                                    '_blank',
-                                                                    'noopener,noreferrer'
-                                                                )
-                                                            }
-                                                        >
-                                                            Voir profil
-                                                        </Button>
-                                                    )}
-                                                </TableCell>
-                                                <TableCell>
-                                                    <div className="flex items-center gap-2">
-                                                        <img
-                                                            src={getProfilePicture(compUser)}
-                                                            alt={compUser?.name}
-                                                            className="h-8 w-8 rounded-full object-cover"
-                                                        />
-                                                        <div>
-                                                            <div className="text-sm font-medium">
-                                                                {compUser?.name || '-'}
-                                                            </div>
-                                                            <div className="text-xs text-muted-foreground">
-                                                                @{compUser?.username}
-                                                            </div>
-                                                        </div>
+                                                    <div className="text-xs text-muted-foreground">
+                                                        @{refUser?.username}
                                                     </div>
-                                                    {compUser?.username && (
-                                                        <Button
-                                                            variant="outline"
-                                                            size="sm"
-                                                            className="mt-2"
-                                                            onClick={() =>
-                                                                window.open(
-                                                                    `/profile/${compUser.username}`,
-                                                                    '_blank',
-                                                                    'noopener,noreferrer'
-                                                                )
-                                                            }
-                                                        >
-                                                            Voir profil
-                                                        </Button>
-                                                    )}
-                                                </TableCell>
-                                                <TableCell>
-                                                    <div className="text-sm text-muted-foreground">
-                                                        {entry.message}
+                                                </div>
+                                            </div>
+                                            {refUser?.username && (
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="mt-3 h-8 border-rose-200 text-rose-700 hover:bg-rose-50"
+                                                    onClick={() =>
+                                                        window.open(
+                                                            `/profile/${refUser.username}`,
+                                                            '_blank',
+                                                            'noopener,noreferrer'
+                                                        )
+                                                    }
+                                                >
+                                                    Voir profil
+                                                </Button>
+                                            )}
+                                        </div>
+                                        <div>
+                                            <div className="flex items-center gap-2">
+                                                <img
+                                                    src={getProfilePicture(compUser)}
+                                                    alt={compUser?.name}
+                                                    className="h-10 w-10 rounded-full object-cover"
+                                                />
+                                                <div>
+                                                    <div className="text-sm font-semibold text-slate-900">
+                                                        {compUser?.name || '-'}
                                                     </div>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Badge variant={refStatusMeta.variant}>{refStatusMeta.label}</Badge>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Badge variant={compStatusMeta.variant}>{compStatusMeta.label}</Badge>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Badge variant={aggregateMeta.variant}>{aggregateMeta.label}</Badge>
-                                                </TableCell>
-                                                <TableCell>
-                                                    {refResponse ? (
-                                                        <div className="text-sm text-muted-foreground">{refResponse}</div>
-                                                    ) : (
-                                                        <span className="text-xs text-muted-foreground">-</span>
-                                                    )}
-                                                    {refCanRespond && (
-                                                        <div className="mt-2 space-y-2">
-                                                            <textarea
-                                                                value={responseMessages[refRecipient.id] || ''}
-                                                                onChange={(event) =>
-                                                                    setResponseMessages((prev) => ({
-                                                                        ...prev,
-                                                                        [refRecipient.id]: event.target.value,
-                                                                    }))
-                                                                }
-                                                                placeholder="Motif (obligatoire en cas de refus)"
-                                                                rows={2}
-                                                                className="w-full rounded-md border border-slate-200 px-2 py-1 text-xs"
-                                                                disabled={refProcessing}
-                                                            />
-                                                            {refError && <div className="text-xs text-red-600">{refError}</div>}
-                                                            <div className="flex flex-wrap gap-2">
-                                                                <Button
-                                                                    size="sm"
-                                                                    variant="outline"
-                                                                    disabled={refProcessing}
-                                                                    onClick={() => handleRespond(refRecipient.id, 'accepted')}
-                                                                >
-                                                                    Accepter
-                                                                </Button>
-                                                                <Button
-                                                                    size="sm"
-                                                                    variant="destructive"
-                                                                    disabled={refProcessing}
-                                                                    onClick={() => handleRespond(refRecipient.id, 'rejected')}
-                                                                >
-                                                                    Refuser
-                                                                </Button>
-                                                            </div>
+                                                    <div className="text-xs text-muted-foreground">
+                                                        @{compUser?.username}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            {compUser?.username && (
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="mt-3 h-8 border-rose-200 text-rose-700 hover:bg-rose-50"
+                                                    onClick={() =>
+                                                        window.open(
+                                                            `/profile/${compUser.username}`,
+                                                            '_blank',
+                                                            'noopener,noreferrer'
+                                                        )
+                                                    }
+                                                >
+                                                    Voir profil
+                                                </Button>
+                                            )}
+                                        </div>
+                                        <div className="text-sm text-muted-foreground">
+                                            {entry.message ? (
+                                                <span className="italic">"{entry.message}"</span>
+                                            ) : (
+                                                <span className="text-xs text-muted-foreground">-</span>
+                                            )}
+                                        </div>
+                                        <div className="space-y-2">
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <Badge variant={refStatusMeta.variant} className={refStatusMeta.className}>
+                                                    Réf: {refStatusMeta.label}
+                                                </Badge>
+                                                <Badge variant={compStatusMeta.variant} className={compStatusMeta.className}>
+                                                    Comp: {compStatusMeta.label}
+                                                </Badge>
+                                            </div>
+                                            <Badge variant={aggregateMeta.variant} className={aggregateMeta.className}>
+                                                Global: {aggregateMeta.label}
+                                            </Badge>
+                                        </div>
+                                        <div className="grid gap-3 lg:grid-cols-2">
+                                            <div className="rounded-lg border border-slate-100 bg-slate-50/50 p-3">
+                                                <div className="text-[11px] font-semibold uppercase text-slate-500">
+                                                    Rép. référence
+                                                </div>
+                                                <Button
+                                                    size="sm"
+                                                    className="mt-3 h-8 w-full bg-rose-800 text-white hover:bg-rose-900"
+                                                    disabled={refRespondDisabled}
+                                                    onClick={() => {
+                                                        setActiveRecipient(refRecipient || null);
+                                                        setActiveRecipientLabel('Référence');
+                                                        setIsRespondModalOpen(true);
+                                                    }}
+                                                >
+                                                    Répondre
+                                                </Button>
+                                                {refResponse && (
+                                                    <div className="mt-2 text-xs text-slate-600">
+                                                        Dernière réponse: {refResponse}
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div className="rounded-lg border border-slate-100 bg-slate-50/50 p-3">
+                                                <div className="text-[11px] font-semibold uppercase text-slate-500">
+                                                    Rép. compatible
+                                                </div>
+                                                <Button
+                                                    size="sm"
+                                                    className="mt-3 h-8 w-full bg-rose-800 text-white hover:bg-rose-900"
+                                                    disabled={compRespondDisabled}
+                                                    onClick={() => {
+                                                        setActiveRecipient(compRecipient || null);
+                                                        setActiveRecipientLabel('Compatible');
+                                                        setIsRespondModalOpen(true);
+                                                    }}
+                                                >
+                                                    Répondre
+                                                </Button>
+                                                {compResponse && (
+                                                    <div className="mt-2 text-xs text-slate-600">
+                                                        Dernière réponse: {compResponse}
+                                                    </div>
+                                                )}
+                                            </div>
+                                            {showSendToOther && (
+                                                <div className="lg:col-span-2">
+                                                    <Button
+                                                        size="sm"
+                                                        className="h-8"
+                                                        onClick={() => handleSendToOther(entry)}
+                                                        disabled={isSending[entry.key]}
+                                                    >
+                                                        {isSending[entry.key] ? 'Envoi...' : 'Envoyer au profil restant'}
+                                                    </Button>
+                                                    {rowError && (
+                                                        <div className="mt-2 text-xs text-red-600">
+                                                            {rowError}
                                                         </div>
                                                     )}
-                                                </TableCell>
-                                                <TableCell>
-                                                    {compResponse ? (
-                                                        <div className="text-sm text-muted-foreground">{compResponse}</div>
-                                                    ) : (
-                                                        <span className="text-xs text-muted-foreground">-</span>
-                                                    )}
-                                                    {compCanRespond && (
-                                                        <div className="mt-2 space-y-2">
-                                                            <textarea
-                                                                value={responseMessages[compRecipient.id] || ''}
-                                                                onChange={(event) =>
-                                                                    setResponseMessages((prev) => ({
-                                                                        ...prev,
-                                                                        [compRecipient.id]: event.target.value,
-                                                                    }))
-                                                                }
-                                                                placeholder="Motif (obligatoire en cas de refus)"
-                                                                rows={2}
-                                                                className="w-full rounded-md border border-slate-200 px-2 py-1 text-xs"
-                                                                disabled={compProcessing}
-                                                            />
-                                                            {compError && <div className="text-xs text-red-600">{compError}</div>}
-                                                            <div className="flex flex-wrap gap-2">
-                                                                <Button
-                                                                    size="sm"
-                                                                    variant="outline"
-                                                                    disabled={compProcessing}
-                                                                    onClick={() => handleRespond(compRecipient.id, 'accepted')}
-                                                                >
-                                                                    Accepter
-                                                                </Button>
-                                                                <Button
-                                                                    size="sm"
-                                                                    variant="destructive"
-                                                                    disabled={compProcessing}
-                                                                    onClick={() => handleRespond(compRecipient.id, 'rejected')}
-                                                                >
-                                                                    Refuser
-                                                                </Button>
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                </TableCell>
-                                                <TableCell>
-                                                    <span className="text-xs text-muted-foreground">
-                                                        {new Date(entry.created_at).toLocaleDateString()}
-                                                    </span>
-                                                    {showSendToOther && (
-                                                        <div className="mt-3">
-                                                            <Button
-                                                                size="sm"
-                                                                onClick={() => handleSendToOther(entry)}
-                                                                disabled={isSending[entry.key]}
-                                                            >
-                                                                {isSending[entry.key] ? 'Envoi...' : 'Envoyer au profil restant'}
-                                                            </Button>
-                                                            {rowError && (
-                                                                <div className="mt-2 text-xs text-red-600">
-                                                                    {rowError}
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    )}
-                                                </TableCell>
-                                            </TableRow>
-                                        );
-                                    })}
-                                </TableBody>
-                            </Table>
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="text-xs text-muted-foreground lg:text-right">
+                                            {new Date(entry.created_at).toLocaleDateString()}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
                     </CardContent>
                 </Card>
                 )}
             </div>
+            <Dialog
+                open={isRespondModalOpen}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setIsRespondModalOpen(false);
+                        setActiveRecipient(null);
+                        setActiveRecipientLabel('');
+                    }
+                }}
+            >
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Répondre à la proposition</DialogTitle>
+                        <DialogDescription>
+                            {activeRecipientLabel ? `Profil ${activeRecipientLabel.toLowerCase()}` : 'Réponse'}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-2">
+                        <div className="text-xs font-semibold text-slate-500 uppercase">
+                            Motif
+                        </div>
+                        <textarea
+                            value={activeRecipient ? responseMessages[activeRecipient.id] || '' : ''}
+                            onChange={(event) => {
+                                const value = event.target.value;
+                                if (!activeRecipient) return;
+                                setResponseMessages((prev) => ({
+                                    ...prev,
+                                    [activeRecipient.id]: value,
+                                }));
+                            }}
+                            placeholder="Motif (obligatoire en cas de refus)"
+                            rows={3}
+                            className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"
+                            disabled={!activeRecipient || processingIds[activeRecipient.id]}
+                        />
+                        {activeRecipient && responseErrors[activeRecipient.id] && (
+                            <div className="text-xs text-red-600">{responseErrors[activeRecipient.id]}</div>
+                        )}
+                    </div>
+                    <DialogFooter className="gap-2 sm:gap-0">
+                        <Button
+                            variant="outline"
+                            onClick={() => setIsRespondModalOpen(false)}
+                        >
+                            Annuler
+                        </Button>
+                        <Button
+                            variant="outline"
+                            className="border-rose-200 text-rose-700 hover:bg-rose-50"
+                            disabled={!activeRecipient || processingIds[activeRecipient.id]}
+                            onClick={async () => {
+                                if (!activeRecipient) return;
+                                const ok = await handleRespond(activeRecipient.id, 'rejected');
+                                if (ok) setIsRespondModalOpen(false);
+                            }}
+                        >
+                            Refuser
+                        </Button>
+                        <Button
+                            className="bg-rose-800 text-white hover:bg-rose-900"
+                            disabled={!activeRecipient || processingIds[activeRecipient.id]}
+                            onClick={async () => {
+                                if (!activeRecipient) return;
+                                const ok = await handleRespond(activeRecipient.id, 'accepted');
+                                if (ok) setIsRespondModalOpen(false);
+                            }}
+                        >
+                            Accepter
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </AppLayout>
     );
 }
