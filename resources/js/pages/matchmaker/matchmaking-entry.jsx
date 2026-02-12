@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { LayoutGrid, Table2, Search, MapPin, Calendar, Heart, ChevronLeft, ChevronRight } from 'lucide-react';
+import { LayoutGrid, Table2, Search, MapPin, Calendar, Heart, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 
 const MATCH_PRIMARY = '#8B2635';
 const PER_PAGE = 3;
@@ -237,11 +237,19 @@ export default function MatchmakingEntry({ prospects, search: initialSearch = ''
                                                 type="button"
                                                 onClick={() => handlePropose(prospect.id)}
                                                 disabled={prospect.proposition_status === 'pending'}
-                                                className="flex w-full items-center justify-center gap-2 rounded-b-xl py-2.5 text-sm font-medium text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-[#7a2230]"
-                                                style={{ backgroundColor: MATCH_PRIMARY }}
+                                                className={`flex w-full items-center justify-center gap-2 rounded-b-xl py-2.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none ${
+                                                    prospect.proposition_status === 'pending'
+                                                        ? 'bg-amber-50 text-amber-700'
+                                                        : 'text-white hover:bg-[#7a2230]'
+                                                }`}
+                                                style={prospect.proposition_status === 'pending' ? undefined : { backgroundColor: MATCH_PRIMARY }}
                                             >
-                                                <Heart className="h-4 w-4" aria-hidden />
-                                                {prospect.proposition_status === 'pending' ? 'Proposition envoyée (en attente de réponse)' : 'À proposer'}
+                                                {prospect.proposition_status === 'pending' ? (
+                                                    <Loader2 className="h-4 w-4 shrink-0  text-amber-600" aria-hidden />
+                                                ) : (
+                                                    <Heart className="h-4 w-4" aria-hidden />
+                                                )}
+                                                {prospect.proposition_status === 'pending' ? 'Proposition en cours...' : 'À proposer'}
                                             </button>
                                         </CardContent>
                                     </Card>

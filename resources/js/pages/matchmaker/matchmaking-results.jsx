@@ -26,9 +26,15 @@ import {
     TrendingUp,
     CheckCircle2,
     XCircle,
-    Info
+    Info,
+    Loader2,
+    ChevronLeft,
+    ChevronRight
 } from 'lucide-react';
 import axios from 'axios';
+
+const MATCH_PRIMARY = '#8B2635';
+const PER_PAGE = 3;
 
 export default function MatchmakingResults({ userA, matches: initialMatches, defaultFilters, appliedFilters: initialAppliedFilters }) {
     const [matches, setMatches] = useState(initialMatches || []);
@@ -51,7 +57,8 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
     const [isSendingRequest, setIsSendingRequest] = useState(false);
     const [pendingOpenProposeId, setPendingOpenProposeId] = useState(null);
     const [hasOpenedProposeFromQuery, setHasOpenedProposeFromQuery] = useState(false);
-    
+    const [currentPage, setCurrentPage] = useState(1);
+
     // Countries and cities state
     const [countries, setCountries] = useState([]);
     const [countryCodeToCities, setCountryCodeToCities] = useState({});
@@ -976,6 +983,16 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
         }
     }, [pendingOpenProposeId, hasOpenedProposeFromQuery, matches]);
 
+    // Reset to first page when matches list changes (e.g. after applying filters)
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [matches.length]);
+
+    const totalPages = Math.max(1, Math.ceil(matches.length / PER_PAGE));
+    const from = matches.length === 0 ? 0 : (currentPage - 1) * PER_PAGE + 1;
+    const to = Math.min(currentPage * PER_PAGE, matches.length);
+    const paginatedMatches = matches.slice((currentPage - 1) * PER_PAGE, currentPage * PER_PAGE);
+
     const getRequestButtonLabel = (status) => {
         if (status === 'pending') {
             return 'Proposition envoyée (en attente de réponse)';
@@ -993,20 +1010,21 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
         <AppLayout>
             <Head title="Résultats de Matchmaking" />
             
-            <div className="space-y-6 p-4">
+            <div className="space-y-8 p-6 md:p-8">
                 {/* Header */}
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-center gap-4">
                         <Button
                             variant="outline"
                             size="icon"
                             onClick={() => router.visit('/staff/match/search')}
+                            className="shrink-0 rounded-lg border-border focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:bg-muted/50"
                         >
                             <ArrowLeft className="w-4 h-4" />
                         </Button>
-                        <div>
-                            <h1 className="text-3xl font-bold tracking-tight">Résultats de Matchmaking</h1>
-                            <p className="text-muted-foreground mt-1">
+                        <div className="min-w-0">
+                            <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">Résultats de Matchmaking</h1>
+                            <p className="mt-1 text-sm text-muted-foreground sm:text-base">
                                 Profils compatibles pour {userA?.name}
                             </p>
                         </div>
@@ -1015,6 +1033,7 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
                         <Button
                             variant={showFilters ? 'default' : 'outline'}
                             onClick={() => setShowFilters(!showFilters)}
+                            className="rounded-lg border-border focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                         >
                             <Filter className="w-4 h-4 mr-2" />
                             Filtres
@@ -1023,6 +1042,7 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
                             variant="outline"
                             onClick={handleResetFilters}
                             disabled={isLoading}
+                            className="rounded-lg border-border focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50"
                         >
                             <RotateCcw className="w-4 h-4 mr-2" />
                             Réinitialiser
@@ -1030,52 +1050,71 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
                     </div>
                 </div>
 
-                {/* User A Info Card */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Profil de référence</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="flex items-center gap-4">
-                            <img
-                                src={getProfilePicture(userA)}
-                                alt={userA.name}
-                                className="w-16 h-16 rounded-full object-cover"
-                            />
-                            <div>
-                                <h3 className="font-semibold">{userA.name}</h3>
-                                <p className="text-sm text-muted-foreground">{userA.email}</p>
-                                {userA.profile && (
-                                    <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-                                        {getAge(userA.profile) && <span>{getAge(userA.profile)} ans</span>}
-                                        <span>{getLocation(userA.profile)}</span>
-                                        {userA.profile.religion && (
-                                            <Badge variant="outline">{userA.profile.religion}</Badge>
+                {/* User A Info Card - Reference Profile */}
+                <section className="space-y-3">
+                    <h2 className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#8B2635]" aria-hidden />
+                        PROFIL DE RÉFÉRENCE
+                    </h2>
+                    <Card className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+                        <CardContent className="p-5">
+                            <div className="flex items-center gap-4">
+                                <div className="relative shrink-0">
+                                    <img
+                                        src={getProfilePicture(userA)}
+                                        alt={userA.name}
+                                        className="h-16 w-16 rounded-full object-cover"
+                                    />
+                                    <span className="absolute bottom-0 left-0 h-3 w-3 rounded-full border-2 border-card bg-green-500" aria-hidden />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <h3 className="font-semibold text-foreground">{userA.name}</h3>
+                                        {userA.profile?.religion && (
+                                            <Badge className="rounded-md bg-muted px-2 py-0.5 text-xs font-normal text-muted-foreground">
+                                                {String(userA.profile.religion).toUpperCase()}
+                                            </Badge>
                                         )}
                                     </div>
-                                )}
+                                    <p className="text-sm text-muted-foreground">{userA.email}</p>
+                                    {userA.profile && (
+                                        <div className="mt-2 flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+                                            {getAge(userA.profile) && (
+                                                <span className="flex items-center gap-1.5">
+                                                    <Calendar className="h-4 w-4 shrink-0" />
+                                                    {getAge(userA.profile)} ans
+                                                </span>
+                                            )}
+                                            <span className="flex items-center gap-1.5">
+                                                <MapPin className="h-4 w-4 shrink-0" />
+                                                {getLocation(userA.profile)}
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
-                        </div>
-                    </CardContent>
-                </Card>
+                        </CardContent>
+                    </Card>
+                </section>
 
                 {/* Filters Panel */}
                 {showFilters && (
-                    <Card>
-                        <CardHeader>
+                    <Card className="overflow-hidden rounded-xl border border-border shadow-sm">
+                        <CardHeader className="border-b border-border/50 pb-4">
                             <div className="flex items-center justify-between">
-                                <CardTitle>Filtres de recherche</CardTitle>
+                                <CardTitle className="text-lg font-semibold">Filtres de recherche</CardTitle>
                                 <Button
                                     variant="ghost"
                                     size="icon"
                                     onClick={() => setShowFilters(false)}
+                                    className="rounded-lg focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                                 >
                                     <X className="w-4 h-4" />
                                 </Button>
                             </div>
                         </CardHeader>
-                        <CardContent>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <CardContent className="pt-6">
+                            <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
                                 {/* Age Range */}
                                 <div className="space-y-2">
                                     <Label>Âge minimum</Label>
@@ -1100,7 +1139,7 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
                                 <div className="space-y-2">
                                     <Label>Pays recherché</Label>
                                     {loadingCountries ? (
-                                        <div className="rounded-lg border border-gray-300 px-4 py-3 text-sm text-gray-500">
+                                        <div className="rounded-lg border border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
                                             Chargement des pays...
                                         </div>
                                     ) : (
@@ -1120,11 +1159,11 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
                                 <div className="space-y-2">
                                     <Label>Villes recherchées</Label>
                                     {selectedCountryCodes.length === 0 ? (
-                                        <div className="rounded-lg border border-gray-300 px-4 py-3 text-sm text-gray-400">
+                                        <div className="rounded-lg border border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
                                             Veuillez d'abord sélectionner au moins un pays
                                         </div>
                                     ) : loadingCities ? (
-                                        <div className="rounded-lg border border-gray-300 px-4 py-3 text-sm text-gray-500">
+                                        <div className="rounded-lg border border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
                                             Chargement des villes...
                                         </div>
                                     ) : (
@@ -1235,7 +1274,7 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
                                 {/* Marital Status - Multi-select */}
                                 <div className="space-y-2">
                                     <Label>État matrimonial</Label>
-                                    <div className="flex flex-wrap gap-4 rounded-lg border p-3">
+                                    <div className="flex flex-wrap gap-4 rounded-lg border border-border bg-muted/20 p-4">
                                         {['celibataire', 'marie', 'divorce', 'veuf'].map((option) => {
                                             const currentValue = Array.isArray(filters.etat_matrimonial) ? filters.etat_matrimonial : [];
                                             const isChecked = currentValue.includes(option);
@@ -1401,7 +1440,7 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
                                 {/* Health Situation - Multi-select */}
                                 <div className="space-y-2">
                                     <Label>Situation de santé</Label>
-                                    <div className="flex flex-wrap gap-4 rounded-lg border p-3">
+                                    <div className="flex flex-wrap gap-4 rounded-lg border border-border bg-muted/20 p-4">
                                         {[
                                             { value: 'sante_tres_bonne', label: 'Santé très bonne' },
                                             { value: 'maladie_chronique', label: 'Maladie chronique' },
@@ -1602,16 +1641,18 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
                                 )}
                             </div>
 
-                            <div className="flex justify-end gap-2 mt-6">
+                            <div className="mt-6 flex justify-end gap-3 border-t border-border/50 pt-6">
                                 <Button
                                     variant="outline"
                                     onClick={() => setShowFilters(false)}
+                                    className="rounded-lg focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                                 >
                                     Annuler
                                 </Button>
                                 <Button
                                     onClick={handleApplyFilters}
                                     disabled={isLoading}
+                                    className="rounded-lg focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50"
                                 >
                                     {isLoading ? 'Application...' : 'Appliquer les filtres'}
                                 </Button>
@@ -1621,132 +1662,142 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
                 )}
 
                 {/* Results */}
-                <div>
-                    <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-xl font-semibold">
+                <section className="space-y-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                        <h2 className="text-lg font-semibold text-foreground">
                             {matches.length} profil{matches.length > 1 ? 's' : ''} compatible{matches.length > 1 ? 's' : ''}
                         </h2>
+                        {matches.length > 0 && totalPages > 1 && (
+                            <p className="text-sm text-muted-foreground">
+                                {from}&ndash;{to} sur {matches.length}
+                            </p>
+                        )}
                     </div>
 
                     {matches.length === 0 ? (
-                        <Card>
-                            <CardContent className="py-12 text-center">
+                        <Card className="overflow-hidden rounded-xl border border-border shadow-sm">
+                            <CardContent className="py-16 text-center">
                                 <p className="text-muted-foreground">
                                     Aucun profil compatible trouvé avec les filtres actuels.
                                 </p>
                             </CardContent>
                         </Card>
                     ) : (
-                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                            {matches.map((match) => (
-                                <Card 
-                                    key={match.user.id} 
-                                    className="hover:shadow-md transition-shadow cursor-pointer"
+                        <>
+                        <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+                            {paginatedMatches.map((match) => (
+                                <Card
+                                    key={match.user.id}
+                                    className="cursor-pointer overflow-hidden rounded-xl border-2 border-[#8B2635]/40 bg-card shadow-sm transition-shadow hover:shadow-md focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2"
                                     onClick={() => handleCardClick(match)}
                                 >
-                                    <CardHeader>
-                                        <div className="flex items-start justify-between">
-                                            <div className="flex items-start gap-4 flex-1">
+                                    <CardHeader className="pb-3">
+                                        <div className="flex items-start justify-between gap-3">
+                                            <div className="flex min-w-0 flex-1 items-start gap-4">
                                                 <img
                                                     src={getProfilePicture(match.user, match.profile)}
                                                     alt={match.user.name}
-                                                    className="w-16 h-16 rounded-full object-cover"
+                                                    className="h-14 w-14 shrink-0 rounded-full object-cover sm:h-16 sm:w-16"
                                                 />
-                                                <div className="flex-1 min-w-0">
-                                                    <CardTitle className="text-lg truncate">
+                                                <div className="min-w-0 flex-1">
+                                                    <CardTitle className="truncate text-lg font-semibold text-foreground">
                                                         {match.user.name}
                                                     </CardTitle>
-                                                    <CardDescription className="mt-1 truncate">
+                                                    <CardDescription className="mt-0.5 truncate text-sm">
                                                         {match.user.email}
                                                     </CardDescription>
                                                 </div>
                                             </div>
-                                            <div className="flex flex-col items-end gap-1">
-                                                <Badge 
-                                                    variant="outline" 
-                                                    className={`${getScoreColor(match.score)} font-semibold`}
-                                                >
-                                                    <TrendingUp className="w-3 h-3 mr-1" />
+                                            <div className="flex shrink-0 flex-col items-end gap-0.5">
+                                                <span className={`text-xl font-bold ${getScoreColor(match.score)}`}>
+                                                    <TrendingUp className="mr-1 inline-block h-5 w-5 align-middle" />
                                                     {match.score.toFixed(1)}%
-                                                </Badge>
-                                                <span className="text-xs text-muted-foreground">
+                                                </span>
+                                                <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                                                     {match.completeness.toFixed(0)}% complet
                                                 </span>
                                             </div>
                                         </div>
                                     </CardHeader>
-                                    <CardContent className="space-y-3">
-                                        <div className="space-y-2 text-sm">
+                                    <CardContent className="space-y-3 pt-0">
+                                        <div className="space-y-2 text-sm text-muted-foreground">
                                             {getAge(match.profile) && (
-                                                <div className="flex items-center gap-2 text-muted-foreground">
-                                                    <Calendar className="w-4 h-4" />
+                                                <div className="flex items-center gap-2">
+                                                    <Calendar className="h-4 w-4 shrink-0" />
                                                     <span>{getAge(match.profile)} ans</span>
                                                 </div>
                                             )}
-                                            <div className="flex items-center gap-2 text-muted-foreground">
-                                                <MapPin className="w-4 h-4" />
+                                            <div className="flex items-center gap-2">
+                                                <MapPin className="h-4 w-4 shrink-0" />
                                                 <span className="truncate">{getLocation(match.profile)}</span>
                                             </div>
                                             {match.profile.niveau_etudes && (
-                                                <div className="flex items-center gap-2 text-muted-foreground">
-                                                    <GraduationCap className="w-4 h-4" />
+                                                <div className="flex items-center gap-2">
+                                                    <GraduationCap className="h-4 w-4 shrink-0" />
                                                     <span>{match.profile.niveau_etudes}</span>
                                                 </div>
                                             )}
                                             {match.profile.situation_professionnelle && (
-                                                <div className="flex items-center gap-2 text-muted-foreground">
-                                                    <Briefcase className="w-4 h-4" />
+                                                <div className="flex items-center gap-2">
+                                                    <Briefcase className="h-4 w-4 shrink-0" />
                                                     <span>{match.profile.situation_professionnelle}</span>
                                                 </div>
                                             )}
                                             {match.profile.religion && (
-                                                <Badge variant="outline" className="w-fit">
+                                                <Badge variant="secondary" className="w-fit rounded-md bg-muted text-muted-foreground">
                                                     {match.profile.religion}
                                                 </Badge>
                                             )}
                                         </div>
                                         {match.isAssignedToMe ? (
-                                            <Badge variant="default" className="bg-green-600">
-                                                Assigné à moi
-                                            </Badge>
-) : match.assigned_matchmaker ? (
-    <Badge variant="outline" className="border-orange-500 text-orange-600">
-        Assigné à: {match.assigned_matchmaker.name}
-    </Badge>
-) : (
-    <Badge variant="outline" className="border-gray-300 text-gray-600">
-        Non assigné
-    </Badge>
-)}
+                                            <div className="flex items-center gap-2 text-sm">
+                                                <span className="h-2 w-2 shrink-0 rounded-full bg-green-500" aria-hidden />
+                                                <span className="text-muted-foreground">Assigné à moi</span>
+                                            </div>
+                                        ) : match.assigned_matchmaker ? (
+                                            <div className="flex items-center gap-2 text-sm">
+                                                <span className="h-2 w-2 shrink-0 rounded-full bg-amber-400" aria-hidden />
+                                                <span className="text-muted-foreground">Assigné à: {match.assigned_matchmaker.name}</span>
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                                Non assigné
+                                            </div>
+                                        )}
 
 
-                                        <Separator />
+                                        <Separator className="my-3" />
                                         {!match.isAssignedToMe && match.assigned_matchmaker && (() => {
                                             const requestStatusForLabel = match.can_propose_from_request
                                                 ? match.proposition_request_status
                                                 : null;
 
                                             return (
-                                            <Button
-                                                variant="outline"
-                                                className="w-full"
-                                                onClick={(event) => {
-                                                    if (match.can_propose_from_request) {
-                                                        openProposeModal(match, event);
-                                                        return;
-                                                    }
-                                                    openRequestModal(match, event);
-                                                }}
-                                                disabled={requestStatusForLabel === 'pending' || requestStatusForLabel === 'rejected'}
-                                            >
-                                                <Info className="w-4 h-4 mr-2" />
-                                                {getRequestButtonLabel(requestStatusForLabel)}
-                                            </Button>
+                                                <Button
+                                                    variant="outline"
+                                                    className="w-full rounded-t-lg border-[#8B2635]/50 bg-[#8B2635]/10 py-2.5 text-sm font-medium text-[#8B2635] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:bg-[#8B2635]/15 disabled:opacity-50"
+                                                    onClick={(event) => {
+                                                        if (match.can_propose_from_request) {
+                                                            openProposeModal(match, event);
+                                                            return;
+                                                        }
+                                                        openRequestModal(match, event);
+                                                    }}
+                                                    disabled={requestStatusForLabel === 'pending' || requestStatusForLabel === 'rejected'}
+                                                >
+                                                    <Info className="mr-2 h-4 w-4" />
+                                                    {getRequestButtonLabel(requestStatusForLabel)}
+                                                </Button>
                                             );
                                         })()}
                                         {match.isAssignedToMe && (
                                             <Button
-                                                className="w-full bg-[#096725] hover:bg-[#07501d]"
+                                                className={`w-full py-2.5 text-sm font-medium focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none ${
+                                                    match.proposition_status === 'pending'
+                                                        ? 'rounded-t-lg bg-amber-50 text-amber-700 hover:bg-amber-50'
+                                                        : 'rounded-t-lg text-white hover:opacity-90'
+                                                }`}
+                                                style={match.proposition_status === 'pending' ? undefined : { backgroundColor: MATCH_PRIMARY }}
                                                 onClick={(event) => {
                                                     if (match.proposition_status === 'pending') {
                                                         return;
@@ -1755,49 +1806,95 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
                                                 }}
                                                 disabled={match.proposition_status === 'pending'}
                                             >
-                                                <Heart className="w-4 h-4 mr-2" />
+                                                {match.proposition_status === 'pending' ? (
+                                                    <Loader2 className="mr-2 h-4 w-4 shrink-0 animate-spin text-amber-600" aria-hidden />
+                                                ) : (
+                                                    <Heart className="mr-2 h-4 w-4" />
+                                                )}
                                                 {match.proposition_status === 'pending'
-                                                    ? 'Proposition envoyée (en attente de réponse)'
+                                                    ? 'Proposition en cours...'
                                                     : 'Proposer'}
                                             </Button>
                                         )}
 
                                         <Button
                                             variant="outline"
-                                            className="w-full"
+                                            className="w-full rounded-b-xl rounded-t-none border-t-0 border-border bg-muted/30 py-2.5 text-sm font-medium text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:bg-muted/50"
                                             onClick={(event) => {
                                                 event.stopPropagation();
                                                 window.open(`/profile/${match.user.username || match.user.id}`, '_blank', 'noopener,noreferrer');
                                             }}
                                         >
-                                            <User className="w-4 h-4 mr-2" />
+                                            <User className="mr-2 h-4 w-4" />
                                             Voir le profil
                                         </Button>
                                     </CardContent>
                                 </Card>
                             ))}
                         </div>
+
+                        {totalPages > 1 && (
+                            <div className="flex flex-wrap items-center justify-center gap-2 pt-4">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                                    disabled={currentPage <= 1}
+                                    className="rounded-lg border-border focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50"
+                                >
+                                    <ChevronLeft className="h-4 w-4" />
+                                    Précédent
+                                </Button>
+                                <div className="flex items-center gap-1">
+                                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
+                                        <Button
+                                            key={pageNum}
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => setCurrentPage(pageNum)}
+                                            className={`min-w-[2.25rem] rounded-lg focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+                                                currentPage === pageNum ? 'text-white' : 'border-border'
+                                            }`}
+                                            style={currentPage === pageNum ? { backgroundColor: MATCH_PRIMARY, borderColor: MATCH_PRIMARY } : undefined}
+                                        >
+                                            {pageNum}
+                                        </Button>
+                                    ))}
+                                </div>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                                    disabled={currentPage >= totalPages}
+                                    className="rounded-lg border-border focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50"
+                                >
+                                    Suivant
+                                    <ChevronRight className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        )}
+                        </>
                     )}
-                </div>
+                </section>
             </div>
 
             {/* Compatibility Details Modal */}
             <Dialog open={showCompatibilityModal} onOpenChange={setShowCompatibilityModal}>
-                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                    <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2">
-                            <TrendingUp className="w-5 h-5" />
+                <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto rounded-xl border border-border shadow-lg">
+                    <DialogHeader className="space-y-2">
+                        <DialogTitle className="flex items-center gap-2 text-lg font-semibold">
+                            <TrendingUp className="h-5 w-5" />
                             Détails de compatibilité
                         </DialogTitle>
-                        <DialogDescription>
+                        <DialogDescription className="text-muted-foreground">
                             Analyse détaillée de la compatibilité avec le profil de référence
                         </DialogDescription>
                     </DialogHeader>
-                    
+
                     {selectedMatch && (
                         <div className="space-y-6">
                             {/* Profile Summary */}
-                            <div className="flex items-start gap-4 p-4 bg-muted rounded-lg">
+                            <div className="flex items-start gap-4 rounded-xl bg-muted/50 p-4">
                                 <img
                                     src={getProfilePicture(selectedMatch.user, selectedMatch.profile)}
                                     alt={selectedMatch.user.name}
@@ -1834,7 +1931,7 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
                                 <h4 className="font-semibold text-base">Critères de compatibilité</h4>
                                 <div className="space-y-3">
                                     {getCompatibilityDetails(selectedMatch.scoreDetails || {}, userA.profile, selectedMatch.profile).map((detail, index) => (
-                                        <div key={index} className="border rounded-lg p-4">
+                                        <div key={index} className="rounded-xl border border-border p-4">
                                             <div className="flex items-start justify-between mb-2">
                                                 <div className="flex items-center gap-2">
                                                     {detail.matched ? (
@@ -1868,7 +1965,7 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
                             </div>
 
                             {/* Profile Completeness */}
-                            <div className="border rounded-lg p-4 bg-muted/50">
+                            <div className="rounded-xl border border-border bg-muted/50 p-4">
                                 <div className="flex items-center justify-between mb-2">
                                     <span className="font-medium flex items-center gap-2">
                                         <Info className="w-4 h-4" />
@@ -1890,22 +1987,22 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
                             </div>
 
                             {/* Actions */}
-                            <div className="flex gap-2 pt-4 border-t">
+                            <div className="flex gap-3 border-t border-border pt-4">
                                 <Button
                                     variant="outline"
-                                    className="flex-1"
+                                    className="flex-1 rounded-lg focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                                     onClick={() => setShowCompatibilityModal(false)}
                                 >
                                     Fermer
                                 </Button>
                                 <Button
-                                    className="flex-1"
+                                    className="flex-1 rounded-lg focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                                     onClick={() => {
                                         setShowCompatibilityModal(false);
                                         window.open(`/profile/${selectedMatch.user.username || selectedMatch.user.id}`, '_blank', 'noopener,noreferrer');
                                     }}
                                 >
-                                    <User className="w-4 h-4 mr-2" />
+                                    <User className="mr-2 w-4 h-4" />
                                     Voir le profil complet
                                 </Button>
                             </div>
@@ -1915,19 +2012,23 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
             </Dialog>
 
             <Dialog open={showProposeModal} onOpenChange={setShowProposeModal}>
-                <DialogContent className="max-w-lg">
-                    <DialogHeader>
-                        <DialogTitle>Envoyer une proposition</DialogTitle>
-                        <DialogDescription>
+                <DialogContent className="max-w-lg rounded-xl border border-gray-200 bg-white shadow-xl">
+                    <DialogHeader className="space-y-2">
+                        <DialogTitle className="text-xl font-semibold" style={{ color: MATCH_PRIMARY }}>
+                            Envoyer une proposition
+                        </DialogTitle>
+                        <DialogDescription className="text-sm text-muted-foreground">
                             Cette proposition sera envoyée aux profils sélectionnés.
                         </DialogDescription>
                     </DialogHeader>
-                    <form onSubmit={handleSendProposition} className="space-y-4">
-                        <div>
-                            <Label htmlFor="proposition-message">Message</Label>
+                    <form onSubmit={handleSendProposition} className="space-y-6">
+                        <div className="space-y-2">
+                            <Label htmlFor="proposition-message" className="text-sm font-normal text-foreground">
+                                Message
+                            </Label>
                             <textarea
                                 id="proposition-message"
-                                className="mt-2 w-full rounded-md border border-gray-300 p-3 focus:border-[#096725] focus:outline-none focus:ring-1 focus:ring-[#096725]"
+                                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                 rows={4}
                                 value={proposeMessage}
                                 onChange={(event) => setProposeMessage(event.target.value)}
@@ -1935,45 +2036,65 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
                                 required
                             />
                         </div>
-                        <div className="space-y-2">
-                            <div className="flex items-center space-x-2">
-                                <Checkbox
-                                    id="send-to-reference"
-                                    checked={sendToReference}
-                                    onCheckedChange={(value) => setSendToReference(Boolean(value))}
-                                />
-                                <Label htmlFor="send-to-reference">
-                                    Envoyer au profil de référence ({userA?.name})
-                                </Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                                <Checkbox
-                                    id="send-to-compatible"
-                                    checked={sendToCompatible}
-                                    onCheckedChange={(value) => setSendToCompatible(Boolean(value))}
-                                />
-                                <Label htmlFor="send-to-compatible">
-                                    Envoyer au profil compatible ({proposeMatch?.user?.name})
-                                </Label>
+                        <div className="space-y-3">
+                            <Label className="text-sm font-normal text-foreground">Destinataires</Label>
+                            <div className="flex flex-col gap-3">
+                                <label
+                                    htmlFor="send-to-reference"
+                                    className="flex cursor-pointer items-start gap-3 space-x-0"
+                                >
+                                    <Checkbox
+                                        id="send-to-reference"
+                                        checked={sendToReference}
+                                        onCheckedChange={(value) => setSendToReference(Boolean(value))}
+                                        className="mt-0.5 border-gray-300 data-[state=checked]:border-[#8B2635] data-[state=checked]:bg-[#8B2635] data-[state=checked]:text-white"
+                                    />
+                                    <div className="flex flex-col gap-0.5">
+                                        <span className="text-sm font-normal text-foreground">
+                                            Envoyer au profil de référence
+                                        </span>
+                                        <span className="text-xs text-muted-foreground">{userA?.name}</span>
+                                    </div>
+                                </label>
+                                <label
+                                    htmlFor="send-to-compatible"
+                                    className="flex cursor-pointer items-start gap-3 space-x-0"
+                                >
+                                    <Checkbox
+                                        id="send-to-compatible"
+                                        checked={sendToCompatible}
+                                        onCheckedChange={(value) => setSendToCompatible(Boolean(value))}
+                                        className="mt-0.5 border-gray-300 data-[state=checked]:border-[#8B2635] data-[state=checked]:bg-[#8B2635] data-[state=checked]:text-white"
+                                    />
+                                    <div className="flex flex-col gap-0.5">
+                                        <span className="text-sm font-normal text-foreground">
+                                            Envoyer au profil compatible
+                                        </span>
+                                        <span className="text-xs text-muted-foreground">{proposeMatch?.user?.name}</span>
+                                    </div>
+                                </label>
                             </div>
                         </div>
                         {propositionError && (
-                            <div className="text-sm text-red-600">{propositionError}</div>
+                            <div className="text-sm text-destructive">{propositionError}</div>
                         )}
-                        <DialogFooter>
+                        <DialogFooter className="flex justify-end gap-2 sm:gap-2">
                             <Button
                                 type="button"
                                 variant="outline"
+                                className="rounded-lg border-gray-200 bg-white text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                                 onClick={() => setShowProposeModal(false)}
                             >
                                 Annuler
                             </Button>
                             <Button
                                 type="submit"
-                                className="bg-[#096725] hover:bg-[#07501d]"
+                                className="inline-flex items-center gap-2 rounded-lg text-white hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50"
+                                style={{ backgroundColor: MATCH_PRIMARY }}
                                 disabled={isSendingProposition}
                             >
-                                {isSendingProposition ? 'Envoi...' : 'Envoyer'}
+                                {isSendingProposition ? 'Envoi...' : 'Envoyer la proposition'}
+                                {!isSendingProposition && <ChevronRight className="h-4 w-4" />}
                             </Button>
                         </DialogFooter>
                     </form>
@@ -1981,22 +2102,33 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
             </Dialog>
 
             <Dialog open={showRequestModal} onOpenChange={setShowRequestModal}>
-                <DialogContent className="max-w-lg">
-                    <DialogHeader>
-                        <DialogTitle>Demande de propositions</DialogTitle>
-                        <DialogDescription>
+                <DialogContent className="max-w-lg rounded-xl border border-gray-200 bg-white shadow-xl">
+                    <DialogHeader className="space-y-2">
+                        <DialogTitle className="text-xl font-semibold" style={{ color: MATCH_PRIMARY }}>
+                            Demande de propositions
+                        </DialogTitle>
+                        <DialogDescription className="text-sm text-muted-foreground">
                             Envoyez un message au matchmaker assigné au profil compatible.
                         </DialogDescription>
                     </DialogHeader>
-                    <form onSubmit={handleSendRequest} className="space-y-4">
-                        <div className="text-sm text-muted-foreground">
-                            Profil compatible : {requestMatch?.user?.name} • Matchmaker : {requestMatch?.assigned_matchmaker?.name || 'N/A'}
+                    <form onSubmit={handleSendRequest} className="space-y-6">
+                        <div className="flex items-start gap-3 rounded-lg bg-[#8B2635]/10 px-4 py-3">
+                            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#8B2635] text-white" aria-hidden>
+                                <Info className="h-3.5 w-3.5" />
+                            </span>
+                            <p className="text-sm leading-snug" style={{ color: '#7a2230' }}>
+                                Profil compatible : <span className="font-semibold">{requestMatch?.user?.name}</span>
+                                {' • '}
+                                Matchmaker : <span className="font-semibold">{requestMatch?.assigned_matchmaker?.name || 'N/A'}</span>
+                            </p>
                         </div>
-                        <div>
-                            <Label htmlFor="request-message">Message</Label>
+                        <div className="space-y-2">
+                            <Label htmlFor="request-message" className="text-sm font-normal text-foreground">
+                                Message
+                            </Label>
                             <textarea
                                 id="request-message"
-                                className="mt-2 w-full rounded-md border border-gray-300 p-3 focus:border-[#096725] focus:outline-none focus:ring-1 focus:ring-[#096725]"
+                                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                 rows={4}
                                 value={requestMessage}
                                 onChange={(event) => setRequestMessage(event.target.value)}
@@ -2005,18 +2137,25 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
                             />
                         </div>
                         {requestError && (
-                            <div className="text-sm text-red-600">{requestError}</div>
+                            <div className="text-sm text-destructive">{requestError}</div>
                         )}
-                        <DialogFooter>
+                        <DialogFooter className="flex justify-end gap-2 sm:gap-2">
                             <Button
                                 type="button"
                                 variant="outline"
+                                className="rounded-lg border-gray-200 bg-white text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                                 onClick={() => setShowRequestModal(false)}
                             >
                                 Annuler
                             </Button>
-                            <Button type="submit" disabled={isSendingRequest}>
+                            <Button
+                                type="submit"
+                                className="inline-flex items-center gap-2 rounded-lg text-white hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50"
+                                style={{ backgroundColor: MATCH_PRIMARY }}
+                                disabled={isSendingRequest}
+                            >
                                 {isSendingRequest ? 'Envoi...' : 'Envoyer'}
+                                {!isSendingRequest && <ChevronRight className="h-4 w-4" />}
                             </Button>
                         </DialogFooter>
                     </form>
