@@ -125,9 +125,11 @@ class MatchmakingService
         $appliedFilters = array_merge($defaultFilters, $filterOverrides);
 
         // Build base query with hard filters (always applied)
+        // Only member or client (exclude prospects, rejected prospects, and client_expire)
         $query = User::role('user')
             ->where('id', '!=', $userAId)
             ->where('gender', $targetGender)
+            ->whereIn('status', ['member', 'client'])
             ->whereHas('profile', function($q) {
                 $q->where('is_completed', true)
                   ->where('account_status', 'active');

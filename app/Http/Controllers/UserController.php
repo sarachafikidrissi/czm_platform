@@ -117,7 +117,7 @@ class UserController extends Controller
                 $query->with(['user.profile','user', 'likes', 'comments.user.roles', 'comments.user.profile'])
                       ->orderBy('created_at', 'desc');
             }, 
-            'photos'
+            'photos',
         ])
             ->where('username', $username)
             ->firstOrFail();

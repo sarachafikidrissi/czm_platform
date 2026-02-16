@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import AppLayout from '@/layouts/app-layout';
 import { Head, router, usePage } from '@inertiajs/react';
-import { BookOpen, Camera, Facebook, Heart, Instagram, Linkedin, MapPin, MessageSquareWarning, User, X, Youtube, Trash2, MoreVertical, UserCircle, Image, ThumbsUp, CheckCircle, Coffee, CreditCard, Lightbulb, Phone, ArrowRightLeft, Pencil, FileText, Calendar, Search, ShoppingCart, GraduationCap, Briefcase } from 'lucide-react';
+import { BookOpen, Building2, Camera, ChevronRight, Eye, Facebook, Heart, Instagram, Linkedin, Mail, MapPin, MessageSquareWarning, User, X, Youtube, Trash2, MoreVertical, UserCircle, Image, ThumbsUp, CheckCircle, Coffee, CreditCard, Lightbulb, Phone, ArrowRightLeft, Pencil, FileText, Calendar, Search, ShoppingCart, GraduationCap, Briefcase } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useToast } from '@/hooks/use-toast';
@@ -492,6 +492,14 @@ export default function UserProfile({
     };
 
     const bannerImageSrc = getBannerImage();
+    const [bannerImageOverride, setBannerImageOverride] = useState(undefined);
+    const [bannerImageError, setBannerImageError] = useState(false);
+    const [bannerDeleteOpen, setBannerDeleteOpen] = useState(false);
+    const effectiveBannerImageSrc = bannerImageOverride !== undefined ? bannerImageOverride : bannerImageSrc;
+
+    useEffect(() => {
+        setBannerImageError(false);
+    }, [effectiveBannerImageSrc]);
 
     // Handle banner image upload
     const handleBannerUpload = (e) => {
@@ -519,6 +527,8 @@ export default function UserProfile({
             preserveScroll: true,
             onSuccess: () => {
                 // Reload the current page to show the new banner
+                setBannerImageOverride(URL.createObjectURL(file));
+                setBannerImageError(false);
                 router.reload({ only: ['user', 'profile'] });
             },
             onError: (errors) => {
@@ -533,10 +543,6 @@ export default function UserProfile({
 
     // Handle banner image deletion
     const handleBannerDelete = () => {
-        if (!confirm(t('profile.deleteBannerConfirm', { defaultValue: 'Are you sure you want to remove your banner image?' }))) {
-            return;
-        }
-
         const formData = new FormData();
         formData.append('delete_banner', '1'); // Flag to indicate deletion
         formData.append('from_profile_page', '1'); // Flag to indicate we're coming from profile page
@@ -545,6 +551,9 @@ export default function UserProfile({
             forceFormData: true,
             preserveScroll: true,
             onSuccess: () => {
+                setBannerDeleteOpen(false);
+                setBannerImageOverride(null);
+                setBannerImageError(false);
                 router.reload({ only: ['user', 'profile'] });
             },
             onError: (errors) => {
@@ -675,8 +684,13 @@ export default function UserProfile({
             <div className="min-h-screen bg-gray-50">
                 {/* Banner Image Section */}
                 <div className="relative h-64 w-full overflow-hidden bg-gradient-to-r from-blue-600 to-purple-600 md:h-80">
-                    {bannerImageSrc ? (
-                        <img src={bannerImageSrc} alt={`${user?.name} banner`} className="h-full w-full object-cover" />
+                    {effectiveBannerImageSrc && !bannerImageError ? (
+                        <img
+                            src={effectiveBannerImageSrc}
+                            alt={`${user?.name} banner`}
+                            className="h-full w-full object-cover"
+                            onError={() => setBannerImageError(true)}
+                        />
                     ) : (
                         <div className="h-full w-full bg-gradient-to-r from-blue-600 to-purple-600" />
                     )}
@@ -702,12 +716,12 @@ export default function UserProfile({
                                     }}
                                 >
                                     <Camera className="mr-2 h-4 w-4" />
-                                    {bannerImageSrc
+                                    {effectiveBannerImageSrc
                                         ? t('profile.changeBanner', { defaultValue: 'Change' })
                                         : t('profile.uploadBanner', { defaultValue: 'Upload' })}
                                 </Button>
                             </label>
-                            {bannerImageSrc && (
+                            {effectiveBannerImageSrc && (
                                 <Button
                                     type="button"
                                     variant="destructive"
@@ -716,7 +730,7 @@ export default function UserProfile({
                                     onClick={(e) => {
                                         e.preventDefault();
                                         e.stopPropagation();
-                                        handleBannerDelete();
+                                        setBannerDeleteOpen(true);
                                     }}
                                 >
                                     <X className="mr-2 h-4 w-4" />
@@ -731,12 +745,112 @@ export default function UserProfile({
                     <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
                         {/* Left Sidebar - Profile Card */}
                         <div className="lg:col-span-3">
-                            <Card className="sticky top-6">
+                            <Card className="sticky top-6 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-md">
+                                {/* Matchmaker profile card - design from preview */}
+                                {userRole === 'matchmaker' ? (
+                                <CardContent className="relative bg-gray-50 p-0 pt-1.5">
+                                    <div className="absolute left-0 right-0 top-0 h-1.5 bg-[#8B2635]" aria-hidden />
+                                    <div className="p-6 pt-6">
+                                        <div className="mb-4 flex justify-center">
+                                            <div className="relative">
+                                                <div className="h-32 w-32 overflow-hidden rounded-full border-2 border-white shadow-md">
+                                                    {profilePictureSrc ? (
+                                                        <img src={profilePictureSrc} alt={user?.name} className="h-full w-full object-cover" />
+                                                    ) : (
+                                                        <div className="flex h-full w-full items-center justify-center bg-gray-200">
+                                                            <span className="text-4xl font-bold text-gray-600">{user?.name?.charAt(0)}</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <span className="absolute bottom-0 right-0 h-4 w-4 rounded-full border-2 border-white bg-green-500" aria-label="Online" />
+                                                {isOwnProfile && (
+                                                    <label className="absolute -right-2 -bottom-2 cursor-pointer">
+                                                        <input
+                                                            type="file"
+                                                            accept="image/*"
+                                                            id="profile-picture-upload-matchmaker"
+                                                            onChange={(e) => {
+                                                                const file = e.target.files[0];
+                                                                if (!file) return;
+                                                                if (!file.type.startsWith('image/')) {
+                                                                    showToast(t('profile.invalidImageType', { defaultValue: 'Please select a valid image file.' }), undefined, 'error');
+                                                                    return;
+                                                                }
+                                                                if (file.size > 2 * 1024 * 1024) {
+                                                                    showToast(t('profile.imageTooLarge', { defaultValue: 'Image size must be less than 2MB.' }), undefined, 'error');
+                                                                    return;
+                                                                }
+                                                                const formData = new FormData();
+                                                                formData.append('profile_picture', file);
+                                                                formData.append('from_profile_page', '1');
+                                                                router.post('/settings/profile', formData, { forceFormData: true, preserveScroll: true, onSuccess: () => router.reload({ only: ['user', 'profile'] }), onError: (errors) => showToast(errors?.profile_picture || t('profile.uploadError', { defaultValue: 'Error' }), undefined, 'error') });
+                                                            }}
+                                                            className="hidden"
+                                                        />
+                                                        <Button type="button" size="sm" variant="outline" className="h-8 w-8 rounded-full border-2 border-white bg-[#8B2635] p-0 hover:bg-[#721f2b]" onClick={() => document.getElementById('profile-picture-upload-matchmaker')?.click()}>
+                                                            <Camera className="h-4 w-4 text-white" />
+                                                        </Button>
+                                                    </label>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <h2 className="text-center text-xl font-bold tracking-tight text-gray-900">{user?.name}</h2>
+                                        {user?.agency?.name && (
+                                            <p className="mt-1 text-center text-sm font-medium uppercase tracking-wider text-[#8B2635]">
+                                                {user.agency.name}
+                                            </p>
+                                        )}
+                                        <div className="mt-2 flex justify-center">
+                                            <span className="inline-block rounded-md bg-[#8B2635] px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-white">
+                                                Matchmaker
+                                            </span>
+                                        </div>
+                                        {!isOwnProfile && (
+                                            <Button
+                                                className="mt-5 w-full gap-2 rounded-lg bg-[#8B2635] text-white hover:bg-[#721f2b]"
+                                                onClick={() => {
+                                                    if (viewerRole === 'user') {
+                                                        if (assignedMatchmakerId === user?.id) router.get(`/messages?user=${user.id}`);
+                                                        else router.post(`/user/matchmakers/${user.id}/select`);
+                                                    } else {
+                                                        router.get(`/messages?user=${user.id}`);
+                                                    }
+                                                }}
+                                            >
+                                                <Mail className="h-4 w-4" />
+                                                {assignedMatchmakerId === user?.id ? 'Get in Touch' : assignedMatchmakerId ? 'Changer Matchmaker' : 'Choisir Matchmaker' }
+                                            </Button>
+                                        )}
+                                        <div className="mt-5 flex justify-center gap-2 border-t border-gray-100 pt-4">
+                                            {user?.facebook_url && (
+                                                <a href={user.facebook_url} target="_blank" rel="noopener noreferrer" className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-gray-100 text-gray-600 transition-colors hover:bg-gray-200" title="Facebook">
+                                                    <Facebook className="h-4 w-4" color='blue' />
+                                                </a>
+                                            )}
+                                            {user?.instagram_url && (
+                                                <a href={user.instagram_url} target="_blank" rel="noopener noreferrer" className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-gray-100 text-gray-600 transition-colors hover:bg-gray-200" title="Instagram">
+                                                    <Instagram className="h-4 w-4" color='pink' />
+                                                </a>
+                                            )}
+                                            {user?.linkedin_url && (
+                                                <a href={user.linkedin_url} target="_blank" rel="noopener noreferrer" className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-gray-100 text-gray-600 transition-colors hover:bg-gray-200" title="LinkedIn">
+                                                    <Linkedin className="h-4 w-4" color='blue' />
+                                                </a>
+                                            )}
+                                            {user?.youtube_url && (
+                                                <a href={user.youtube_url} target="_blank" rel="noopener noreferrer" className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-gray-100 text-gray-600 transition-colors hover:bg-gray-200" title="YouTube">
+                                                    <Youtube className="h-4 w-4" color='red' />
+                                                </a>
+                                            )}
+                                        </div>
+                                    </div>
+                                </CardContent>
+                                ) : (
                                 <CardContent className="p-6">
-                                    {/* Profile Picture */}
+                                    {/* Profile Picture - white border + light rose ring */}
                                     <div className="mb-4 flex justify-center">
                                         <div className="relative">
-                                            <div className="h-32 w-32 overflow-hidden rounded-full border-4 border-white shadow-lg">
+                                            <div className="h-32 w-32 overflow-hidden rounded-full border-4 border-white shadow-lg ring-4 ring-rose-200">
                                                 {profilePictureSrc ? (
                                                     <img src={profilePictureSrc} alt={user?.name} className="h-full w-full object-cover" />
                                                 ) : (
@@ -809,7 +923,7 @@ export default function UserProfile({
                                                         type="button"
                                                         size="sm"
                                                         variant="outline"
-                                                        className="h-8 w-8 rounded-full border-2 border-white bg-[#096725] p-0 hover:bg-[#07501d]"
+                                                        className="h-8 w-8 rounded-full border-2 border-white bg-[#8B2635] p-0 hover:bg-[#721f2b]"
                                                         onClick={(e) => {
                                                             e.preventDefault();
                                                             document.getElementById('profile-picture-upload')?.click();
@@ -822,33 +936,75 @@ export default function UserProfile({
                                         </div>
                                     </div>
 
-                                    {/* Name & Title */}
-                                    <div className="mb-4 text-center">
-                                        <h2 className="text-xl font-bold text-gray-900">{user?.name}</h2>
-                                        <p className="mt-1 text-sm text-gray-600">
-                                            {userRole === 'matchmaker' ? 'Matchmaker' : user?.profile?.situation_professionnelle || 'Member'}
-                                        </p>
-                                        <div className="mt-2 flex items-center justify-center gap-1 text-sm text-gray-500">
-                                            <MapPin className="h-4 w-4" />
-                                            <span>
-                                                {user?.city}, {user?.country}
+                                    {/* Name & Status badge & Location */}
+                                    <div className="mb-3 text-center">
+                                        <h2 className="text-xl font-bold tracking-tight text-gray-900">{user?.name}</h2>
+                                        <div className="mt-2 flex justify-center">
+                                            <span className={`inline-flex rounded-md px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide ${userRole === 'user' ? (getStatusInfo(user?.status).label === 'Client Expiré' ? 'bg-amber-100 text-amber-800' : 'bg-rose-100 text-red-700') : 'bg-rose-100 text-red-700'}`}>
+                                                {userRole === 'user' ? getStatusInfo(user?.status).label : 'Matchmaker'}
                                             </span>
                                         </div>
-
-                                        {/* Agency - Only for matchmaker/admin/manager */}
-                                        {(userRole === 'matchmaker' || userRole === 'admin' || userRole === 'manager') && user?.agency && (
-                                            <div className="mt-3">
-                                                <a
-                                                    href={`/agencies/${user.agency.id}`}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="text-sm font-medium text-[#096725] transition-colors hover:text-[#07501d] hover:underline"
-                                                >
-                                                    {user.agency.name}
-                                                </a>
-                                            </div>
-                                        )}
+                                        <div className="mt-2 flex items-center justify-center gap-1.5 text-sm text-gray-500">
+                                            <MapPin className="h-4 w-4 shrink-0 text-[#8B2635]" />
+                                            <span>{user?.city}, {user?.country}</span>
+                                        </div>
                                     </div>
+
+                                    {/* Agency, Pack & Assigned Matchmaker - label above value, icon left, chevron right */}
+                                    {userRole === 'user' && (agency || user?.agency || (subscriptions?.length > 0 && subscriptions[0]?.matrimonial_pack) || user?.profile?.matrimonial_pack || user?.profile?.matrimonialPack || user?.assignedMatchmaker || user?.assigned_matchmaker) && (
+                                        <div className="mb-5 rounded-lg border border-gray-100 bg-amber-50/80 px-4 py-3">
+                                            {(agency?.name || user?.agency?.name) && (
+                                                <div className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
+                                                    <div className="flex min-w-0 flex-1 items-center gap-3">
+                                                        <Building2 className="h-5 w-5 shrink-0 text-rose-400" />
+                                                        <div className="min-w-0">
+                                                            <p className="text-xs font-medium uppercase tracking-wider text-gray-400">Agency</p>
+                                                            <p className="truncate text-sm font-semibold text-gray-900">{agency?.name || user?.agency?.name}</p>
+                                                        </div>
+                                                    </div>
+                                                    <ChevronRight className="h-4 w-4 shrink-0 text-rose-400" />
+                                                </div>
+                                            )}
+                                            {(subscriptions?.[0]?.matrimonial_pack?.name || user?.profile?.matrimonial_pack?.name || user?.profile?.matrimonialPack?.name) && (
+                                                <div className="flex items-center justify-between gap-3 border-t border-gray-100/80 py-2.5">
+                                                    <div className="flex min-w-0 flex-1 items-center gap-3">
+                                                        <CreditCard className="h-5 w-5 shrink-0 text-rose-400" />
+                                                        <div className="min-w-0">
+                                                            <p className="text-xs font-medium uppercase tracking-wider text-gray-400">Pack type</p>
+                                                            <p className="truncate text-sm font-semibold text-gray-900">{subscriptions?.[0]?.matrimonial_pack?.name || user?.profile?.matrimonial_pack?.name || user?.profile?.matrimonialPack?.name}</p>
+                                                        </div>
+                                                    </div>
+                                                    <ChevronRight className="h-4 w-4 shrink-0 text-rose-400" />
+                                                </div>
+                                            )}
+                                            {(user?.assignedMatchmaker?.name || user?.assigned_matchmaker?.name) && (
+                                                <div className="flex items-center justify-between gap-3 border-t border-gray-100/80 py-2.5">
+                                                    <div className="flex min-w-0 flex-1 items-center gap-3">
+                                                        <UserCircle className="h-5 w-5 shrink-0 text-rose-400" />
+                                                        <div className="min-w-0">
+                                                            <p className="text-xs font-medium uppercase tracking-wider text-gray-400">Assigned matchmaker</p>
+                                                            <p className="truncate text-sm font-semibold text-gray-900">{user?.assignedMatchmaker?.name || user?.assigned_matchmaker?.name}</p>
+                                                        </div>
+                                                    </div>
+                                                    <ChevronRight className="h-4 w-4 shrink-0 text-rose-400" />
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {/* Agency link - Only for matchmaker/admin/manager profile */}
+                                    {(userRole === 'matchmaker' || userRole === 'admin' || userRole === 'manager') && user?.agency && (
+                                        <div className="mb-4">
+                                            <a
+                                                href={`/agencies/${user.agency.id}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-sm font-medium text-[#8B2635] transition-colors hover:text-[#721f2b] hover:underline"
+                                            >
+                                                {user.agency.name}
+                                            </a>
+                                        </div>
+                                    )}
 
                                     {/* Social Networks - Only for matchmaker/admin/manager */}
                                     {(userRole === 'matchmaker' || userRole === 'admin' || userRole === 'manager') && (
@@ -900,20 +1056,15 @@ export default function UserProfile({
                                         </div>
                                     )}
 
+                                    {/* Divider */}
+                                    <div className="border-t border-gray-200" />
+
                                     {/* Action Buttons */}
-                                    <div className="mb-6 flex gap-3">
-                                        {!isOwnProfile && (
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                className="h-10 w-10 rounded-full border-pink-300 p-0 hover:bg-pink-50"
-                                            >
-                                                <User className="h-5 w-5 text-pink-600" />
-                                            </Button>
-                                        )}
+                                    <div className="mt-4 flex gap-3">
+                                        {/* Staff viewing user profile: Message + View Profile */}
                                         {/* Book button - Only for non-user roles viewing matchmaker profiles */}
                                         {userRole === 'matchmaker' && !isOwnProfile && viewerRole !== 'user' && (
-                                            <Button className="flex-1 gap-2 bg-[#096725] text-white hover:bg-[#07501d]">
+                                            <Button className="flex-1 gap-2 rounded-lg bg-[#8B2635] text-white hover:bg-[#721f2b]">
                                                 <BookOpen className="h-4 w-4" />
                                                 Book {user?.name?.split(' ')[0]}
                                             </Button>
@@ -924,7 +1075,7 @@ export default function UserProfile({
                                                 {/* Case 1: No matchmaker assigned - Show "Select Matchmaker" */}
                                                 {!assignedMatchmakerId && (
                                                     <Button
-                                                        className="flex-1 gap-2 bg-[#096725] text-white hover:bg-[#07501d]"
+                                                        className="flex-1 gap-2 rounded-lg bg-[#8B2635] text-white hover:bg-[#721f2b]"
                                                         onClick={() => {
                                                             router.post(`/user/matchmakers/${user.id}/select`);
                                                         }}
@@ -937,13 +1088,13 @@ export default function UserProfile({
                                                 {/* Case 2: Visiting assigned matchmaker profile - Show "Contact Matchmaker" */}
                                                 {assignedMatchmakerId === user?.id && (
                                                     <Button
-                                                        className="flex-1 gap-2 bg-[#096725] text-white hover:bg-[#07501d]"
+                                                        className="flex-1 gap-2 rounded-lg bg-[#8B2635] text-white hover:bg-[#721f2b]"
                                                         onClick={() => {
                                                             // Navigate to messages or contact page
                                                             router.get(`/messages?user=${user.id}`);
                                                         }}
                                                     >
-                                                        <MessageSquareWarning className="h-4 w-4" />
+                                                        <Mail className="h-4 w-4" />
                                                         Contact Matchmaker
                                                     </Button>
                                                 )}
@@ -951,7 +1102,7 @@ export default function UserProfile({
                                                 {/* Case 3: Has matchmaker but visiting different matchmaker - Show "Change Matchmaker" */}
                                                 {assignedMatchmakerId && assignedMatchmakerId !== user?.id && (
                                                     <Button
-                                                        className="flex-1 gap-2 bg-[#096725] text-white hover:bg-[#07501d]"
+                                                        className="flex-1 gap-2 rounded-lg bg-[#8B2635] text-white hover:bg-[#721f2b]"
                                                         onClick={() => {
                                                             router.post(`/user/matchmakers/${user.id}/select`);
                                                         }}
@@ -964,6 +1115,7 @@ export default function UserProfile({
                                         )}
                                     </div>
                                 </CardContent>
+                                )}
                             </Card>
                         </div>
 
@@ -2930,6 +3082,26 @@ export default function UserProfile({
                     </div>
                 </div>
             </div>
+
+            {/* Delete Banner Confirmation Dialog */}
+            <Dialog open={bannerDeleteOpen} onOpenChange={setBannerDeleteOpen}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>{t('profile.removeBanner', { defaultValue: 'Remove' })}</DialogTitle>
+                        <DialogDescription>
+                            {t('profile.deleteBannerConfirm', { defaultValue: 'Are you sure you want to remove your banner image?' })}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setBannerDeleteOpen(false)}>
+                            {t('common.cancel', { defaultValue: 'Cancel' })}
+                        </Button>
+                        <Button variant="destructive" onClick={handleBannerDelete}>
+                            {t('profile.removeBanner', { defaultValue: 'Remove' })}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             {/* Delete Photo Confirmation Dialog */}
             <Dialog open={!!photoToDelete} onOpenChange={(open) => { if (!open) setPhotoToDelete(null); }}>
