@@ -22,7 +22,7 @@ class PostController extends Controller
         $posts = Post::with([
             'user.profile', 
             'agency', 
-            'likes', 
+            'likes.user.profile', 
             'comments' => function($query) {
                 $query->whereNull('parent_id')
                     ->with(['user.roles', 'user.profile', 'replies.user.roles', 'replies.user.profile']);
@@ -268,9 +268,13 @@ class PostController extends Controller
     public function deleteComment(PostComment $comment)
     {
         $user = Auth::user();
-        
-        // Only the comment owner can delete (or admin)
-        if ($comment->user_id !== $user->id && !$user->hasRole('admin')) {
+        $comment->load('user');
+
+        $isOwner = $comment->user_id === $user->id;
+        $isAdmin = $user->hasRole('admin');
+        $matchmakerDeletingUserComment = $user->hasRole('matchmaker') && $comment->user && $comment->user->hasRole('user');
+
+        if (!$isOwner && !$isAdmin && !$matchmakerDeletingUserComment) {
             abort(403, 'Unauthorized');
         }
 
@@ -334,7 +338,7 @@ class PostController extends Controller
             'user.profile', 
             'user.roles', 
             'agency', 
-            'likes', 
+            'likes.user.profile', 
             'comments' => function($query) {
                 $query->whereNull('parent_id')
                     ->with(['user.roles', 'user.profile', 'replies.user.roles', 'replies.user.profile']);

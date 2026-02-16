@@ -2,12 +2,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { router, usePage } from '@inertiajs/react';
+import { Link, router, usePage } from '@inertiajs/react';
 import { ChevronLeft, ChevronRight, Heart, MessageCircle, Trash2, Edit2, X, Send } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 export default function PostCard({ post }) {
     const { auth } = usePage().props;
+    const isMatchmaker = auth?.user?.roles?.[0]?.name === 'matchmaker';
     const [showComments, setShowComments] = useState(true);
     const [newComment, setNewComment] = useState('');
     const [isLiking, setIsLiking] = useState(false);
@@ -25,6 +26,8 @@ export default function PostCard({ post }) {
     const [isReplying, setIsReplying] = useState(false);
     const [isUpdatingComment, setIsUpdatingComment] = useState(false);
     const [commentToDelete, setCommentToDelete] = useState(null);
+    const [showLikersModal, setShowLikersModal] = useState(false);
+    const [showCommentsModal, setShowCommentsModal] = useState(false);
 
     // Handle multiple images
     const imageUrls = post.media_urls || (post.media_url ? [post.media_url] : []);
@@ -403,6 +406,43 @@ export default function PostCard({ post }) {
         return postDate.toLocaleDateString();
     };
 
+    const formatTimeAgoLong = (date) => {
+        const now = new Date();
+        const postDate = new Date(date);
+        const diffMs = now - postDate;
+        const diffMins = Math.floor(diffMs / (1000 * 60));
+        const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+        const diffMonths = Math.floor(diffDays / 30);
+        const diffYears = Math.floor(diffDays / 365);
+        if (diffMins < 1) return "À l'instant";
+        if (diffMins < 60) return `Il y a ${diffMins} min`;
+        if (diffHours < 24) return `Il y a ${diffHours}h`;
+        if (diffDays === 1) return 'Il y a 1 jour';
+        if (diffDays < 30) return `Il y a ${diffDays} jours`;
+        if (diffMonths === 1) return 'Il y a 1 mois';
+        if (diffMonths < 12) return `Il y a ${diffMonths} mois`;
+        if (diffYears === 1) return 'Il y a 1 an';
+        return `Il y a ${diffYears} ans`;
+    };
+
+    const getLikerAvatarUrl = (like) => {
+        const user = like?.user;
+        if (!user) return null;
+        if (user?.profile?.profile_picture_path) return `/storage/${user.profile.profile_picture_path}`;
+        if (user?.profile_picture) return `/storage/${user.profile_picture}`;
+        return `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || '')}&background=dc2626&color=fff`;
+    };
+
+    const likers = (post.likes || []).filter((like) => like?.user).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+    const getCommenterAvatarUrl = (user) => {
+        if (!user) return null;
+        if (user?.profile?.profile_picture_path) return `/storage/${user.profile.profile_picture_path}`;
+        if (user?.profile_picture) return `/storage/${user.profile_picture}`;
+        return `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || '')}&background=dc2626&color=fff`;
+    };
+
     const getYouTubeVideoId = (url) => {
         const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/);
         return match ? match[1] : null;
@@ -505,8 +545,28 @@ export default function PostCard({ post }) {
 
                 {/* Engagement Stats */}
                 <div className="text-muted-foreground mb-4 flex items-center gap-4 text-sm">
-                    <span>{likesCount} j'aime</span>
-                    <span>{commentsCount} commentaires</span>
+                    {likesCount > 0 ? (
+                        <button
+                            type="button"
+                            onClick={() => setShowLikersModal(true)}
+                            className="hover:text-foreground cursor-pointer underline-offset-2 hover:underline"
+                        >
+                            {likesCount} j'aime
+                        </button>
+                    ) : (
+                        <span>{likesCount} j'aime</span>
+                    )}
+                    {commentsCount > 0 ? (
+                        <button
+                            type="button"
+                            onClick={() => setShowCommentsModal(true)}
+                            className="hover:text-foreground cursor-pointer underline-offset-2 hover:underline"
+                        >
+                            {commentsCount} commentaires
+                        </button>
+                    ) : (
+                        <span>{commentsCount} commentaires</span>
+                    )}
                 </div>
 
                 {/* Action Buttons */}
@@ -612,6 +672,14 @@ export default function PostCard({ post }) {
                                                                     </button>
                                                                 </>
                                                             )}
+                                                            {auth.user.id !== comment.user_id && isMatchmaker && comment.user?.roles?.[0]?.name === 'user' && (
+                                                                <button 
+                                                                    className="hover:text-destructive"
+                                                                    onClick={() => setCommentToDelete(comment.id)}
+                                                                >
+                                                                    Supprimer
+                                                                </button>
+                                                            )}
                                                         </div>
                                                     </>
                                                 )}
@@ -687,7 +755,7 @@ export default function PostCard({ post }) {
                                                                         <h5 className="text-foreground text-xs font-medium">{reply.user?.name || 'Unknown User'}</h5>
                                                                         <p className="text-foreground mt-1 text-xs">{reply.content}</p>
                                                                     </div>
-                                                                    <div className="text-muted-foreground mt-1 flex items-center gap-3 text-xs">
+<div className="text-muted-foreground mt-1 flex items-center gap-3 text-xs">
                                                                         <span>{formatTimeAgo(reply.created_at)}</span>
                                                                         {auth.user.id === reply.user_id && (
                                                                             <>
@@ -705,7 +773,15 @@ export default function PostCard({ post }) {
                                                                                 </button>
                                                                             </>
                                                                         )}
-                                                                    </div>
+                                                                        {auth.user.id !== reply.user_id && isMatchmaker && reply.user?.roles?.[0]?.name === 'user' && (
+                                                                            <button 
+                                                                                className="hover:text-destructive"
+                                                                                onClick={() => setCommentToDelete(reply.id)}
+                                                                            >
+                                                                                Supprimer
+                                                                            </button>
+                                                                        )}
+                                                                        </div>
                                                                 </>
                                                             )}
                                                         </div>
@@ -740,6 +816,179 @@ export default function PostCard({ post }) {
                     </div>
                 )}
             </CardContent>
+
+            {/* Comments Modal */}
+            <Dialog open={showCommentsModal} onOpenChange={setShowCommentsModal}>
+                <DialogContent className="max-h-[85vh] max-w-md overflow-hidden rounded-xl border border-border bg-background p-0 shadow-lg">
+                    <DialogHeader className="border-border flex flex-row items-center justify-between space-y-0 border-b px-5 py-4">
+                        <DialogTitle className="text-red-600 text-lg font-semibold uppercase tracking-wide">Comments</DialogTitle>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-red-600 hover:bg-red-50 hover:text-red-700 -mr-2 h-8 w-8 shrink-0 rounded-full"
+                            onClick={() => setShowCommentsModal(false)}
+                            aria-label="Fermer"
+                        >
+                            <X className="h-4 w-4" />
+                        </Button>
+                    </DialogHeader>
+                    <div className="max-h-[60vh] overflow-y-auto px-4 py-4">
+                        {!(comments && comments.length > 0) ? (
+                            <div className="flex flex-col items-center justify-center py-10">
+                                <div className="bg-red-50 text-red-600 mb-4 flex h-16 w-16 items-center justify-center rounded-full">
+                                    <MessageCircle className="h-8 w-8" />
+                                </div>
+                                <p className="text-muted-foreground mb-1 text-sm italic">No comments yet.</p>
+                                <p className="text-muted-foreground text-sm">Be the first to start the discussion!</p>
+                            </div>
+                        ) : (
+                            <ul className="space-y-4">
+                                {comments.map((comment) => (
+                                    <li key={comment.id} className="space-y-2">
+                                        <div className="flex items-start gap-3">
+                                            <Link
+                                                href={`/profile/${comment.user?.username || comment.user?.id}`}
+                                                onClick={() => setShowCommentsModal(false)}
+                                                className="shrink-0"
+                                            >
+                                                <div className="relative h-9 w-9 overflow-hidden rounded-full border-2 border-red-500 bg-muted">
+                                                    {getCommenterAvatarUrl(comment.user) ? (
+                                                        <img
+                                                            src={getCommenterAvatarUrl(comment.user)}
+                                                            alt={comment.user?.name || ''}
+                                                            className="h-full w-full object-cover"
+                                                        />
+                                                    ) : (
+                                                        <span className="text-muted-foreground flex h-full w-full items-center justify-center text-xs font-medium">
+                                                            {comment.user?.name?.charAt(0)?.toUpperCase() || '?'}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </Link>
+                                            <div className="min-w-0 flex-1">
+                                                <Link
+                                                    href={`/profile/${comment.user?.username || comment.user?.id}`}
+                                                    onClick={() => setShowCommentsModal(false)}
+                                                    className="text-foreground hover:underline text-sm font-medium"
+                                                >
+                                                    {comment.user?.name || 'Utilisateur'}
+                                                </Link>
+                                                <p className="text-foreground mt-0.5 text-sm">{comment.content}</p>
+                                                <span className="text-muted-foreground text-xs">{formatTimeAgoLong(comment.created_at)}</span>
+                                            </div>
+                                        </div>
+                                        {comment.replies && comment.replies.length > 0 && (
+                                            <div className="ml-11 space-y-2 border-l-2 border-red-200 pl-3">
+                                                {comment.replies.map((reply) => (
+                                                    <div key={reply.id} className="flex items-start gap-2">
+                                                        <Link
+                                                            href={`/profile/${reply.user?.username || reply.user?.id}`}
+                                                            onClick={() => setShowCommentsModal(false)}
+                                                            className="shrink-0"
+                                                        >
+                                                            <div className="relative h-7 w-7 overflow-hidden rounded-full border-2 border-red-500 bg-muted">
+                                                                {getCommenterAvatarUrl(reply.user) ? (
+                                                                    <img
+                                                                        src={getCommenterAvatarUrl(reply.user)}
+                                                                        alt={reply.user?.name || ''}
+                                                                        className="h-full w-full object-cover"
+                                                                    />
+                                                                ) : (
+                                                                    <span className="text-muted-foreground flex h-full w-full items-center justify-center text-xs font-medium">
+                                                                        {reply.user?.name?.charAt(0)?.toUpperCase() || '?'}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </Link>
+                                                        <div className="min-w-0 flex-1">
+                                                            <Link
+                                                                href={`/profile/${reply.user?.username || reply.user?.id}`}
+                                                                onClick={() => setShowCommentsModal(false)}
+                                                                className="text-foreground hover:underline text-sm font-medium"
+                                                            >
+                                                                {reply.user?.name || 'Utilisateur'}
+                                                            </Link>
+                                                            <p className="text-foreground mt-0.5 text-sm">{reply.content}</p>
+                                                            <span className="text-muted-foreground text-xs">{formatTimeAgoLong(reply.created_at)}</span>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Liked by Modal */}
+            <Dialog open={showLikersModal} onOpenChange={setShowLikersModal}>
+                <DialogContent className="max-h-[85vh] max-w-md overflow-hidden rounded-xl border border-border bg-background p-0 shadow-lg">
+                    <DialogHeader className="border-border space-y-1 border-b px-5 py-4">
+                        <div className="flex items-start justify-between">
+                            <div>
+                                <DialogTitle className="text-foreground text-lg font-semibold">Liked by</DialogTitle>
+                                <DialogDescription className="text-muted-foreground mt-0.5 text-sm">
+                                    {likers.length} {likers.length === 1 ? 'personne' : 'personnes'}
+                                </DialogDescription>
+                            </div>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-muted-foreground hover:text-foreground -mr-2 -mt-1 h-8 w-8 shrink-0 rounded-full"
+                                onClick={() => setShowLikersModal(false)}
+                                aria-label="Fermer"
+                            >
+                                <X className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    </DialogHeader>
+                    <div className="max-h-[60vh] overflow-y-auto px-4 py-3">
+                        {likers.length === 0 ? (
+                            <p className="text-muted-foreground py-6 text-center text-sm">Aucun like pour le moment.</p>
+                        ) : (
+                            <ul className="space-y-2">
+                                {likers.map((like) => {
+                                    const user = like.user;
+                                    const profileUrl = `/profile/${user?.username || user?.id}`;
+                                    const avatarUrl = getLikerAvatarUrl(like);
+                                    return (
+                                        <li key={like.id}>
+                                            <Link
+                                                href={profileUrl}
+                                                className="bg-muted/60 hover:bg-muted flex cursor-pointer items-center gap-3 rounded-xl border border-border/50 px-3 py-2.5 transition-colors"
+                                                onClick={() => setShowLikersModal(false)}
+                                            >
+                                                <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full border-2 border-red-500 bg-muted">
+                                                    {avatarUrl ? (
+                                                        <img
+                                                            src={avatarUrl}
+                                                            alt={user?.name || ''}
+                                                            className="h-full w-full object-cover"
+                                                        />
+                                                    ) : (
+                                                        <span className="text-muted-foreground flex h-full w-full items-center justify-center text-sm font-medium">
+                                                            {user?.name?.charAt(0)?.toUpperCase() || '?'}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <div className="min-w-0 flex-1">
+                                                    <span className="text-foreground truncate font-medium">{user?.name || 'Utilisateur'}</span>
+                                                </div>
+                                                <span className="text-muted-foreground shrink-0 text-xs">
+                                                    {formatTimeAgoLong(like.created_at)}
+                                                </span>
+                                            </Link>
+                                        </li>
+                                    );
+                                })}
+                            </ul>
+                        )}
+                    </div>
+                </DialogContent>
+            </Dialog>
 
             {/* Delete Post Confirmation Dialog */}
             <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>

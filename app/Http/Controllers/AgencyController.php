@@ -67,7 +67,7 @@ class AgencyController extends Controller
             'user' => function($query) {
                 $query->with('roles');
             },
-            'likes',
+            'likes.user.profile',
             'comments.user.roles',
             'comments.user.profile'
         ])
@@ -82,7 +82,7 @@ class AgencyController extends Controller
                 $query->with('roles');
             },
             'agency',
-            'likes',
+            'likes.user.profile',
             'comments.user.roles',
             'comments.user.profile'
         ])

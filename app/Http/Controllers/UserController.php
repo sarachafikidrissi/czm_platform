@@ -42,7 +42,7 @@ class UserController extends Controller
                 $join->on('posts.user_id', '=', 'latest_posts.user_id')
                      ->on('posts.created_at', '=', 'latest_posts.latest_created_at');
             })
-            ->with(['user.profile', 'user.agency', 'likes', 'comments.user.roles', 'comments.user.profile'])
+            ->with(['user.profile', 'user.agency', 'likes.user.profile', 'comments.user.roles', 'comments.user.profile'])
             ->orderBy('posts.created_at', 'desc')
             ->paginate(10);
 
@@ -114,7 +114,7 @@ class UserController extends Controller
             'roles', 
             'assignedMatchmaker:id,agency_id,name,email', // Include more fields for better debugging
             'posts' => function($query) {
-                $query->with(['user.profile','user', 'likes', 'comments.user.roles', 'comments.user.profile'])
+                $query->with(['user.profile','user', 'likes.user.profile', 'comments.user.roles', 'comments.user.profile'])
                       ->orderBy('created_at', 'desc');
             }, 
             'photos',

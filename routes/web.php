@@ -152,7 +152,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // Load posts for managers (agency posts)
         $posts = null;
         if ($role === 'manager' && $user && $user->agency_id) {
-            $posts = \App\Models\Post::with(['user.profile', 'agency', 'likes', 'comments.user.roles', 'comments.user.profile'])
+            $posts = \App\Models\Post::with(['user.profile', 'agency', 'likes.user.profile', 'comments.user.roles', 'comments.user.profile'])
                 ->where('agency_id', $user->agency_id)
                 ->orderBy('created_at', 'desc')
                 ->paginate(10);
