@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import AppLayout from '@/layouts/app-layout';
 import { Head, router, usePage } from '@inertiajs/react';
-import { BookOpen, Building2, Camera, ChevronRight, Eye, Facebook, Heart, Instagram, Linkedin, Mail, MapPin, MessageSquareWarning, User, X, Youtube, Trash2, MoreVertical, UserCircle, Image, ThumbsUp, CheckCircle, Coffee, CreditCard, Lightbulb, Phone, ArrowRightLeft, Pencil, FileText, Calendar, Search, ShoppingCart, GraduationCap, Briefcase } from 'lucide-react';
+import { BookOpen, Building2, Camera, ChevronRight, Eye, Facebook, Heart, Instagram, Linkedin, Mail, MapPin, MessageSquareWarning, User, X, Youtube, Trash2, MoreVertical, UserCircle, Image, ThumbsUp, CheckCircle, Coffee, CreditCard, Lightbulb, Phone, ArrowRightLeft, Pencil, FileText, Calendar, Search, ShoppingCart, GraduationCap, Briefcase, Star } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useToast } from '@/hooks/use-toast';
@@ -357,7 +357,7 @@ export default function UserProfile({
                'N/A';
     };
 
-    // Helper function to get status info
+    // Helper function to get status info (fallback when no pack)
     const getStatusInfo = (userStatus) => {
         switch (userStatus) {
             case 'member':
@@ -369,6 +369,35 @@ export default function UserProfile({
             default:
                 return { label: userStatus || 'Unknown', className: 'bg-gray-500 text-white' };
         }
+    };
+
+    // Pack-based badge style (same as dashboard): Bronze/Silver/Gold/Diamond
+    function getPackBadgeStyle(packName, status) {
+        const prefix = status === 'client' ? 'Client' : 'Member';
+        const name = packName || '';
+        if (name === 'Pack Bronze') {
+            return { label: `${prefix} Bronze`, className: 'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-bold shadow-sm bg-gradient-to-b from-amber-700 to-amber-900 text-amber-50' };
+        }
+        if (name === 'Pack Silver') {
+            return { label: `${prefix} Silver`, className: 'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-bold shadow-md bg-gradient-to-b from-gray-300 to-gray-500 text-gray-800' };
+        }
+        if (name === 'Pack Gold') {
+            return { label: `${prefix} Gold`, className: 'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-bold shadow-sm bg-gradient-to-b from-amber-400 via-amber-500 to-amber-700 text-amber-950', icon: Star };
+        }
+        if (name === 'Pack Diamond') {
+            return { label: `${prefix} Diamond`, className: 'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-bold shadow-sm bg-gradient-to-b from-gray-600 via-gray-700 to-gray-900 text-white ring-1 ring-white/20' };
+        }
+        return { label: prefix, className: 'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-bold bg-muted text-muted-foreground' };
+    }
+
+    // Status badge: pack style when user has a pack, else getStatusInfo
+    const getStatusBadgeInfo = () => {
+        const packName = user?.profile?.matrimonial_pack?.name ?? user?.profile?.matrimonialPack?.name ?? subscriptions?.[0]?.matrimonial_pack?.name;
+        const statusForPrefix = user?.status === 'client_expire' ? 'client' : user?.status;
+        if (packName) {
+            return getPackBadgeStyle(packName, statusForPrefix);
+        }
+        return getStatusInfo(user?.status);
     };
 
     // Handle profile picture upload for matchmakers
@@ -940,9 +969,20 @@ export default function UserProfile({
                                     <div className="mb-3 text-center">
                                         <h2 className="text-xl font-bold tracking-tight text-gray-900">{user?.name}</h2>
                                         <div className="mt-2 flex justify-center">
-                                            <span className={`inline-flex rounded-md px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide ${userRole === 'user' ? (getStatusInfo(user?.status).label === 'Client Expiré' ? 'bg-amber-100 text-amber-800' : 'bg-rose-100 text-red-700') : 'bg-rose-100 text-red-700'}`}>
-                                                {userRole === 'user' ? getStatusInfo(user?.status).label : 'Matchmaker'}
-                                            </span>
+                                            {userRole === 'user' ? (() => {
+                                                const badge = getStatusBadgeInfo();
+                                                const StatusIcon = badge.icon;
+                                                return (
+                                                    <span className={user?.status == 'prospect' ? 'inline-flex rounded-md px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide bg-rose-100 text-red-700' : badge.className}>
+                                                        {StatusIcon && <StatusIcon className="h-3.5 w-3.5" strokeWidth={2.5} />}
+                                                        {badge.label}
+                                                    </span>
+                                                );
+                                            })() : (
+                                                <span className="inline-flex rounded-md px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide bg-rose-100 text-red-700">
+                                                    Matchmaker
+                                                </span>
+                                            )}
                                         </div>
                                         <div className="mt-2 flex items-center justify-center gap-1.5 text-sm text-gray-500">
                                             <MapPin className="h-4 w-4 shrink-0 text-[#8B2635]" />
@@ -1255,9 +1295,16 @@ export default function UserProfile({
                                                             </div>
                                                             <div>
                                                                 <p className="text-sm font-medium text-gray-600 mb-2">Statut</p>
-                                                                <Badge className={getStatusInfo(user?.status).className}>
-                                                                    {getStatusInfo(user?.status).label}
-                                                                </Badge>
+                                                                {(() => {
+                                                                    const badge = getStatusBadgeInfo();
+                                                                    const StatusIcon = badge.icon;
+                                                                    return (
+                                                                        <span className={badge.className}>
+                                                                            {StatusIcon && <StatusIcon className="h-3.5 w-3.5" strokeWidth={2.5} />}
+                                                                            {badge.label}
+                                                                        </span>
+                                                                    );
+                                                                })()}
                                                             </div>
                                                             {user?.profile?.account_status && (
                                                                 <div>

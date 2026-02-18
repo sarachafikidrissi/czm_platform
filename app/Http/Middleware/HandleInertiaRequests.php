@@ -47,7 +47,12 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => function () use ($request) {
                     $user = $request->user();
-                    return $user ? $user->loadMissing('assignedMatchmaker') : null;
+                    return $user ? $user->loadMissing(['assignedMatchmaker', 'profile']) : null;
+                },
+                'profile_completed' => function () use ($request) {
+                    $user = $request->user();
+                    $profile = $user?->profile;
+                    return $profile && $profile->exists ? (bool) $profile->is_completed : false;
                 },
             ],
             // Expose the first role name globally for frontend role-based UI

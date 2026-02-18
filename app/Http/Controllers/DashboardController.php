@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Agency;
+use App\Models\MatrimonialPack;
+use App\Models\Profile;
 use App\Models\Post;
 use App\Models\User;
 use Carbon\Carbon;
@@ -26,6 +28,7 @@ class DashboardController extends Controller
         $stats = null;
         $posts = null;
         $profile = null;
+        $matrimonialPackName = null;
         $subscriptionReminder = null;
         $accountStatus = null;
         $rejectedBy = null;
@@ -53,8 +56,12 @@ class DashboardController extends Controller
         
         // User dashboard data
         if ($role === 'user' && $user) {
-            $profile = $user->profile;
+            $profile = Profile::where('user_id', $user->id)->with('matrimonialPack')->first();
             $accountStatus = $profile ? $profile->account_status : 'active';
+            if ($profile) {
+                $matrimonialPackName = $profile->matrimonialPack?->name
+                    ?? ($profile->matrimonial_pack_id ? MatrimonialPack::find($profile->matrimonial_pack_id)?->name : null);
+            }
             $user->load('assignedMatchmaker');
             
             // Refresh subscriptions relationship to ensure we have the latest data
@@ -75,6 +82,7 @@ class DashboardController extends Controller
             'agencies' => $agencies,
             'stats' => $stats,
             'profile' => $profile,
+            'matrimonialPackName' => $matrimonialPackName,
             'subscriptionReminder' => $subscriptionReminder,
             'accountStatus' => $accountStatus,
             'rejectedBy' => $rejectedBy ? [

@@ -179,6 +179,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         // For user role, load profile data and subscription reminders
         $profile = null;
+        $matrimonialPackName = null;
         $subscription = null;
         $subscriptionReminder = null;
         $accountStatus = null;
@@ -187,11 +188,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
         $expiredSubscription = null;
         
         if ($role === 'user' && $user) {
-            $profile = $user->profile;
+            // Load profile from DB so we have a real record (avoids withDefault() virtual model)
+            $profile = \App\Models\Profile::where('user_id', $user->id)->with('matrimonialPack')->first();
             $accountStatus = $profile ? $profile->account_status : 'active';
+            if ($profile) {
+                $matrimonialPackName = $profile->matrimonialPack?->name
+                    ?? ($profile->matrimonial_pack_id ? \App\Models\MatrimonialPack::find($profile->matrimonial_pack_id)?->name : null);
+            }
             // Load assigned matchmaker for desactivated accounts
             $user->load('assignedMatchmaker');
-            
             // Load rejection information if user is rejected
             if ($user->rejected_by) {
                 $rejectedBy = \App\Models\User::find($user->rejected_by);
@@ -308,6 +313,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             'agencies' => $agencies,
             'stats' => $stats,
             'profile' => $profile,
+            'matrimonialPackName' => $matrimonialPackName,
             'subscriptionReminder' => $subscriptionReminder,
             'accountStatus' => $accountStatus,
             'rejectedBy' => $rejectedBy ? [
@@ -392,6 +398,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/prospects/{user}/accept', [\App\Http\Controllers\MatchmakerController::class, 'acceptRejectedProspect'])->name('prospects.accept');
         Route::post('/prospects/{user}/rappeler', [\App\Http\Controllers\MatchmakerController::class, 'markAsRappeler'])->name('prospects.rappeler');
         Route::post('/prospects/{user}/toggle-traite', [\App\Http\Controllers\MatchmakerController::class, 'toggleTraite'])->name('prospects.toggle-traite');
+        Route::put('/prospects/{user}/password', [\App\Http\Controllers\MatchmakerController::class, 'updateProspectPassword'])->name('prospects.password.update');
         Route::get('/validated-prospects', [\App\Http\Controllers\MatchmakerController::class, 'validatedProspects'])->name('prospects.validated');
         Route::get('/evaluated-users', [\App\Http\Controllers\MatchmakerController::class, 'evaluatedUsers'])->name('evaluated-users');
         Route::post('/mark-as-client', [\App\Http\Controllers\MatchmakerController::class, 'markAsClient'])->name('mark-as-client');

@@ -234,11 +234,19 @@ export function AppSidebar() {
     // Get navigation items with translations
     const mainNavItems = getMainNavItems(t, role);
     
+    // Profile completed: use auth.profile_completed (avoids withDefault() virtual profile)
+    const profileCompleted = (props as any)?.auth?.profile_completed === true;
+
     // Process nav items to handle dynamic URLs and conditional titles
     const processedNavItems = mainNavItems.map(item => {
         const updatedItem = { ...item };
         
-        // Handle dynamic profile URL
+        // User "My Profile": completed → /profile/{username}, else → /profile-info
+        if (item.url === '/profile-info' && role === 'user') {
+            updatedItem.url = profileCompleted && user?.username ? `/profile/${user.username}` : '/profile-info';
+        }
+        
+        // Handle dynamic profile URL (matchmaker/manager)
         if (item.url === '/user/profile/{username}' && user?.username) {
             updatedItem.url = `/profile/${user.username}`;
         }

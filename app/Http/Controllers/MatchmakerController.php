@@ -612,6 +612,52 @@ class MatchmakerController extends Controller
         return redirect()->back()->with('success', "Prospect marqué comme {$status}.");
     }
 
+    /**
+     * Update prospect password (staff: matchmaker/manager/admin).
+     * Old password cannot be shown (stored hashed). Staff sets a new password.
+     */
+    public function updateProspectPassword(Request $request, $id)
+    {
+        $me = Auth::user();
+        if (!$me) {
+            abort(403, 'Unauthorized.');
+        }
+
+        $roleName = \Illuminate\Support\Facades\DB::table('model_has_roles')
+            ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+            ->where('model_has_roles.model_id', $me->id)
+            ->value('roles.name');
+
+        if (!in_array($roleName, ['matchmaker', 'manager', 'admin'])) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $prospect = User::findOrFail($id);
+
+        $canUpdate = false;
+        if ($roleName === 'admin') {
+            $canUpdate = true;
+        } elseif ($roleName === 'matchmaker') {
+            $canUpdate = $prospect->assigned_matchmaker_id === $me->id;
+        } elseif ($roleName === 'manager') {
+            $canUpdate = ($prospect->agency_id && $prospect->agency_id === $me->agency_id) || $prospect->assigned_matchmaker_id === $me->id;
+        }
+
+        if (!$canUpdate) {
+            abort(403, 'You are not authorized to update this prospect\'s password.');
+        }
+
+        $request->validate([
+            'password' => ['required', 'confirmed', Rules\Password::defaults()],
+        ]);
+
+        $prospect->update([
+            'password' => Hash::make($request->password),
+        ]);
+
+        return redirect()->back()->with('success', 'Mot de passe mis à jour.');
+    }
+
     public function validatedProspects(Request $request)
     {
         // Allow roles: admin, manager, matchmaker (middleware handles role)

@@ -1,27 +1,59 @@
+import PostCard from '@/components/posts/PostCard';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { Toast } from '@/components/ui/toast';
 import AppLayout from '@/layouts/app-layout';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { AlertCircle, Bell, CheckCircle, Clock, HeartHandshake, Mail, Phone, ShoppingCart, User, Receipt } from 'lucide-react';
+import { AlertCircle, Bell, CheckCircle, Clock, HeartHandshake, Mail, Phone, Receipt, ShoppingCart, Star, User } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import AdminDashboardContent from './admin/adminDashboardContent';
 import ManagerDashboardContent from './manager/managerDashboardContent';
 import MatchMakerDashboardContent from './matchmaker/matchmakerDashboardContent';
-import PostCard from '@/components/posts/PostCard';
-import { Skeleton } from '@/components/ui/skeleton';
 
-function UserDashboardContent({ user, profile, subscriptionReminder, accountStatus, rejectedBy, unpaidBill, expiredSubscription, recentPosts }) {
+function getPackBadgeStyle(packName, status) {
+    const prefix = status === 'client' ? 'Client' : 'Member';
+    const name = packName || '';
+    if (name === 'Pack Bronze') {
+        return { label: `${prefix} Bronze`, className: 'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-bold shadow-sm bg-gradient-to-b from-amber-700 to-amber-900 text-amber-50' };
+    }
+    if (name === 'Pack Silver') {
+        return { label: `${prefix} Silver`, className: 'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-bold shadow-md bg-gradient-to-b from-gray-300 to-gray-500 text-gray-800' };
+    }
+    if (name === 'Pack Gold') {
+        return { label: `${prefix} Gold`, className: 'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-bold shadow-sm bg-gradient-to-b from-amber-400 via-amber-500 to-amber-700 text-amber-950', icon: Star };
+    }
+    if (name === 'Pack Diamond') {
+        return { label: `${prefix} Diamond`, className: 'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-bold shadow-sm bg-gradient-to-b from-gray-600 via-gray-700 to-gray-900 text-white ring-1 ring-white/20' };
+    }
+    return { label: prefix, className: 'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-bold bg-muted text-muted-foreground' };
+}
+
+function UserDashboardContent({
+    user,
+    profile,
+    matrimonialPackName,
+    subscriptionReminder,
+    accountStatus,
+    rejectedBy,
+    unpaidBill,
+    expiredSubscription,
+    recentPosts,
+}) {
     const { t } = useTranslation();
 
-    const isProfileComplete = profile?.is_completed;
+    const packName = matrimonialPackName ?? profile?.matrimonial_pack?.name;
     const userStatus = user?.status;
+    const packBadge = getPackBadgeStyle(packName, userStatus);
+    const PackIcon = packBadge.icon;
+
+    const isProfileComplete = profile?.is_completed;
     const approvalStatus = user?.approval_status;
     const hasAssignedMatchmaker = user?.assigned_matchmaker_id;
     const isDesactivated = accountStatus === 'desactivated';
@@ -70,16 +102,10 @@ function UserDashboardContent({ user, profile, subscriptionReminder, accountStat
                                             </p>
                                         )}
                                     </div>
-                                    <p className="text-error mt-3 text-sm">
-                                        {t('dashboard.reactivationRequest')}
-                                    </p>
+                                    <p className="text-error mt-3 text-sm">{t('dashboard.reactivationRequest')}</p>
                                 </div>
                             )}
-                            {!assignedMatchmaker && (
-                                <p className="text-error text-sm">
-                                    {t('dashboard.reactivationRequestNoMatchmaker')}
-                                </p>
-                            )}
+                            {!assignedMatchmaker && <p className="text-error text-sm">{t('dashboard.reactivationRequestNoMatchmaker')}</p>}
                             <Dialog open={reactivationOpen} onOpenChange={setReactivationOpen}>
                                 <DialogTrigger asChild>
                                     <Button className="mt-4" variant="default">
@@ -159,11 +185,11 @@ function UserDashboardContent({ user, profile, subscriptionReminder, accountStat
                     <Toast
                         variant="error"
                         title={t('orders.invoice')}
-                        message={t('orders.unpaidBillMessage', { 
+                        message={t('orders.unpaidBillMessage', {
                             billNumber: unpaidBill.bill_number,
                             amount: parseFloat(unpaidBill.total_amount).toLocaleString(),
                             currency: unpaidBill.currency,
-                            dueDate: unpaidBill.due_date
+                            dueDate: unpaidBill.due_date,
                         })}
                         actionLabel={t('orders.viewInvoices')}
                         onAction={() => router.visit('/user/bills')}
@@ -188,10 +214,12 @@ function UserDashboardContent({ user, profile, subscriptionReminder, accountStat
                     <Toast
                         variant="error"
                         title={t('dashboard.subscriptionExpired')}
-                        message={t('dashboard.subscriptionExpiredMessage', { 
+                        message={t('dashboard.subscriptionExpiredMessage', {
                             packName: expiredSubscription.packName,
                             date: expiredSubscription.expirationDate,
-                            matchmaker: expiredSubscription.matchmaker ? `${expiredSubscription.matchmaker.name}${expiredSubscription.matchmaker.phone ? ` ${expiredSubscription.matchmaker.phone}` : ''}${expiredSubscription.matchmaker.email ? ` ${expiredSubscription.matchmaker.email}` : ''}` : ''
+                            matchmaker: expiredSubscription.matchmaker
+                                ? `${expiredSubscription.matchmaker.name}${expiredSubscription.matchmaker.phone ? ` ${expiredSubscription.matchmaker.phone}` : ''}${expiredSubscription.matchmaker.email ? ` ${expiredSubscription.matchmaker.email}` : ''}`
+                                : '',
                         })}
                         icon={<AlertCircle className="h-5 w-5 text-[#e0495a]" />}
                     />
@@ -204,18 +232,18 @@ function UserDashboardContent({ user, profile, subscriptionReminder, accountStat
                 {isRejected && (
                     <Alert className="bg-error-light border-error">
                         <AlertDescription>
-                            <div className="space-y-3  w-full">
+                            <div className="w-full space-y-3">
                                 <div className="flex items-center justify-center gap-2 font-bold">
                                     <AlertCircle className="text-error" />
                                     <h3 className="text-error text-4xl font-semibold">{t('dashboard.rejectionTitle')}</h3>
                                 </div>
                                 <div className="space-y-2">
-                                    <div className='flex items-center gap-2 '>
-                                        <p className="text-sm ">{t('dashboard.rejectionReason')}</p>
+                                    <div className="flex items-center gap-2">
+                                        <p className="text-sm">{t('dashboard.rejectionReason')}</p>
                                         <p className="text-error text-sm">
                                             {rejectedBy ? (
                                                 <>
-                                                    <p className='font-extrabold text-lg text-black'>{rejectedReason}</p>
+                                                    <p className="text-lg font-extrabold text-black">{rejectedReason}</p>
                                                 </>
                                             ) : (
                                                 <>{t('dashboard.rejectionTitle')}</>
@@ -224,20 +252,23 @@ function UserDashboardContent({ user, profile, subscriptionReminder, accountStat
                                     </div>
                                     {rejectedBy && (
                                         <div className="border-error/30 border-t pt-2">
-                                            <p className=" text-sm">
-                                                <span className="text-sm">{t('dashboard.rejectionBy')}</span> <span className='font-extrabold text-lg text-black'>{rejectedBy.name}</span>
+                                            <p className="text-sm">
+                                                <span className="text-sm">{t('dashboard.rejectionBy')}</span>{' '}
+                                                <span className="text-lg font-extrabold text-black">{rejectedBy.name}</span>
                                             </p>
                                         </div>
                                     )}
                                     {user?.rejected_at && (
                                         <div>
-                                            <p className=" text-sm">
+                                            <p className="text-sm">
                                                 <span className="">{t('common.date')}:</span>{' '}
-                                                <span className='font-extrabold text-lg text-black'>{new Date(user.rejected_at).toLocaleDateString('fr-FR', {
-                                                    year: 'numeric',
-                                                    month: 'numeric',
-                                                    day: 'numeric',
-                                                })}</span>
+                                                <span className="text-lg font-extrabold text-black">
+                                                    {new Date(user.rejected_at).toLocaleDateString('fr-FR', {
+                                                        year: 'numeric',
+                                                        month: 'numeric',
+                                                        day: 'numeric',
+                                                    })}
+                                                </span>
                                             </p>
                                         </div>
                                     )}
@@ -278,17 +309,22 @@ function UserDashboardContent({ user, profile, subscriptionReminder, accountStat
                 )}
 
                 {/* Member Status */}
-                {approvalStatus === 'approved' && userStatus === 'member' && (
+                {approvalStatus === 'approved' && userStatus !== 'prospect' && (
                     <Alert>
-                        <CheckCircle className="h-4 w-4" />
                         <AlertDescription>
-                            <div className="flex items-center justify-between">
-                                <span>{t('dashboard.freeMembership')}</span>
-                                <Button 
-                                    size="sm" 
-                                    variant="outline"
+                            <div className="flex w-full items-center justify-between">
+                                <div className='flex items-center gap-2'>
+                                    <span className={packBadge.className}>
+                                        {PackIcon && <PackIcon className="h-3.5 w-3.5" strokeWidth={2.5} />}
+                                        {packBadge.label}
+                                    </span>
+                                </div>
+                                <Button
+                                    size="sm"
                                     onClick={() => setShowMatchmakerDialog(true)}
+                                    className="rounded-full bg-[#890505] text-white shadow-md hover:bg-[#6d0404] hover:text-white"
                                 >
+                                    <CheckCircle className="mr-2 h-4 w-4" />
                                     {t('dashboard.becomeClient')}
                                 </Button>
                             </div>
@@ -322,9 +358,9 @@ function UserDashboardContent({ user, profile, subscriptionReminder, accountStat
                                         <>
                                             <span className="text-error font-semibold">{t('dashboard.subscriptionExpired')}</span>
                                             <p className="text-error mt-1 text-sm">
-                                                {t('dashboard.subscriptionExpiredMessage', { 
+                                                {t('dashboard.subscriptionExpiredMessage', {
                                                     packName: subscriptionReminder.packName,
-                                                    date: subscriptionReminder.expirationDate
+                                                    date: subscriptionReminder.expirationDate,
                                                 })}
                                             </p>
                                         </>
@@ -332,11 +368,11 @@ function UserDashboardContent({ user, profile, subscriptionReminder, accountStat
                                         <>
                                             <span className="text-warning-foreground font-semibold">{t('dashboard.subscriptionReminder')}</span>
                                             <p className="text-warning-foreground mt-1 text-sm">
-                                                {t('dashboard.subscriptionReminderMessage', { 
+                                                {t('dashboard.subscriptionReminderMessage', {
                                                     packName: subscriptionReminder.packName,
                                                     days: subscriptionReminder.daysRemaining,
                                                     daysText: subscriptionReminder.daysRemaining === 1 ? t('dashboard.day') : t('dashboard.days'),
-                                                    date: subscriptionReminder.expirationDate
+                                                    date: subscriptionReminder.expirationDate,
                                                 })}
                                             </p>
                                         </>
@@ -352,107 +388,120 @@ function UserDashboardContent({ user, profile, subscriptionReminder, accountStat
                     </Alert>
                 )}
             </div>
-            <div className='grid grid-cols-3 gap-4 max-md:flex max-md:flex-col-reverse'>
-
-            
-            {/* Recent Activity */}
-            <Card className='col-span-2'>
-                <CardHeader>
-                    <CardTitle>{t('dashboard.recentActivity')}</CardTitle>
-                    <CardDescription>{t('dashboard.recentActivityDescription')}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    {recentPosts === null || recentPosts === undefined ? (
-                        <div className="space-y-4">
-                            {[1, 2, 3].map((i) => (
-                                <div key={i} className="space-y-3">
-                                    <Skeleton className="h-4 w-3/4" />
-                                    <Skeleton className="h-4 w-1/2" />
-                                    <Skeleton className="h-32 w-full" />
-                                </div>
-                            ))}
-                        </div>
-                    ) : recentPosts && recentPosts.length > 0 ? (
-                        <div className="space-y-4">
-                            {recentPosts.map((post) => (
-                                <PostCard key={post.id} post={post} />
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="py-8 text-center">
-                            <AlertCircle className="mx-auto mb-4 h-12 w-12 text-gray-400" />
-                            <h3 className="mb-2 text-lg font-semibold text-gray-900">{t('dashboard.noRecentActivity')}</h3>
-                            <p className="text-gray-600">{t('dashboard.noRecentActivityMessage')}</p>
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
-
-            {/* Quick Actions */}
-            <div className='flex flex-col  gap-4 '>
-            {/* <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3"> */}
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">{t('dashboard.myProfileCard')}</CardTitle>
-                        <User className="text-muted-foreground h-4 w-4" />
+            <div className="grid grid-cols-3 gap-4 max-md:flex max-md:flex-col-reverse">
+                {/* Recent Activity */}
+                <Card className="col-span-2">
+                    <CardHeader>
+                        <CardTitle>{t('dashboard.recentActivity')}</CardTitle>
+                        <CardDescription>{t('dashboard.recentActivityDescription')}</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{isProfileComplete ? '100%' : `${profile?.current_step || 1}/4`}</div>
-                        <p className="text-muted-foreground text-xs">{isProfileComplete ? t('dashboard.profileComplete') : t('dashboard.stepsCompleted')}</p>
-                        <Link href="/profile-info">
-                            <Button variant="outline" size="sm" className="mt-2 w-full bg-success text-white hover:bg-green-600! hover:text-black! cursor-pointer!">
-                                {isProfileComplete ? t('dashboard.viewProfile') : t('dashboard.completeMyProfile')}
-                            </Button>
-                        </Link>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">{t('dashboard.myMatchmakerCard')}</CardTitle>
-                        <HeartHandshake className="text-muted-foreground h-4 w-4" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{hasAssignedMatchmaker ? t('dashboard.assigned') : t('dashboard.notAssigned')}</div>
-                        <p className="text-muted-foreground text-xs">
-                            {hasAssignedMatchmaker ? t('dashboard.youHaveMatchmaker') : t('dashboard.chooseMatchmaker')}
-                        </p>
-                        <Link href={hasAssignedMatchmaker ? '/matchmaker' : '/user/matchmakers'}>
-                            <Button variant="outline" size="sm" className="mt-2 w-full hover:bg-red-600! text-white hover:text-whote  bg-[#890505]! cursor-pointer!">
-                                {hasAssignedMatchmaker ? t('dashboard.viewMatchmaker') : t('dashboard.chooseMatchmakerButton')}
-                            </Button>
-                        </Link>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">{t('dashboard.myOrdersCard')}</CardTitle>
-                        <ShoppingCart className="text-muted-foreground h-4 w-4" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{userStatus === 'client' ? t('dashboard.client') : t('dashboard.member')}</div>
-                        <p className="text-muted-foreground text-xs">{userStatus === 'client' ? t('dashboard.activeClientStatus') : t('dashboard.passiveMember')}</p>
-                        {userStatus === 'client' ? (
-                            <Link href="/mes-commandes">
-                                <Button variant="outline" size="sm" className="mt-2 w-full bg-success text-white hover:bg-green-600! hover:text-black! cursor-pointer!">
-                                    {t('dashboard.viewOrders')}
-                                </Button>
-                            </Link>
+                        {recentPosts === null || recentPosts === undefined ? (
+                            <div className="space-y-4">
+                                {[1, 2, 3].map((i) => (
+                                    <div key={i} className="space-y-3">
+                                        <Skeleton className="h-4 w-3/4" />
+                                        <Skeleton className="h-4 w-1/2" />
+                                        <Skeleton className="h-32 w-full" />
+                                    </div>
+                                ))}
+                            </div>
+                        ) : recentPosts && recentPosts.length > 0 ? (
+                            <div className="space-y-4">
+                                {recentPosts.map((post) => (
+                                    <PostCard key={post.id} post={post} />
+                                ))}
+                            </div>
                         ) : (
-                            <Button 
-                                variant="outline" 
-                                size="sm" 
-                                className="mt-2 w-full bg-success text-white hover:bg-green-600! hover:text-black! cursor-pointer!"
-                                onClick={() => setShowMatchmakerDialog(true)}
-                            >
-                                {t('dashboard.becomeClient')}
-                            </Button>
+                            <div className="py-8 text-center">
+                                <AlertCircle className="mx-auto mb-4 h-12 w-12 text-gray-400" />
+                                <h3 className="mb-2 text-lg font-semibold text-gray-900">{t('dashboard.noRecentActivity')}</h3>
+                                <p className="text-gray-600">{t('dashboard.noRecentActivityMessage')}</p>
+                            </div>
                         )}
                     </CardContent>
                 </Card>
-            </div>
 
+                {/* Quick Actions */}
+                <div className="flex flex-col gap-4">
+                    {/* <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3"> */}
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">{t('dashboard.myProfileCard')}</CardTitle>
+                            <User className="text-muted-foreground h-4 w-4" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">{isProfileComplete ? '100%' : `${profile?.current_step || 1}/4`}</div>
+                            <p className="text-muted-foreground text-xs">
+                                {isProfileComplete ? t('dashboard.profileComplete') : t('dashboard.stepsCompleted')}
+                            </p>
+                            <Link href="/profile-info">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="bg-success mt-2 w-full cursor-pointer! text-white hover:bg-green-600! hover:text-black!"
+                                >
+                                    {isProfileComplete ? t('dashboard.viewProfile') : t('dashboard.completeMyProfile')}
+                                </Button>
+                            </Link>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">{t('dashboard.myMatchmakerCard')}</CardTitle>
+                            <HeartHandshake className="text-muted-foreground h-4 w-4" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">{hasAssignedMatchmaker ? t('dashboard.assigned') : t('dashboard.notAssigned')}</div>
+                            <p className="text-muted-foreground text-xs">
+                                {hasAssignedMatchmaker ? t('dashboard.youHaveMatchmaker') : t('dashboard.chooseMatchmaker')}
+                            </p>
+                            <Link href={hasAssignedMatchmaker ? '/matchmaker' : '/user/matchmakers'}>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="hover:text-whote mt-2 w-full cursor-pointer! bg-[#890505]! text-white hover:bg-red-600!"
+                                >
+                                    {hasAssignedMatchmaker ? t('dashboard.viewMatchmaker') : t('dashboard.chooseMatchmakerButton')}
+                                </Button>
+                            </Link>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">{t('dashboard.myOrdersCard')}</CardTitle>
+                            <ShoppingCart className="text-muted-foreground h-4 w-4" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">{userStatus === 'client' ? t('dashboard.client') : t('dashboard.member')}</div>
+                            <p className="text-muted-foreground text-xs">
+                                {userStatus === 'client' ? t('dashboard.activeClientStatus') : t('dashboard.passiveMember')}
+                            </p>
+                            {userStatus === 'client' ? (
+                                <Link href="/mes-commandes">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="bg-success mt-2 w-full cursor-pointer! text-white hover:bg-green-600! hover:text-black!"
+                                    >
+                                        {t('dashboard.viewOrders')}
+                                    </Button>
+                                </Link>
+                            ) : (
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="bg-success mt-2 w-full cursor-pointer! text-white hover:bg-green-600! hover:text-black!"
+                                    onClick={() => setShowMatchmakerDialog(true)}
+                                >
+                                    {t('dashboard.becomeClient')}
+                                </Button>
+                            )}
+                        </CardContent>
+                    </Card>
+                </div>
             </div>
 
             {/* Matchmaker Contact Dialog */}
@@ -460,33 +509,20 @@ function UserDashboardContent({ user, profile, subscriptionReminder, accountStat
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>{t('dashboard.becomeClientDialog')}</DialogTitle>
-                        <DialogDescription>
-                            {t('dashboard.becomeClientDescription')}
-                        </DialogDescription>
+                        <DialogDescription>{t('dashboard.becomeClientDescription')}</DialogDescription>
                     </DialogHeader>
                     {assignedMatchmaker ? (
                         <div className="flex flex-col gap-4">
-                            <p className="text-sm text-muted-foreground">
-                                {t('dashboard.becomeClientMessage')}
-                            </p>
-                            <Link 
-                                href={assignedMatchmaker.username ? `/profile/${assignedMatchmaker.username}` : '/matchmaker'}
-                                className="w-full"
-                            >
-                                <Button className="w-full">
-                                    {t('dashboard.viewMatchmakerProfile')}
-                                </Button>
+                            <p className="text-muted-foreground text-sm">{t('dashboard.becomeClientMessage')}</p>
+                            <Link href={assignedMatchmaker.username ? `/profile/${assignedMatchmaker.username}` : '/matchmaker'} className="w-full">
+                                <Button className="w-full">{t('dashboard.viewMatchmakerProfile')}</Button>
                             </Link>
                         </div>
                     ) : (
                         <div className="flex flex-col gap-4">
-                            <p className="text-sm text-muted-foreground">
-                                {t('dashboard.becomeClientNoMatchmaker')}
-                            </p>
+                            <p className="text-muted-foreground text-sm">{t('dashboard.becomeClientNoMatchmaker')}</p>
                             <Link href="/user/matchmakers" className="w-full">
-                                <Button className="w-full">
-                                    {t('dashboard.chooseMatchmakerButton')}
-                                </Button>
+                                <Button className="w-full">{t('dashboard.chooseMatchmakerButton')}</Button>
                             </Link>
                         </div>
                     )}
@@ -503,9 +539,7 @@ function PendingApprovalContent() {
             <div className="flex h-64 items-center justify-center">
                 <div className="text-center">
                     <h2 className="mb-4 text-2xl font-bold text-gray-900">{t('pages.pendingApproval.title')}</h2>
-                    <p className="text-gray-600">
-                        {t('pages.pendingApproval.message')}
-                    </p>
+                    <p className="text-gray-600">{t('pages.pendingApproval.message')}</p>
                 </div>
             </div>
         </div>
@@ -544,16 +578,14 @@ export default function Dashboard() {
                     stats={stats || { totalUsers: 0, pending: 0, approvedManagers: 0, approvedMatchmakers: 0 }}
                 />
             ) : role === 'manager' ? (
-                <ManagerDashboardContent 
-                    stats={stats || { prospectsReceived: 0, activeClients: 0, members: 0 }} 
-                    posts={props?.posts || null}
-                />
+                <ManagerDashboardContent stats={stats || { prospectsReceived: 0, activeClients: 0, members: 0 }} posts={props?.posts || null} />
             ) : role === 'matchmaker' ? (
                 <MatchMakerDashboardContent expiringClients={props?.expiringClients || []} />
             ) : (
                 <UserDashboardContent
                     user={user}
                     profile={profile}
+                    matrimonialPackName={props?.matrimonialPackName ?? null}
                     subscriptionReminder={subscriptionReminder}
                     accountStatus={props?.accountStatus || 'active'}
                     rejectedBy={props?.rejectedBy || null}

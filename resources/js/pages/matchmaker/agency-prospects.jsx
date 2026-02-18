@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
-import { LayoutGrid, Table2, Mail, MapPin, CheckCircle, Pencil, XCircle, Search, Copy, Check, Phone, ArrowRightLeft, ChevronLeft, ChevronRight, UserCog, Eye } from 'lucide-react';
+import { LayoutGrid, Table2, Mail, MapPin, CheckCircle, Pencil, XCircle, Search, Copy, Check, Phone, ArrowRightLeft, ChevronLeft, ChevronRight, UserCog, Eye, KeyRound } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function AgencyProspects() {
@@ -68,6 +68,14 @@ export default function AgencyProspects() {
     const [userInfoModalOpen, setUserInfoModalOpen] = useState(false);
     const [selectedUserForInfo, setSelectedUserForInfo] = useState(null);
     
+    
+    // Password dialog state
+    const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
+    const [passwordNew, setPasswordNew] = useState('');
+    const [passwordConfirm, setPasswordConfirm] = useState('');
+    const [passwordSubmitting, setPasswordSubmitting] = useState(false);
+    const [passwordErrors, setPasswordErrors] = useState({});
+
     // Transfer dialog state
     const [transferDialogOpen, setTransferDialogOpen] = useState(false);
     const [selectedProspectForTransfer, setSelectedProspectForTransfer] = useState(null);
@@ -352,6 +360,49 @@ export default function AgencyProspects() {
                 // You could add a toast notification here
             });
         }
+    };
+
+    const openPasswordDialog = () => {
+        setPasswordNew('');
+        setPasswordConfirm('');
+        setPasswordErrors({});
+        setPasswordDialogOpen(true);
+    };
+
+    const handleUpdatePassword = () => {
+        setPasswordErrors({});
+        if (!passwordNew.trim()) {
+            setPasswordErrors({ password: ['Le mot de passe est requis.'] });
+            return;
+        }
+        if (passwordNew !== passwordConfirm) {
+            setPasswordErrors({ password: ['Les mots de passe ne correspondent pas.'] });
+            return;
+        }
+        if (passwordNew.length < 8) {
+            setPasswordErrors({ password: ['Le mot de passe doit contenir au moins 8 caractères.'] });
+            return;
+        }
+        if (!selectedUserForInfo?.id) return;
+        setPasswordSubmitting(true);
+        router.put(`/staff/prospects/${selectedUserForInfo.id}/password`, {
+            password: passwordNew,
+            password_confirmation: passwordConfirm,
+        }, {
+            preserveScroll: true,
+            onSuccess: () => {
+                setPasswordDialogOpen(false);
+                setUserInfoModalOpen(false);
+                setPasswordNew('');
+                setPasswordConfirm('');
+                setPasswordSubmitting(false);
+                showToast?.('Mot de passe mis à jour', 'Le mot de passe a été modifié avec succès.', 'success');
+            },
+            onError: (errors) => {
+                setPasswordErrors(errors);
+                setPasswordSubmitting(false);
+            },
+        });
     };
 
     // Handle view profile
@@ -1134,7 +1185,7 @@ export default function AgencyProspects() {
                                 </div>
                                 <div>
                                     <div className="text-sm font-semibold text-slate-900">{selectedUserForInfo.name}</div>
-                                    <div className="text-xs text-muted-foreground">ID: #{selectedUserForInfo.id}</div>
+                                    <div className="text-xs text-muted-foreground"><span  className='text-md font-bold'>Email : </span>{selectedUserForInfo.email}</div>
                                 </div>
                             </div>
 
@@ -1244,6 +1295,16 @@ export default function AgencyProspects() {
                                     type="button"
                                     className="flex w-full items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/70 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-100"
                                     onClick={() => {
+                                        openPasswordDialog();
+                                    }}
+                                >
+                                    <KeyRound className="h-4 w-4 text-rose-700" />
+                                    Changer le mot de passe
+                                </button>
+                                <button
+                                    type="button"
+                                    className="flex w-full items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/70 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                                    onClick={() => {
                                         setUserInfoModalOpen(false);
                                         handleCopyLink();
                                     }}
@@ -1261,6 +1322,63 @@ export default function AgencyProspects() {
                             </DialogFooter>
                         </>
                     )}
+                </DialogContent>
+            </Dialog>
+
+            {/* Password update Dialog */}
+            <Dialog open={passwordDialogOpen} onOpenChange={(open) => { setPasswordDialogOpen(open); if (!open) { setPasswordNew(''); setPasswordConfirm(''); setPasswordErrors({}); } }}>
+                <DialogContent className="w-[95vw] sm:w-full sm:max-w-md rounded-2xl border border-slate-200/70 bg-white p-5 sm:p-6 shadow-2xl">
+                    <DialogHeader>
+                        <DialogTitle className="text-lg font-semibold text-slate-900">Changer le mot de passe</DialogTitle>
+                        <DialogDescription className="text-sm text-slate-500">
+                            Ancien mot de passe : **** (non affiché pour des raisons de sécurité). Saisissez le nouveau mot de passe ci-dessous.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                            <Label htmlFor="password-new">Nouveau mot de passe</Label>
+                            <Input
+                                id="password-new"
+                                type="password"
+                                value={passwordNew}
+                                onChange={(e) => setPasswordNew(e.target.value)}
+                                placeholder="••••••••"
+                                className="rounded-xl border-slate-200"
+                                autoComplete="new-password"
+                            />
+                            {passwordErrors?.password && (
+                                <p className="text-xs text-red-600">{Array.isArray(passwordErrors.password) ? passwordErrors.password[0] : passwordErrors.password}</p>
+                            )}
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="password-confirm">Confirmer le mot de passe</Label>
+                            <Input
+                                id="password-confirm"
+                                type="password"
+                                value={passwordConfirm}
+                                onChange={(e) => setPasswordConfirm(e.target.value)}
+                                placeholder="••••••••"
+                                className="rounded-xl border-slate-200"
+                                autoComplete="new-password"
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter className="flex justify-end gap-2">
+                        <Button
+                            variant="outline"
+                            onClick={() => { setPasswordDialogOpen(false); setPasswordNew(''); setPasswordConfirm(''); setPasswordErrors({}); }}
+                            className="rounded-xl"
+                        >
+                            {t('common.cancel')}
+                        </Button>
+                        <Button
+                            onClick={handleUpdatePassword}
+                            disabled={passwordSubmitting || !passwordNew || !passwordConfirm}
+                            className="rounded-xl bg-rose-700 text-white hover:bg-rose-800"
+                        >
+                            {passwordSubmitting ? 'Enregistrement...' : 'Mettre à jour le mot de passe'}
+                        </Button>
+                    </DialogFooter>
                 </DialogContent>
             </Dialog>
             
