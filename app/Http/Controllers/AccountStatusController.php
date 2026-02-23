@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Models\Profile;
 use App\Models\ReactivationRequest;
+use App\Models\Activity;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -39,6 +40,8 @@ class AccountStatusController extends Controller
             'deactivation_reason' => null, // Clear deactivation reason when activating
         ]);
 
+        Activity::record('member.activated', $me->id, $user->fresh(), ['reason' => $request->reason]);
+
         return redirect()->back()->with('success', 'Account activated successfully.');
     }
 
@@ -67,6 +70,11 @@ class AccountStatusController extends Controller
             'account_status' => 'desactivated',
             'deactivation_reason' => $request->reason,
             'activation_reason' => null, // Clear activation reason when deactivating
+        ]);
+
+        Activity::record('member.deactivated', $me->id, $user->fresh(), [
+            'reason' => $request->reason,
+            'previous_status' => $user->status,
         ]);
 
         return redirect()->back()->with('success', 'Account deactivated successfully.');
@@ -128,6 +136,8 @@ class AccountStatusController extends Controller
             'deactivation_reason' => null,
         ]);
 
+        Activity::record('member.activated', $me->id, $user->fresh(), ['reason' => $request->reason]);
+
         return redirect()->back()->with('success', 'Account activated successfully.');
     }
 
@@ -185,6 +195,11 @@ class AccountStatusController extends Controller
             'account_status' => 'desactivated',
             'deactivation_reason' => $request->reason,
             'activation_reason' => null,
+        ]);
+
+        Activity::record('member.deactivated', $me->id, $user->fresh(), [
+            'reason' => $request->reason,
+            'previous_status' => $user->status,
         ]);
 
         return redirect()->back()->with('success', 'Account deactivated successfully.');

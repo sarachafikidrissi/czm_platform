@@ -6,17 +6,18 @@ import { Link, router, usePage } from '@inertiajs/react';
 import { ChevronLeft, ChevronRight, Heart, MessageCircle, Trash2, Edit2, X, Send } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
-export default function PostCard({ post }) {
+export default function PostCard({ post, activity }) {
+    const isActivity = Boolean(activity);
     const { auth } = usePage().props;
     const isMatchmaker = auth?.user?.roles?.[0]?.name === 'matchmaker';
     const [showComments, setShowComments] = useState(true);
     const [newComment, setNewComment] = useState('');
     const [isLiking, setIsLiking] = useState(false);
     const [isCommenting, setIsCommenting] = useState(false);
-    const [likesCount, setLikesCount] = useState(post.likes_count || 0);
-    const [commentsCount, setCommentsCount] = useState(post.comments_count || 0);
-    const [isLiked, setIsLiked] = useState(post.is_liked || false);
-    const [comments, setComments] = useState(post.comments || []);
+    const [likesCount, setLikesCount] = useState(post?.likes_count ?? 0);
+    const [commentsCount, setCommentsCount] = useState(post?.comments_count ?? 0);
+    const [isLiked, setIsLiked] = useState(post?.is_liked ?? false);
+    const [comments, setComments] = useState(post?.comments ?? []);
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [editingCommentId, setEditingCommentId] = useState(null);
@@ -29,13 +30,18 @@ export default function PostCard({ post }) {
     const [showLikersModal, setShowLikersModal] = useState(false);
     const [showCommentsModal, setShowCommentsModal] = useState(false);
 
-    // Handle multiple images
-    const imageUrls = post.media_urls || (post.media_url ? [post.media_url] : []);
+    const displayUser = isActivity ? activity.actor : post?.user;
+    const displayContent = isActivity ? activity.description : (post?.content ?? '');
+    const displayContentStructured = isActivity ? activity.description_display : null;
+    const displayCreatedAt = isActivity ? activity.created_at : post?.created_at;
+
+    // Handle multiple images (none for activity)
+    const imageUrls = isActivity ? [] : (post?.media_urls || (post?.media_url ? [post.media_url] : []));
 
     // Sync comments when post data updates from server (after Inertia reloads)
     useEffect(() => {
-        if (post.comments) {
-            setComments(prevComments => {
+        if (!post?.id || !post?.comments) return;
+        setComments(prevComments => {
                 // Create a hash of comment IDs to detect real changes
                 const newCommentIds = post.comments.map(c => c.id).sort().join(',');
                 const currentCommentIds = prevComments.map(c => c.id).sort().join(',');
@@ -58,14 +64,14 @@ export default function PostCard({ post }) {
                 return prevComments; // Keep current state if no meaningful change
             });
             
-            // Always sync comment count from server
-            if (post.comments_count !== undefined) {
-                setCommentsCount(post.comments_count);
-            }
+        // Always sync comment count from server
+        if (post.comments_count !== undefined) {
+            setCommentsCount(post.comments_count);
         }
-    }, [post.comments, post.comments_count, post.id]); // Sync when post changes or comments update
+    }, [post?.comments, post?.comments_count, post?.id]); // Sync when post changes or comments update
 
     const handleLike = () => {
+        if (!post?.id) return;
         setIsLiking(true);
 
         // Optimistically update the UI
@@ -97,7 +103,7 @@ export default function PostCard({ post }) {
 
     const handleComment = (e) => {
         e.preventDefault();
-        if (!newComment.trim()) return;
+        if (!post?.id || !newComment.trim()) return;
 
         const commentContent = newComment.trim();
         setIsCommenting(true);
@@ -387,6 +393,7 @@ export default function PostCard({ post }) {
     };
 
     const handleDelete = () => {
+        if (isActivity || !post?.id) return;
         router.delete(`/posts/${post.id}`, {
             onSuccess: () => {
                 setShowDeleteDialog(false);
@@ -434,7 +441,7 @@ export default function PostCard({ post }) {
         return `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || '')}&background=dc2626&color=fff`;
     };
 
-    const likers = (post.likes || []).filter((like) => like?.user).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    const likers = (post?.likes || []).filter((like) => like?.user).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
     const getCommenterAvatarUrl = (user) => {
         if (!user) return null;
@@ -455,37 +462,46 @@ export default function PostCard({ post }) {
                 <div className="mb-4 flex items-start justify-between">
                     <div className="flex items-center gap-3">
                         <div className="bg-muted flex h-15 w-15 items-center justify-center rounded-full border-2 border-[#096725]">
-                            {/* <span className="text-sm font-medium text-gray-600 border-[#096725] border-2"> */}
-                            {post.user?.profile_picture ? (
+                            {displayUser?.profile_picture ? (
                                 <img
-                                    src={`/storage/${post.user.profile_picture}`}
-                                    alt={post.user.name}
+                                    src={displayUser.profile_picture.startsWith('http') ? displayUser.profile_picture : `/storage/${displayUser.profile_picture}`}
+                                    alt={displayUser.name}
                                     className="h-full w-full rounded-full object-cover"
                                 />
                             ) : (
-                                <span className="text-muted-foreground text-sm font-medium">{post.user?.name?.charAt(0)?.toUpperCase() || 'U'}</span>
+                                <span className="text-muted-foreground text-sm font-medium">{displayUser?.name?.charAt(0)?.toUpperCase() || 'U'}</span>
                             )}
-                            {/* </span> */}
                         </div>
                         <div>
-                            <h3 className="font-semibold text-red-800">{post.user?.name || 'Unknown User'}</h3>
-                            <p className="text-muted-foreground text-sm">{formatTimeAgo(post.created_at)}</p>
+                            <h3 className="font-semibold text-red-800">{displayUser?.name || 'Unknown User'}</h3>
+                            <p className="text-muted-foreground text-sm">{formatTimeAgo(displayCreatedAt)}</p>
                         </div>
                     </div>
-                    {auth.user.id === post.user_id && (
+                    {!isActivity && auth?.user?.id === post?.user_id && (
                         <Button variant="ghost" size="sm" onClick={() => setShowDeleteDialog(true)} className="text-error hover:opacity-80">
                             <Trash2 className="h-4 w-4" />
                         </Button>
                     )}
                 </div>
 
-                {/* Post Content */}
+                {/* Post Content (or activity description) */}
                 <div className="mb-4">
-                    <p className="whitespace-pre-wrap text-gray-900">{post.content}</p>
+                    <p className="whitespace-pre-wrap text-gray-900">
+                        {displayContentStructured ? (
+                            <>
+                                <span className='text-gray-600'>{displayContentStructured.activity}</span>
+                                {displayContentStructured.username != null && displayContentStructured.username !== '' && (
+                                    <span className="font-semibold text-[#890505]">{displayContentStructured.username}</span>
+                                )}
+                            </>
+                        ) : (
+                            displayContent
+                        )}
+                    </p>
                 </div>
 
-                {/* Media Content */}
-                {post.type === 'image' && imageUrls.length > 0 && (
+                {/* Media Content (posts only) */}
+                {!isActivity && post?.type === 'image' && imageUrls.length > 0 && (
                     <div className="mb-4">
                         <div className="relative">
                             <img
@@ -528,7 +544,7 @@ export default function PostCard({ post }) {
                     </div>
                 )}
 
-                {post.type === 'youtube' && post.media_url && (
+                {!isActivity && post?.type === 'youtube' && post?.media_url && (
                     <div className="mb-4">
                         <div className="bg-muted relative aspect-video w-full overflow-hidden rounded-lg">
                             <iframe
@@ -545,7 +561,7 @@ export default function PostCard({ post }) {
 
                 {/* Engagement Stats */}
                 <div className="text-muted-foreground mb-4 flex items-center gap-4 text-sm">
-                    {likesCount > 0 ? (
+                    {post?.id && likesCount > 0 ? (
                         <button
                             type="button"
                             onClick={() => setShowLikersModal(true)}
@@ -556,7 +572,7 @@ export default function PostCard({ post }) {
                     ) : (
                         <span>{likesCount} j'aime</span>
                     )}
-                    {commentsCount > 0 ? (
+                    {post?.id && commentsCount > 0 ? (
                         <button
                             type="button"
                             onClick={() => setShowCommentsModal(true)}
@@ -575,8 +591,8 @@ export default function PostCard({ post }) {
                         variant="ghost"
                         size="sm"
                         onClick={handleLike}
-                        disabled={isLiking}
-                        className={`flex items-center gap-2 ${isLiked ? 'text-error' : 'text-muted-foreground'}`}
+                        disabled={isLiking || !post?.id}
+                        className={`flex items-center gap-2 ${!post?.id ? 'cursor-default opacity-70 text-muted-foreground' : (isLiked ? 'text-error' : 'text-muted-foreground')}`}
                     >
                         <Heart className={`h-4 w-4 ${isLiked ? 'fill-current' : ''}`} />
                         J'aime
@@ -585,17 +601,17 @@ export default function PostCard({ post }) {
                     <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => setShowComments(!showComments)}
-                        className="text-muted-foreground flex items-center gap-2"
+                        onClick={() => post?.id && setShowComments(!showComments)}
+                        disabled={!post?.id}
+                        className={`flex items-center gap-2 ${!post?.id ? 'cursor-default opacity-70 text-muted-foreground' : 'text-muted-foreground'}`}
                     >
                         <MessageCircle className="h-4 w-4" />
                         <span className='max-md:text-xs'>{showComments ? 'Masquer les commentaires' : 'Voir les commentaires'}</span>
-                        {/* {showComments ? 'Masquer les commentaires' : 'Voir les commentaires'} */}
                     </Button>
                 </div>
 
-                {/* Comments Section */}
-                {showComments && (
+                {/* Comments Section (when post exists) */}
+                {post?.id && showComments && (
                     <div className="border-border mt-4 border-t pt-4">
                         {/* Existing Comments */}
                         {comments && comments.length > 0 && (

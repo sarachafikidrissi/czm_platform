@@ -6,6 +6,7 @@ use App\Models\Post;
 use App\Models\PostLike;
 use App\Models\PostComment;
 use App\Models\User;
+use App\Models\Activity;
 use App\Models\Agency;
 use App\Mail\CommentReplyNotification;
 use Illuminate\Http\Request;
@@ -163,11 +164,12 @@ class PostController extends Controller
             $liked = false;
         } else {
             // Like
-            PostLike::create([
+            $like = PostLike::create([
                 'post_id' => $post->id,
                 'user_id' => $userId
             ]);
             $liked = true;
+            Activity::record('post.liked', $userId, $like, ['post_id' => $post->id]);
         }
 
         return redirect()->back();
@@ -186,6 +188,12 @@ class PostController extends Controller
             'user_id' => Auth::id(),
             'parent_id' => $request->parent_id,
             'content' => $request->content
+        ]);
+
+        Activity::record('post.commented', Auth::id(), $comment, [
+            'post_id' => $comment->post_id,
+            'content_excerpt' => \Illuminate\Support\Str::limit($comment->content, 80),
+            'parent_id' => $comment->parent_id,
         ]);
 
         $comment->load(['user.roles', 'user.profile']);
@@ -333,29 +341,28 @@ class PostController extends Controller
         // Merge all staff IDs
         $staffIds = $matchmakerIds->merge($managerIds)->merge($adminIds)->unique();
         
-        // Get posts from all staff members
-        $posts = Post::with([
-            'user.profile', 
-            'user.roles', 
-            'agency', 
-            'likes.user.profile', 
-            'comments' => function($query) {
+        // Get posts from all staff members (limit for merge). Exclude shadow posts for activities.
+        $postsQuery = Post::with([
+            'user.profile',
+            'user.roles',
+            'agency',
+            'likes.user.profile',
+            'comments' => function ($query) {
                 $query->whereNull('parent_id')
                     ->with(['user.roles', 'user.profile', 'replies.user.roles', 'replies.user.profile']);
             }
         ])
             ->whereIn('user_id', $staffIds)
+            ->whereNull('activity_id')
             ->orderBy('created_at', 'desc')
-            ->paginate(10);
+            ->limit(50)
+            ->get();
 
-        // Add like status for current user and append accessor attributes
         if (Auth::check()) {
-            $posts->getCollection()->each(function ($post) {
+            $postsQuery->each(function ($post) {
                 $post->is_liked = $post->isLikedBy(Auth::id());
                 $post->likes_count = $post->likes_count;
                 $post->comments_count = $post->comments_count;
-                
-                // Parse media_url if it's JSON (multiple images)
                 if ($post->type === 'image' && $post->media_url) {
                     $decoded = json_decode($post->media_url, true);
                     if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
@@ -367,13 +374,267 @@ class PostController extends Controller
             });
         }
 
-        // Get statistics based on user role
+        // Get activities for staff feed (limit for merge)
+        $staffIdsArray = $staffIds->values()->all();
+        $activitiesQuery = empty($staffIdsArray)
+            ? collect()
+            : Activity::query()
+                ->forStaffFeed($staffIdsArray, null)
+                ->with(['actor.profile', 'subject'])
+                ->limit(50)
+                ->get();
+
+        $feedItems = collect();
+        foreach ($postsQuery as $post) {
+            $feedItems->push([
+                'type' => 'post',
+                'created_at' => $post->created_at->toIso8601String(),
+                'post' => $post,
+            ]);
+        }
+
+        $postRelations = [
+            'user.profile',
+            'user.roles',
+            'agency',
+            'likes.user.profile',
+            'comments' => function ($query) {
+                $query->whereNull('parent_id')
+                    ->with(['user.roles', 'user.profile', 'replies.user.roles', 'replies.user.profile']);
+            },
+        ];
+
+        $allowedActivityTypes = ['member.added', 'prospect.added', 'post.commented', 'post.liked'];
+        foreach ($activitiesQuery as $activity) {
+            if (! in_array($activity->type, $allowedActivityTypes, true)) {
+                continue;
+            }
+            $description = $this->activityDescription($activity);
+            $shadowPost = Post::firstOrCreate(
+                ['activity_id' => $activity->id],
+                [
+                    'user_id' => $activity->actor_id,
+                    'content' => $description,
+                    'type' => 'text',
+                    'created_at' => $activity->created_at,
+                    'updated_at' => $activity->created_at,
+                ]
+            );
+            $shadowPost->load($postRelations);
+            if (Auth::check()) {
+                $shadowPost->is_liked = $shadowPost->isLikedBy(Auth::id());
+                $shadowPost->likes_count = $shadowPost->likes_count;
+                $shadowPost->comments_count = $shadowPost->comments_count;
+            }
+            $feedItems->push([
+                'type' => 'activity',
+                'created_at' => $activity->created_at->toIso8601String(),
+                'activity' => $this->formatActivityForFeed($activity),
+                'post' => $shadowPost,
+            ]);
+        }
+
+        $feedItems = $feedItems->sortByDesc('created_at')->values();
+
+        $perPage = 15;
+        $page = (int) request('page', 1);
+        $total = $feedItems->count();
+        $slice = $feedItems->slice(($page - 1) * $perPage, $perPage)->values();
+        $feed = new \Illuminate\Pagination\LengthAwarePaginator(
+            $slice->all(),
+            $total,
+            $perPage,
+            $page,
+            ['path' => request()->url(), 'query' => request()->query()]
+        );
+
         $statistics = $this->getStaffStatistics($user, $role);
 
         return Inertia::render('staff/news-feed', [
-            'posts' => $posts,
-            'statistics' => $statistics
+            'feed' => $feed,
+            'statistics' => $statistics,
         ]);
+    }
+
+    private function formatActivityForFeed(Activity $activity): array
+    {
+        $actor = $activity->actor;
+        $payload = [
+            'id' => $activity->id,
+            'type' => $activity->type,
+            'actor_id' => $activity->actor_id,
+            'actor' => $actor ? [
+                'id' => $actor->id,
+                'name' => $actor->name,
+                'username' => $actor->username,
+                'profile_picture' => $actor->profile_picture,
+                'profile' => $actor->relationLoaded('profile') && $actor->profile
+                    ? ['id' => $actor->profile->id]
+                    : null,
+            ] : null,
+            'subject_type' => $activity->subject_type,
+            'subject_id' => $activity->subject_id,
+            'metadata' => $activity->metadata ?? [],
+            'created_at' => $activity->created_at->toIso8601String(),
+            'description' => $this->activityDescription($activity),
+            'description_display' => $this->activityDescriptionDisplay($activity),
+        ];
+
+        $subject = $activity->subject;
+        if ($subject) {
+            $payload['subject'] = $this->minimalSubjectPayload($activity->type, $subject);
+        } else {
+            $payload['subject'] = null;
+        }
+
+        return $payload;
+    }
+
+    private function activityDescription(Activity $activity): string
+    {
+        $subject = $activity->subject;
+        $meta = $activity->metadata ?? [];
+
+        $username = null;
+        if ($subject instanceof \App\Models\User) {
+            $username = $subject->username ?? $subject->name;
+        }
+        $username = $username ?? $meta['username'] ?? $meta['member_username'] ?? $meta['prospect_username'] ?? null;
+
+        $postOwner = $this->getActivityPostOwnerUsername($activity);
+
+        return match ($activity->type) {
+            'member.added' => 'Nouveau membre : ' . ($username ?? $meta['member_name'] ?? '—'),
+            'prospect.added' => 'Nouveau prospect : ' . ($username ?? $meta['prospect_name'] ?? '—'),
+            'post.commented' => ($activity->actor?->name ?? 'Staff') . ' a commenté une publication de @' . ($postOwner ?? '—'),
+            'post.liked' => ($activity->actor?->name ?? 'Staff') . ' a aimé une publication de @' . ($postOwner ?? '—'),
+            default => ($activity->actor?->name ?? 'Staff') . ' a effectué une action',
+        };
+    }
+
+    private function getActivityPostOwnerUsername(Activity $activity): ?string
+    {
+        $subject = $activity->subject;
+        if ($subject && method_exists($subject, 'post')) {
+            $post = $subject->post;
+            if ($post && $post->relationLoaded('user') && $post->user) {
+                return $post->user->username ?? $post->user->name ?? null;
+            }
+            if ($post && ! $post->relationLoaded('user')) {
+                $post->load('user');
+                return $post->user?->username ?? $post->user?->name ?? null;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Return activity description as structured object for display (activity label + username to style).
+     */
+    private function activityDescriptionDisplay(Activity $activity): array
+    {
+        $subject = $activity->subject;
+        $meta = $activity->metadata ?? [];
+
+        $username = null;
+        if ($subject instanceof \App\Models\User) {
+            $username = $subject->username ?? $subject->name;
+        }
+        $username = $username ?? $meta['username'] ?? $meta['member_username'] ?? $meta['prospect_username'] ?? null;
+
+        $postOwner = $this->getActivityPostOwnerUsername($activity);
+        $postOwnerDisplay = $postOwner ? '@' . $postOwner : '—';
+
+        $result = match ($activity->type) {
+            'member.added' => [
+                'activity' => 'Nouveau membre : ',
+                'username' => $username ?? $meta['member_name'] ?? '—',
+            ],
+            'prospect.added' => [
+                'activity' => 'Nouveau prospect : ',
+                'username' => $username ?? $meta['prospect_name'] ?? '—',
+            ],
+            'post.commented' => [
+                'activity' => ($activity->actor?->name ?? 'Staff') . ' a commenté une publication de ',
+                'username' => $postOwnerDisplay,
+            ],
+            'post.liked' => [
+                'activity' => ($activity->actor?->name ?? 'Staff') . ' a aimé une publication de ',
+                'username' => $postOwnerDisplay,
+            ],
+            default => [
+                'activity' => ($activity->actor?->name ?? 'Staff') . ' a effectué une action',
+                'username' => null,
+            ],
+        };
+
+        return $result;
+    }
+
+    private function minimalSubjectPayload(string $type, $subject): ?array
+    {
+        if ($subject === null) {
+            return null;
+        }
+
+        if ($subject instanceof User) {
+            return [
+                'id' => $subject->id,
+                'name' => $subject->name,
+                'username' => $subject->username,
+            ];
+        }
+        if ($subject instanceof \App\Models\Proposition) {
+            $subject->load(['referenceUser.profile', 'compatibleUser.profile']);
+            $ref = $subject->referenceUser;
+            $comp = $subject->compatibleUser;
+            return [
+                'id' => $subject->id,
+                'reference_user_id' => $subject->reference_user_id,
+                'compatible_user_id' => $subject->compatible_user_id,
+                'user_a' => $ref ? [
+                    'id' => $ref->id,
+                    'username' => $ref->username,
+                    'name' => $ref->name,
+                    'profile_picture_path' => $ref->profile?->profile_picture_path,
+                ] : null,
+                'user_b' => $comp ? [
+                    'id' => $comp->id,
+                    'username' => $comp->username,
+                    'name' => $comp->name,
+                    'profile_picture_path' => $comp->profile?->profile_picture_path,
+                ] : null,
+            ];
+        }
+        if ($subject instanceof \App\Models\AppointmentRequest) {
+            return [
+                'id' => $subject->id,
+                'name' => $subject->name,
+                'preferred_date' => $subject->preferred_date?->toIso8601String(),
+                'status' => $subject->status,
+            ];
+        }
+        if ($subject instanceof Post) {
+            return [
+                'id' => $subject->id,
+                'content_excerpt' => \Illuminate\Support\Str::limit($subject->content, 80),
+            ];
+        }
+        if ($subject instanceof PostComment) {
+            return [
+                'id' => $subject->id,
+                'post_id' => $subject->post_id,
+                'content_excerpt' => \Illuminate\Support\Str::limit($subject->content, 80),
+            ];
+        }
+        if ($subject instanceof PostLike) {
+            return [
+                'id' => $subject->id,
+                'post_id' => $subject->post_id,
+            ];
+        }
+
+        return ['id' => $subject->id];
     }
 
     private function getUserRole(?User $user): ?string

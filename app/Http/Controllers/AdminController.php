@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Models\Agency;
 use App\Models\MatrimonialPack;
 use App\Models\AppointmentRequest;
+use App\Models\Activity;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -897,6 +898,17 @@ class AdminController extends Controller
                         'assigned_agency_id' => $matchmaker->agency_id, // Store agency from matchmaker
                     ]);
                 $message = "{$updated} appointment request(s) dispatched to matchmaker successfully.";
+                if ($updated > 0) {
+                    $requests = AppointmentRequest::whereIn('id', $validated['appointment_request_ids'])
+                        ->where('assigned_matchmaker_id', $matchmaker->id)
+                        ->get();
+                    foreach ($requests as $appointmentRequest) {
+                        Activity::record('rdv.scheduled', Auth::id(), $appointmentRequest, [
+                            'preferred_date' => $appointmentRequest->preferred_date?->toIso8601String(),
+                            'name' => $appointmentRequest->name,
+                        ]);
+                    }
+                }
             } catch (\Exception $e) {
                 return redirect()->back()->with('error', 'An error occurred while dispatching appointment requests. Please try again.');
             }

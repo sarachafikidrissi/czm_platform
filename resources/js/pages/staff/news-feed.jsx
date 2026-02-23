@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ImageIcon, VideoIcon, TypeIcon, X, ChevronLeft, ChevronRight, Upload } from 'lucide-react';
 
-export default function StaffNewsFeed({ posts, statistics }) {
+export default function StaffNewsFeed({ feed, statistics }) {
     const { auth } = usePage().props;
     const [content, setContent] = useState('');
     const [type, setType] = useState('text');
@@ -316,15 +316,31 @@ export default function StaffNewsFeed({ posts, statistics }) {
                         </CardContent>
                     </Card>
 
-                    {/* Posts Feed */}
+                    {/* Unified Feed (posts + activities) */}
                     <div className="space-y-4">
-                        {posts.data && posts.data.length > 0 ? (
-                            posts.data.map((post) => (
-                                <PostCard key={post.id} post={post} />
-                            ))
+                        {feed?.data?.length > 0 ? (
+                            feed.data.map((item) =>
+                                item.type === 'post' ? (
+                                    
+                                    <PostCard key={`post-${item.post.id}`} post={item.post} />
+                                ) : (
+                                    <PostCard key={`activity-${item.activity.id}`} post={item.post} activity={item.activity} />
+                                )
+                            )
                         ) : (
                             <div className="text-center py-12">
-                                <p className="text-gray-500">Aucun post pour le moment. Soyez le premier à partager quelque chose !</p>
+                                <p className="text-gray-500">Aucun post ou activité pour le moment. Soyez le premier à partager quelque chose !</p>
+                            </div>
+                        )}
+                        {feed?.next_page_url && (
+                            <div className="flex justify-center pt-4">
+                                <Button
+                                    variant="outline"
+                                    onClick={() => router.get(feed.next_page_url)}
+                                    className="bg-[#890505]/5 text-[#890505] border-[#890505]/20 hover:bg-[#890505]/10"
+                                >
+                                    Voir plus
+                                </Button>
                             </div>
                         )}
                     </div>

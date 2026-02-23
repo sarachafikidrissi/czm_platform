@@ -219,7 +219,7 @@ class PropositionController extends Controller
 
         $created = [];
         foreach ($recipients as $recipientId) {
-            $created[] = Proposition::create([
+            $proposition = Proposition::create([
                 'matchmaker_id' => $me->id,
                 'user_a_id' => $referenceUser->id,
                 'user_b_id' => $compatibleUser->id,
@@ -229,6 +229,7 @@ class PropositionController extends Controller
                 'message' => trim($data['message']),
                 'status' => 'pending',
             ]);
+            $created[] = $proposition;
         }
 
         return response()->json([

@@ -12,6 +12,7 @@ use App\Models\UserPhoto;
 use App\Models\AppointmentRequest;
 use App\Models\Proposition;
 use App\Models\PropositionRequest;
+use App\Models\Activity;
 use App\Mail\BillEmail;
 use App\Mail\ProspectCredentialsMail;
 use Illuminate\Http\Request;
@@ -372,6 +373,12 @@ class MatchmakerController extends Controller
                 'created_during_validation' => true,
             ]);
         }
+
+        Activity::record('member.added', Auth::id(), $prospect->fresh(), [
+            'member_name' => $prospect->name,
+            'member_username' => $prospect->username,
+            'previous_status' => 'prospect',
+        ]);
 
         return redirect()->back()->with('success', 'Prospect validated and assigned successfully. You can now create a subscription using the "Abonnement" button.');
     }
@@ -1732,6 +1739,11 @@ class MatchmakerController extends Controller
 
         $user->assignRole('user');
         $user->profile()->create([]);
+
+        Activity::record('prospect.added', $me->id, $user->fresh(), [
+            'prospect_name' => $user->name,
+            'prospect_username' => $user->username,
+        ]);
 
         // Send email with credentials
         try {
@@ -3322,6 +3334,10 @@ class MatchmakerController extends Controller
             'treatment_status' => 'done',
             'done_at' => now(),
             'done_by' => $me->id,
+        ]);
+
+        Activity::record('rdv.completed', $me->id, $appointmentRequest->fresh(), [
+            'name' => $appointmentRequest->name,
         ]);
 
         return redirect()->back()->with('success', 'Appointment request marked as done successfully.');
