@@ -661,8 +661,57 @@ class MatchmakerController extends Controller
         $prospect->update([
             'password' => Hash::make($request->password),
         ]);
+        $prospect->password_reveal = Crypt::encryptString($request->password);
+        $prospect->save();
 
         return redirect()->back()->with('success', 'Mot de passe mis à jour.');
+    }
+
+    /**
+     * Return the prospect's current password (decrypted from password_reveal) for staff.
+     * Only available when the password was set via staff (create or update).
+     */
+    public function getProspectCurrentPassword($id)
+    {
+        $me = Auth::user();
+        if (!$me) {
+            abort(403, 'Unauthorized.');
+        }
+
+        $roleName = \Illuminate\Support\Facades\DB::table('model_has_roles')
+            ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+            ->where('model_has_roles.model_id', $me->id)
+            ->value('roles.name');
+
+        if (!in_array($roleName, ['matchmaker', 'manager', 'admin'])) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $prospect = User::findOrFail($id);
+
+        $canAccess = false;
+        if ($roleName === 'admin') {
+            $canAccess = true;
+        } elseif ($roleName === 'matchmaker') {
+            $canAccess = $prospect->assigned_matchmaker_id === $me->id;
+        } elseif ($roleName === 'manager') {
+            $canAccess = ($prospect->agency_id && $prospect->agency_id === $me->agency_id) || $prospect->assigned_matchmaker_id === $me->id;
+        }
+
+        if (!$canAccess) {
+            abort(403, 'You are not authorized to view this prospect\'s password.');
+        }
+
+        $currentPassword = null;
+        if (!empty($prospect->password_reveal)) {
+            try {
+                $currentPassword = Crypt::decryptString($prospect->password_reveal);
+            } catch (\Exception $e) {
+                // Ignore if decrypt fails (e.g. key rotated)
+            }
+        }
+
+        return response()->json(['current_password' => $currentPassword]);
     }
 
     public function validatedProspects(Request $request)
@@ -1674,6 +1723,7 @@ class MatchmakerController extends Controller
             'gender' => 'required|string|in:male,female,other,prefer-not-to-say',
             'country' => 'required|string|max:100',
             'city' => 'required|string|max:100',
+            'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
 
         // Generate unique username
@@ -1686,28 +1736,7 @@ class MatchmakerController extends Controller
             $counter++;
         }
 
-        // Generate a secure random password that meets password rules
-        // Generate password with uppercase, lowercase, numbers, and special characters
-        $uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-        $lowercase = 'abcdefghijklmnopqrstuvwxyz';
-        $numbers = '0123456789';
-        $special = '!@#$%^&*';
-        $all = $uppercase . $lowercase . $numbers . $special;
-        
-        $password = '';
-        // Ensure at least one character from each set
-        $password .= $uppercase[random_int(0, strlen($uppercase) - 1)];
-        $password .= $lowercase[random_int(0, strlen($lowercase) - 1)];
-        $password .= $numbers[random_int(0, strlen($numbers) - 1)];
-        $password .= $special[random_int(0, strlen($special) - 1)];
-        
-        // Fill the rest randomly
-        for ($i = strlen($password); $i < 12; $i++) {
-            $password .= $all[random_int(0, strlen($all) - 1)];
-        }
-        
-        // Shuffle the password to randomize character positions
-        $password = str_shuffle($password);
+        $password = $request->password;
 
         // Determine assignment based on role
         $assignedMatchmakerId = null;
@@ -1736,6 +1765,8 @@ class MatchmakerController extends Controller
             'agency_id' => $agencyId,
             'assigned_matchmaker_id' => $assignedMatchmakerId,
         ]);
+        $user->password_reveal = Crypt::encryptString($password);
+        $user->save();
 
         $user->assignRole('user');
         $user->profile()->create([]);
@@ -1745,7 +1776,7 @@ class MatchmakerController extends Controller
             'prospect_username' => $user->username,
         ]);
 
-        // Send email with credentials
+        // Send email with credentials (the password entered by the matchmaker)
         try {
             Mail::to($user->email)->send(new ProspectCredentialsMail(
                 name: $user->name,

@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
-import { LayoutGrid, Table2, Mail, MapPin, CheckCircle, Pencil, XCircle, Search, Copy, Check, Phone, ArrowRightLeft, ChevronLeft, ChevronRight, UserCog, Eye, KeyRound } from 'lucide-react';
+import { LayoutGrid, Table2, Mail, MapPin, CheckCircle, Pencil, XCircle, Search, Copy, Check, Phone, ArrowRightLeft, ChevronLeft, ChevronRight, UserCog, Eye, EyeOff, KeyRound } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function AgencyProspects() {
@@ -71,6 +71,8 @@ export default function AgencyProspects() {
     
     // Password dialog state
     const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
+    const [passwordOld, setPasswordOld] = useState('');
+    const [showOldPassword, setShowOldPassword] = useState(false);
     const [passwordNew, setPasswordNew] = useState('');
     const [passwordConfirm, setPasswordConfirm] = useState('');
     const [passwordSubmitting, setPasswordSubmitting] = useState(false);
@@ -362,10 +364,26 @@ export default function AgencyProspects() {
         }
     };
 
-    const openPasswordDialog = () => {
+    const openPasswordDialog = async () => {
+        setShowOldPassword(false);
         setPasswordNew('');
         setPasswordConfirm('');
         setPasswordErrors({});
+        if (selectedUserForInfo?.id) {
+            try {
+                const res = await fetch(`/staff/prospects/${selectedUserForInfo.id}/current-password`);
+                const data = await res.json().catch(() => ({}));
+                if (res.ok && data.current_password != null) {
+                    setPasswordOld(data.current_password);
+                } else {
+                    setPasswordOld('');
+                }
+            } catch (_) {
+                setPasswordOld('');
+            }
+        } else {
+            setPasswordOld('');
+        }
         setPasswordDialogOpen(true);
     };
 
@@ -393,6 +411,8 @@ export default function AgencyProspects() {
             onSuccess: () => {
                 setPasswordDialogOpen(false);
                 setUserInfoModalOpen(false);
+                setPasswordOld('');
+                setShowOldPassword(false);
                 setPasswordNew('');
                 setPasswordConfirm('');
                 setPasswordSubmitting(false);
@@ -1326,15 +1346,40 @@ export default function AgencyProspects() {
             </Dialog>
 
             {/* Password update Dialog */}
-            <Dialog open={passwordDialogOpen} onOpenChange={(open) => { setPasswordDialogOpen(open); if (!open) { setPasswordNew(''); setPasswordConfirm(''); setPasswordErrors({}); } }}>
+            <Dialog open={passwordDialogOpen} onOpenChange={(open) => { setPasswordDialogOpen(open); if (!open) { setPasswordOld(''); setShowOldPassword(false); setPasswordNew(''); setPasswordConfirm(''); setPasswordErrors({}); } }}>
                 <DialogContent className="w-[95vw] sm:w-full sm:max-w-md rounded-2xl border border-slate-200/70 bg-white p-5 sm:p-6 shadow-2xl">
                     <DialogHeader>
                         <DialogTitle className="text-lg font-semibold text-slate-900">Changer le mot de passe</DialogTitle>
                         <DialogDescription className="text-sm text-slate-500">
-                            Ancien mot de passe : **** (non affiché pour des raisons de sécurité). Saisissez le nouveau mot de passe ci-dessous.
+                            Le mot de passe actuel est affiché ci-dessous si disponible. Saisissez le nouveau mot de passe (l'ancien n'est pas requis).
                         </DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                            <Label htmlFor="password-old">Ancien mot de passe (affiché à titre informatif)</Label>
+                            <div className="relative">
+                                <Input
+                                    id="password-old"
+                                    type={showOldPassword ? 'text' : 'password'}
+                                    value={passwordOld}
+                                    readOnly
+                                    placeholder={passwordOld ? undefined : "Non disponible"}
+                                    className="rounded-xl border-slate-200 pr-10 bg-slate-50"
+                                    autoComplete="off"
+                                />
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    className="absolute top-0 right-0 h-full px-3 py-2 hover:bg-transparent rounded-l-none rounded-r-xl"
+                                    onClick={() => setShowOldPassword(!showOldPassword)}
+                                    disabled={passwordSubmitting}
+                                    aria-label={showOldPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+                                >
+                                    {showOldPassword ? <EyeOff className="h-4 w-4 text-slate-500" /> : <Eye className="h-4 w-4 text-slate-500" />}
+                                </Button>
+                            </div>
+                        </div>
                         <div className="grid gap-2">
                             <Label htmlFor="password-new">Nouveau mot de passe</Label>
                             <Input
@@ -1366,7 +1411,7 @@ export default function AgencyProspects() {
                     <DialogFooter className="flex justify-end gap-2">
                         <Button
                             variant="outline"
-                            onClick={() => { setPasswordDialogOpen(false); setPasswordNew(''); setPasswordConfirm(''); setPasswordErrors({}); }}
+                            onClick={() => { setPasswordDialogOpen(false); setPasswordOld(''); setShowOldPassword(false); setPasswordNew(''); setPasswordConfirm(''); setPasswordErrors({}); }}
                             className="rounded-xl"
                         >
                             {t('common.cancel')}

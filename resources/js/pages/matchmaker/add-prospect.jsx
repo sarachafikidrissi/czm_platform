@@ -1,5 +1,5 @@
 import { Head, useForm } from '@inertiajs/react';
-import { CheckCircle, CircleAlert, LoaderCircle } from 'lucide-react';
+import { CheckCircle, CircleAlert, LoaderCircle, Eye, EyeOff } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
@@ -28,7 +28,11 @@ export default function AddProspect() {
         gender: '',
         country: '',
         city: '',
+        password: '',
+        password_confirmation: '',
     });
+    const [showPassword, setShowPassword] = useState(false);
+    const [showPasswordConfirmation, setShowPasswordConfirmation] = useState(false);
     const [successOpen, setSuccessOpen] = useState(false);
     const [createdProspect, setCreatedProspect] = useState(null);
 
@@ -145,7 +149,7 @@ export default function AddProspect() {
                     <CardHeader className="border-b border-slate-200/80 bg-slate-50/70">
                         <CardTitle className="text-lg font-semibold text-slate-900">Ajouter un nouveau prospect</CardTitle>
                         <CardDescription className="text-sm text-slate-600">
-                            Remplissez le formulaire ci-dessous pour créer un compte prospect. Un mot de passe sera généré automatiquement et envoyé par email avec les identifiants.
+                            Remplissez le formulaire ci-dessous pour créer un compte prospect. Le mot de passe saisi sera envoyé par email au prospect avec ses identifiants.
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="p-6">
@@ -308,6 +312,84 @@ export default function AddProspect() {
                                         </SelectContent>
                                     </Select>
                                     <InputError message={errors.city} className="text-xs" />
+                                </div>
+
+                                <div className="grid gap-5 md:grid-cols-2">
+                                    <div className="flex flex-col gap-2">
+                                        <Label htmlFor="password" className="text-sm font-medium text-slate-700">
+                                            Mot de passe
+                                        </Label>
+                                        <div className="relative">
+                                            <Input
+                                                id="password"
+                                                type={showPassword ? 'text' : 'password'}
+                                                required
+                                                minLength={8}
+                                                autoComplete="new-password"
+                                                value={data.password}
+                                                onChange={(e) => setData('password', e.target.value)}
+                                                disabled={processing}
+                                                placeholder="••••••••"
+                                                className={`${getInputClassName('password')} pr-10`}
+                                            />
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="sm"
+                                                className="absolute top-0 right-0 h-full px-3 py-2 hover:bg-transparent rounded-l-none"
+                                                onClick={() => setShowPassword(!showPassword)}
+                                                disabled={processing}
+                                                aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+                                            >
+                                                {showPassword ? <EyeOff className="h-4 w-4 text-slate-500" /> : <Eye className="h-4 w-4 text-slate-500" />}
+                                            </Button>
+                                            {getFieldState('password').hasError && (
+                                                <CircleAlert className="pointer-events-none absolute right-12 top-1/2 h-4 w-4 -translate-y-1/2 text-red-500" />
+                                            )}
+                                            {!getFieldState('password').hasError && getFieldState('password').hasValue && (
+                                                <CheckCircle className="pointer-events-none absolute right-12 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-500" />
+                                            )}
+                                        </div>
+                                        <InputError message={errors.password} className="text-xs" />
+                                    </div>
+
+                                    <div className="flex flex-col gap-2">
+                                        <Label htmlFor="password_confirmation" className="text-sm font-medium text-slate-700">
+                                            Confirmer le mot de passe
+                                        </Label>
+                                        <div className="relative">
+                                            <Input
+                                                id="password_confirmation"
+                                                type={showPasswordConfirmation ? 'text' : 'password'}
+                                                required
+                                                minLength={8}
+                                                autoComplete="new-password"
+                                                value={data.password_confirmation}
+                                                onChange={(e) => setData('password_confirmation', e.target.value)}
+                                                disabled={processing}
+                                                placeholder="••••••••"
+                                                className={`${getInputClassName('password_confirmation')} pr-10`}
+                                            />
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="sm"
+                                                className="absolute top-0 right-0 h-full px-3 py-2 hover:bg-transparent rounded-l-none"
+                                                onClick={() => setShowPasswordConfirmation(!showPasswordConfirmation)}
+                                                disabled={processing}
+                                                aria-label={showPasswordConfirmation ? 'Masquer' : 'Afficher'}
+                                            >
+                                                {showPasswordConfirmation ? <EyeOff className="h-4 w-4 text-slate-500" /> : <Eye className="h-4 w-4 text-slate-500" />}
+                                            </Button>
+                                            {getFieldState('password_confirmation').hasError && (
+                                                <CircleAlert className="pointer-events-none absolute right-12 top-1/2 h-4 w-4 -translate-y-1/2 text-red-500" />
+                                            )}
+                                            {!getFieldState('password_confirmation').hasError && getFieldState('password_confirmation').hasValue && (
+                                                <CheckCircle className="pointer-events-none absolute right-12 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-500" />
+                                            )}
+                                        </div>
+                                        <InputError message={errors.password_confirmation} className="text-xs" />
+                                    </div>
                                 </div>
                             </div>
 

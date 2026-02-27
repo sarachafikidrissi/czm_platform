@@ -399,6 +399,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/prospects/{user}/rappeler', [\App\Http\Controllers\MatchmakerController::class, 'markAsRappeler'])->name('prospects.rappeler');
         Route::post('/prospects/{user}/toggle-traite', [\App\Http\Controllers\MatchmakerController::class, 'toggleTraite'])->name('prospects.toggle-traite');
         Route::put('/prospects/{user}/password', [\App\Http\Controllers\MatchmakerController::class, 'updateProspectPassword'])->name('prospects.password.update');
+        Route::get('/prospects/{user}/current-password', [\App\Http\Controllers\MatchmakerController::class, 'getProspectCurrentPassword'])->name('prospects.current-password');
         Route::get('/validated-prospects', [\App\Http\Controllers\MatchmakerController::class, 'validatedProspects'])->name('prospects.validated');
         Route::get('/evaluated-users', [\App\Http\Controllers\MatchmakerController::class, 'evaluatedUsers'])->name('evaluated-users');
         Route::post('/mark-as-client', [\App\Http\Controllers\MatchmakerController::class, 'markAsClient'])->name('mark-as-client');
