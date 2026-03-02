@@ -297,7 +297,7 @@ export default function AgencyProspects() {
         });
     };
     
-    // Filter prospects based on search query (client-side filtering on current page)
+    // Filter prospects based on search query (client-side: name, email, username, code commercial)
     const filteredProspects = useMemo(() => {
         if (!prospectsData || prospectsData.length === 0) return [];
         if (!searchQuery.trim()) {
@@ -308,7 +308,8 @@ export default function AgencyProspects() {
             const name = (p.name || '').toLowerCase();
             const email = (p.email || '').toLowerCase();
             const username = (p.username || '').toLowerCase();
-            return name.includes(query) || email.includes(query) || username.includes(query);
+            const commercialCode = (p.profile?.heard_about_us === 'commercial_terrain' ? (p.profile?.heard_about_reference || '') : '').toString().toLowerCase();
+            return name.includes(query) || email.includes(query) || username.includes(query) || commercialCode.includes(query);
         });
     }, [prospectsData, searchQuery]);
     
@@ -553,7 +554,7 @@ export default function AgencyProspects() {
                             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                             <Input
                                 type="text"
-                                placeholder="Rechercher par nom, email ou username..."
+                                placeholder="Rechercher par nom, email, username ou code commercial..."
                                 value={searchQuery}
                                 onChange={(e) => {
                                     setSearchQuery(e.target.value);
