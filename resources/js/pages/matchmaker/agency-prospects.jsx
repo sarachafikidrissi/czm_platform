@@ -15,11 +15,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { LayoutGrid, Table2, Mail, MapPin, CheckCircle, Pencil, XCircle, Search, Copy, Check, Phone, ArrowRightLeft, ChevronLeft, ChevronRight, UserCog, Eye, EyeOff, KeyRound } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { getCommercialCodeDisplay } from '@/lib/heard-about';
 
 export default function AgencyProspects() {
     const { t } = useTranslation();
     const { showToast } = useToast();
-    const { prospects = [], statusFilter = 'active', services = [], matrimonialPacks = [], auth } = usePage().props;
+    const { prospects = [], statusFilter = 'active', commercialOnly = false, services = [], matrimonialPacks = [], auth } = usePage().props;
     const isLoading = prospects === null || prospects === undefined;
     
     // Handle pagination data structure (server or client fallback)
@@ -574,13 +575,34 @@ export default function AgencyProspects() {
                     <div className="flex flex-wrap items-center gap-3 bg-card rounded-lg p-3 border">
                         <div className="flex items-center gap-2">
                             <Label className="text-sm text-muted-foreground">Status</Label>
-                            <Select value={statusFilter || 'active'} onValueChange={(v) => router.visit(`/staff/agency-prospects?status_filter=${v}`, { preserveScroll: true, preserveState: true, replace: true })}>
+                            <Select value={statusFilter || 'active'} onValueChange={(v) => {
+                                const url = new URL(window.location.href);
+                                url.searchParams.set('status_filter', v);
+                                if (commercialOnly) url.searchParams.set('commercial_only', '1');
+                                else url.searchParams.delete('commercial_only');
+                                router.visit(url.toString(), { preserveScroll: true, preserveState: true, replace: true });
+                            }}>
                                 <SelectTrigger className="h-9 w-[160px]"><SelectValue /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="active">Actifs</SelectItem>
                                     <SelectItem value="rejected">Rejetés</SelectItem>
                                     <SelectItem value="rappeler">A rappeler</SelectItem>
                                     <SelectItem value="traite">Traité</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Label className="text-sm text-muted-foreground">{t('profile.heardAboutCommercialCode')}</Label>
+                            <Select value={commercialOnly ? 'commercial' : 'all'} onValueChange={(v) => {
+                                const url = new URL(window.location.href);
+                                if (v === 'commercial') url.searchParams.set('commercial_only', '1');
+                                else url.searchParams.delete('commercial_only');
+                                router.visit(url.toString(), { preserveScroll: true, preserveState: true, replace: true });
+                            }}>
+                                <SelectTrigger className="h-9 w-[200px]"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">{t('profile.filterAll')}</SelectItem>
+                                    <SelectItem value="commercial">{t('profile.filterCommercialOnly')}</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
@@ -719,6 +741,7 @@ export default function AgencyProspects() {
                                             <TableHead className="hidden md:table-cell px-5 py-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Phone</TableHead>
                                             <TableHead className="hidden lg:table-cell px-5 py-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500">City</TableHead>
                                             <TableHead className="hidden lg:table-cell px-5 py-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Country</TableHead>
+                                            <TableHead className="hidden xl:table-cell px-5 py-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t('profile.heardAboutCommercialCode')}</TableHead>
                                             <TableHead className="px-5 py-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Dispatched To</TableHead>
                                             <TableHead className="px-5 py-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Actions</TableHead>
                                         </TableRow>
@@ -733,6 +756,7 @@ export default function AgencyProspects() {
                                                     <TableCell className="hidden md:table-cell px-5"><Skeleton className="h-4 w-24" /></TableCell>
                                                     <TableCell className="hidden lg:table-cell px-5"><Skeleton className="h-4 w-28" /></TableCell>
                                                     <TableCell className="hidden lg:table-cell px-5"><Skeleton className="h-4 w-24" /></TableCell>
+                                                    <TableCell className="hidden xl:table-cell px-5"><Skeleton className="h-4 w-28" /></TableCell>
                                                     <TableCell className="px-5"><Skeleton className="h-4 w-32" /></TableCell>
                                                     <TableCell className="px-5">
                                                         <div className="flex items-center gap-2">
@@ -754,6 +778,7 @@ export default function AgencyProspects() {
                                                 <TableCell className="hidden md:table-cell px-5 text-slate-600">{p.phone || 'N/A'}</TableCell>
                                                 <TableCell className="hidden lg:table-cell px-5 text-slate-600">{p.city || 'N/A'}</TableCell>
                                                 <TableCell className="hidden lg:table-cell px-5 text-slate-600">{p.country || 'N/A'}</TableCell>
+                                                <TableCell className="hidden xl:table-cell px-5 text-slate-600 text-sm">{getCommercialCodeDisplay(p)}</TableCell>
                                                 <TableCell className="px-5">
                                                     {p.assigned_matchmaker_id ? (
                                                         <div className="text-sm text-slate-600">

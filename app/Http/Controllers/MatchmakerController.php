@@ -128,6 +128,15 @@ class MatchmakerController extends Controller
             });
         }
 
+        $commercialOnly = $request->boolean('commercial_only');
+        if ($commercialOnly) {
+            $query->whereHas('profile', function ($q) {
+                $q->where('heard_about_us', 'commercial_terrain')
+                    ->whereNotNull('heard_about_reference')
+                    ->where('heard_about_reference', '!=', '');
+            });
+        }
+
         $prospects = $query->orderBy('created_at', 'desc')->get(['id','name','username','email','phone','country','city','status','agency_id','assigned_matchmaker_id','rejection_reason','rejected_by','rejected_at','is_traite','created_at']);
         $prospects->load(['profile', 'assignedMatchmaker', 'agency']);
         
@@ -157,6 +166,7 @@ class MatchmakerController extends Controller
             'prospects' => $prospects,
             'filter' => $filter ?: 'all',
             'statusFilter' => $statusFilter ?: 'active',
+            'commercialOnly' => $commercialOnly,
             'services' => $services,
             'matrimonialPacks' => $matrimonialPacks,
         ]);
@@ -844,6 +854,16 @@ class MatchmakerController extends Controller
             }
         }
 
+        // Filter: only users with commercial code (heard_about_us = commercial_terrain + code filled)
+        $commercialOnly = $request->boolean('commercial_only');
+        if ($commercialOnly) {
+            $query->whereHas('profile', function ($q) {
+                $q->where('heard_about_us', 'commercial_terrain')
+                    ->whereNotNull('heard_about_reference')
+                    ->where('heard_about_reference', '!=', '');
+            });
+        }
+
         $prospects = $query->with([
             'profile', 
             'profile.matrimonialPack', 
@@ -919,6 +939,7 @@ class MatchmakerController extends Controller
         return Inertia::render('matchmaker/validated-prospects', [
             'prospects' => $prospects,
             'status' => $status ?: 'all',
+            'commercialOnly' => $commercialOnly,
             'assignedMatchmaker' => $me,
         ]);
     }
@@ -1309,6 +1330,16 @@ class MatchmakerController extends Controller
             }
         }
 
+        // Filter: only prospects/members with commercial code (heard_about_us = commercial_terrain + code filled)
+        $commercialOnly = $request->boolean('commercial_only');
+        if ($commercialOnly) {
+            $query->whereHas('profile', function ($q) {
+                $q->where('heard_about_us', 'commercial_terrain')
+                    ->whereNotNull('heard_about_reference')
+                    ->where('heard_about_reference', '!=', '');
+            });
+        }
+
         $prospects = $query->select(['id','name','username','email','phone','country','city','gender','status','agency_id','assigned_matchmaker_id','rejection_reason','rejected_by','rejected_at','to_rappeler','is_traite','created_at'])
             ->with(['profile', 'assignedMatchmaker', 'agency'])
             ->orderBy('created_at', 'desc')
@@ -1362,6 +1393,7 @@ class MatchmakerController extends Controller
         return Inertia::render('matchmaker/agency-prospects', [
             'prospects' => $prospects,
             'statusFilter' => $statusFilter ?: 'active',
+            'commercialOnly' => $commercialOnly,
             'agencyId' => $me?->agency_id,
             'services' => $services,
             'matrimonialPacks' => $matrimonialPacks,
@@ -2072,7 +2104,7 @@ class MatchmakerController extends Controller
             'dateNaissance' => 'required|date',
             'niveauEtudes' => 'required|string',
             'situationProfessionnelle' => 'required|string',
-            'heardAboutUs' => 'nullable|string|in:recommande,passage,pub,online_ads,google_search,youtube_video,facebook_post,instagram_post,tiktok_video,collaboration,phone_call',
+            'heardAboutUs' => 'nullable|string|in:recommande,passage,pub,online_ads,google_search,youtube_video,facebook_post,instagram_post,tiktok_video,collaboration,phone_call,commercial_terrain',
             'heardAboutReference' => 'nullable|string|max:255',
         ]);
     }
@@ -2095,7 +2127,7 @@ class MatchmakerController extends Controller
             'childrenGuardian' => 'nullable|in:mother,father',
             'hijabChoice' => 'nullable|in:voile,non_voile,niqab,idea_niqab,idea_hijab',
             'situationSante' => 'nullable',
-            'heardAboutUs' => 'required|string|in:recommande,passage,pub,online_ads,google_search,youtube_video,facebook_post,instagram_post,tiktok_video,collaboration,phone_call',
+            'heardAboutUs' => 'required|string|in:recommande,passage,pub,online_ads,google_search,youtube_video,facebook_post,instagram_post,tiktok_video,collaboration,phone_call,commercial_terrain',
             'heardAboutReference' => 'nullable|string|max:255',
         ];
         
@@ -2121,7 +2153,7 @@ class MatchmakerController extends Controller
             }
         }
 
-        if ($request->string('heardAboutUs')->toString() === 'pub' || $request->string('heardAboutUs')->toString() === 'recommande') {
+        if (in_array($request->string('heardAboutUs')->toString(), ['pub', 'recommande', 'commercial_terrain'])) {
             $rules['heardAboutReference'] = 'required|string|max:255';
         }
         $request->validate($rules);

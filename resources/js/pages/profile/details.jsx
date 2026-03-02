@@ -421,6 +421,10 @@ function Details({ formData, setFormData, gender }) {
                             <input type="radio" name="heardAboutUs" value="pub" checked={formData.heardAboutUs === 'pub'} onChange={handleInputChange} className="text-blue-600 focus:ring-blue-500" />
                             <span className="ml-2 text-sm text-gray-700">{t('profile.heardAboutUsPub')}</span>
                         </label>
+                        <label className="inline-flex items-center">
+                            <input type="radio" name="heardAboutUs" value="commercial_terrain" checked={formData.heardAboutUs === 'commercial_terrain'} onChange={handleInputChange} className="text-blue-600 focus:ring-blue-500" />
+                            <span className="ml-2 text-sm text-gray-700">{t('profile.heardAboutUsCommercialTerrain')}</span>
+                        </label>
                     </div>
                     {/* Text input fields for each option */}
                     {formData.heardAboutUs === 'recommande' && (
@@ -584,6 +588,21 @@ function Details({ formData, setFormData, gender }) {
                                 value={formData.heardAboutReference || ''}
                                 onChange={handleInputChange}
                                 placeholder="Code indiqué dans la publicité"
+                                className="w-full rounded-lg border border-gray-300 px-4 py-3 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                            />
+                        </div>
+                    )}
+                    {formData.heardAboutUs === 'commercial_terrain' && (
+                        <div className="mt-3">
+                            <label htmlFor="heardAboutCommercialCode" className="mb-1 block text-sm font-medium text-gray-700">{t('profile.heardAboutCommercialCode', { defaultValue: 'Code commercial' })}</label>
+                            <p className="text-sm font-medium text-gray-700 mb-1" dir="rtl">الكود التجاري</p>
+                            <input
+                                type="text"
+                                id="heardAboutCommercialCode"
+                                name="heardAboutReference"
+                                value={formData.heardAboutReference || ''}
+                                onChange={handleInputChange}
+                                placeholder={t('profile.heardAboutCommercialCodePlaceholder', { defaultValue: 'Indiquez le code commercial' })}
                                 className="w-full rounded-lg border border-gray-300 px-4 py-3 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
                             />
                         </div>

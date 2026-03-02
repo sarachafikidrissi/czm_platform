@@ -1,5 +1,6 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,9 +10,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { LayoutGrid, Table2, Mail, MapPin, CheckCircle, Pencil } from 'lucide-react';
+import { getCommercialCodeDisplay } from '@/lib/heard-about';
 
 export default function ManagerTracking() {
-    const { prospects = [], status = 'all' } = usePage().props;
+    const { t } = useTranslation();
+    const { prospects = [], status = 'all', commercialOnly = false } = usePage().props;
     const [selectedStatus, setSelectedStatus] = useState(status);
     const [viewMode, setViewMode] = useState('cards'); // 'cards' or 'table'
     
@@ -23,9 +26,22 @@ export default function ManagerTracking() {
     const showingEnd = prospects?.to || 0;
     const total = prospects?.total || prospectsData.length;
 
+    const buildTrackingUrl = (opts) => {
+        const url = new URL(window.location.href);
+        if (opts.status != null) url.searchParams.set('status', opts.status);
+        if (opts.commercialOnly) url.searchParams.set('commercial_only', '1');
+        else url.searchParams.delete('commercial_only');
+        return url.toString();
+    };
+
     const handleStatusFilter = (newStatus) => {
         setSelectedStatus(newStatus);
-        router.visit(`/manager/tracking?status=${newStatus}`, { preserveScroll: true, preserveState: true, replace: true });
+        router.visit(buildTrackingUrl({ status: newStatus, commercialOnly }), { preserveScroll: true, preserveState: true, replace: true });
+    };
+
+    const handleCommercialFilter = (v) => {
+        const only = v === 'commercial';
+        router.visit(buildTrackingUrl({ status: selectedStatus, commercialOnly: only }), { preserveScroll: true, preserveState: true, replace: true });
     };
     
     const handlePageChange = (page) => {
@@ -139,6 +155,15 @@ export default function ManagerTracking() {
                                             <SelectItem value="client_expire">Client Expiré</SelectItem>
                                         </SelectContent>
                                     </Select>
+                                    <Select value={commercialOnly ? 'commercial' : 'all'} onValueChange={handleCommercialFilter}>
+                                        <SelectTrigger className="h-9 w-[200px]">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">{t('profile.filterAll')}</SelectItem>
+                                            <SelectItem value="commercial">{t('profile.filterCommercialOnly')}</SelectItem>
+                                        </SelectContent>
+                                    </Select>
                                 </div>
                                 <Separator orientation="vertical" className="h-6" />
                             </div>
@@ -224,6 +249,7 @@ export default function ManagerTracking() {
                                             <TableHead>Email</TableHead>
                                             <TableHead className="hidden md:table-cell">Phone</TableHead>
                                             <TableHead className="hidden lg:table-cell">Location</TableHead>
+                                            <TableHead className="hidden xl:table-cell">{t('profile.heardAboutCommercialCode')}</TableHead>
                                             <TableHead>Status</TableHead>
                                             <TableHead>Agency</TableHead>
                                             <TableHead>Validated By</TableHead>
@@ -238,6 +264,7 @@ export default function ManagerTracking() {
                                                 <TableCell>{prospect.email || 'N/A'}</TableCell>
                                                 <TableCell className="hidden md:table-cell">{prospect.phone || 'N/A'}</TableCell>
                                                 <TableCell className="hidden lg:table-cell">{getLocation(prospect)}</TableCell>
+                                                <TableCell className="hidden xl:table-cell text-sm">{getCommercialCodeDisplay(prospect)}</TableCell>
                                                 <TableCell>{getStatusBadge(prospect.status)}</TableCell>
                                                 <TableCell>{prospect.agency?.name || 'N/A'}</TableCell>
                                                 <TableCell>{prospect.assigned_matchmaker?.name || 'N/A'}</TableCell>

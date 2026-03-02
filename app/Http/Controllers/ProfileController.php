@@ -201,7 +201,7 @@ class ProfileController extends Controller
             'dateNaissance' => 'required|date',
             'niveauEtudes' => 'required|string',
             'situationProfessionnelle' => 'required|string',
-            'heardAboutUs' => 'nullable|string|in:recommande,passage,pub,online_ads,google_search,youtube_video,facebook_post,instagram_post,tiktok_video,collaboration,phone_call',
+            'heardAboutUs' => 'nullable|string|in:recommande,passage,pub,online_ads,google_search,youtube_video,facebook_post,instagram_post,tiktok_video,collaboration,phone_call,commercial_terrain',
             'heardAboutReference' => 'nullable|string|max:255',
         ]);
     }
@@ -231,7 +231,7 @@ class ProfileController extends Controller
             'foreignMarriage' => 'nullable|in:yes,no,maybe_discuss',
             'workAfterMarriage' => 'nullable|in:yes,no,maybe,depending_situation',
             'situationSante' => 'nullable',
-            'heardAboutUs' => 'required|string|in:recommande,passage,pub,online_ads,google_search,youtube_video,facebook_post,instagram_post,tiktok_video,collaboration,phone_call',
+            'heardAboutUs' => 'required|string|in:recommande,passage,pub,online_ads,google_search,youtube_video,facebook_post,instagram_post,tiktok_video,collaboration,phone_call,commercial_terrain',
             'heardAboutReference' => 'nullable|string|max:255',
         ];
         
@@ -259,8 +259,8 @@ class ProfileController extends Controller
             }
         }
 
-        // If pub or recommande is selected, require reference
-        if ($request->string('heardAboutUs')->toString() === 'pub' || $request->string('heardAboutUs')->toString() === 'recommande') {
+        // If pub, recommande or commercial_terrain is selected, require reference / commercial code
+        if (in_array($request->string('heardAboutUs')->toString(), ['pub', 'recommande', 'commercial_terrain'])) {
             $rules['heardAboutReference'] = 'required|string|max:255';
         }
         $request->validate($rules);

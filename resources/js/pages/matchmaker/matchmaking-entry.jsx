@@ -1,5 +1,6 @@
 import { Head, router } from '@inertiajs/react';
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import AppLayout from '@/layouts/app-layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -7,11 +8,13 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { LayoutGrid, Table2, Search, MapPin, Calendar, Heart, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { getCommercialCodeDisplay } from '@/lib/heard-about';
 
 const MATCH_PRIMARY = '#8B2635';
 const PER_PAGE = 3;
 
 export default function MatchmakingEntry({ prospects, search: initialSearch = '' }) {
+    const { t } = useTranslation();
     const [searchQuery, setSearchQuery] = useState(initialSearch);
     const [viewMode, setViewMode] = useState('cards'); // 'cards' or 'table'
     const searchDebounceRef = useRef(null);
@@ -279,6 +282,7 @@ export default function MatchmakingEntry({ prospects, search: initialSearch = ''
                                             <TableHead className="h-12 px-4 py-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">Localisation</TableHead>
                                             <TableHead className="h-12 px-4 py-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">Statut</TableHead>
                                             <TableHead className="h-12 px-4 py-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">Religion</TableHead>
+                                            <TableHead className="hidden xl:table-cell h-12 px-4 py-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('profile.heardAboutCommercialCode')}</TableHead>
                                             <TableHead className="h-12 px-4 py-3 text-right text-xs font-medium uppercase tracking-wide text-muted-foreground">Action</TableHead>
                                         </TableRow>
                                     </TableHeader>
@@ -328,6 +332,7 @@ export default function MatchmakingEntry({ prospects, search: initialSearch = ''
                                                             <span className="text-sm text-muted-foreground">N/A</span>
                                                         )}
                                                     </TableCell>
+                                                    <TableCell className="hidden xl:table-cell px-4 py-3 align-middle text-sm">{getCommercialCodeDisplay(prospect)}</TableCell>
                                                     <TableCell className="px-4 py-3 text-right align-middle">
                                                         <button
                                                             type="button"

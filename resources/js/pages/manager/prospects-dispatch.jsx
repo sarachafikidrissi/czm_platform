@@ -12,10 +12,11 @@ import { Badge } from '@/components/ui/badge';
 import { CheckCircle, Search, Copy, Check, Mail } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
+import { getCommercialCodeDisplay } from '@/lib/heard-about';
 
 export default function ManagerProspectsDispatch() {
     const { t } = useTranslation();
-    const { prospects = [], matchmakers = [], statusFilter = 'active' } = usePage().props;
+    const { prospects = [], matchmakers = [], statusFilter = 'active', commercialOnly = false } = usePage().props;
     const [selectedProspectIds, setSelectedProspectIds] = useState([]);
     const [selectAll, setSelectAll] = useState(false);
     const [dispatchOpen, setDispatchOpen] = useState(false);
@@ -162,12 +163,36 @@ export default function ManagerProspectsDispatch() {
                             <Label>Status</Label>
                             <Select 
                                 value={statusFilter || 'active'} 
-                                onValueChange={(v) => router.visit(`/manager/prospects-dispatch?status_filter=${v}`, { preserveScroll: true, preserveState: true, replace: true })}
+                                onValueChange={(v) => {
+                                    const url = new URL(window.location.href);
+                                    url.searchParams.set('status_filter', v);
+                                    if (commercialOnly) url.searchParams.set('commercial_only', '1');
+                                    else url.searchParams.delete('commercial_only');
+                                    router.visit(url.toString(), { preserveScroll: true, preserveState: true, replace: true });
+                                }}
                             >
                                 <SelectTrigger className="h-9 w-[160px]"><SelectValue /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="active">Active</SelectItem>
                                     <SelectItem value="rejected">Rejected</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Label>{t('profile.heardAboutCommercialCode')}</Label>
+                            <Select 
+                                value={commercialOnly ? 'commercial' : 'all'} 
+                                onValueChange={(v) => {
+                                    const url = new URL(window.location.href);
+                                    if (v === 'commercial') url.searchParams.set('commercial_only', '1');
+                                    else url.searchParams.delete('commercial_only');
+                                    router.visit(url.toString(), { preserveScroll: true, preserveState: true, replace: true });
+                                }}
+                            >
+                                <SelectTrigger className="h-9 w-[200px]"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">{t('profile.filterAll')}</SelectItem>
+                                    <SelectItem value="commercial">{t('profile.filterCommercialOnly')}</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
@@ -198,13 +223,14 @@ export default function ManagerProspectsDispatch() {
                                         <TableHead className="hidden md:table-cell">Phone</TableHead>
                                         <TableHead className="hidden lg:table-cell">City</TableHead>
                                         <TableHead className="hidden lg:table-cell">Country</TableHead>
+                                        <TableHead className="hidden xl:table-cell">{t('profile.heardAboutCommercialCode')}</TableHead>
                                         <TableHead>Status</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {filteredProspects.length === 0 ? (
                                         <TableRow>
-                                            <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                                            <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                                                 {searchQuery.trim() 
                                                     ? 'No prospects found matching your search.'
                                                     : statusFilter === 'rejected'
@@ -230,6 +256,7 @@ export default function ManagerProspectsDispatch() {
                                                 <TableCell className="hidden md:table-cell">{p.phone || 'N/A'}</TableCell>
                                                 <TableCell className="hidden lg:table-cell">{p.city || 'N/A'}</TableCell>
                                                 <TableCell className="hidden lg:table-cell">{p.country || 'N/A'}</TableCell>
+                                                <TableCell className="hidden xl:table-cell text-sm">{getCommercialCodeDisplay(p)}</TableCell>
                                                 <TableCell>
                                                     {p.assigned_matchmaker_id ? (
                                                         <Badge className="bg-success text-white">

@@ -1,4 +1,5 @@
 import { Head, router, usePage } from '@inertiajs/react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -13,9 +14,11 @@ import { CheckCircle, User, XCircle, Pencil } from 'lucide-react';
 import { useState } from 'react';
 import AppLayout from '@/layouts/app-layout';
 import { Skeleton } from '@/components/ui/skeleton';
+import { getCommercialCodeDisplay } from '@/lib/heard-about';
 
 export default function MatchmakerProspects() {
-    const { prospects = [], filter, statusFilter = 'active', services = [], matrimonialPacks = [], auth } = usePage().props;
+    const { t } = useTranslation();
+    const { prospects = [], filter, statusFilter = 'active', commercialOnly = false, services = [], matrimonialPacks = [], auth } = usePage().props;
     const isLoading = prospects === null || prospects === undefined;
     const [selectedProspect, setSelectedProspect] = useState(null);
     const [notes, setNotes] = useState('');
@@ -265,7 +268,14 @@ export default function MatchmakerProspects() {
                 <div className="flex flex-wrap items-center gap-3 bg-card rounded-lg p-3 border">
                     <div className="flex items-center gap-2">
                         <Label className="text-sm text-muted-foreground">View</Label>
-                        <Select value={filter || 'all'} onValueChange={(v) => router.visit(`/staff/prospects?filter=${v}&status_filter=${statusFilter}`, { preserveScroll: true, preserveState: true, replace: true })}>
+                        <Select value={filter || 'all'} onValueChange={(v) => {
+                            const url = new URL(window.location.href);
+                            url.searchParams.set('filter', v);
+                            url.searchParams.set('status_filter', statusFilter || 'active');
+                            if (commercialOnly) url.searchParams.set('commercial_only', '1');
+                            else url.searchParams.delete('commercial_only');
+                            router.visit(url.toString(), { preserveScroll: true, preserveState: true, replace: true });
+                        }}>
                             <SelectTrigger className="h-9 w-[160px]"><SelectValue /></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="all">All</SelectItem>
@@ -276,12 +286,36 @@ export default function MatchmakerProspects() {
                     </div>
                     <div className="flex items-center gap-2">
                         <Label className="text-sm text-muted-foreground">Status</Label>
-                        <Select value={statusFilter || 'active'} onValueChange={(v) => router.visit(`/staff/prospects?filter=${filter || 'all'}&status_filter=${v}`, { preserveScroll: true, preserveState: true, replace: true })}>
+                        <Select value={statusFilter || 'active'} onValueChange={(v) => {
+                            const url = new URL(window.location.href);
+                            url.searchParams.set('filter', filter || 'all');
+                            url.searchParams.set('status_filter', v);
+                            if (commercialOnly) url.searchParams.set('commercial_only', '1');
+                            else url.searchParams.delete('commercial_only');
+                            router.visit(url.toString(), { preserveScroll: true, preserveState: true, replace: true });
+                        }}>
                             <SelectTrigger className="h-9 w-[160px]"><SelectValue /></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="active">Actifs</SelectItem>
                                 <SelectItem value="rejected">Rejetés</SelectItem>
                                 <SelectItem value="traite">Traité</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Label className="text-sm text-muted-foreground">{t('profile.heardAboutCommercialCode')}</Label>
+                        <Select value={commercialOnly ? 'commercial' : 'all'} onValueChange={(v) => {
+                            const url = new URL(window.location.href);
+                            url.searchParams.set('filter', filter || 'all');
+                            url.searchParams.set('status_filter', statusFilter || 'active');
+                            if (v === 'commercial') url.searchParams.set('commercial_only', '1');
+                            else url.searchParams.delete('commercial_only');
+                            router.visit(url.toString(), { preserveScroll: true, preserveState: true, replace: true });
+                        }}>
+                            <SelectTrigger className="h-9 w-[200px]"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">{t('profile.filterAll')}</SelectItem>
+                                <SelectItem value="commercial">{t('profile.filterCommercialOnly')}</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
@@ -316,6 +350,7 @@ export default function MatchmakerProspects() {
                                 <TableHead>Name</TableHead>
                                 <TableHead>Date</TableHead>
                                 <TableHead>Phone</TableHead>
+                                <TableHead className="hidden xl:table-cell">{t('profile.heardAboutCommercialCode')}</TableHead>
                                 <TableHead>Profile</TableHead>
                                 {statusFilter === 'rejected' && <TableHead>Raison du rejet</TableHead>}
                                 <TableHead className="text-right">Actions</TableHead>
@@ -329,6 +364,7 @@ export default function MatchmakerProspects() {
                                         <TableCell><Skeleton className="h-4 w-32" /></TableCell>
                                         <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                                         <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+                                        <TableCell className="hidden xl:table-cell"><Skeleton className="h-4 w-28" /></TableCell>
                                         <TableCell><Skeleton className="h-6 w-24" /></TableCell>
                                         {statusFilter === 'rejected' && <TableCell><Skeleton className="h-4 w-40" /></TableCell>}
                                         <TableCell className="text-right">
@@ -346,6 +382,7 @@ export default function MatchmakerProspects() {
                                     <TableCell className="font-medium">{prospect.name}</TableCell>
                                     <TableCell className="text-muted-foreground">{new Date(prospect.created_at ?? Date.now()).toLocaleDateString()}</TableCell>
                                     <TableCell>{prospect.phone}</TableCell>
+                                    <TableCell className="hidden xl:table-cell text-sm">{getCommercialCodeDisplay(prospect)}</TableCell>
                                     <TableCell>
                                         {statusFilter === 'rejected' ? (
                                             <Badge className="bg-error text-error-foreground">

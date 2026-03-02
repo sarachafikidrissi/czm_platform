@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { getCommercialCodeDisplay } from '@/lib/heard-about';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
@@ -17,7 +18,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 export default function ProspectsDispatch() {
     const { t } = useTranslation();
-    const { prospects = [], agencies = [], matchmakers = [], filters = {}, statusFilter = 'active' } = usePage().props;
+    const { prospects = [], agencies = [], matchmakers = [], filters = {}, statusFilter = 'active', commercialOnly = false } = usePage().props;
     const isLoading = prospects === null || prospects === undefined;
     const [countries, setCountries] = useState([]);
     const [countryCodeToCities, setCountryCodeToCities] = useState({});
@@ -156,12 +157,13 @@ export default function ProspectsDispatch() {
         }
     }, [countries, prospectsCountry]);
 
-    const handleFilterProspects = (countryName, cityName, dispatchVal = dispatchStatus, statusVal = statusFilter) => {
+    const handleFilterProspects = (countryName, cityName, dispatchVal = dispatchStatus, statusVal = statusFilter, commercialVal = commercialOnly) => {
         const params = new URLSearchParams();
         if (countryName) params.set('country', countryName);
         if (cityName) params.set('city', cityName);
         if (dispatchVal && dispatchVal !== 'all') params.set('dispatch', dispatchVal);
         if (statusVal && statusVal !== 'active') params.set('status_filter', statusVal);
+        if (commercialVal) params.set('commercial_only', '1');
         router.visit(`/admin/prospects?${params.toString()}`, { preserveScroll: true, preserveState: true, replace: true });
     };
 
@@ -442,10 +444,32 @@ export default function ProspectsDispatch() {
                                     </SelectContent>
                                 </Select>
                             </div>
+                            <div className="grid gap-2 w-[220px]">
+                                <Label>{t('profile.heardAboutCommercialCode')}</Label>
+                                <Select
+                                    value={commercialOnly ? 'commercial' : 'all'}
+                                    onValueChange={(v) => {
+                                        const only = v === 'commercial';
+                                        handleFilterProspects(
+                                            selectedCountryCode ? (countries.find((c) => c.iso2 === selectedCountryCode)?.frenchName || '') : prospectsCountry,
+                                            prospectsCity,
+                                            dispatchStatus,
+                                            statusFilter,
+                                            only
+                                        );
+                                    }}
+                                >
+                                    <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">{t('profile.filterAll')}</SelectItem>
+                                        <SelectItem value="commercial">{t('profile.filterCommercialOnly')}</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
                             <Button variant="outline" onClick={() => {
                                 setSelectedCountryCode('');
                                 setDispatchStatus('all');
-                                handleFilterProspects('', '', 'all', 'active');
+                                handleFilterProspects('', '', 'all', 'active', false);
                             }}>{t('staff.reset')}</Button>
                             <div className="ml-auto flex gap-2">
                                 <Button disabled={!hasValidDispatchSelection} onClick={handleDispatchClick}>{t('staff.dispatchProspects')}</Button>
@@ -492,6 +516,7 @@ export default function ProspectsDispatch() {
                                     {statusFilter === 'active' && <TableHead>{t('staff.tableHeaders.dispatchedTo')}</TableHead>}
                                     {statusFilter === 'rejected' && <TableHead>{t('staff.tableHeaders.rejectionReason')}</TableHead>}
                                     <TableHead>{t('staff.tableHeaders.accountStatus')}</TableHead>
+                                    <TableHead className="hidden xl:table-cell">{t('profile.heardAboutCommercialCode')}</TableHead>
                                     <TableHead>{t('staff.tableHeaders.date')}</TableHead>
                                     <TableHead>{t('staff.tableHeaders.actions')}</TableHead>
                                 </TableRow>
@@ -509,6 +534,7 @@ export default function ProspectsDispatch() {
                                             {statusFilter === 'active' && <TableCell><Skeleton className="h-4 w-32" /></TableCell>}
                                             {statusFilter === 'rejected' && <TableCell><Skeleton className="h-4 w-40" /></TableCell>}
                                             <TableCell><Skeleton className="h-6 w-16" /></TableCell>
+                                            <TableCell className="hidden xl:table-cell"><Skeleton className="h-4 w-28" /></TableCell>
                                             <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                                             <TableCell>
                                                 <div className="flex gap-2">
@@ -567,6 +593,7 @@ export default function ProspectsDispatch() {
                                                 {p.profile?.account_status === 'desactivated' ? t('staff.desactivated') : t('staff.active')}
                                             </Badge>
                                         </TableCell>
+                                        <TableCell className="hidden xl:table-cell text-sm">{getCommercialCodeDisplay(p)}</TableCell>
                                         <TableCell>{new Date(p.created_at ?? Date.now()).toLocaleDateString()}</TableCell>
                                         <TableCell>
                                             <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>

@@ -16,11 +16,12 @@ import { useState, useEffect, useMemo } from 'react';
 import { LayoutGrid, Table2, Mail, MapPin, CheckCircle, Pencil, TestTube, Link as LinkIcon, Copy, Check, Search, Phone, ArrowRightLeft, AlertCircle, ChevronLeft, ChevronRight, UserCog, Eye, EyeOff, CreditCard, MessageSquare, UserX, UserCheck, KeyRound } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
+import { getCommercialCodeDisplay } from '@/lib/heard-about';
 
 export default function ValidatedProspects() {
     const { t } = useTranslation();
     const { showToast } = useToast();
-    const { prospects, status, assignedMatchmaker, auth } = usePage().props;
+    const { prospects, status, commercialOnly = false, assignedMatchmaker, auth } = usePage().props;
     const isLoading = prospects === null || prospects === undefined;
     
     // Handle pagination data structure
@@ -82,7 +83,7 @@ export default function ValidatedProspects() {
     const userId = currentUser?.id || null;
     const userAgencyId = currentUser?.agency_id || null;
     
-    // Filter prospects based on search query (client-side filtering on current page)
+    // Filter prospects based on search query (client-side: name, email, username, code commercial)
     const filteredProspects = useMemo(() => {
         if (!prospectsData || prospectsData.length === 0) return [];
         if (!searchQuery.trim()) {
@@ -93,7 +94,8 @@ export default function ValidatedProspects() {
             const name = (p.name || '').toLowerCase();
             const email = (p.email || '').toLowerCase();
             const username = (p.username || '').toLowerCase();
-            return name.includes(query) || email.includes(query) || username.includes(query);
+            const commercialCode = (p.profile?.heard_about_us === 'commercial_terrain' ? (p.profile?.heard_about_reference || '') : '').toString().toLowerCase();
+            return name.includes(query) || email.includes(query) || username.includes(query) || commercialCode.includes(query);
         });
     }, [prospectsData, searchQuery]);
     
@@ -598,7 +600,7 @@ export default function ValidatedProspects() {
                             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                             <Input
                                 type="text"
-                                placeholder="Rechercher par nom, email ou username..."
+                                placeholder="Rechercher par nom, email, username ou code commercial..."
                                 value={searchQuery}
                                 onChange={(e) => {
                                     setSearchQuery(e.target.value);
@@ -630,7 +632,11 @@ export default function ValidatedProspects() {
                         <div className="flex items-center gap-2">
                             <Label className="text-sm text-muted-foreground">Status</Label>
                             <Select value={status || 'all'} onValueChange={(v) => {
-                                router.visit(`/staff/validated-prospects?status=${v}`, { preserveScroll: true, preserveState: true, replace: true });
+                                const url = new URL(window.location.href);
+                                url.searchParams.set('status', v);
+                                if (commercialOnly) url.searchParams.set('commercial_only', '1');
+                                else url.searchParams.delete('commercial_only');
+                                router.visit(url.toString(), { preserveScroll: true, preserveState: true, replace: true });
                             }}>
                                 <SelectTrigger className="h-9 w-[160px]"><SelectValue /></SelectTrigger>
                                 <SelectContent>
@@ -642,6 +648,21 @@ export default function ValidatedProspects() {
                                     <SelectItem value="rappeler">A rappeler</SelectItem>
                                     <SelectItem value="en_attente_paiement">En attente de paiement</SelectItem>
                                     <SelectItem value="deactivated">Désactivé</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Label className="text-sm text-muted-foreground">{t('profile.heardAboutCommercialCode')}</Label>
+                            <Select value={commercialOnly ? 'commercial' : 'all'} onValueChange={(v) => {
+                                const url = new URL(window.location.href);
+                                if (v === 'commercial') url.searchParams.set('commercial_only', '1');
+                                else url.searchParams.delete('commercial_only');
+                                router.visit(url.toString(), { preserveScroll: true, preserveState: true, replace: true });
+                            }}>
+                                <SelectTrigger className="h-9 w-[200px]"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">{t('profile.filterAll')}</SelectItem>
+                                    <SelectItem value="commercial">{t('profile.filterCommercialOnly')}</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
@@ -868,10 +889,11 @@ export default function ValidatedProspects() {
                                             {/* <TableHead>Email</TableHead> */}
                                             <TableHead className="hidden md:table-cell px-5 py-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Phone</TableHead>
                                             <TableHead className="hidden lg:table-cell px-5 py-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500">City</TableHead>
+                                            <TableHead className="hidden xl:table-cell px-5 py-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t('profile.heardAboutCommercialCode')}</TableHead>
                                             <TableHead className="px-5 py-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Step</TableHead>
                                             <TableHead className="px-5 py-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Status</TableHead>
-                                            <TableHead className="px-5 py-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Expiring</TableHead>
-                                            <TableHead className="px-5 py-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Account Status</TableHead>
+                                            {/* <TableHead className="px-5 py-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Expiring</TableHead> */}
+                                            {/* <TableHead className="px-5 py-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Account Status</TableHead> */}
                                             <TableHead className="px-5 py-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Actions</TableHead>
                                         </TableRow>
                                     </TableHeader>
@@ -884,6 +906,7 @@ export default function ValidatedProspects() {
                                                     <TableCell className="px-5"><Skeleton className="h-4 w-40" /></TableCell>
                                                     <TableCell className="hidden md:table-cell px-5"><Skeleton className="h-4 w-24" /></TableCell>
                                                     <TableCell className="hidden lg:table-cell px-5"><Skeleton className="h-4 w-28" /></TableCell>
+                                                    <TableCell className="hidden xl:table-cell px-5"><Skeleton className="h-4 w-28" /></TableCell>
                                                     <TableCell className="px-5"><Skeleton className="h-6 w-16" /></TableCell>
                                                     <TableCell className="px-5"><Skeleton className="h-6 w-20" /></TableCell>
                                                     <TableCell className="px-5"><Skeleton className="h-4 w-24" /></TableCell>
@@ -907,6 +930,7 @@ export default function ValidatedProspects() {
                                                 {/* <TableCell>{u.email || 'N/A'}</TableCell> */}
                                                 <TableCell className="hidden md:table-cell px-5 text-slate-600">{u.phone || 'N/A'}</TableCell>
                                                 <TableCell className="hidden lg:table-cell px-5 text-slate-600">{getLocation(u)}</TableCell>
+                                                <TableCell className="hidden xl:table-cell px-5 text-slate-600 text-sm">{getCommercialCodeDisplay(u)}</TableCell>
                                                 <TableCell className="px-5">
                                                     <Badge className="bg-foreground text-background">
                                                         {getStep(u)}
@@ -928,7 +952,7 @@ export default function ValidatedProspects() {
                                                         )}
                                                     </div>
                                                 </TableCell>
-                                                <TableCell className="px-5">
+                                                {/* <TableCell className="px-5">
                                                     {u.expiring_in_3_days ? (
                                                         <div className="flex flex-col gap-1">
                                                             <Badge className="bg-warning text-warning-foreground w-fit text-xs">
@@ -948,12 +972,12 @@ export default function ValidatedProspects() {
                                                     ) : (
                                                         <span className="text-muted-foreground text-xs">-</span>
                                                     )}
-                                                </TableCell>
-                                                <TableCell className="px-5">
+                                                </TableCell> */}
+                                                {/* <TableCell className="px-5">
                                                     <Badge variant={u.profile?.account_status === 'desactivated' ? 'destructive' : 'default'}>
                                                         {u.profile?.account_status === 'desactivated' ? 'Désactivé' : 'Actif'}
                                                     </Badge>
-                                                </TableCell>
+                                                </TableCell> */}
                                                 <TableCell className="px-5">
                                                     <Button
                                                         size="sm"

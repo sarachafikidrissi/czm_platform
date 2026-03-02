@@ -93,6 +93,14 @@ class AdminController extends Controller
         } elseif ($dispatch === 'not_dispatched') {
             $query->whereNull('agency_id')->whereNull('assigned_matchmaker_id');
         }
+        $commercialOnly = $request->boolean('commercial_only');
+        if ($commercialOnly) {
+            $query->whereHas('profile', function ($q) {
+                $q->where('heard_about_us', 'commercial_terrain')
+                    ->whereNotNull('heard_about_reference')
+                    ->where('heard_about_reference', '!=', '');
+            });
+        }
         $prospects = $query->with('profile')->orderBy('created_at', 'desc')->get(['id','name','email','username','phone','country','city','gender','status','agency_id','assigned_matchmaker_id','rejection_reason','rejected_by','rejected_at','created_at']);
         $agencies = Agency::query()->get(['id','name','country','city']);
         $matchmakers = User::role('matchmaker')
@@ -105,6 +113,7 @@ class AdminController extends Controller
             'agencies' => $agencies,
             'matchmakers' => $matchmakers,
             'statusFilter' => $statusFilter ?: 'active',
+            'commercialOnly' => $commercialOnly,
             'filters' => [ 'country' => $country ?: null, 'city' => $city ?: null, 'dispatch' => $dispatch ?: 'all' ],
         ]);
     }
@@ -213,6 +222,16 @@ class AdminController extends Controller
             $query->where('status', $status);
         }
 
+        // Filter: only users with commercial code
+        $commercialOnly = $request->boolean('commercial_only');
+        if ($commercialOnly) {
+            $query->whereHas('profile', function ($q) {
+                $q->where('heard_about_us', 'commercial_terrain')
+                    ->whereNotNull('heard_about_reference')
+                    ->where('heard_about_reference', '!=', '');
+            });
+        }
+
         $prospects = $query->orderBy('created_at', 'desc')->paginate(5)->withQueryString();
 
         // Add has_bill flag to each prospect
@@ -231,6 +250,7 @@ class AdminController extends Controller
             'prospects' => $prospects,
             'matchmakers' => $matchmakers,
             'status' => $status ?: 'all',
+            'commercialOnly' => $commercialOnly,
         ]);
     }
 
@@ -700,6 +720,15 @@ class AdminController extends Controller
             $query->whereNull('rejection_reason');
         }
 
+        $commercialOnly = $request->boolean('commercial_only');
+        if ($commercialOnly) {
+            $query->whereHas('profile', function ($q) {
+                $q->where('heard_about_us', 'commercial_terrain')
+                    ->whereNotNull('heard_about_reference')
+                    ->where('heard_about_reference', '!=', '');
+            });
+        }
+
         $prospects = $query->get(['id','name','email','username','phone','country','city','status','agency_id','assigned_matchmaker_id','rejection_reason','rejected_by','rejected_at','created_at']);
         
         // Get matchmakers from the manager's agency
@@ -712,6 +741,7 @@ class AdminController extends Controller
             'prospects' => $prospects,
             'matchmakers' => $matchmakers,
             'statusFilter' => $statusFilter ?: 'active',
+            'commercialOnly' => $commercialOnly,
         ]);
     }
 
