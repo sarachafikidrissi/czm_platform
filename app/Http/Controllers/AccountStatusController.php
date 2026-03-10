@@ -140,6 +140,7 @@ class AccountStatusController extends Controller
         ]);
 
         Activity::record('member.activated', $me->id, $user->fresh(), ['reason' => $request->reason]);
+        UserActivityService::log($user->id, $me->id, 'status_change', 'Compte activé. ' . $request->reason, []);
 
         return redirect()->back()->with('success', 'Account activated successfully.');
     }
