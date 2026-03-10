@@ -1354,6 +1354,16 @@ export default function UserProfile({
                                                                     Modifier le profil
                                                                 </Button>
                                                             )}
+                                                            {canManage && (
+                                                                <Button
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    onClick={() => router.visit(`/staff/prospects/${user.id}/activity`)}
+                                                                >
+                                                                    <FileText className="w-4 h-4 mr-2" />
+                                                                    Historique d'activité
+                                                                </Button>
+                                                            )}
                                                             {user?.status === 'client_expire' && !user?.to_rappeler && (
                                                                 <Button
                                                                     variant="default"

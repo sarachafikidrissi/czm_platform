@@ -13,7 +13,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import { useState, useEffect, useMemo } from 'react';
-import { LayoutGrid, Table2, Mail, MapPin, CheckCircle, Pencil, TestTube, Link as LinkIcon, Copy, Check, Search, Phone, ArrowRightLeft, AlertCircle, ChevronLeft, ChevronRight, UserCog, Eye, EyeOff, CreditCard, MessageSquare, UserX, UserCheck, KeyRound } from 'lucide-react';
+import { LayoutGrid, Table2, Mail, MapPin, CheckCircle, Pencil, TestTube, Link as LinkIcon, Copy, Check, Search, Phone, ArrowRightLeft, AlertCircle, ChevronLeft, ChevronRight, UserCog, Eye, EyeOff, CreditCard, MessageSquare, UserX, UserCheck, KeyRound, FileText } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getCommercialCodeDisplay } from '@/lib/heard-about';
@@ -842,6 +842,17 @@ export default function ValidatedProspects() {
                                                 >
                                                     <Pencil className="w-3 h-3 mr-1" />
                                                     Modifier
+                                                </Button>
+                                            )}
+                                            {(userRole === 'admin' || userRole === 'matchmaker' || userRole === 'manager') && (
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="text-xs"
+                                                    onClick={() => router.visit(`/staff/prospects/${u.id}/activity`)}
+                                                >
+                                                    <FileText className="w-3 h-3 mr-1" />
+                                                    Activité
                                                 </Button>
                                             )}
                                             {canTransferUser(u) && (

@@ -6,7 +6,7 @@ import { GlobalSearch } from '@/components/global-search';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { CalendarHeart, Flame, HeartHandshake, Images, LayoutGrid, User, UserRoundSearch, Users, UserCheck, Plus, ShoppingCart, CreditCard, RotateCcw, Building2, Target, ArrowRightLeft, List, Search, UserCog, Newspaper, Calendar } from 'lucide-react';
+import { CalendarHeart, Flame, HeartHandshake, Images, LayoutGrid, User, UserRoundSearch, Users, UserCheck, Plus, ShoppingCart, CreditCard, RotateCcw, Building2, Target, ArrowRightLeft, List, Search, UserCog, Newspaper, Calendar, FileText } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 
@@ -70,6 +70,18 @@ const getMainNavItems = (t: TFunction, role: string): NavItem[] => [
         url: '/user/subscription',
         icon: CreditCard,
         roles: ['user'],
+    },
+    {
+        title: t('navigation.activityHistory', { defaultValue: 'Activity History' }),
+        url: '/user/activity',
+        icon: FileText,
+        roles: ['user'],
+    },
+    {
+        title: t('navigation.activityHistory', { defaultValue: 'Activity History' }),
+        url: '/staff/activity',
+        icon: FileText,
+        roles: ['admin', 'matchmaker', 'manager'],
     },
     {
         title: t('navigation.manageStaff'),

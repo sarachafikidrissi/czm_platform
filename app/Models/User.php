@@ -184,4 +184,14 @@ class User extends Authenticatable
         
         return 'active';
     }
+
+    public function userActivities()
+    {
+        return $this->hasMany(UserActivity::class, 'user_id');
+    }
+
+    public function performedUserActivities()
+    {
+        return $this->hasMany(UserActivity::class, 'performed_by');
+    }
 }

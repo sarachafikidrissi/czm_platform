@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Models\Profile;
 use App\Models\ReactivationRequest;
 use App\Models\Activity;
+use App\Services\UserActivityService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -41,6 +42,7 @@ class AccountStatusController extends Controller
         ]);
 
         Activity::record('member.activated', $me->id, $user->fresh(), ['reason' => $request->reason]);
+        UserActivityService::log($user->id, $me->id, 'status_change', 'Compte activé. ' . $request->reason, []);
 
         return redirect()->back()->with('success', 'Account activated successfully.');
     }
@@ -76,6 +78,7 @@ class AccountStatusController extends Controller
             'reason' => $request->reason,
             'previous_status' => $user->status,
         ]);
+        UserActivityService::log($user->id, $me->id, 'status_change', 'Compte désactivé. ' . $request->reason, []);
 
         return redirect()->back()->with('success', 'Account deactivated successfully.');
     }
@@ -201,6 +204,7 @@ class AccountStatusController extends Controller
             'reason' => $request->reason,
             'previous_status' => $user->status,
         ]);
+        UserActivityService::log($user->id, $me->id, 'status_change', 'Compte désactivé. ' . $request->reason, []);
 
         return redirect()->back()->with('success', 'Account deactivated successfully.');
     }

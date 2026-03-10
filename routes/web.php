@@ -384,6 +384,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Staff routes (manager, matchmaker) for viewing dispatched prospects and validated lists
     Route::middleware(['role:admin|manager|matchmaker'])->prefix('staff')->name('staff.')->group(function () {
+        Route::get('/activity', [\App\Http\Controllers\ActivityHistoryController::class, 'indexForStaff'])->name('activity');
         Route::get('/proposition-requests', function () {
             return redirect('/staff/matchmaker/proposition-requests?type=received');
         });
@@ -392,6 +393,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/prospects/store', [\App\Http\Controllers\MatchmakerController::class, 'storeProspect'])->name('prospects.store');
         Route::get('/prospects/{user}/profile/edit', [\App\Http\Controllers\MatchmakerController::class, 'editProspectProfile'])->name('prospects.profile.edit');
         Route::post('/prospects/{user}/profile', [\App\Http\Controllers\MatchmakerController::class, 'updateProspectProfile'])->name('prospects.profile.update');
+        Route::get('/prospects/{user}/activity', [\App\Http\Controllers\ActivityHistoryController::class, 'forUser'])->name('prospects.activity');
         Route::get('/prospects/{user}/subscription', [\App\Http\Controllers\MatchmakerController::class, 'createSubscriptionPage'])->name('prospects.subscription');
         Route::post('/prospects/{user}/validate', [\App\Http\Controllers\MatchmakerController::class, 'validateProspect'])->name('prospects.validate');
         Route::post('/prospects/{user}/reject', [\App\Http\Controllers\MatchmakerController::class, 'rejectProspect'])->name('prospects.reject');
@@ -472,6 +474,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/subscription', [\App\Http\Controllers\UserController::class, 'subscription'])->name('subscription');
         // Reactivation request
         Route::post('/reactivation-request', [\App\Http\Controllers\AccountStatusController::class, 'submitReactivationRequest'])->name('reactivation-request');
+        // Activity history (own)
+        Route::get('/activity', [\App\Http\Controllers\ActivityHistoryController::class, 'own'])->name('activity');
     });
 
     // Public user profile routes (accessible by all authenticated users)

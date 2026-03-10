@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\MatchmakerEvaluation;
 use App\Models\MatchmakerNote;
 use App\Models\User;
+use App\Services\UserActivityService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
 
 class ProfileInsightsController extends Controller
 {
@@ -86,12 +88,14 @@ class ProfileInsightsController extends Controller
             abort(403);
         }
 
+        $content = $request->string('content')->toString();
         MatchmakerNote::create([
             'user_id' => $target->id,
             'author_id' => Auth::id(),
-            'content' => $request->string('content')->toString(),
+            'content' => $content,
             'contact_type' => $request->input('contact_type'),
         ]);
+        UserActivityService::log($target->id, Auth::id(), 'note', Str::limit($content, 200), []);
 
         return redirect()->back()->with('success', 'Note added successfully.');
     }

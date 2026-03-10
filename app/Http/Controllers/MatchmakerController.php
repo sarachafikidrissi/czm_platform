@@ -13,6 +13,7 @@ use App\Models\AppointmentRequest;
 use App\Models\Proposition;
 use App\Models\PropositionRequest;
 use App\Models\Activity;
+use App\Services\UserActivityService;
 use App\Mail\BillEmail;
 use App\Mail\ProspectCredentialsMail;
 use Illuminate\Http\Request;
@@ -375,14 +376,20 @@ class MatchmakerController extends Controller
 
         // Save notes to MatchmakerNote table if provided
         if ($request->filled('notes') && trim($request->notes) !== '') {
+            $noteContent = trim($request->notes);
             MatchmakerNote::create([
                 'user_id' => $prospect->id,
                 'author_id' => Auth::id(),
-                'content' => trim($request->notes),
+                'content' => $noteContent,
                 'contact_type' => $request->input('contact_type'),
                 'created_during_validation' => true,
             ]);
+            UserActivityService::log($prospect->id, Auth::id(), 'note', \Illuminate\Support\Str::limit($noteContent, 200), []);
         }
+
+        UserActivityService::log($prospect->id, Auth::id(), 'status_change', 'Statut passé de prospect à membre (validé).', ['previous_status' => 'prospect', 'new_status' => 'member']);
+        $matchmakerName = $assignedId ? (User::find($assignedId)?->name ?? 'Marieuse') : 'Marieuse';
+        UserActivityService::log($prospect->id, Auth::id(), 'matchmaker_assigned', "Membre assigné à {$matchmakerName}.", []);
 
         Activity::record('member.added', Auth::id(), $prospect->fresh(), [
             'member_name' => $prospect->name,
@@ -1194,20 +1201,27 @@ class MatchmakerController extends Controller
         if (!$profile || !$profile->matrimonial_pack_id) {
             return redirect()->back()->with('error', 'User profile or matrimonial pack information not found.');
         }
+        $profile->load('matrimonialPack');
 
         // Create subscription record
         try {
             \App\Models\UserSubscription::createFromProfile(
-                $profile, 
-                $user, 
+                $profile,
+                $user,
                 $user->assigned_matchmaker_id
             );
         } catch (\Exception $e) {
             return redirect()->back()->with('error', 'Failed to create subscription. Please try again.');
         }
 
+        $packName = $profile->matrimonialPack?->name ?? 'Abonnement';
+        $durationMonths = $profile->matrimonialPack?->duration ?? 6;
+        UserActivityService::log($user->id, Auth::id(), 'subscription', "Abonnement ajouté : {$packName}, {$durationMonths} mois.", []);
+
         // Update user status to client (preserve original agency assignment)
         $user->update(['status' => 'client']);
+
+        UserActivityService::log($user->id, Auth::id(), 'status_change', 'Statut passé de membre à client.', ['previous_status' => 'member', 'new_status' => 'client']);
 
         // Update bill status to paid for this user
         Bill::where('user_id', $user->id)
@@ -3402,6 +3416,10 @@ class MatchmakerController extends Controller
         Activity::record('rdv.completed', $me->id, $appointmentRequest->fresh(), [
             'name' => $appointmentRequest->name,
         ]);
+
+        if ($appointmentRequest->converted_to_prospect_id) {
+            UserActivityService::log($appointmentRequest->converted_to_prospect_id, $me->id, 'rdv', 'Rendez-vous marqué comme traité.', []);
+        }
 
         return redirect()->back()->with('success', 'Appointment request marked as done successfully.');
     }

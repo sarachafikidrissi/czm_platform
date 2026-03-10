@@ -7,6 +7,7 @@ use App\Models\Agency;
 use App\Models\MatrimonialPack;
 use App\Models\AppointmentRequest;
 use App\Models\Activity;
+use App\Services\UserActivityService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -155,6 +156,7 @@ class AdminController extends Controller
                 
                 // Assign prospects ONLY to the specific matchmaker (not to the entire agency)
                 // Set agency_id to NULL so other matchmakers in the same agency don't see it
+                // Single conditional update so only rows satisfying conditions at update time are updated (no TOCTOU)
                 $updated = User::whereIn('id', $validated['prospect_ids'])
                     ->where('status', 'prospect')
                     ->whereNull('agency_id')
@@ -163,6 +165,12 @@ class AdminController extends Controller
                         'assigned_matchmaker_id' => $matchmaker->id,
                         'agency_id' => null  // Set to null so only this specific matchmaker sees it
                     ]);
+                $idsUpdated = User::whereIn('id', $validated['prospect_ids'])
+                    ->where('assigned_matchmaker_id', $matchmaker->id)
+                    ->pluck('id');
+                foreach ($idsUpdated as $userId) {
+                    UserActivityService::log($userId, Auth::id(), 'matchmaker_assigned', "Prospect assigné à {$matchmaker->name} (marieuse).", []);
+                }
                 $message = "{$updated} prospects dispatched to matchmaker successfully.";
             } catch (\Exception $e) {
                 return redirect()->back()->with('error', 'An error occurred while dispatching prospects. Please try again.');
@@ -657,15 +665,22 @@ class AdminController extends Controller
                 // Reassign only prospects that are already dispatched (have agency_id OR assigned_matchmaker_id)
                 // Set assigned_matchmaker_id to new matchmaker to assign to new matchmaker
                 // Set agency_id to NULL to remove from old agency's list and ensure only new matchmaker sees it
+                // Single conditional update so only rows satisfying conditions at update time are updated (no TOCTOU)
                 $updated = User::whereIn('id', $validated['prospect_ids'])
                     ->where('status', 'prospect')
-                    ->where(function($q) {
+                    ->where(function ($q) {
                         $q->whereNotNull('agency_id')->orWhereNotNull('assigned_matchmaker_id');
                     })
                     ->update([
                         'assigned_matchmaker_id' => $matchmaker->id,
                         'agency_id' => null  // Clear to remove from old agency's list and ensure only this matchmaker sees it
                     ]);
+                $idsUpdated = User::whereIn('id', $validated['prospect_ids'])
+                    ->where('assigned_matchmaker_id', $matchmaker->id)
+                    ->pluck('id');
+                foreach ($idsUpdated as $userId) {
+                    UserActivityService::log($userId, Auth::id(), 'matchmaker_assigned', "Prospect réassigné à {$matchmaker->name} (marieuse).", []);
+                }
                 $message = "{$updated} prospects reassigned to matchmaker successfully.";
             }
 
@@ -1058,6 +1073,8 @@ class AdminController extends Controller
             'status' => 'converted',
             'converted_to_prospect_id' => $user->id,
         ]);
+
+        UserActivityService::log($user->id, Auth::id(), 'rdv', 'Demande de rendez-vous convertie en prospect.', []);
 
         return redirect()->back()->with('success', 'Appointment request converted to prospect successfully.');
     }

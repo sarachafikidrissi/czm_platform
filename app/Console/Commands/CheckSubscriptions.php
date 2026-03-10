@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\UserSubscription;
 use App\Models\User;
 use App\Mail\SubscriptionReminderEmail;
+use App\Services\UserActivityService;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Mail;
@@ -49,6 +50,7 @@ class CheckSubscriptions extends Command
                 $user = $subscription->user;
                 if ($user && $user->status === 'client') {
                     $user->update(['status' => 'client_expire']);
+                    UserActivityService::log($user->id, null, 'status_change', 'Abonnement expiré ; statut passé à client_expire.', ['performer_label' => 'Auto-renewal']);
                     $this->line("- User {$user->name} (ID: {$user->id}) - Pack: {$subscription->matrimonialPack->name} - Expired: {$subscription->subscription_end->format('Y-m-d')} - Status changed to 'client_expire'");
                     
                     // Send expiration email

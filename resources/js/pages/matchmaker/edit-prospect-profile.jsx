@@ -3,6 +3,7 @@ import { Head, usePage, router } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useToast } from '@/hooks/use-toast';
+import { Button } from '@/components/ui/button';
 import Details from '../profile/details';
 import PartnerInfo from '../profile/partnerInfo';
 import PersonalInfo from '../profile/personalInfo';
@@ -285,6 +286,16 @@ export default function EditProspectProfile() {
                         <p className="text-lg text-muted-foreground">
                             Remplissez ou modifiez le profil du prospect
                         </p>
+                        {prospect?.id && (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="mt-3"
+                                onClick={() => router.visit(`/staff/prospects/${prospect.id}/activity`)}
+                            >
+                                Historique d'activité
+                            </Button>
+                        )}
                     </div>
                 </div>
 

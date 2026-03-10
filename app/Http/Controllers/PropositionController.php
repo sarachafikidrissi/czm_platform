@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Proposition;
 use App\Models\User;
 use App\Models\PropositionRequest;
+use App\Services\UserActivityService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
@@ -232,6 +233,24 @@ class PropositionController extends Controller
             $created[] = $proposition;
         }
 
+        $names = User::whereIn('id', [$referenceUser->id, $compatibleUser->id])->pluck('name', 'id');
+        $otherNameRef = $names[$compatibleUser->id] ?? 'another profile';
+        $otherNameComp = $names[$referenceUser->id] ?? 'another profile';
+        UserActivityService::log(
+            $referenceUser->id,
+            $me->id,
+            'proposition',
+            "Proposition envoyée avec {$otherNameRef}. " . (strlen(trim($data['message'])) > 0 ? 'Message : ' . \Illuminate\Support\Str::limit(trim($data['message']), 100) : ''),
+            []
+        );
+        UserActivityService::log(
+            $compatibleUser->id,
+            $me->id,
+            'proposition',
+            "Proposition envoyée avec {$otherNameComp}. " . (strlen(trim($data['message'])) > 0 ? 'Message : ' . \Illuminate\Support\Str::limit(trim($data['message']), 100) : ''),
+            []
+        );
+
         return response()->json([
             'message' => 'Proposition sent.',
             'count' => count($created),
@@ -336,6 +355,24 @@ class PropositionController extends Controller
             'status' => 'pending',
         ]);
 
+        $names = User::whereIn('id', [$referenceUser->id, $compatibleUser->id])->pluck('name', 'id');
+        $otherNameRef = $names[$compatibleUser->id] ?? 'another profile';
+        $otherNameComp = $names[$referenceUser->id] ?? 'another profile';
+        UserActivityService::log(
+            $referenceUser->id,
+            $me->id,
+            'proposition',
+            "Proposition envoyée avec {$otherNameRef}. " . (strlen(trim($data['message'])) > 0 ? 'Message : ' . \Illuminate\Support\Str::limit(trim($data['message']), 100) : ''),
+            []
+        );
+        UserActivityService::log(
+            $compatibleUser->id,
+            $me->id,
+            'proposition',
+            "Proposition envoyée avec {$otherNameComp}. " . (strlen(trim($data['message'])) > 0 ? 'Message : ' . \Illuminate\Support\Str::limit(trim($data['message']), 100) : ''),
+            []
+        );
+
         return response()->json([
             'message' => 'Proposition sent.',
             'id' => $proposition->id,
@@ -374,6 +411,18 @@ class PropositionController extends Controller
         }
 
         if ($proposition->created_at && $proposition->created_at->lt(now()->subDays(7))) {
+            $proposition->update(['status' => 'expired']);
+            UserActivityService::log(
+                (int) $proposition->recipient_user_id,
+                $me->id,
+                'proposition_expired',
+                'Proposition expirée (délai dépassé).',
+                [
+                    'proposition_id' => $proposition->id,
+                    'previous_status' => 'pending',
+                    'new_status' => 'expired',
+                ]
+            );
             return response()->json([
                 'message' => 'Proposition expired.',
             ], 422);
@@ -392,6 +441,7 @@ class PropositionController extends Controller
         }
 
         $mappedStatus = $data['status'] === 'accepted' ? 'interested' : 'not_interested';
+        $previousStatus = $proposition->status;
 
         $proposition->update([
             'status' => $mappedStatus,
@@ -400,6 +450,22 @@ class PropositionController extends Controller
             'user_comment' => $responseMessage,
             'responded_at' => now(),
         ]);
+
+        $activityType = $data['status'] === 'accepted' ? 'proposition_accepted' : 'proposition_refused';
+        $activityDescription = $data['status'] === 'accepted'
+            ? 'Proposition acceptée.'
+            : 'Proposition refusée.';
+        UserActivityService::log(
+            (int) $proposition->recipient_user_id,
+            $me->id,
+            $activityType,
+            $activityDescription,
+            [
+                'proposition_id' => $proposition->id,
+                'previous_status' => $previousStatus,
+                'new_status' => $mappedStatus,
+            ]
+        );
 
         return response()->json([
             'message' => 'Response saved.',
