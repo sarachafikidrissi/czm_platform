@@ -663,14 +663,28 @@ export default function UserProfile({
     const [deactivateDialogOpen, setDeactivateDialogOpen] = useState(false);
     const [statusReason, setStatusReason] = useState('');
 
-    // Check if current user is the assigned matchmaker viewing their assigned user profile
-    // Only the assigned matchmaker can see the action tabs
-    const isMatchmakerViewingUser = 
-        viewerRole === 'matchmaker' && 
-        userRole === 'user' && 
-        user?.assigned_matchmaker_id != null &&
-        (Number(user?.assigned_matchmaker_id) === Number(auth?.user?.id) || 
-         String(user?.assigned_matchmaker_id) === String(auth?.user?.id));
+    // Check if current staff (matchmaker/manager) can see user action tabs
+    // - Assigned matchmaker viewing their assigned user
+    // - Manager viewing a user assigned to them OR validated by them
+    const isStaffViewingUserWithActions =
+        userRole === 'user' &&
+        (
+            // Assigned matchmaker
+            (viewerRole === 'matchmaker' &&
+             user?.assigned_matchmaker_id != null &&
+             (Number(user?.assigned_matchmaker_id) === Number(auth?.user?.id) ||
+              String(user?.assigned_matchmaker_id) === String(auth?.user?.id)))
+            ||
+            // Manager: user assigned directly to them OR validated by them
+            (viewerRole === 'manager' &&
+             (
+                 (user?.assigned_matchmaker_id != null &&
+                  (Number(user?.assigned_matchmaker_id) === Number(auth?.user?.id) ||
+                   String(user?.assigned_matchmaker_id) === String(auth?.user?.id)))
+                 ||
+                 user?.validated_by_manager_id === auth?.user?.id
+             ))
+        );
 
     return (
         <AppLayout>
@@ -723,7 +737,7 @@ export default function UserProfile({
                     ) : (
                         <div className="h-full w-full bg-gradient-to-r from-blue-600 to-purple-600" />
                     )}
-                    {(isOwnProfile || (isMatchmakerViewingUser && canWrite)) && (
+                    {(isOwnProfile || (isStaffViewingUserWithActions && canWrite)) && (
                         <div className="absolute top-4 right-4 z-20 flex gap-2">
                             <label htmlFor="banner-upload-input" className="cursor-pointer">
                                 <input 
@@ -888,7 +902,7 @@ export default function UserProfile({
                                                     </div>
                                                 )}
                                             </div>
-                                            {(isOwnProfile || (isMatchmakerViewingUser && canWrite)) && (
+                                            {(isOwnProfile || (isStaffViewingUserWithActions && canWrite)) && (
                                                 <label className="absolute -right-2 -bottom-2 cursor-pointer">
                                                     <input
                                                         type="file"
@@ -1161,8 +1175,8 @@ export default function UserProfile({
 
                         {/* Main Content Area */}
                         <div className="space-y-6 lg:col-span-9">
-                            {/* Matchmaker Action Tabs Navigation - Only for matchmakers viewing user profiles */}
-                            {isMatchmakerViewingUser && (
+                            {/* Staff Action Tabs Navigation - for assigned matchmaker or manager with rights */}
+                            {isStaffViewingUserWithActions && (
                                 <div className="w-full">
                                     {/* <div className="mb-2 flex items-center justify-end">
                                         <span className="rounded bg-red-600 px-3 py-1 text-sm font-semibold text-white">
@@ -1272,8 +1286,8 @@ export default function UserProfile({
                                     </div>
                                 </div>
                             )}
-                            {/* Matchmaker Action Tabs Content - Only for matchmakers viewing user profiles */}
-                            {isMatchmakerViewingUser && (
+                            {/* Staff Action Tabs Content - for assigned matchmaker or manager with rights */}
+                            {isStaffViewingUserWithActions && (
                                 <div className="w-full">
                                     {/* Actions Tab */}
                                     {activeMatchmakerTab === 'actions' && (

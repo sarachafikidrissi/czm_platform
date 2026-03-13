@@ -13,9 +13,11 @@ class MatchmakingService
     /**
      * Get eligible prospects for matchmaking entry page
      * These are users ready to be matched (User A candidates)
-     * Includes members and clients assigned to the matchmaker
+     * - For matchmakers: members/clients assigned to them
+     * - For managers: members/clients assigned to them OR validated by them
+     * - For other roles (if used): can still filter by agency
      */
-    public function getEligibleProspects($matchmakerId = null, $agencyId = null)
+    public function getEligibleProspects($matchmakerId = null, $agencyId = null, $managerId = null)
     {
         $query = User::role('user')
             ->whereIn('status', ['member', 'client', 'client_expire'])
@@ -33,25 +35,20 @@ class MatchmakingService
             $query->where('assigned_matchmaker_id', $matchmakerId);
         }
 
-        // Filter by agency if provided (for managers)
-        if ($agencyId && !$matchmakerId) {
-            // For managers, show all members/clients from their agency
-            // Get all matchmaker IDs in the manager's agency
-            $matchmakerIds = User::role('matchmaker')
-                ->where('agency_id', $agencyId)
-                ->pluck('id')
-                ->toArray();
-            
-            $query->where(function($q) use ($agencyId, $matchmakerIds) {
-                // Members from their agency
-                $q->where('agency_id', $agencyId)
-                  // OR members assigned to matchmakers in their agency
-                  ->orWhere(function($subQ) use ($matchmakerIds) {
-                      if (!empty($matchmakerIds)) {
-                          $subQ->whereIn('assigned_matchmaker_id', $matchmakerIds);
-                      }
-                  });
+        // Filter by manager ownership if provided (for managers)
+        // Managers should see only:
+        // - users assigned directly to them (assigned_matchmaker_id = managerId)
+        // - OR users they validated (validated_by_manager_id = managerId)
+        if ($managerId && !$matchmakerId) {
+            $query->where(function ($q) use ($managerId) {
+                $q->where('assigned_matchmaker_id', $managerId)
+                  ->orWhere('validated_by_manager_id', $managerId);
             });
+        }
+
+        // Fallback: filter by agency only when no specific matchmaker/manager filter is provided
+        if ($agencyId && !$matchmakerId && !$managerId) {
+            $query->where('agency_id', $agencyId);
         }
 
         return $query->orderBy('created_at', 'desc')->get();
@@ -61,7 +58,7 @@ class MatchmakingService
      * Get eligible prospects query builder for pagination
      * Same filters as getEligibleProspects but returns the query
      */
-    public function getEligibleProspectsQuery($matchmakerId = null, $agencyId = null)
+    public function getEligibleProspectsQuery($matchmakerId = null, $agencyId = null, $managerId = null)
     {
         $query = User::role('user')
             ->whereIn('status', ['member', 'client', 'client_expire'])
@@ -74,20 +71,17 @@ class MatchmakingService
             $query->where('assigned_matchmaker_id', $matchmakerId);
         }
 
-        if ($agencyId && !$matchmakerId) {
-            $matchmakerIds = User::role('matchmaker')
-                ->where('agency_id', $agencyId)
-                ->pluck('id')
-                ->toArray();
-
-            $query->where(function ($q) use ($agencyId, $matchmakerIds) {
-                $q->where('agency_id', $agencyId)
-                    ->orWhere(function ($subQ) use ($matchmakerIds) {
-                        if (!empty($matchmakerIds)) {
-                            $subQ->whereIn('assigned_matchmaker_id', $matchmakerIds);
-                        }
-                    });
+        // Manager ownership filter (same logic as above)
+        if ($managerId && !$matchmakerId) {
+            $query->where(function ($q) use ($managerId) {
+                $q->where('assigned_matchmaker_id', $managerId)
+                  ->orWhere('validated_by_manager_id', $managerId);
             });
+        }
+
+        // Fallback: pure agency filter only when no specific matchmaker/manager is used
+        if ($agencyId && !$matchmakerId && !$managerId) {
+            $query->where('agency_id', $agencyId);
         }
 
         return $query->orderBy('created_at', 'desc');

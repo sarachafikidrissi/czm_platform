@@ -207,7 +207,7 @@ const getMainNavItems = (t: TFunction, role: string): NavItem[] => [
         title: t('navigation.propositionRequests', { defaultValue: 'Demande de propositions' }),
         url: '/staff/matchmaker/proposition-requests?type=received',
         icon: UserCheck,
-        roles: ['matchmaker'],
+        roles: ['matchmaker', 'manager'],
         children: [
             { title: t('navigation.receivedRequests', { defaultValue: 'Demandes reçues' }), url: '/staff/matchmaker/proposition-requests?type=received', roles: ['matchmaker'] },
             { title: t('navigation.sentRequests', { defaultValue: 'Demandes envoyées' }), url: '/staff/matchmaker/proposition-requests?type=sent', roles: ['matchmaker'] },

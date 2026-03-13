@@ -2803,9 +2803,12 @@ class MatchmakerController extends Controller
 
         $matchmakingService = new MatchmakingService();
         $matchmakerId = ($roleName === 'matchmaker') ? $me->id : null;
-        $agencyId = ($roleName === 'manager') ? $me->agency_id : (($roleName === 'matchmaker') ? $me->agency_id : null);
+        $managerId = ($roleName === 'manager') ? $me->id : null;
+        $agencyId = ($roleName === 'matchmaker') ? $me->agency_id : null;
 
-        $query = $matchmakingService->getEligibleProspectsQuery($matchmakerId, $agencyId);
+        // For matchmakers: filter by assigned_matchmaker_id = me->id (and optionally agency)
+        // For managers: show only users assigned directly to them OR validated by them
+        $query = $matchmakingService->getEligibleProspectsQuery($matchmakerId, $agencyId, $managerId);
 
         // Apply search filter
         $search = $request->string('search')->trim();
@@ -3029,7 +3032,7 @@ class MatchmakerController extends Controller
                 $rejectedAt = $latestRejectionMap[$compatId] ?? null;
                 $canProposeFromRequest = ($requestMeta['status'] ?? null) === 'accepted'
                     && (!$rejectedAt || ($acceptedAt && $acceptedAt->gt($rejectedAt)));
-
+                // dd($statusMap);
                 return [
                     'user' => [
                         'id' => $match['user']->id,

@@ -114,9 +114,15 @@ export default function AgencyProspects() {
                 return true;
             }
         }
-        // Manager can reject if prospect is from their agency
-        if (userRole === 'manager' && prospect.agency_id === userAgencyId) {
-            return true;
+        // Manager can reject if prospect is assigned directly to them (manager acting as matchmaker)
+        // or if prospect is from their agency
+        if (userRole === 'manager') {
+            if (prospect.assigned_matchmaker_id === userId) {
+                return true;
+            }
+            if (prospect.agency_id === userAgencyId) {
+                return true;
+            }
         }
         return false;
     };
@@ -137,14 +143,20 @@ export default function AgencyProspects() {
         if (userRole === 'matchmaker') {
             return prospect.assigned_matchmaker_id === userId;
         }
-        // Manager can validate only if prospect is NOT dispatched to a matchmaker
-        // (i.e., assigned_matchmaker_id is null or assigned to them)
+        // Manager can validate:
+        // - if prospect is assigned directly to them (manager acting as matchmaker), OR
+        // - if prospect is from their agency and not dispatched to another matchmaker
+        // (backend also enforces that managers cannot validate prospects dispatched to other matchmakers)
         if (userRole === 'manager') {
-            // If prospect is dispatched to a matchmaker (and not to the manager), cannot validate
+            // If prospect is assigned directly to this manager as matchmaker, allow
+            if (prospect.assigned_matchmaker_id === userId) {
+                return true;
+            }
+            // If prospect is dispatched to a (different) matchmaker, cannot validate
             if (prospect.assigned_matchmaker_id && prospect.assigned_matchmaker_id !== userId) {
                 return false;
             }
-            // Can validate if from their agency and not dispatched to another matchmaker
+            // Otherwise, can validate if from their agency and not dispatched to another matchmaker
             return prospect.agency_id === userAgencyId;
         }
         return false;
@@ -166,14 +178,19 @@ export default function AgencyProspects() {
         if (userRole === 'matchmaker') {
             return prospect.assigned_matchmaker_id === userId;
         }
-        // Manager can edit only if prospect is NOT dispatched to a matchmaker
-        // (i.e., assigned_matchmaker_id is null or assigned to them)
+        // Manager can edit:
+        // - if prospect is assigned directly to them (manager acting as matchmaker), OR
+        // - if prospect is from their agency and not dispatched to another matchmaker
         if (userRole === 'manager') {
-            // If prospect is dispatched to a matchmaker (and not to the manager), cannot edit
+            // If prospect is assigned directly to this manager as matchmaker, allow
+            if (prospect.assigned_matchmaker_id === userId) {
+                return true;
+            }
+            // If prospect is dispatched to a (different) matchmaker, cannot edit
             if (prospect.assigned_matchmaker_id && prospect.assigned_matchmaker_id !== userId) {
                 return false;
             }
-            // Can edit if from their agency and not dispatched to another matchmaker
+            // Otherwise, can edit if from their agency and not dispatched to another matchmaker
             return prospect.agency_id === userAgencyId;
         }
         return false;
@@ -239,7 +256,12 @@ export default function AgencyProspects() {
             if (prospect.assigned_matchmaker_id === userId) return true;
             if (prospect.agency_id === userAgencyId && prospect.assigned_matchmaker_id === null) return true;
         }
-        if (userRole === 'manager' && prospect.agency_id === userAgencyId) return true;
+        // Manager can accept if prospect is assigned directly to them (manager acting as matchmaker)
+        // or if prospect is from their agency
+        if (userRole === 'manager') {
+            if (prospect.assigned_matchmaker_id === userId) return true;
+            if (prospect.agency_id === userAgencyId) return true;
+        }
         return false;
     };
     
@@ -252,8 +274,12 @@ export default function AgencyProspects() {
         if (userRole === 'matchmaker') {
             return user.assigned_matchmaker_id === userId;
         }
-        // Manager can transfer if user is from their agency
+        // Manager can transfer if user is assigned directly to them (acting as matchmaker)
+        // or if user is from their agency
         if (userRole === 'manager') {
+            if (user.assigned_matchmaker_id === userId) {
+                return true;
+            }
             return user.agency_id === userAgencyId;
         }
         // Admin can transfer anyone
@@ -273,7 +299,12 @@ export default function AgencyProspects() {
             if (prospect.assigned_matchmaker_id === userId) return true;
             if (prospect.agency_id === userAgencyId && prospect.assigned_matchmaker_id === null) return true;
         }
-        if (userRole === 'manager' && prospect.agency_id === userAgencyId) return true;
+        // Manager can mark if prospect is assigned directly to them (manager acting as matchmaker)
+        // or if prospect is from their agency
+        if (userRole === 'manager') {
+            if (prospect.assigned_matchmaker_id === userId) return true;
+            if (prospect.agency_id === userAgencyId) return true;
+        }
         return false;
     };
     

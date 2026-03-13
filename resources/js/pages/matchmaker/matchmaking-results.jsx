@@ -1005,6 +1005,8 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
         }
         return 'Demande de propositions';
     };
+    console.log(proposeMessage);
+    
 
     return (
         <AppLayout>
@@ -1771,6 +1773,8 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
                                             const requestStatusForLabel = match.can_propose_from_request
                                                 ? match.proposition_request_status
                                                 : null;
+                                            console.log(match);
+                                            
 
                                             return (
                                                 <Button
