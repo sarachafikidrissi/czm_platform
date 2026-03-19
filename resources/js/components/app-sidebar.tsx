@@ -166,10 +166,37 @@ const getMainNavItems = (t: TFunction, role: string): NavItem[] => [
         roles: ['admin', 'matchmaker', 'manager'],
     },
     {
-        title: t('navigation.monthlyObjectives'),
+        // Matchmaker: single link to objectives (own production)
+        title: t('navigation.myProduction', { defaultValue: 'Ma production' }),
         url: '/objectives',
         icon: Target,
-        roles: ['admin', 'matchmaker', 'manager'],
+        roles: ['matchmaker'],
+    },
+    {
+        // Admin: single link to objectives (set/view objectives, filter by user)
+        title: t('navigation.myProduction', { defaultValue: 'Ma production' }),
+        url: '/objectives',
+        icon: Target,
+        roles: ['admin'],
+    },
+    {
+        // Manager: submenu with personal production + agency production
+        title: t('navigation.myProduction', { defaultValue: 'Ma production' }),
+        url: '/objectives',
+        icon: Target,
+        roles: ['manager'],
+        children: [
+            {
+                title: t('navigation.myProductionSelf', { defaultValue: 'Ma production' }),
+                url: '/manager/my-production',
+                roles: ['manager'],
+            },
+            {
+                title: t('navigation.agencyProduction', { defaultValue: "Production d'agence" }),
+                url: '/objectives',
+                roles: ['manager'],
+            },
+        ],
     },
     {
         title: t('navigation.reactivationRequests'),

@@ -23,13 +23,17 @@ export default function ObjectivesIndex() {
         month, 
         year, 
         userId,
+        agencyId,
         roleType, 
+        scopeType,
         users = [],
+        agencies = [],
         canEdit,
         currentUser 
     } = usePage().props;
     const [editDialogOpen, setEditDialogOpen] = useState(false);
     const [selectedUserId, setSelectedUserId] = useState(userId || null);
+    const [selectedAgencyId, setSelectedAgencyId] = useState(agencyId || null);
     const [detailDialogOpen, setDetailDialogOpen] = useState(false);
     const [selectedMetric, setSelectedMetric] = useState(null);
     const [detailData, setDetailData] = useState(null);
@@ -107,6 +111,7 @@ export default function ObjectivesIndex() {
             month: newMonth,
             year: newYear,
             user_id: selectedUserId,
+            agency_id: selectedAgencyId,
         }, {
             preserveScroll: true,
             preserveState: false,
@@ -115,12 +120,36 @@ export default function ObjectivesIndex() {
     };
 
     const handleUserChange = (newUserId) => {
-        setSelectedUserId(newUserId ? parseInt(newUserId) : null);
+        const parsedUserId = newUserId ? parseInt(newUserId) : null;
+        setSelectedUserId(parsedUserId);
+        if (currentUser?.role === 'admin' && parsedUserId) {
+            setSelectedAgencyId(null);
+        }
         setIsNavigating(true);
         router.get('/objectives', {
             month: month,
             year: year,
-            user_id: newUserId ? parseInt(newUserId) : null,
+            user_id: parsedUserId,
+            agency_id: currentUser?.role === 'admin' && parsedUserId ? null : selectedAgencyId,
+        }, {
+            preserveScroll: true,
+            preserveState: false,
+            onFinish: () => setIsNavigating(false),
+        });
+    };
+
+    const handleAgencyChange = (newAgencyId) => {
+        const parsedAgencyId = newAgencyId ? parseInt(newAgencyId) : null;
+        setSelectedAgencyId(parsedAgencyId);
+        if (currentUser?.role === 'admin' && parsedAgencyId) {
+            setSelectedUserId(null);
+        }
+        setIsNavigating(true);
+        router.get('/objectives', {
+            month: month,
+            year: year,
+            user_id: currentUser?.role === 'admin' && parsedAgencyId ? null : selectedUserId,
+            agency_id: parsedAgencyId,
         }, {
             preserveScroll: true,
             preserveState: false,
@@ -180,7 +209,14 @@ export default function ObjectivesIndex() {
         setDetailData(null);
 
         try {
-            const url = `/objectives/details?type=${metric.key}&user_id=${userId || ''}&month=${month}&year=${year}`;
+            const params = new URLSearchParams({
+                type: metric.key,
+                month: month.toString(),
+                year: year.toString(),
+            });
+            if (selectedUserId) params.set('user_id', selectedUserId.toString());
+            if (selectedAgencyId) params.set('agency_id', selectedAgencyId.toString());
+            const url = `/objectives/details?${params.toString()}`;
             const response = await fetch(url, {
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest',
@@ -250,7 +286,31 @@ export default function ObjectivesIndex() {
 
                     {/* Filters */}
                     <div className="flex flex-wrap items-center gap-3 bg-card rounded-lg p-3 border">
-                        {canEdit && users.length > 0 && (
+                        {currentUser?.role === 'admin' && agencies.length > 0 && (
+                            <>
+                                <div className="flex items-center gap-2">
+                                    <Label className="text-sm text-muted-foreground">{t('agencies.agencies')}</Label>
+                                    <Select
+                                        value={selectedAgencyId?.toString() || 'all'}
+                                        onValueChange={(v) => handleAgencyChange(v === 'all' ? null : v)}
+                                    >
+                                        <SelectTrigger className="h-9 w-[220px]">
+                                            <SelectValue placeholder={t('agencies.agencies')} />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">{t('staff.objectives.allAgencies')}</SelectItem>
+                                            {agencies.map((agency) => (
+                                                <SelectItem key={agency.id} value={agency.id.toString()}>
+                                                    {agency.name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="h-6 w-px bg-border" />
+                            </>
+                        )}
+                        {['admin', 'manager'].includes(currentUser?.role) && users.length > 0 && (
                             <>
                                 <div className="flex items-center gap-2">
                                     <Label className="text-sm text-muted-foreground">{t('staff.objectives.user')}</Label>
@@ -315,7 +375,10 @@ export default function ObjectivesIndex() {
                             {selectedUserId && users.find(u => u.id === selectedUserId) && (
                                 <> - {users.find(u => u.id === selectedUserId).name} ({roleType === 'matchmaker' ? t('staff.matchmaker') : t('agencies.manager')})</>
                             )}
-                            {!selectedUserId && currentUser?.role && (
+                            {!selectedUserId && selectedAgencyId && agencies.find(a => a.id === selectedAgencyId) && (
+                                <> - {agencies.find(a => a.id === selectedAgencyId).name} ({t('agencies.agencies')})</>
+                            )}
+                            {!selectedUserId && !selectedAgencyId && currentUser?.role && (
                                 <> - {currentUser.name} ({roleType === 'matchmaker' ? t('staff.matchmaker') : t('agencies.manager')})</>
                             )}
                         </CardDescription>
@@ -582,7 +645,7 @@ export default function ObjectivesIndex() {
                                                 <TableHead>{t('staff.objectives.billNumber')}</TableHead>
                                                 <TableHead>{t('staff.objectives.client')}</TableHead>
                                                 <TableHead>{t('staff.objectives.email')}</TableHead>
-                                                {roleType === 'manager' && <TableHead>{t('staff.matchmaker')}</TableHead>}
+                                                {['agency', 'all'].includes(scopeType) && <TableHead>{t('staff.matchmaker')}</TableHead>}
                                                 <TableHead>{t('staff.objectives.pack')}</TableHead>
                                                 <TableHead>{t('staff.objectives.amount')}</TableHead>
                                                 <TableHead>{t('staff.objectives.paymentMethod')}</TableHead>
@@ -595,7 +658,7 @@ export default function ObjectivesIndex() {
                                                     <TableCell className="font-medium">{item.bill_number}</TableCell>
                                                     <TableCell>{item.user_name}</TableCell>
                                                     <TableCell>{item.user_email}</TableCell>
-                                                    {roleType === 'manager' && (
+                                                    {['agency', 'all'].includes(scopeType) && (
                                                         <TableCell>{item.matchmaker_name}</TableCell>
                                                     )}
                                                     <TableCell>{item.pack_name}</TableCell>
@@ -615,7 +678,7 @@ export default function ObjectivesIndex() {
                                                 <TableHead>{t('staff.objectives.name')}</TableHead>
                                                 <TableHead>{t('staff.objectives.email')}</TableHead>
                                                 <TableHead>{t('staff.objectives.phone')}</TableHead>
-                                                {roleType === 'manager' && <TableHead>{t('staff.matchmaker')}</TableHead>}
+                                                {['agency', 'all'].includes(scopeType) && <TableHead>{t('staff.matchmaker')}</TableHead>}
                                                 <TableHead>{t('staff.objectives.status')}</TableHead>
                                                 <TableHead>{t('staff.objectives.validatedAt')}</TableHead>
                                             </TableRow>
@@ -626,7 +689,7 @@ export default function ObjectivesIndex() {
                                                     <TableCell className="font-medium">{item.name}</TableCell>
                                                     <TableCell>{item.email}</TableCell>
                                                     <TableCell>{item.phone || 'N/A'}</TableCell>
-                                                    {roleType === 'manager' && (
+                                                    {['agency', 'all'].includes(scopeType) && (
                                                         <TableCell>{item.matchmaker_name}</TableCell>
                                                     )}
                                                     <TableCell>

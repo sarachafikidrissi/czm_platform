@@ -5,10 +5,17 @@ namespace App\Http\Controllers;
 use App\Models\Post;
 use App\Models\PostLike;
 use App\Models\PostComment;
+use App\Models\AppointmentRequest;
+use App\Models\Bill;
+use App\Models\MonthlyObjective;
+use App\Models\Proposition;
+use App\Models\PropositionRequest;
+use App\Models\TransferRequest;
 use App\Models\User;
 use App\Models\Activity;
 use App\Models\Agency;
 use App\Mail\CommentReplyNotification;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -671,12 +678,99 @@ class PostController extends Controller
                 ->where('assigned_matchmaker_id', $user->id)
                 ->whereNull('approved_at');
 
+            $appointmentsInProgress = AppointmentRequest::query()
+                ->where('assigned_matchmaker_id', $user->id)
+                ->where('treatment_status', 'pending')
+                ->count();
+
+            // A proposition is stored as 1 row per recipient_user_id, so count 1 per pair.
+            $pendingPropositions = (int) (Proposition::query()
+                ->where('matchmaker_id', $user->id)
+                ->where('status', 'pending')
+                ->selectRaw("COUNT(DISTINCT CONCAT_WS('-', reference_user_id, compatible_user_id)) as aggregate")
+                ->value('aggregate') ?? 0);
+
+            $pendingPropositionRequests = PropositionRequest::query()
+                ->where('status', 'pending')
+                ->where(function ($q) use ($user) {
+                    $q->where('from_matchmaker_id', $user->id)
+                        ->orWhere('to_matchmaker_id', $user->id);
+                })
+                ->count();
+
+            $pendingTransferRequests = TransferRequest::query()
+                ->where('status', 'pending')
+                ->where(function ($q) use ($user) {
+                    $q->where('from_matchmaker_id', $user->id)
+                        ->orWhere('to_matchmaker_id', $user->id);
+                })
+                ->count();
+
+            $expiredClients = User::role('user')
+                ->where('assigned_matchmaker_id', $user->id)
+                ->where('status', 'client_expire')
+                ->count();
+
+            // Objectives (same data source as /objectives page) for current month/year
+            $month = now()->month;
+            $year = now()->year;
+            $objective = MonthlyObjective::where('role_type', 'matchmaker')
+                ->whereNull('user_id')
+                ->where('month', $month)
+                ->where('year', $year)
+                ->first();
+
+            $startDate = Carbon::create($year, $month, 1)->startOfMonth();
+            $endDate = Carbon::create($year, $month, 1)->endOfMonth();
+
+            $realizedVentes = Bill::where('matchmaker_id', $user->id)
+                ->where('status', 'paid')
+                ->whereBetween('created_at', [$startDate, $endDate])
+                ->sum('total_amount') ?? 0;
+
+            $realizedMembres = User::role('user')
+                ->whereIn('status', ['member', 'client', 'client_expire'])
+                ->where('assigned_matchmaker_id', $user->id)
+                ->whereBetween('approved_at', [$startDate, $endDate])
+                ->count();
+
+            $objectives = [
+                'month' => $month,
+                'year' => $year,
+                'target_ventes' => (float) ($objective?->target_ventes ?? 0),
+                'target_membres' => (int) ($objective?->target_membres ?? 0),
+                'target_rdv' => (int) ($objective?->target_rdv ?? 0),
+                'target_match' => (int) ($objective?->target_match ?? 0),
+                'realized_ventes' => (float) $realizedVentes,
+                'realized_membres' => (int) $realizedMembres,
+                'realized_rdv' => 0,
+                'realized_match' => 0,
+                'progress' => [
+                    'ventes' => ($objective && (float) $objective->target_ventes > 0)
+                        ? min(100, ((float) $realizedVentes / (float) $objective->target_ventes) * 100)
+                        : 0,
+                    'membres' => ($objective && (int) $objective->target_membres > 0)
+                        ? min(100, ((int) $realizedMembres / (int) $objective->target_membres) * 100)
+                        : 0,
+                    'rdv' => 0,
+                    'match' => 0,
+                ],
+            ];
+
             $stats = [
                 'prospects' => [
                     'total' => $prospectsQuery->count(),
                     'late' => $prospectsQuery->where('created_at', '<', now()->subDays(7))->whereNull('approved_at')->count(),
                     'untreated' => $untreatedProspectsQuery->count(),
                 ],
+                'activities' => [
+                    'appointmentsInProgress' => (int) $appointmentsInProgress,
+                    'pendingPropositions' => (int) $pendingPropositions,
+                    'pendingRequests' => (int) $pendingPropositionRequests,
+                    'pendingTransferRequests' => (int) $pendingTransferRequests,
+                    'expiredClients' => (int) $expiredClients,
+                ],
+                'objectives' => $objectives,
                 'clients' => [
                     'total' => $clientsQuery->count(),
                     'inAppointment' => (clone $baseQuery)->where('status', 'en_rdv')->count(),
@@ -738,12 +832,106 @@ class PostController extends Controller
                 ->where('agency_id', $user->agency_id)
                 ->whereNull('approved_at');
 
+            // Objectives (same data source as /objectives page) for current month/year
+            $month = now()->month;
+            $year = now()->year;
+            $objective = MonthlyObjective::where('role_type', 'manager')
+                ->whereNull('user_id')
+                ->where('month', $month)
+                ->where('year', $year)
+                ->first();
+
+            $startDate = Carbon::create($year, $month, 1)->startOfMonth();
+            $endDate = Carbon::create($year, $month, 1)->endOfMonth();
+
+            $matchmakerIds = User::role('matchmaker')
+                ->where('agency_id', $user->agency_id)
+                ->where('approval_status', 'approved')
+                ->pluck('id');
+
+            // Agency productivity (all matchmakers in agency)
+            $agencyRealizedVentes = Bill::whereIn('matchmaker_id', $matchmakerIds)
+                ->where('status', 'paid')
+                ->whereBetween('created_at', [$startDate, $endDate])
+                ->sum('total_amount') ?? 0;
+
+            $agencyRealizedMembres = User::role('user')
+                ->whereIn('status', ['member', 'client', 'client_expire'])
+                ->where(function($query) use ($matchmakerIds, $user) {
+                    $query->whereIn('assigned_matchmaker_id', $matchmakerIds)
+                        ->orWhere('validated_by_manager_id', $user->id);
+                })
+                ->whereBetween('approved_at', [$startDate, $endDate])
+                ->count();
+
+            $objectivesAgency = [
+                'month' => $month,
+                'year' => $year,
+                'target_ventes' => (float) ($objective?->target_ventes ?? 0),
+                'target_membres' => (int) ($objective?->target_membres ?? 0),
+                'target_rdv' => (int) ($objective?->target_rdv ?? 0),
+                'target_match' => (int) ($objective?->target_match ?? 0),
+                'realized_ventes' => (float) $agencyRealizedVentes,
+                'realized_membres' => (int) $agencyRealizedMembres,
+                'realized_rdv' => 0,
+                'realized_match' => 0,
+                'progress' => [
+                    'ventes' => ($objective && (float) $objective->target_ventes > 0)
+                        ? min(100, ((float) $agencyRealizedVentes / (float) $objective->target_ventes) * 100)
+                        : 0,
+                    'membres' => ($objective && (int) $objective->target_membres > 0)
+                        ? min(100, ((int) $agencyRealizedMembres / (int) $objective->target_membres) * 100)
+                        : 0,
+                    'rdv' => 0,
+                    'match' => 0,
+                ],
+            ];
+
+            // Manager productivity (manager's own actions)
+            $managerRealizedVentes = Bill::where('matchmaker_id', $user->id)
+                ->where('status', 'paid')
+                ->whereBetween('created_at', [$startDate, $endDate])
+                ->sum('total_amount') ?? 0;
+
+            $managerRealizedMembres = User::role('user')
+                ->whereIn('status', ['member', 'client', 'client_expire'])
+                ->where('validated_by_manager_id', $user->id)
+                ->whereBetween('approved_at', [$startDate, $endDate])
+                ->count();
+
+            $objectivesManager = [
+                'month' => $month,
+                'year' => $year,
+                'target_ventes' => (float) ($objective?->target_ventes ?? 0),
+                'target_membres' => (int) ($objective?->target_membres ?? 0),
+                'target_rdv' => (int) ($objective?->target_rdv ?? 0),
+                'target_match' => (int) ($objective?->target_match ?? 0),
+                'realized_ventes' => (float) $managerRealizedVentes,
+                'realized_membres' => (int) $managerRealizedMembres,
+                'realized_rdv' => 0,
+                'realized_match' => 0,
+                'progress' => [
+                    'ventes' => ($objective && (float) $objective->target_ventes > 0)
+                        ? min(100, ((float) $managerRealizedVentes / (float) $objective->target_ventes) * 100)
+                        : 0,
+                    'membres' => ($objective && (int) $objective->target_membres > 0)
+                        ? min(100, ((int) $managerRealizedMembres / (int) $objective->target_membres) * 100)
+                        : 0,
+                    'rdv' => 0,
+                    'match' => 0,
+                ],
+            ];
+
             $stats = [
                 'prospects' => [
                     'total' => $prospectsQuery->count(),
                     'late' => $prospectsQuery->where('created_at', '<', now()->subDays(7))->whereNull('approved_at')->count(),
                     'untreated' => $untreatedProspectsQuery->count(),
                 ],
+                // Backward-compatible: keep 'objectives' as agency productivity
+                'objectives' => $objectivesAgency,
+                'objectivesManager' => $objectivesManager,
+                'objectivesAgency' => $objectivesAgency,
                 'clients' => [
                     'total' => $clientsQuery->count(),
                     'inAppointment' => (clone $baseQuery)->where('status', 'en_rdv')->count(),

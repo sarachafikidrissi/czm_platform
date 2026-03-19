@@ -380,6 +380,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // Appointment requests routes
         Route::get('/appointment-requests', [\App\Http\Controllers\AdminController::class, 'managerAppointmentRequests'])->name('appointment-requests');
         Route::post('/appointment-requests/dispatch', [\App\Http\Controllers\AdminController::class, 'managerDispatchAppointmentRequest'])->name('appointment-requests.dispatch');
+        // Manager-only: personal production (Ma production)
+        Route::get('/my-production', [\App\Http\Controllers\ManagerProductionController::class, 'index'])->name('my-production');
     });
 
     // Staff routes (manager, matchmaker) for viewing dispatched prospects and validated lists

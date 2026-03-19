@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\MonthlyObjective;
 use App\Models\User;
 use App\Models\Bill;
+use App\Models\Agency;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -31,13 +32,16 @@ class ObjectiveController extends Controller
         $month = $request->integer('month', now()->month);
         $year = $request->integer('year', now()->year);
         $userId = $request->input('user_id') ? (int) $request->input('user_id') : null;
+        $agencyId = $request->input('agency_id') ? (int) $request->input('agency_id') : null;
 
         // Determine target user and role type for calculations
         $targetUserId = null;
+        $targetAgencyId = null;
         $targetRoleType = null;
+        $scopeType = 'self';
         
         if ($roleName === 'admin') {
-            // Admin can view any user's results
+            // Admin can view agency-level or individual staff results
             if ($userId) {
                 $targetUser = User::find($userId);
                 if (!$targetUser) {
@@ -50,23 +54,54 @@ class ObjectiveController extends Controller
                     ->where('model_has_roles.model_id', $userId)
                     ->whereIn('roles.name', ['matchmaker', 'manager'])
                     ->value('roles.name');
-                $targetRoleType = $userRole ?: 'matchmaker';
+                if (!$userRole) {
+                    abort(403, 'Unauthorized staff selection.');
+                }
+                $targetRoleType = $userRole;
+                $scopeType = $userRole === 'manager' ? 'manager_individual' : 'matchmaker_individual';
+            } elseif ($agencyId) {
+                $agency = Agency::find($agencyId);
+                if (!$agency) {
+                    abort(404, 'Agency not found.');
+                }
+                $targetAgencyId = $agency->id;
+                $targetRoleType = 'manager';
+                $scopeType = 'agency';
             } else {
-                // Default to first matchmaker for admin view
-                $firstMatchmaker = User::role('matchmaker')
-                    ->where('approval_status', 'approved')
-                    ->first();
-                $targetUserId = $firstMatchmaker ? $firstMatchmaker->id : $me->id;
+                // Admin default: no specific user selected ("All")
+                $targetUserId = null;
                 $targetRoleType = 'matchmaker';
+                $scopeType = 'all';
             }
         } elseif ($roleName === 'matchmaker') {
             // Matchmaker sees their own results
             $targetUserId = $me->id;
             $targetRoleType = 'matchmaker';
+            $scopeType = 'self';
         } elseif ($roleName === 'manager') {
-            // Manager sees their agency's results
-            $targetUserId = $me->id;
-            $targetRoleType = 'manager';
+            // Manager sees agency aggregate by default, or a specific matchmaker in their agency when selected
+            if ($userId) {
+                $targetUser = User::where('id', $userId)
+                    ->where('agency_id', $me->agency_id)
+                    ->where('approval_status', 'approved')
+                    ->whereHas('roles', function ($q) {
+                        $q->where('name', 'matchmaker');
+                    })
+                    ->first();
+
+                if (!$targetUser) {
+                    abort(403, 'Unauthorized staff selection.');
+                }
+
+                $targetUserId = $targetUser->id;
+                $targetRoleType = 'matchmaker';
+                $scopeType = 'matchmaker_individual';
+            } else {
+                // Keep existing manager default behavior
+                $targetUserId = $me->id;
+                $targetRoleType = 'manager';
+                $scopeType = 'agency';
+            }
         } else {
             abort(403, 'Unauthorized access.');
         }
@@ -78,27 +113,55 @@ class ObjectiveController extends Controller
             ->where('year', $year)
             ->first();
 
-        // Calculate realized values based on individual user/agency
-        if ($targetRoleType === 'matchmaker') {
+        // Calculate realized values based on selected scope
+        if ($scopeType === 'manager_individual') {
+            $realized = $this->calculateRealizedForManager($targetUserId, $month, $year);
+        } elseif ($scopeType === 'agency') {
+            if ($roleName === 'admin') {
+                $realized = $this->calculateRealizedForAgencyById($targetAgencyId, $month, $year);
+            } else {
+                $realized = $this->calculateRealizedForAgency($targetUserId, $month, $year);
+            }
+        } elseif ($scopeType === 'all') {
+            $realized = $this->calculateRealizedForAllMatchmakers($month, $year);
+        } elseif ($targetRoleType === 'matchmaker') {
             $realized = $this->calculateRealizedForMatchmaker($targetUserId, $month, $year);
-        } else { // manager
-            $realized = $this->calculateRealizedForAgency($targetUserId, $month, $year);
+        } else {
+            $realized = $this->calculateRealizedForManager($targetUserId, $month, $year);
         }
 
         // Calculate progress and commission
         $progress = $this->calculateProgress($objective, $realized);
         $commission = $this->calculateCommission($progress, $realized);
 
-        // For admin: get list of all matchmakers and managers
+        // Reuse the same users query for admin and manager with role-based constraints
         $users = [];
-        if ($roleName === 'admin') {
-            $users = User::whereHas('roles', function($q) {
-                $q->whereIn('name', ['matchmaker', 'manager']);
-            })
-            ->where('approval_status', 'approved')
-            ->with('roles')
-            ->get(['id', 'name', 'email', 'agency_id']);
+        $agencies = [];
+        if (in_array($roleName, ['admin', 'manager'])) {
+            $usersQuery = User::where('approval_status', 'approved')
+                ->with('roles');
+
+            if ($roleName === 'admin') {
+                $usersQuery->whereHas('roles', function($q) {
+                    $q->whereIn('name', ['matchmaker', 'manager']);
+                });
+                if ($agencyId) {
+                    $usersQuery->where('agency_id', $agencyId);
+                }
+            } else {
+                $usersQuery->where('agency_id', $me->agency_id)
+                    ->whereHas('roles', function ($q) {
+                        $q->where('name', 'matchmaker');
+                    });
+            }
+
+            $users = $usersQuery->get(['id', 'name', 'email', 'agency_id']);
         }
+        if ($roleName === 'admin') {
+            $agencies = Agency::orderBy('name')->get(['id', 'name']);
+        }
+
+        $selectedFilterUserId = in_array($scopeType, ['matchmaker_individual', 'manager_individual']) ? $targetUserId : null;
 
         return Inertia::render('objectives/index', [
             'objective' => $objective,
@@ -107,9 +170,12 @@ class ObjectiveController extends Controller
             'commission' => $commission,
             'month' => $month,
             'year' => $year,
-            'userId' => $targetUserId,
+            'userId' => $selectedFilterUserId,
+            'agencyId' => $targetAgencyId,
             'roleType' => $targetRoleType,
+            'scopeType' => $scopeType,
             'users' => $users,
+            'agencies' => $agencies,
             'canEdit' => $roleName === 'admin',
             'currentUser' => [
                 'id' => $me->id,
@@ -225,10 +291,12 @@ class ObjectiveController extends Controller
             $year = $request->integer('year');
             $type = $request->input('type');
             $userId = $request->input('user_id') ? (int) $request->input('user_id') : null;
+            $agencyId = $request->input('agency_id') ? (int) $request->input('agency_id') : null;
 
             // Determine target user and role type
             $targetUserId = null;
             $targetRoleType = null;
+            $scopeType = 'self';
 
             if ($roleName === 'admin') {
                 if ($userId) {
@@ -238,9 +306,20 @@ class ObjectiveController extends Controller
                         ->where('model_has_roles.model_id', $userId)
                         ->whereIn('roles.name', ['matchmaker', 'manager'])
                         ->value('roles.name');
-                    $targetRoleType = $userRole ?: 'matchmaker';
+                    if (!$userRole) {
+                        abort(403, 'Unauthorized staff selection.');
+                    }
+                    $targetRoleType = $userRole;
+                    $scopeType = $userRole === 'manager' ? 'manager_individual' : 'matchmaker_individual';
+                } elseif ($agencyId) {
+                    if (!Agency::where('id', $agencyId)->exists()) {
+                        abort(404, 'Agency not found.');
+                    }
+                    $targetRoleType = 'manager';
+                    $scopeType = 'agency';
                 } else {
-                    abort(400, 'User ID is required for admin.');
+                    $targetRoleType = 'matchmaker';
+                    $scopeType = 'all';
                 }
             } elseif ($roleName === 'matchmaker') {
                 $targetUserId = $me->id;
@@ -248,6 +327,7 @@ class ObjectiveController extends Controller
             } elseif ($roleName === 'manager') {
                 $targetUserId = $me->id;
                 $targetRoleType = 'manager';
+                $scopeType = 'agency';
             }
 
             $startDate = Carbon::create($year, $month, 1)->startOfMonth();
@@ -256,7 +336,55 @@ class ObjectiveController extends Controller
             $details = [];
 
             if ($type === 'ventes') {
-                if ($targetRoleType === 'matchmaker') {
+                if ($scopeType === 'agency' || $scopeType === 'all') {
+                    $matchmakerIds = User::role('matchmaker')
+                        ->where('approval_status', 'approved')
+                        ->when($scopeType === 'agency', function ($query) use ($agencyId, $me) {
+                            $query->where('agency_id', $agencyId ?? $me->agency_id);
+                        })
+                        ->pluck('id');
+
+                    $details = Bill::whereIn('matchmaker_id', $matchmakerIds)
+                        ->where('status', 'paid')
+                        ->whereBetween('created_at', [$startDate, $endDate])
+                        ->with(['user', 'profile', 'matchmaker'])
+                        ->orderBy('created_at', 'desc')
+                        ->get()
+                        ->map(function ($bill) {
+                            return [
+                                'id' => $bill->id,
+                                'bill_number' => $bill->bill_number,
+                                'user_name' => $bill->user->name ?? 'N/A',
+                                'user_email' => $bill->user->email ?? 'N/A',
+                                'matchmaker_name' => $bill->matchmaker->name ?? 'N/A',
+                                'total_amount' => $bill->total_amount,
+                                'pack_name' => $bill->pack_name,
+                                'payment_method' => $bill->payment_method,
+                                'created_at' => $bill->created_at->format('Y-m-d H:i:s'),
+                                'bill_date' => $bill->bill_date->format('Y-m-d'),
+                            ];
+                        });
+                } elseif ($scopeType === 'manager_individual') {
+                    $details = Bill::where('matchmaker_id', $targetUserId)
+                        ->where('status', 'paid')
+                        ->whereBetween('created_at', [$startDate, $endDate])
+                        ->with(['user', 'profile'])
+                        ->orderBy('created_at', 'desc')
+                        ->get()
+                        ->map(function ($bill) {
+                            return [
+                                'id' => $bill->id,
+                                'bill_number' => $bill->bill_number,
+                                'user_name' => $bill->user->name ?? 'N/A',
+                                'user_email' => $bill->user->email ?? 'N/A',
+                                'total_amount' => $bill->total_amount,
+                                'pack_name' => $bill->pack_name,
+                                'payment_method' => $bill->payment_method,
+                                'created_at' => $bill->created_at->format('Y-m-d H:i:s'),
+                                'bill_date' => $bill->bill_date->format('Y-m-d'),
+                            ];
+                        });
+                } elseif ($targetRoleType === 'matchmaker') {
                     $details = Bill::where('matchmaker_id', $targetUserId)
                         ->where('status', 'paid')
                         ->whereBetween('created_at', [$startDate, $endDate])
@@ -313,7 +441,61 @@ class ObjectiveController extends Controller
                     }
                 }
             } elseif ($type === 'membres') {
-                if ($targetRoleType === 'matchmaker') {
+                if ($scopeType === 'agency' || $scopeType === 'all') {
+                    $matchmakerIds = User::role('matchmaker')
+                        ->where('approval_status', 'approved')
+                        ->when($scopeType === 'agency', function ($query) use ($agencyId, $me) {
+                            $query->where('agency_id', $agencyId ?? $me->agency_id);
+                        })
+                        ->pluck('id');
+
+                    $details = User::role('user')
+                        ->whereIn('status', ['member', 'client', 'client_expire'])
+                        ->whereIn('assigned_matchmaker_id', $matchmakerIds)
+                        ->whereNotNull('approved_at')
+                        ->whereBetween('approved_at', [$startDate, $endDate])
+                        ->with(['profile', 'assignedMatchmaker'])
+                        ->orderBy('approved_at', 'desc')
+                        ->get()
+                        ->map(function ($user) {
+                            $approvedAt = $user->approved_at;
+                            if ($approvedAt && is_string($approvedAt)) {
+                                $approvedAt = Carbon::parse($approvedAt);
+                            }
+                            return [
+                                'id' => $user->id,
+                                'name' => $user->name,
+                                'email' => $user->email,
+                                'phone' => $user->phone,
+                                'status' => $user->status,
+                                'matchmaker_name' => $user->assignedMatchmaker ? $user->assignedMatchmaker->name : 'N/A',
+                                'approved_at' => $approvedAt ? $approvedAt->format('Y-m-d H:i:s') : null,
+                            ];
+                        });
+                } elseif ($scopeType === 'manager_individual') {
+                    $details = User::role('user')
+                        ->whereIn('status', ['member', 'client', 'client_expire'])
+                        ->where('validated_by_manager_id', $targetUserId)
+                        ->whereNotNull('approved_at')
+                        ->whereBetween('approved_at', [$startDate, $endDate])
+                        ->with(['profile'])
+                        ->orderBy('approved_at', 'desc')
+                        ->get()
+                        ->map(function ($user) {
+                            $approvedAt = $user->approved_at;
+                            if ($approvedAt && is_string($approvedAt)) {
+                                $approvedAt = Carbon::parse($approvedAt);
+                            }
+                            return [
+                                'id' => $user->id,
+                                'name' => $user->name,
+                                'email' => $user->email,
+                                'phone' => $user->phone,
+                                'status' => $user->status,
+                                'approved_at' => $approvedAt ? $approvedAt->format('Y-m-d H:i:s') : null,
+                            ];
+                        });
+                } elseif ($targetRoleType === 'matchmaker') {
                     $details = User::role('user')
                         ->whereIn('status', ['member', 'client', 'client_expire'])
                         ->where('assigned_matchmaker_id', $targetUserId)
@@ -491,6 +673,96 @@ class ObjectiveController extends Controller
             'membres' => (int) $membres,
             'rdv' => (int) $rdv,
             'match' => (int) $match,
+        ];
+    }
+
+    /**
+     * Calculate realized values for a manager's own production.
+     */
+    private function calculateRealizedForManager($managerId, $month, $year)
+    {
+        $startDate = Carbon::create($year, $month, 1)->startOfMonth();
+        $endDate = Carbon::create($year, $month, 1)->endOfMonth();
+
+        $ventes = Bill::where('matchmaker_id', $managerId)
+            ->where('status', 'paid')
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->sum('total_amount');
+
+        $membres = User::role('user')
+            ->whereIn('status', ['member', 'client', 'client_expire'])
+            ->where('validated_by_manager_id', $managerId)
+            ->whereBetween('approved_at', [$startDate, $endDate])
+            ->count();
+
+        return [
+            'ventes' => (float) $ventes,
+            'membres' => (int) $membres,
+            'rdv' => 0,
+            'match' => 0,
+        ];
+    }
+
+    /**
+     * Calculate realized values for an agency (all approved matchmakers in the agency).
+     */
+    private function calculateRealizedForAgencyById($agencyId, $month, $year)
+    {
+        $startDate = Carbon::create($year, $month, 1)->startOfMonth();
+        $endDate = Carbon::create($year, $month, 1)->endOfMonth();
+
+        $matchmakerIds = User::role('matchmaker')
+            ->where('agency_id', $agencyId)
+            ->where('approval_status', 'approved')
+            ->pluck('id');
+
+        $ventes = Bill::whereIn('matchmaker_id', $matchmakerIds)
+            ->where('status', 'paid')
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->sum('total_amount');
+
+        $membres = User::role('user')
+            ->whereIn('status', ['member', 'client', 'client_expire'])
+            ->whereIn('assigned_matchmaker_id', $matchmakerIds)
+            ->whereBetween('approved_at', [$startDate, $endDate])
+            ->count();
+
+        return [
+            'ventes' => (float) $ventes,
+            'membres' => (int) $membres,
+            'rdv' => 0,
+            'match' => 0,
+        ];
+    }
+
+    /**
+     * Calculate realized values across all approved matchmakers.
+     */
+    private function calculateRealizedForAllMatchmakers($month, $year)
+    {
+        $startDate = Carbon::create($year, $month, 1)->startOfMonth();
+        $endDate = Carbon::create($year, $month, 1)->endOfMonth();
+
+        $matchmakerIds = User::role('matchmaker')
+            ->where('approval_status', 'approved')
+            ->pluck('id');
+
+        $ventes = Bill::whereIn('matchmaker_id', $matchmakerIds)
+            ->where('status', 'paid')
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->sum('total_amount');
+
+        $membres = User::role('user')
+            ->whereIn('status', ['member', 'client', 'client_expire'])
+            ->whereIn('assigned_matchmaker_id', $matchmakerIds)
+            ->whereBetween('approved_at', [$startDate, $endDate])
+            ->count();
+
+        return [
+            'ventes' => (float) $ventes,
+            'membres' => (int) $membres,
+            'rdv' => 0,
+            'match' => 0,
         ];
     }
 
