@@ -742,10 +742,20 @@
                 "matchmakersAll": "Matchmakers (Tous)",
                 "managersAll": "Managers (Tous)",
                 "sharedObjective": "Cet objectif sera partagé par tous les {{roleType}}. Chaque {{roleTypeSingular}} verra ses propres résultats individuels.",
+                "scopeRoleDefault": "Ne cochez aucun membre pour définir l'objectif par défaut pour ce rôle (mois/année). Les personnes sans objectif personnel utilisent celui-ci.",
+                "scopeUsersHint": "Appliquer ces cibles à {{count}} membre(s) du personnel sélectionné(s).",
+                "leaveEmptyForRole": "Optionnel : filtrez par agence, puis sélectionnez un ou plusieurs membres pour des cibles individuelles.",
+                "selectStaffOptional": "Personnel (optionnel)",
+                "filterAgencyOptional": "Filtrer par agence (optionnel)",
+                "noStaffMatch": "Aucun membre ne correspond à ce filtre.",
                 "targetSales": "Cible Ventes (MAD)",
                 "targetMembers": "Cible Membres",
                 "targetAppointments": "Cible RDV",
-                "targetMatches": "Cible Match"
+                "targetMatches": "Cible Match",
+                "agencyObjective": "Objectif d'agence",
+                "agencyObjectiveHint": "Les cibles s'appliquent aux résultats agrégés de cette agence (ventes et membres de tous les matchmakers de l'agence).",
+                "agencyLabel": "Agence",
+                "staffObjectivesTitle": "Rôle et personnel"
             },
             "months": {
                 "january": "Janvier",
@@ -761,7 +771,9 @@
                 "november": "Novembre",
                 "december": "Décembre"
             },
-            "confirmMarkPaid": "Marquer la commission comme payée pour cet objectif ?"
+            "confirmMarkPaid": "Marquer la commission comme payée pour cet objectif ?",
+            "perUserObjective": "Objectif personnel",
+            "agencyObjectiveBadge": "Objectif d'agence"
         },
         "agencies": {
             "title": "Gérer les Agences",

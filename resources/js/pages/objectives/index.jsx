@@ -1,5 +1,5 @@
 import { Head, router, usePage, useForm } from '@inertiajs/react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import AppLayout from '@/layouts/app-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { CheckCircle, Edit, Target, TrendingUp, Loader2, Eye } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Checkbox } from '@/components/ui/checkbox';
 
 export default function ObjectivesIndex() {
     const { t } = useTranslation();
@@ -28,6 +29,7 @@ export default function ObjectivesIndex() {
         scopeType,
         users = [],
         agencies = [],
+        staffForObjectives = [],
         canEdit,
         currentUser 
     } = usePage().props;
@@ -39,6 +41,7 @@ export default function ObjectivesIndex() {
     const [detailData, setDetailData] = useState(null);
     const [loadingDetails, setLoadingDetails] = useState(false);
     const [isNavigating, setIsNavigating] = useState(false);
+    const [editDialogAgencyFilter, setEditDialogAgencyFilter] = useState(null);
     
     // Show skeleton loading only if there IS data (objective exists), otherwise show normal element
     // If there's no objective, show normal "no objectives" message instead of skeleton
@@ -51,6 +54,7 @@ export default function ObjectivesIndex() {
     }, [objective, realized, progress, commission, month, year]);
 
     const { data, setData, post, processing, errors, reset } = useForm({
+        objective_scope: 'staff',
         role_type: roleType || 'matchmaker',
         month: month || new Date().getMonth() + 1,
         year: year || new Date().getFullYear(),
@@ -58,7 +62,38 @@ export default function ObjectivesIndex() {
         target_membres: objective?.target_membres || 0,
         target_rdv: objective?.target_rdv || 0,
         target_match: objective?.target_match || 0,
+        user_ids: [],
+        agency_id: null,
     });
+
+    /** Admin: agency filter without user → set targets for that agency aggregate (no role_type in API). */
+    const useAgencyObjectiveForm =
+        canEdit &&
+        currentUser?.role === 'admin' &&
+        !selectedUserId &&
+        (objective?.role_type === 'agency' || !!selectedAgencyId);
+
+    const filteredUsersForObjectiveForm = useMemo(() => {
+        if (!canEdit || !staffForObjectives?.length || data.objective_scope === 'agency') return [];
+        return staffForObjectives.filter((u) => {
+            const role = u.roles?.find((r) => ['matchmaker', 'manager'].includes(r.name))?.name;
+            if (data.role_type === 'matchmaker' && role !== 'matchmaker') return false;
+            if (data.role_type === 'manager' && role !== 'manager') return false;
+            if (editDialogAgencyFilter && u.agency_id !== editDialogAgencyFilter) return false;
+            return true;
+        });
+    }, [canEdit, staffForObjectives, data.role_type, data.objective_scope, editDialogAgencyFilter]);
+
+    const toggleObjectiveUserId = (id) => {
+        const arr = Array.isArray(data.user_ids) ? [...data.user_ids] : [];
+        const idx = arr.indexOf(id);
+        if (idx >= 0) {
+            arr.splice(idx, 1);
+        } else {
+            arr.push(id);
+        }
+        setData('user_ids', arr);
+    };
 
     const metrics = [
         {
@@ -158,18 +193,46 @@ export default function ObjectivesIndex() {
     };
 
     const handleEdit = () => {
+        const staffRow = objective?.user_id
+            ? staffForObjectives.find((u) => u.id === objective.user_id)
+            : null;
+        const initialAgencyFilter = staffRow?.agency_id ?? selectedAgencyId ?? null;
+        const agencyIdForForm = objective?.agency_id ?? selectedAgencyId ?? null;
+
+        if (useAgencyObjectiveForm && agencyIdForForm) {
+            setData({
+                objective_scope: 'agency',
+                agency_id: agencyIdForForm,
+                role_type: roleType || 'matchmaker',
+                month: objective?.month ?? month,
+                year: objective?.year ?? year,
+                target_ventes: objective?.target_ventes ?? 0,
+                target_membres: objective?.target_membres ?? 0,
+                target_rdv: objective?.target_rdv ?? 0,
+                target_match: objective?.target_match ?? 0,
+                user_ids: [],
+            });
+            setEditDialogAgencyFilter(null);
+            setEditDialogOpen(true);
+            return;
+        }
+
         if (objective) {
             setData({
-                role_type: objective.role_type || roleType,
+                objective_scope: 'staff',
+                role_type: objective.role_type && objective.role_type !== 'agency' ? objective.role_type : roleType,
                 month: objective.month,
                 year: objective.year,
                 target_ventes: objective.target_ventes,
                 target_membres: objective.target_membres,
                 target_rdv: objective.target_rdv,
                 target_match: objective.target_match,
+                user_ids: objective.user_id ? [objective.user_id] : [],
+                agency_id: initialAgencyFilter,
             });
         } else {
             setData({
+                objective_scope: 'staff',
                 role_type: roleType,
                 month: month,
                 year: year,
@@ -177,8 +240,11 @@ export default function ObjectivesIndex() {
                 target_membres: 0,
                 target_rdv: 0,
                 target_match: 0,
+                user_ids: [],
+                agency_id: selectedAgencyId || null,
             });
         }
+        setEditDialogAgencyFilter(initialAgencyFilter);
         setEditDialogOpen(true);
     };
 
@@ -289,13 +355,13 @@ export default function ObjectivesIndex() {
                         {currentUser?.role === 'admin' && agencies.length > 0 && (
                             <>
                                 <div className="flex items-center gap-2">
-                                    <Label className="text-sm text-muted-foreground">{t('agencies.agencies')}</Label>
+                                    <Label className="text-sm text-muted-foreground">{t('staff.agencies.agencies')}</Label>
                                     <Select
                                         value={selectedAgencyId?.toString() || 'all'}
                                         onValueChange={(v) => handleAgencyChange(v === 'all' ? null : v)}
                                     >
                                         <SelectTrigger className="h-9 w-[220px]">
-                                            <SelectValue placeholder={t('agencies.agencies')} />
+                                            <SelectValue placeholder={t('staff.agencies.agencies')} />
                                         </SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="all">{t('staff.objectives.allAgencies')}</SelectItem>
@@ -369,17 +435,28 @@ export default function ObjectivesIndex() {
                 {/* Objectives Table */}
                 <Card>
                     <CardHeader>
-                        <CardTitle>{t('staff.objectives.performanceTracking')}</CardTitle>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <CardTitle>{t('staff.objectives.performanceTracking')}</CardTitle>
+                            {objective?.role_type === 'agency' && (
+                                <Badge variant="secondary">{t('staff.objectives.agencyObjectiveBadge')}</Badge>
+                            )}
+                            {objective?.user_id && objective.role_type !== 'agency' && (
+                                <Badge variant="secondary">{t('staff.objectives.perUserObjective')}</Badge>
+                            )}
+                        </div>
                         <CardDescription>
                             {monthNames[month - 1]} {year}
                             {selectedUserId && users.find(u => u.id === selectedUserId) && (
-                                <> - {users.find(u => u.id === selectedUserId).name} ({roleType === 'matchmaker' ? t('staff.matchmaker') : t('agencies.manager')})</>
+                                <> - {users.find(u => u.id === selectedUserId).name} ({roleType === 'matchmaker' ? t('staff.matchmaker') : t('staff.agencies.manager')})</>
                             )}
                             {!selectedUserId && selectedAgencyId && agencies.find(a => a.id === selectedAgencyId) && (
-                                <> - {agencies.find(a => a.id === selectedAgencyId).name} ({t('agencies.agencies')})</>
+                                <> - {agencies.find(a => a.id === selectedAgencyId).name} ({t('staff.agencies.agencies')})</>
                             )}
-                            {!selectedUserId && !selectedAgencyId && currentUser?.role && (
-                                <> - {currentUser.name} ({roleType === 'matchmaker' ? t('staff.matchmaker') : t('agencies.manager')})</>
+                            {!selectedUserId && !selectedAgencyId && currentUser?.role === 'admin' && scopeType === 'all' && (
+                                <> - {t('staff.objectives.editDialog.matchmakersAll')}</>
+                            )}
+                            {!selectedUserId && !selectedAgencyId && currentUser?.role && !(currentUser.role === 'admin' && scopeType === 'all') && (
+                                <> - {currentUser.name} ({roleType === 'matchmaker' ? t('staff.matchmaker') : t('staff.agencies.manager')})</>
                             )}
                         </CardDescription>
                     </CardHeader>
@@ -509,7 +586,7 @@ export default function ObjectivesIndex() {
 
                 {/* Edit Dialog */}
                 <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-                    <DialogContent className="sm:max-w-[500px]">
+                    <DialogContent className="sm:max-w-[560px] max-h-[90vh] overflow-y-auto">
                         <DialogHeader>
                             <DialogTitle>
                                 {objective ? t('staff.objectives.editDialog.title') : t('staff.objectives.editDialog.setObjectivesTitle')}
@@ -520,12 +597,42 @@ export default function ObjectivesIndex() {
                         </DialogHeader>
                         <form onSubmit={handleSubmit}>
                             <div className="grid gap-4 py-4">
-                                {canEdit && (
+                                {canEdit && data.objective_scope === 'agency' && agencies.length > 0 && (
+                                    <div className="grid gap-2">
+                                        <Label>{t('staff.objectives.editDialog.agencyLabel')}</Label>
+                                        <Select
+                                            value={data.agency_id?.toString() ?? ''}
+                                            onValueChange={(v) => setData('agency_id', parseInt(v, 10))}
+                                        >
+                                            <SelectTrigger>
+                                                <SelectValue placeholder={t('staff.objectives.editDialog.agencyLabel')} />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {agencies.map((a) => (
+                                                    <SelectItem key={a.id} value={a.id.toString()}>
+                                                        {a.name}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <p className="text-xs text-muted-foreground">
+                                            {t('staff.objectives.editDialog.agencyObjectiveHint')}
+                                        </p>
+                                        {errors.agency_id && (
+                                            <p className="text-sm text-red-500">{errors.agency_id}</p>
+                                        )}
+                                    </div>
+                                )}
+                                {canEdit && data.objective_scope === 'staff' && (
+                                    <>
                                     <div className="grid gap-2">
                                         <Label htmlFor="role_type">{t('staff.objectives.editDialog.roleType')}</Label>
                                         <Select 
                                             value={data.role_type} 
-                                            onValueChange={(v) => setData('role_type', v)}
+                                            onValueChange={(v) => {
+                                                setData('role_type', v);
+                                                setData('user_ids', []);
+                                            }}
                                         >
                                             <SelectTrigger>
                                                 <SelectValue placeholder={t('staff.objectives.editDialog.selectRoleType')} />
@@ -535,16 +642,65 @@ export default function ObjectivesIndex() {
                                                 <SelectItem value="manager">{t('staff.objectives.editDialog.managersAll')}</SelectItem>
                                             </SelectContent>
                                         </Select>
-                                        <p className="text-xs text-muted-foreground">
-                                            {t('staff.objectives.editDialog.sharedObjective', { 
-                                                roleType: data.role_type === 'matchmaker' ? t('staff.matchmaker') + 's' : t('agencies.manager') + 's',
-                                                roleTypeSingular: data.role_type === 'matchmaker' ? t('staff.matchmaker') : t('agencies.manager')
-                                            })}
-                                        </p>
                                         {errors.role_type && (
                                             <p className="text-sm text-red-500">{errors.role_type}</p>
                                         )}
                                     </div>
+                                    {agencies.length > 0 && (
+                                        <div className="grid gap-2">
+                                            <Label>{t('staff.objectives.editDialog.filterAgencyOptional')}</Label>
+                                            <Select
+                                                value={editDialogAgencyFilter?.toString() ?? 'all'}
+                                                onValueChange={(v) => {
+                                                    const parsed = v === 'all' ? null : parseInt(v, 10);
+                                                    setEditDialogAgencyFilter(parsed);
+                                                    setData('agency_id', parsed);
+                                                }}
+                                            >
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder={t('staff.objectives.allAgencies')} />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="all">{t('staff.objectives.allAgencies')}</SelectItem>
+                                                    {agencies.map((a) => (
+                                                        <SelectItem key={a.id} value={a.id.toString()}>
+                                                            {a.name}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    )}
+                                    <div className="grid gap-2">
+                                        <Label>{t('staff.objectives.editDialog.selectStaffOptional')}</Label>
+                                        <p className="text-xs text-muted-foreground">
+                                            {(!data.user_ids || data.user_ids.length === 0)
+                                                ? t('staff.objectives.editDialog.scopeRoleDefault')
+                                                : t('staff.objectives.editDialog.scopeUsersHint', { count: data.user_ids.length })}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground">
+                                            {t('staff.objectives.editDialog.leaveEmptyForRole')}
+                                        </p>
+                                        <div className="max-h-48 overflow-y-auto rounded-md border p-2 space-y-2">
+                                            {filteredUsersForObjectiveForm.length === 0 ? (
+                                                <p className="text-sm text-muted-foreground">{t('staff.objectives.editDialog.noStaffMatch')}</p>
+                                            ) : (
+                                                filteredUsersForObjectiveForm.map((u) => (
+                                                    <label key={u.id} className="flex items-center gap-2 cursor-pointer text-sm">
+                                                        <Checkbox
+                                                            checked={Array.isArray(data.user_ids) && data.user_ids.includes(u.id)}
+                                                            onCheckedChange={() => toggleObjectiveUserId(u.id)}
+                                                        />
+                                                        <span>{u.name}</span>
+                                                    </label>
+                                                ))
+                                            )}
+                                        </div>
+                                        {errors.user_ids && (
+                                            <p className="text-sm text-red-500">{errors.user_ids}</p>
+                                        )}
+                                    </div>
+                                    </>
                                 )}
                                 <div className="grid gap-2">
                                     <Label htmlFor="target_ventes">{t('staff.objectives.editDialog.targetSales')}</Label>

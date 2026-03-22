@@ -739,10 +739,20 @@
                 "matchmakersAll": "Matchmakers (All)",
                 "managersAll": "Managers (All)",
                 "sharedObjective": "This objective will be shared by all {{roleType}}. Each {{roleTypeSingular}} will see their own individual results.",
+                "scopeRoleDefault": "Leave all staff unchecked to set the default objective for this role (month/year). Staff without a personal objective use this.",
+                "scopeUsersHint": "Apply these targets to {{count}} selected staff member(s).",
+                "leaveEmptyForRole": "Optional: filter by agency, then select one or more staff for individual targets.",
+                "selectStaffOptional": "Staff (optional)",
+                "filterAgencyOptional": "Filter by agency (optional)",
+                "noStaffMatch": "No staff match this filter.",
                 "targetSales": "Target Sales (MAD)",
                 "targetMembers": "Target Members",
                 "targetAppointments": "Target RDV",
-                "targetMatches": "Target Match"
+                "targetMatches": "Target Match",
+                "agencyObjective": "Agency objective",
+                "agencyObjectiveHint": "Targets apply to this agency's aggregated results (sales and members from all matchmakers in the agency).",
+                "agencyLabel": "Agency",
+                "staffObjectivesTitle": "Role & staff"
             },
             "months": {
                 "january": "January",
@@ -758,7 +768,9 @@
                 "november": "November",
                 "december": "December"
             },
-            "confirmMarkPaid": "Mark commission as paid for this objective?"
+            "confirmMarkPaid": "Mark commission as paid for this objective?",
+            "perUserObjective": "Personal objective",
+            "agencyObjectiveBadge": "Agency objective"
         },
         "agencies": {
             "title": "Manage Agencies",

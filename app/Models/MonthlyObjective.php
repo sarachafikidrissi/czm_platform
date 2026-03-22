@@ -7,8 +7,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class MonthlyObjective extends Model
 {
+    public const ROLE_TYPE_AGENCY = 'agency';
+
     protected $fillable = [
         'user_id',
+        'agency_id',
         'role_type',
         'month',
         'year',
@@ -33,6 +36,11 @@ class MonthlyObjective extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function agency(): BelongsTo
+    {
+        return $this->belongsTo(Agency::class);
     }
 
     public function commissionPaidBy(): BelongsTo

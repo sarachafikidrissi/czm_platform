@@ -25,6 +25,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/profile-info', function () {
         $user = \Illuminate\Support\Facades\Auth::user();
         $profile = $user ? \App\Models\Profile::where('user_id', $user->id)->first() : null;
+
         return \Inertia\Inertia::render('profile-info', [
             'auth' => [
                 'user' => $user,
@@ -64,18 +65,18 @@ Route::middleware(['auth'])->group(function () {
                 'childrenCount' => $profile->children_count,
                 'childrenGuardian' => $profile->children_guardian,
                 'hijabChoice' => $profile->hijab_choice,
-                'situationSante' => is_array($profile->situation_sante) 
-                    ? $profile->situation_sante 
+                'situationSante' => is_array($profile->situation_sante)
+                    ? $profile->situation_sante
                     : ($profile->situation_sante ? [$profile->situation_sante] : []),
 
                 // Step 3
                 'ageMinimum' => $profile->age_minimum,
                 'ageMaximum' => $profile->age_maximum,
-                'situationMatrimonialeRecherche' => is_array($profile->situation_matrimoniale_recherche) 
-                    ? $profile->situation_matrimoniale_recherche 
+                'situationMatrimonialeRecherche' => is_array($profile->situation_matrimoniale_recherche)
+                    ? $profile->situation_matrimoniale_recherche
                     : ($profile->situation_matrimoniale_recherche ? [$profile->situation_matrimoniale_recherche] : []),
-                'paysRecherche' => is_array($profile->pays_recherche) 
-                    ? $profile->pays_recherche 
+                'paysRecherche' => is_array($profile->pays_recherche)
+                    ? $profile->pays_recherche
                     : ($profile->pays_recherche ? [$profile->pays_recherche] : []),
                 'villesRecherche' => $profile->villes_recherche ?? [],
                 'niveauEtudesRecherche' => $profile->niveau_etudes_recherche,
@@ -91,7 +92,7 @@ Route::middleware(['auth'])->group(function () {
                 'currentStep' => $profile->current_step,
                 'isCompleted' => $profile->is_completed,
                 'completedAt' => $profile->completed_at,
-            ] : null
+            ] : null,
         ]);
     })->name('profile.info');
 });
@@ -125,23 +126,23 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 ->where('status', 'prospect')
                 ->where('agency_id', $user->agency_id)
                 ->count();
-            
+
             $activeClientsCount = \App\Models\User::role('user')
                 ->where('status', 'client')
-                ->where(function($query) use ($user) {
+                ->where(function ($query) use ($user) {
                     $query->where('agency_id', $user->agency_id)
-                          ->orWhere('validated_by_manager_id', $user->id);
+                        ->orWhere('validated_by_manager_id', $user->id);
                 })
                 ->count();
-            
+
             $membersCount = \App\Models\User::role('user')
                 ->where('status', 'member')
-                ->where(function($query) use ($user) {
+                ->where(function ($query) use ($user) {
                     $query->where('agency_id', $user->agency_id)
-                          ->orWhere('validated_by_manager_id', $user->id);
+                        ->orWhere('validated_by_manager_id', $user->id);
                 })
                 ->count();
-            
+
             $stats = [
                 'prospectsReceived' => $prospectsCount,
                 'activeClients' => $activeClientsCount,
@@ -163,7 +164,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
                     $post->is_liked = $post->isLikedBy(\Illuminate\Support\Facades\Auth::id());
                     $post->likes_count = $post->likes_count;
                     $post->comments_count = $post->comments_count;
-                    
+
                     // Parse media_url if it's JSON (multiple images)
                     if ($post->type === 'image' && $post->media_url) {
                         $decoded = json_decode($post->media_url, true);
@@ -186,7 +187,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         $rejectedBy = null;
         $unpaidBill = null;
         $expiredSubscription = null;
-        
+
         if ($role === 'user' && $user) {
             // Load profile from DB so we have a real record (avoids withDefault() virtual model)
             $profile = \App\Models\Profile::where('user_id', $user->id)->with('matrimonialPack')->first();
@@ -214,15 +215,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 ->where('status', 'active')
                 ->latest('created_at')
                 ->first();
-            
+
             // Only show expired alert if there's no active subscription
-            if (!$activeSubscription) {
+            if (! $activeSubscription) {
                 $expiredSubscriptionRecord = \App\Models\UserSubscription::where('user_id', $user->id)
                     ->where('status', 'expired')
                     ->with(['matrimonialPack', 'assignedMatchmaker'])
                     ->orderBy('subscription_end', 'desc')
                     ->first();
-                
+
                 if ($expiredSubscriptionRecord) {
                     $expiredSubscription = [
                         'expirationDate' => $expiredSubscriptionRecord->subscription_end->format('d/m/Y'),
@@ -244,12 +245,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 ->with(['matrimonialPack', 'assignedMatchmaker'])
                 ->orderBy('created_at', 'desc')
                 ->first();
-            
+
             if ($subscription) {
                 $today = \Carbon\Carbon::today();
                 $expirationDate = \Carbon\Carbon::parse($subscription->subscription_end);
                 $daysRemaining = $today->diffInDays($expirationDate, false);
-                
+
                 // Show reminder if subscription expires within 30 days
                 if ($daysRemaining <= 30 && $daysRemaining >= 0) {
                     $subscriptionReminder = [
@@ -265,26 +266,26 @@ Route::middleware(['auth', 'verified'])->group(function () {
             $matchmakerIds = \App\Models\User::role('matchmaker')
                 ->where('approval_status', 'approved')
                 ->pluck('id');
-            
+
             $managerIds = \App\Models\User::role('manager')
                 ->where('approval_status', 'approved')
                 ->pluck('id');
-            
+
             $staffIds = $matchmakerIds->merge($managerIds)->unique();
-            
+
             $recentPosts = \App\Models\Post::with([
-                'user' => function($query) {
+                'user' => function ($query) {
                     $query->with('roles', 'profile');
                 },
                 'agency',
                 'likes',
                 'comments.user.roles',
-                'comments.user.profile'
+                'comments.user.profile',
             ])
-            ->whereIn('user_id', $staffIds)
-            ->orderBy('created_at', 'desc')
-            ->limit(10)
-            ->get();
+                ->whereIn('user_id', $staffIds)
+                ->orderBy('created_at', 'desc')
+                ->limit(10)
+                ->get();
 
             // Add like status and parse media URLs
             if (\Illuminate\Support\Facades\Auth::check()) {
@@ -292,7 +293,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
                     $post->is_liked = $post->isLikedBy(\Illuminate\Support\Facades\Auth::id());
                     $post->likes_count = $post->likes_count;
                     $post->comments_count = $post->comments_count;
-                    
+
                     // Parse media_url if it's JSON (multiple images)
                     if ($post->type === 'image' && $post->media_url) {
                         $decoded = json_decode($post->media_url, true);
@@ -450,6 +451,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Objectives routes - accessible to admin, manager, and matchmaker
     Route::middleware(['role:admin|manager|matchmaker'])->group(function () {
+        Route::redirect('/objective', '/objectives');
         Route::get('/objectives', [\App\Http\Controllers\ObjectiveController::class, 'index'])->name('objectives.index');
         Route::post('/objectives', [\App\Http\Controllers\ObjectiveController::class, 'store'])->name('objectives.store');
         Route::get('/objectives/details', [\App\Http\Controllers\ObjectiveController::class, 'getDetails'])->name('objectives.details');
@@ -471,7 +473,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/bills/{bill}', [\App\Http\Controllers\BillController::class, 'show'])->name('bills.show');
         Route::get('/bills/{bill}/download', [\App\Http\Controllers\BillController::class, 'downloadPdf'])->name('bills.download');
         Route::post('/bills/{bill}/send-email', [\App\Http\Controllers\BillController::class, 'sendEmail'])->name('bills.send-email');
-        
+
         // Subscription routes
         Route::get('/subscription', [\App\Http\Controllers\UserController::class, 'subscription'])->name('subscription');
         // Reactivation request
@@ -538,8 +540,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         }
     })->name('prospects');
 
-
-
     Route::get('/matchmaker', function () {
         return Inertia::render('matchmaker');
     })->name('matchmaker');
@@ -558,9 +558,5 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/mes-commandes', [\App\Http\Controllers\BillController::class, 'index'])->name('mes-commandes');
 });
 
-
-
-
-
-require __DIR__ . '/settings.php';
-require __DIR__ . '/auth.php';
+require __DIR__.'/settings.php';
+require __DIR__.'/auth.php';

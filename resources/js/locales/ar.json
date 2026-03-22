@@ -739,10 +739,20 @@
                 "matchmakersAll": "وسطاء الزواج (الكل)",
                 "managersAll": "المديرون (الكل)",
                 "sharedObjective": "سيتم مشاركة هذا الهدف من قبل جميع {{roleType}}. سيرى كل {{roleTypeSingular}} نتائجه الفردية الخاصة.",
+                "scopeRoleDefault": "اترك كل الموظفين غير محددين لتعيين الهدف الافتراضي لهذا الدور (شهر/سنة). من ليس له هدف شخصي يستخدم هذا.",
+                "scopeUsersHint": "تطبيق هذه الأهداف على {{count}} موظف(ين) محدد(ين).",
+                "leaveEmptyForRole": "اختياري: رشّح حسب الوكالة ثم اختر موظفاً أو أكثر لأهداف فردية.",
+                "selectStaffOptional": "الموظفون (اختياري)",
+                "filterAgencyOptional": "التصفية حسب الوكالة (اختياري)",
+                "noStaffMatch": "لا يوجد موظف يطابق هذا التصفية.",
                 "targetSales": "هدف المبيعات (درهم)",
                 "targetMembers": "هدف الأعضاء",
                 "targetAppointments": "هدف المواعيد",
-                "targetMatches": "هدف المطابقات"
+                "targetMatches": "هدف المطابقات",
+                "agencyObjective": "هدف الوكالة",
+                "agencyObjectiveHint": "تنطبق الأهداف على أداء الوكالة المجمع (المبيعات والأعضاء من جميع المطابقين في الوكالة).",
+                "agencyLabel": "الوكالة",
+                "staffObjectivesTitle": "الدور والموظفون"
             },
             "months": {
                 "january": "يناير",
@@ -758,7 +768,9 @@
                 "november": "نوفمبر",
                 "december": "ديسمبر"
             },
-            "confirmMarkPaid": "تعيين العمولة كمدفوعة لهذا الهدف؟"
+            "confirmMarkPaid": "تعيين العمولة كمدفوعة لهذا الهدف؟",
+            "perUserObjective": "هدف شخصي",
+            "agencyObjectiveBadge": "هدف الوكالة"
         },
         "agencies": {
             "title": "إدارة الوكالات",

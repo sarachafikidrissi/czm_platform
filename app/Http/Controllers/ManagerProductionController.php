@@ -31,11 +31,8 @@ class ManagerProductionController extends Controller
         $month = $request->integer('month', now()->month);
         $year = $request->integer('year', now()->year);
 
-        $objective = MonthlyObjective::where('role_type', 'manager')
-            ->whereNull('user_id')
-            ->where('month', $month)
-            ->where('year', $year)
-            ->first();
+        // Personal targets: per-manager row first, then global manager default — never agency objectives.
+        $objective = $this->resolveManagerPersonalObjective((int) $me->id, $month, $year);
 
         $startDate = Carbon::create($year, $month, 1)->startOfMonth();
         $endDate = Carbon::create($year, $month, 1)->endOfMonth();
@@ -109,5 +106,29 @@ class ManagerProductionController extends Controller
             ],
         ]);
     }
-}
 
+    /**
+     * Prefer a monthly objective row for this manager (user_id set); otherwise the shared manager default.
+     * Excludes agency-level rows (role_type agency).
+     */
+    private function resolveManagerPersonalObjective(int $managerId, int $month, int $year): ?MonthlyObjective
+    {
+        $perUser = MonthlyObjective::where('role_type', 'manager')
+            ->where('user_id', $managerId)
+            ->whereNull('agency_id')
+            ->where('month', $month)
+            ->where('year', $year)
+            ->first();
+
+        if ($perUser) {
+            return $perUser;
+        }
+
+        return MonthlyObjective::where('role_type', 'manager')
+            ->whereNull('user_id')
+            ->whereNull('agency_id')
+            ->where('month', $month)
+            ->where('year', $year)
+            ->first();
+    }
+}
