@@ -710,6 +710,8 @@
             "actions": "الإجراءات",
             "eligible": "مؤهل",
             "notEligible": "غير مؤهل",
+            "commissionPayoutEligible": "مؤهل للعمولة",
+            "kpiThresholdMet": "المؤشرات ≥ 50٪",
             "markPaid": "تعيين كمدفوع",
             "paid": "مدفوع",
             "update": "تحديث",

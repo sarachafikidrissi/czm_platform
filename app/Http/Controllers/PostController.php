@@ -2,20 +2,19 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Post;
-use App\Models\PostLike;
-use App\Models\PostComment;
+use App\Mail\CommentReplyNotification;
+use App\Models\Activity;
+use App\Models\Agency;
 use App\Models\AppointmentRequest;
-use App\Models\Bill;
-use App\Models\MonthlyObjective;
+use App\Models\Post;
+use App\Models\PostComment;
+use App\Models\PostLike;
 use App\Models\Proposition;
 use App\Models\PropositionRequest;
 use App\Models\TransferRequest;
 use App\Models\User;
-use App\Models\Activity;
-use App\Models\Agency;
-use App\Mail\CommentReplyNotification;
-use Carbon\Carbon;
+use App\Services\ObjectiveCommissionCalculator;
+use App\Services\ObjectiveMetricsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -28,13 +27,13 @@ class PostController extends Controller
     public function index()
     {
         $posts = Post::with([
-            'user.profile', 
-            'agency', 
-            'likes.user.profile', 
-            'comments' => function($query) {
+            'user.profile',
+            'agency',
+            'likes.user.profile',
+            'comments' => function ($query) {
                 $query->whereNull('parent_id')
                     ->with(['user.roles', 'user.profile', 'replies.user.roles', 'replies.user.profile']);
-            }
+            },
         ])
             ->orderBy('created_at', 'desc')
             ->paginate(10);
@@ -45,7 +44,7 @@ class PostController extends Controller
                 $post->is_liked = $post->isLikedBy(Auth::id());
                 $post->likes_count = $post->likes_count;
                 $post->comments_count = $post->comments_count;
-                
+
                 // Parse media_url if it's JSON (multiple images)
                 if ($post->type === 'image' && $post->media_url) {
                     $decoded = json_decode($post->media_url, true);
@@ -59,7 +58,7 @@ class PostController extends Controller
         }
 
         return Inertia::render('posts/index', [
-            'posts' => $posts
+            'posts' => $posts,
         ]);
     }
 
@@ -67,7 +66,7 @@ class PostController extends Controller
     {
         $user = Auth::user();
         $isManager = $user->hasRole('manager');
-        
+
         // Conditional validation: content is required only for text type
         $rules = [
             'type' => 'required|in:text,image,youtube',
@@ -75,7 +74,7 @@ class PostController extends Controller
             'media_thumbnail' => 'nullable|string|max:500',
             'images' => 'nullable|array|max:10',
             'images.*' => 'image|mimes:jpeg,png,jpg,gif,webp|max:10240', // 10MB max per image
-            'agency_id' => 'nullable|exists:agencies,id'
+            'agency_id' => 'nullable|exists:agencies,id',
         ];
 
         // Content is required only for text type, optional for image and youtube
@@ -89,11 +88,11 @@ class PostController extends Controller
 
         // Additional validation: ensure image/youtube posts have required media
         if ($request->type === 'image') {
-            if (!$request->hasFile('images') && !$request->media_url) {
+            if (! $request->hasFile('images') && ! $request->media_url) {
                 return redirect()->back()->withErrors(['images' => 'Please upload images or provide an image URL for image posts.']);
             }
         } elseif ($request->type === 'youtube') {
-            if (!$request->media_url) {
+            if (! $request->media_url) {
                 return redirect()->back()->withErrors(['media_url' => 'Please provide a YouTube URL for YouTube posts.']);
             }
         }
@@ -107,7 +106,7 @@ class PostController extends Controller
             foreach ($request->file('images') as $file) {
                 $path = $file->store('post-images', 'public');
                 // Store relative path that matches frontend pattern
-                $uploadedImages[] = '/storage/' . $path;
+                $uploadedImages[] = '/storage/'.$path;
             }
             // Store multiple images as JSON array
             $mediaUrl = json_encode($uploadedImages);
@@ -123,7 +122,7 @@ class PostController extends Controller
             'content' => $request->content ?: null, // Allow null for image and youtube types
             'type' => $request->type,
             'media_url' => $mediaUrl,
-            'media_thumbnail' => $mediaThumbnail
+            'media_thumbnail' => $mediaThumbnail,
         ];
 
         // Add agency_id if manager is creating an agency post
@@ -144,17 +143,20 @@ class PostController extends Controller
 
     private function getYouTubeThumbnail($url)
     {
-        if (!$url) return null;
+        if (! $url) {
+            return null;
+        }
         if (preg_match('/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/', $url, $matches)) {
             return "https://img.youtube.com/vi/{$matches[1]}/maxresdefault.jpg";
         }
+
         return null;
     }
 
     public function like(Request $request)
     {
         $request->validate([
-            'post_id' => 'required|exists:posts,id'
+            'post_id' => 'required|exists:posts,id',
         ]);
 
         $post = Post::findOrFail($request->post_id);
@@ -173,7 +175,7 @@ class PostController extends Controller
             // Like
             $like = PostLike::create([
                 'post_id' => $post->id,
-                'user_id' => $userId
+                'user_id' => $userId,
             ]);
             $liked = true;
             Activity::record('post.liked', $userId, $like, ['post_id' => $post->id]);
@@ -187,14 +189,14 @@ class PostController extends Controller
         $request->validate([
             'post_id' => 'required|exists:posts,id',
             'content' => 'required|string|max:1000',
-            'parent_id' => 'nullable|exists:post_comments,id'
+            'parent_id' => 'nullable|exists:post_comments,id',
         ]);
 
         $comment = PostComment::create([
             'post_id' => $request->post_id,
             'user_id' => Auth::id(),
             'parent_id' => $request->parent_id,
-            'content' => $request->content
+            'content' => $request->content,
         ]);
 
         Activity::record('post.commented', Auth::id(), $comment, [
@@ -215,7 +217,7 @@ class PostController extends Controller
         // If this is a reply, send notification to the parent comment owner
         if ($request->parent_id) {
             $parentComment = PostComment::with('user')->findOrFail($request->parent_id);
-            
+
             \Log::info('Comment reply detected', [
                 'parent_comment_id' => $parentComment->id,
                 'parent_user_id' => $parentComment->user_id,
@@ -230,7 +232,7 @@ class PostController extends Controller
                     'parent_comment_id' => $parentComment->id,
                     'replier_id' => Auth::id(),
                 ]);
-            } elseif (!$parentComment->user?->email) {
+            } elseif (! $parentComment->user?->email) {
                 \Log::warning('Reply notification skipped (missing parent email).', [
                     'parent_comment_id' => $parentComment->id,
                     'parent_user_id' => $parentComment->user_id,
@@ -247,7 +249,7 @@ class PostController extends Controller
                     ]);
                 } catch (\Exception $e) {
                     // Log error but don't fail the request
-                    \Log::error('Failed to send comment reply notification: ' . $e->getMessage(), [
+                    \Log::error('Failed to send comment reply notification: '.$e->getMessage(), [
                         'parent_comment_id' => $parentComment->id,
                         'parent_email' => $parentComment->user->email,
                         'replier_id' => Auth::id(),
@@ -263,18 +265,18 @@ class PostController extends Controller
     public function updateComment(Request $request, PostComment $comment)
     {
         $user = Auth::user();
-        
+
         // Only the comment owner can update
-        if ($comment->user_id !== $user->id && !$user->hasRole('admin')) {
+        if ($comment->user_id !== $user->id && ! $user->hasRole('admin')) {
             abort(403, 'Unauthorized');
         }
 
         $request->validate([
-            'content' => 'required|string|max:1000'
+            'content' => 'required|string|max:1000',
         ]);
 
         $comment->update([
-            'content' => $request->content
+            'content' => $request->content,
         ]);
 
         return redirect()->back()->with('success', 'Comment updated successfully!');
@@ -289,7 +291,7 @@ class PostController extends Controller
         $isAdmin = $user->hasRole('admin');
         $matchmakerDeletingUserComment = $user->hasRole('matchmaker') && $comment->user && $comment->user->hasRole('user');
 
-        if (!$isOwner && !$isAdmin && !$matchmakerDeletingUserComment) {
+        if (! $isOwner && ! $isAdmin && ! $matchmakerDeletingUserComment) {
             abort(403, 'Unauthorized');
         }
 
@@ -301,9 +303,9 @@ class PostController extends Controller
     public function destroy(Post $post)
     {
         $user = Auth::user();
-        
+
         // Only the post author can delete (or admin)
-        if ($post->user_id !== $user->id && !$user->hasRole('admin')) {
+        if ($post->user_id !== $user->id && ! $user->hasRole('admin')) {
             abort(403, 'Unauthorized');
         }
 
@@ -339,15 +341,15 @@ class PostController extends Controller
     {
         $user = Auth::user();
         $role = $this->getUserRole($user);
-        
+
         // Get all staff user IDs (matchmakers, managers, admins)
         $matchmakerIds = User::role('matchmaker')->pluck('id');
         $managerIds = User::role('manager')->pluck('id');
         $adminIds = User::role('admin')->pluck('id');
-        
+
         // Merge all staff IDs
         $staffIds = $matchmakerIds->merge($managerIds)->merge($adminIds)->unique();
-        
+
         // Get posts from all staff members (limit for merge). Exclude shadow posts for activities.
         $postsQuery = Post::with([
             'user.profile',
@@ -357,7 +359,7 @@ class PostController extends Controller
             'comments' => function ($query) {
                 $query->whereNull('parent_id')
                     ->with(['user.roles', 'user.profile', 'replies.user.roles', 'replies.user.profile']);
-            }
+            },
         ])
             ->whereIn('user_id', $staffIds)
             ->whereNull('activity_id')
@@ -511,11 +513,11 @@ class PostController extends Controller
         $postOwner = $this->getActivityPostOwnerUsername($activity);
 
         return match ($activity->type) {
-            'member.added' => 'Nouveau membre : ' . ($username ?? $meta['member_name'] ?? '—'),
-            'prospect.added' => 'Nouveau prospect : ' . ($username ?? $meta['prospect_name'] ?? '—'),
-            'post.commented' => ($activity->actor?->name ?? 'Staff') . ' a commenté une publication de @' . ($postOwner ?? '—'),
-            'post.liked' => ($activity->actor?->name ?? 'Staff') . ' a aimé une publication de @' . ($postOwner ?? '—'),
-            default => ($activity->actor?->name ?? 'Staff') . ' a effectué une action',
+            'member.added' => 'Nouveau membre : '.($username ?? $meta['member_name'] ?? '—'),
+            'prospect.added' => 'Nouveau prospect : '.($username ?? $meta['prospect_name'] ?? '—'),
+            'post.commented' => ($activity->actor?->name ?? 'Staff').' a commenté une publication de @'.($postOwner ?? '—'),
+            'post.liked' => ($activity->actor?->name ?? 'Staff').' a aimé une publication de @'.($postOwner ?? '—'),
+            default => ($activity->actor?->name ?? 'Staff').' a effectué une action',
         };
     }
 
@@ -529,9 +531,11 @@ class PostController extends Controller
             }
             if ($post && ! $post->relationLoaded('user')) {
                 $post->load('user');
+
                 return $post->user?->username ?? $post->user?->name ?? null;
             }
         }
+
         return null;
     }
 
@@ -550,7 +554,7 @@ class PostController extends Controller
         $username = $username ?? $meta['username'] ?? $meta['member_username'] ?? $meta['prospect_username'] ?? null;
 
         $postOwner = $this->getActivityPostOwnerUsername($activity);
-        $postOwnerDisplay = $postOwner ? '@' . $postOwner : '—';
+        $postOwnerDisplay = $postOwner ? '@'.$postOwner : '—';
 
         $result = match ($activity->type) {
             'member.added' => [
@@ -562,15 +566,15 @@ class PostController extends Controller
                 'username' => $username ?? $meta['prospect_name'] ?? '—',
             ],
             'post.commented' => [
-                'activity' => ($activity->actor?->name ?? 'Staff') . ' a commenté une publication de ',
+                'activity' => ($activity->actor?->name ?? 'Staff').' a commenté une publication de ',
                 'username' => $postOwnerDisplay,
             ],
             'post.liked' => [
-                'activity' => ($activity->actor?->name ?? 'Staff') . ' a aimé une publication de ',
+                'activity' => ($activity->actor?->name ?? 'Staff').' a aimé une publication de ',
                 'username' => $postOwnerDisplay,
             ],
             default => [
-                'activity' => ($activity->actor?->name ?? 'Staff') . ' a effectué une action',
+                'activity' => ($activity->actor?->name ?? 'Staff').' a effectué une action',
                 'username' => null,
             ],
         };
@@ -595,6 +599,7 @@ class PostController extends Controller
             $subject->load(['referenceUser.profile', 'compatibleUser.profile']);
             $ref = $subject->referenceUser;
             $comp = $subject->compatibleUser;
+
             return [
                 'id' => $subject->id,
                 'reference_user_id' => $subject->reference_user_id,
@@ -646,7 +651,7 @@ class PostController extends Controller
 
     private function getUserRole(?User $user): ?string
     {
-        if (!$user) {
+        if (! $user) {
             return null;
         }
 
@@ -663,9 +668,9 @@ class PostController extends Controller
         if ($role === 'matchmaker') {
             // Matchmaker statistics
             $baseQuery = User::role('user')
-                ->where(function($query) use ($user) {
+                ->where(function ($query) use ($user) {
                     $query->where('approved_by', $user->id)
-                          ->orWhere('assigned_matchmaker_id', $user->id);
+                        ->orWhere('assigned_matchmaker_id', $user->id);
                 });
 
             $prospectsQuery = (clone $baseQuery)->where('status', 'prospect');
@@ -711,28 +716,12 @@ class PostController extends Controller
                 ->where('status', 'client_expire')
                 ->count();
 
-            // Objectives (same data source as /objectives page) for current month/year
+            // Objectives (same resolution as /objectives): per-user row, then role default
             $month = now()->month;
             $year = now()->year;
-            $objective = MonthlyObjective::where('role_type', 'matchmaker')
-                ->whereNull('user_id')
-                ->where('month', $month)
-                ->where('year', $year)
-                ->first();
-
-            $startDate = Carbon::create($year, $month, 1)->startOfMonth();
-            $endDate = Carbon::create($year, $month, 1)->endOfMonth();
-
-            $realizedVentes = Bill::where('matchmaker_id', $user->id)
-                ->where('status', 'paid')
-                ->whereBetween('created_at', [$startDate, $endDate])
-                ->sum('total_amount') ?? 0;
-
-            $realizedMembres = User::role('user')
-                ->whereIn('status', ['member', 'client', 'client_expire'])
-                ->where('assigned_matchmaker_id', $user->id)
-                ->whereBetween('approved_at', [$startDate, $endDate])
-                ->count();
+            $objective = ObjectiveMetricsService::resolveObjectiveForView('matchmaker', $month, $year, (int) $user->id);
+            $realized = ObjectiveMetricsService::calculateRealizedForMatchmaker((int) $user->id, $month, $year);
+            $progress = ObjectiveCommissionCalculator::calculateProgress($objective, $realized);
 
             $objectives = [
                 'month' => $month,
@@ -741,19 +730,15 @@ class PostController extends Controller
                 'target_membres' => (int) ($objective?->target_membres ?? 0),
                 'target_rdv' => (int) ($objective?->target_rdv ?? 0),
                 'target_match' => (int) ($objective?->target_match ?? 0),
-                'realized_ventes' => (float) $realizedVentes,
-                'realized_membres' => (int) $realizedMembres,
-                'realized_rdv' => 0,
-                'realized_match' => 0,
+                'realized_ventes' => (float) $realized['ventes'],
+                'realized_membres' => (int) $realized['membres'],
+                'realized_rdv' => (int) $realized['rdv'],
+                'realized_match' => (int) $realized['match'],
                 'progress' => [
-                    'ventes' => ($objective && (float) $objective->target_ventes > 0)
-                        ? min(100, ((float) $realizedVentes / (float) $objective->target_ventes) * 100)
-                        : 0,
-                    'membres' => ($objective && (int) $objective->target_membres > 0)
-                        ? min(100, ((int) $realizedMembres / (int) $objective->target_membres) * 100)
-                        : 0,
-                    'rdv' => 0,
-                    'match' => 0,
+                    'ventes' => (float) $progress['ventes'],
+                    'membres' => (float) $progress['membres'],
+                    'rdv' => (float) $progress['rdv'],
+                    'match' => (float) $progress['match'],
                 ],
             ];
 
@@ -775,19 +760,19 @@ class PostController extends Controller
                     'total' => $clientsQuery->count(),
                     'inAppointment' => (clone $baseQuery)->where('status', 'en_rdv')->count(),
                     'notInAppointment' => (clone $baseQuery)->where('status', 'client')->count(),
-                    'notContacted' => (clone $baseQuery)->where('status', 'client')->where(function($q) {
+                    'notContacted' => (clone $baseQuery)->where('status', 'client')->where(function ($q) {
                         $q->where('updated_at', '<', now()->subWeek())
-                          ->orWhereNull('updated_at');
+                            ->orWhereNull('updated_at');
                     })->count(),
                 ],
                 'activeMembers' => [
                     'total' => $membersQuery->count(),
-                    'notUpToDate' => $membersQuery->where(function($q) {
-                        $q->whereHas('profile', function($profileQuery) {
+                    'notUpToDate' => $membersQuery->where(function ($q) {
+                        $q->whereHas('profile', function ($profileQuery) {
                             $profileQuery->where('is_completed', false);
-                        })->orWhereDoesntHave('subscriptions', function($subQuery) {
+                        })->orWhereDoesntHave('subscriptions', function ($subQuery) {
                             $subQuery->where('status', 'active')
-                              ->where('subscription_end', '>=', now());
+                                ->where('subscription_end', '>=', now());
                         });
                     })->count(),
                 ],
@@ -796,7 +781,7 @@ class PostController extends Controller
                     ->with([
                         'profile:id,user_id,profile_picture_path',
                         'assignedMatchmaker:id,name',
-                        'agency:id,name'
+                        'agency:id,name',
                     ])
                     ->orderBy('created_at', 'desc')
                     ->limit(5)
@@ -817,9 +802,9 @@ class PostController extends Controller
         } elseif ($role === 'manager' && $user->agency_id) {
             // Manager statistics
             $baseQuery = User::role('user')
-                ->where(function($query) use ($user) {
+                ->where(function ($query) use ($user) {
                     $query->where('agency_id', $user->agency_id)
-                          ->orWhere('validated_by_manager_id', $user->id);
+                        ->orWhere('validated_by_manager_id', $user->id);
                 });
 
             $prospectsQuery = (clone $baseQuery)->where('status', 'prospect');
@@ -832,93 +817,53 @@ class PostController extends Controller
                 ->where('agency_id', $user->agency_id)
                 ->whereNull('approved_at');
 
-            // Objectives (same data source as /objectives page) for current month/year
+            // Objectives: agency row via resolveObjectiveForAgency; manager personal via resolveManagerPersonalObjective
             $month = now()->month;
             $year = now()->year;
-            $objective = MonthlyObjective::where('role_type', 'manager')
-                ->whereNull('user_id')
-                ->where('month', $month)
-                ->where('year', $year)
-                ->first();
 
-            $startDate = Carbon::create($year, $month, 1)->startOfMonth();
-            $endDate = Carbon::create($year, $month, 1)->endOfMonth();
-
-            $matchmakerIds = User::role('matchmaker')
-                ->where('agency_id', $user->agency_id)
-                ->where('approval_status', 'approved')
-                ->pluck('id');
-
-            // Agency productivity (all matchmakers in agency)
-            $agencyRealizedVentes = Bill::whereIn('matchmaker_id', $matchmakerIds)
-                ->where('status', 'paid')
-                ->whereBetween('created_at', [$startDate, $endDate])
-                ->sum('total_amount') ?? 0;
-
-            $agencyRealizedMembres = User::role('user')
-                ->whereIn('status', ['member', 'client', 'client_expire'])
-                ->where(function($query) use ($matchmakerIds, $user) {
-                    $query->whereIn('assigned_matchmaker_id', $matchmakerIds)
-                        ->orWhere('validated_by_manager_id', $user->id);
-                })
-                ->whereBetween('approved_at', [$startDate, $endDate])
-                ->count();
+            $agencyObjective = ObjectiveMetricsService::resolveObjectiveForAgency((int) $user->agency_id, $month, $year);
+            $agencyRealized = ObjectiveMetricsService::calculateRealizedForAgencyById((int) $user->agency_id, $month, $year);
+            $agencyProgress = ObjectiveCommissionCalculator::calculateProgress($agencyObjective, $agencyRealized);
 
             $objectivesAgency = [
                 'month' => $month,
                 'year' => $year,
-                'target_ventes' => (float) ($objective?->target_ventes ?? 0),
-                'target_membres' => (int) ($objective?->target_membres ?? 0),
-                'target_rdv' => (int) ($objective?->target_rdv ?? 0),
-                'target_match' => (int) ($objective?->target_match ?? 0),
-                'realized_ventes' => (float) $agencyRealizedVentes,
-                'realized_membres' => (int) $agencyRealizedMembres,
-                'realized_rdv' => 0,
-                'realized_match' => 0,
+                'target_ventes' => (float) ($agencyObjective?->target_ventes ?? 0),
+                'target_membres' => (int) ($agencyObjective?->target_membres ?? 0),
+                'target_rdv' => (int) ($agencyObjective?->target_rdv ?? 0),
+                'target_match' => (int) ($agencyObjective?->target_match ?? 0),
+                'realized_ventes' => (float) $agencyRealized['ventes'],
+                'realized_membres' => (int) $agencyRealized['membres'],
+                'realized_rdv' => (int) $agencyRealized['rdv'],
+                'realized_match' => (int) $agencyRealized['match'],
                 'progress' => [
-                    'ventes' => ($objective && (float) $objective->target_ventes > 0)
-                        ? min(100, ((float) $agencyRealizedVentes / (float) $objective->target_ventes) * 100)
-                        : 0,
-                    'membres' => ($objective && (int) $objective->target_membres > 0)
-                        ? min(100, ((int) $agencyRealizedMembres / (int) $objective->target_membres) * 100)
-                        : 0,
-                    'rdv' => 0,
-                    'match' => 0,
+                    'ventes' => (float) $agencyProgress['ventes'],
+                    'membres' => (float) $agencyProgress['membres'],
+                    'rdv' => (float) $agencyProgress['rdv'],
+                    'match' => (float) $agencyProgress['match'],
                 ],
             ];
 
-            // Manager productivity (manager's own actions)
-            $managerRealizedVentes = Bill::where('matchmaker_id', $user->id)
-                ->where('status', 'paid')
-                ->whereBetween('created_at', [$startDate, $endDate])
-                ->sum('total_amount') ?? 0;
-
-            $managerRealizedMembres = User::role('user')
-                ->whereIn('status', ['member', 'client', 'client_expire'])
-                ->where('validated_by_manager_id', $user->id)
-                ->whereBetween('approved_at', [$startDate, $endDate])
-                ->count();
+            $managerObjective = ObjectiveMetricsService::resolveManagerPersonalObjective((int) $user->id, $month, $year);
+            $managerRealized = ObjectiveMetricsService::calculateRealizedForManager((int) $user->id, $month, $year);
+            $managerProgress = ObjectiveCommissionCalculator::calculateProgress($managerObjective, $managerRealized);
 
             $objectivesManager = [
                 'month' => $month,
                 'year' => $year,
-                'target_ventes' => (float) ($objective?->target_ventes ?? 0),
-                'target_membres' => (int) ($objective?->target_membres ?? 0),
-                'target_rdv' => (int) ($objective?->target_rdv ?? 0),
-                'target_match' => (int) ($objective?->target_match ?? 0),
-                'realized_ventes' => (float) $managerRealizedVentes,
-                'realized_membres' => (int) $managerRealizedMembres,
-                'realized_rdv' => 0,
-                'realized_match' => 0,
+                'target_ventes' => (float) ($managerObjective?->target_ventes ?? 0),
+                'target_membres' => (int) ($managerObjective?->target_membres ?? 0),
+                'target_rdv' => (int) ($managerObjective?->target_rdv ?? 0),
+                'target_match' => (int) ($managerObjective?->target_match ?? 0),
+                'realized_ventes' => (float) $managerRealized['ventes'],
+                'realized_membres' => (int) $managerRealized['membres'],
+                'realized_rdv' => (int) $managerRealized['rdv'],
+                'realized_match' => (int) $managerRealized['match'],
                 'progress' => [
-                    'ventes' => ($objective && (float) $objective->target_ventes > 0)
-                        ? min(100, ((float) $managerRealizedVentes / (float) $objective->target_ventes) * 100)
-                        : 0,
-                    'membres' => ($objective && (int) $objective->target_membres > 0)
-                        ? min(100, ((int) $managerRealizedMembres / (int) $objective->target_membres) * 100)
-                        : 0,
-                    'rdv' => 0,
-                    'match' => 0,
+                    'ventes' => (float) $managerProgress['ventes'],
+                    'membres' => (float) $managerProgress['membres'],
+                    'rdv' => (float) $managerProgress['rdv'],
+                    'match' => (float) $managerProgress['match'],
                 ],
             ];
 
@@ -936,19 +881,19 @@ class PostController extends Controller
                     'total' => $clientsQuery->count(),
                     'inAppointment' => (clone $baseQuery)->where('status', 'en_rdv')->count(),
                     'notInAppointment' => (clone $baseQuery)->where('status', 'client')->count(),
-                    'notContacted' => (clone $baseQuery)->where('status', 'client')->where(function($q) {
+                    'notContacted' => (clone $baseQuery)->where('status', 'client')->where(function ($q) {
                         $q->where('updated_at', '<', now()->subWeek())
-                          ->orWhereNull('updated_at');
+                            ->orWhereNull('updated_at');
                     })->count(),
                 ],
                 'activeMembers' => [
                     'total' => $membersQuery->count(),
-                    'notUpToDate' => $membersQuery->where(function($q) {
-                        $q->whereHas('profile', function($profileQuery) {
+                    'notUpToDate' => $membersQuery->where(function ($q) {
+                        $q->whereHas('profile', function ($profileQuery) {
                             $profileQuery->where('is_completed', false);
-                        })->orWhereDoesntHave('subscriptions', function($subQuery) {
+                        })->orWhereDoesntHave('subscriptions', function ($subQuery) {
                             $subQuery->where('status', 'active')
-                              ->where('subscription_end', '>=', now());
+                                ->where('subscription_end', '>=', now());
                         });
                     })->count(),
                 ],
@@ -963,7 +908,7 @@ class PostController extends Controller
                     ->with([
                         'profile:id,user_id,profile_picture_path',
                         'assignedMatchmaker:id,name',
-                        'agency:id,name'
+                        'agency:id,name',
                     ])
                     ->orderBy('created_at', 'desc')
                     ->limit(5)
@@ -1002,19 +947,19 @@ class PostController extends Controller
                     'total' => $clientsQuery->count(),
                     'inAppointment' => User::role('user')->where('status', 'en_rdv')->count(),
                     'notInAppointment' => User::role('user')->where('status', 'client')->count(),
-                    'notContacted' => User::role('user')->where('status', 'client')->where(function($q) {
+                    'notContacted' => User::role('user')->where('status', 'client')->where(function ($q) {
                         $q->where('updated_at', '<', now()->subWeek())
-                          ->orWhereNull('updated_at');
+                            ->orWhereNull('updated_at');
                     })->count(),
                 ],
                 'activeMembers' => [
                     'total' => $membersQuery->count(),
-                    'notUpToDate' => $membersQuery->where(function($q) {
-                        $q->whereHas('profile', function($profileQuery) {
+                    'notUpToDate' => $membersQuery->where(function ($q) {
+                        $q->whereHas('profile', function ($profileQuery) {
                             $profileQuery->where('is_completed', false);
-                        })->orWhereDoesntHave('subscriptions', function($subQuery) {
+                        })->orWhereDoesntHave('subscriptions', function ($subQuery) {
                             $subQuery->where('status', 'active')
-                              ->where('subscription_end', '>=', now());
+                                ->where('subscription_end', '>=', now());
                         });
                     })->count(),
                 ],
@@ -1045,7 +990,7 @@ class PostController extends Controller
 
     private function getProductionByAgency(?int $agencyId = null): array
     {
-        $agencies = $agencyId 
+        $agencies = $agencyId
             ? Agency::where('id', $agencyId)->get()
             : Agency::all();
 
@@ -1055,7 +1000,7 @@ class PostController extends Controller
                 ->where('agency_id', $agency->id)
                 ->whereIn('status', ['member', 'client', 'client_expire'])
                 ->count();
-            
+
             $totalUsers = User::role('user')->whereIn('status', ['member', 'client', 'client_expire'])->count();
             $percentage = $totalUsers > 0 ? round(($usersCount / $totalUsers) * 100, 1) : 0;
 

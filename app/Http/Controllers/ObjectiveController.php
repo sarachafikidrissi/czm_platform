@@ -6,6 +6,8 @@ use App\Models\Agency;
 use App\Models\Bill;
 use App\Models\MonthlyObjective;
 use App\Models\User;
+use App\Services\ObjectiveCommissionCalculator;
+use App\Services\ObjectiveMetricsService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -80,7 +82,7 @@ class ObjectiveController extends Controller
             $targetRoleType = 'matchmaker';
             $scopeType = 'self';
         } elseif ($roleName === 'manager') {
-            // Manager sees agency aggregate by default, or a specific matchmaker in their agency when selected
+            // Manager default: personal objective (same as admin selecting this manager); optional matchmaker filter
             if ($userId) {
                 $targetUser = User::where('id', $userId)
                     ->where('agency_id', $me->agency_id)
@@ -98,10 +100,9 @@ class ObjectiveController extends Controller
                 $targetRoleType = 'matchmaker';
                 $scopeType = 'matchmaker_individual';
             } else {
-                // Keep existing manager default behavior
                 $targetUserId = $me->id;
                 $targetRoleType = 'manager';
-                $scopeType = 'agency';
+                $scopeType = 'manager_individual';
             }
         } else {
             abort(403, 'Unauthorized access.');
@@ -111,10 +112,10 @@ class ObjectiveController extends Controller
         if ($scopeType === 'agency') {
             $agencyIdForObjective = $roleName === 'admin' ? $targetAgencyId : $me->agency_id;
             $objective = $agencyIdForObjective
-                ? $this->resolveObjectiveForAgency((int) $agencyIdForObjective, $month, $year)
+                ? ObjectiveMetricsService::resolveObjectiveForAgency((int) $agencyIdForObjective, $month, $year)
                 : null;
         } else {
-            $objective = $this->resolveObjectiveForView(
+            $objective = ObjectiveMetricsService::resolveObjectiveForView(
                 $targetRoleType,
                 $month,
                 $year,
@@ -124,24 +125,36 @@ class ObjectiveController extends Controller
 
         // Calculate realized values based on selected scope
         if ($scopeType === 'manager_individual') {
-            $realized = $this->calculateRealizedForManager($targetUserId, $month, $year);
+            $realized = ObjectiveMetricsService::calculateRealizedForManager($targetUserId, $month, $year);
         } elseif ($scopeType === 'agency') {
             if ($roleName === 'admin') {
-                $realized = $this->calculateRealizedForAgencyById($targetAgencyId, $month, $year);
+                $realized = ObjectiveMetricsService::calculateRealizedForAgencyById($targetAgencyId, $month, $year);
             } else {
-                $realized = $this->calculateRealizedForAgency($targetUserId, $month, $year);
+                $realized = ObjectiveMetricsService::calculateRealizedForAgency($targetUserId, $month, $year);
             }
         } elseif ($scopeType === 'all') {
-            $realized = $this->calculateRealizedForAllMatchmakers($month, $year);
+            $realized = ObjectiveMetricsService::calculateRealizedForAllMatchmakers($month, $year);
         } elseif ($targetRoleType === 'matchmaker') {
-            $realized = $this->calculateRealizedForMatchmaker($targetUserId, $month, $year);
+            $realized = ObjectiveMetricsService::calculateRealizedForMatchmaker($targetUserId, $month, $year);
         } else {
-            $realized = $this->calculateRealizedForManager($targetUserId, $month, $year);
+            $realized = ObjectiveMetricsService::calculateRealizedForManager($targetUserId, $month, $year);
         }
 
         // Calculate progress and commission
-        $progress = $this->calculateProgress($objective, $realized);
-        $commission = $this->calculateCommission($progress, $realized);
+        $progress = ObjectiveCommissionCalculator::calculateProgress($objective, $realized);
+        $commission = $this->buildCommissionPayload(
+            $roleName,
+            $scopeType,
+            $targetRoleType,
+            $targetUserId,
+            $targetAgencyId,
+            $month,
+            $year,
+            $objective,
+            $realized,
+            $progress,
+            $me
+        );
 
         // Reuse the same users query for admin and manager with role-based constraints
         $users = [];
@@ -161,7 +174,7 @@ class ObjectiveController extends Controller
                 $usersQuery->where('agency_id', $me->agency_id)
                     ->whereHas('roles', function ($q) {
                         $q->where('name', 'matchmaker');
-                    });
+                    })->whereNot('id', $me->id);
             }
 
             $users = $usersQuery->get(['id', 'name', 'email', 'agency_id']);
@@ -182,6 +195,10 @@ class ObjectiveController extends Controller
         }
 
         $selectedFilterUserId = in_array($scopeType, ['matchmaker_individual', 'manager_individual']) ? $targetUserId : null;
+        // Manager viewing own personal objective: dropdown only lists matchmakers — keep userId null so "All" stays valid
+        if ($roleName === 'manager' && $scopeType === 'manager_individual' && $targetUserId === $me->id) {
+            $selectedFilterUserId = null;
+        }
 
         return Inertia::render('objectives/index', [
             'objective' => $objective,
@@ -410,9 +427,28 @@ class ObjectiveController extends Controller
                 $targetUserId = $me->id;
                 $targetRoleType = 'matchmaker';
             } elseif ($roleName === 'manager') {
-                $targetUserId = $me->id;
-                $targetRoleType = 'manager';
-                $scopeType = 'agency';
+                if ($userId && (int) $userId !== (int) $me->id) {
+                    $targetUser = User::where('id', $userId)
+                        ->where('agency_id', $me->agency_id)
+                        ->where('approval_status', 'approved')
+                        ->whereHas('roles', function ($q) {
+                            $q->where('name', 'matchmaker');
+                        })
+                        ->first();
+
+                    if (! $targetUser) {
+                        abort(403, 'Unauthorized staff selection.');
+                    }
+
+                    $targetUserId = $targetUser->id;
+                    $targetRoleType = 'matchmaker';
+                    $scopeType = 'matchmaker_individual';
+                } else {
+                    // No user_id, or explicit self (details API may send manager id when dropdown has no "self")
+                    $targetUserId = $me->id;
+                    $targetRoleType = 'manager';
+                    $scopeType = 'manager_individual';
+                }
             }
 
             $startDate = Carbon::create($year, $month, 1)->startOfMonth();
@@ -675,187 +711,6 @@ class ObjectiveController extends Controller
     }
 
     /**
-     * Calculate realized values for a specific matchmaker
-     */
-    private function calculateRealizedForMatchmaker($matchmakerId, $month, $year)
-    {
-        $startDate = Carbon::create($year, $month, 1)->startOfMonth();
-        $endDate = Carbon::create($year, $month, 1)->endOfMonth();
-
-        // Ventes: Sum of paid bills created by this matchmaker in the month
-        $ventes = Bill::where('matchmaker_id', $matchmakerId)
-            ->where('status', 'paid')
-            ->whereBetween('created_at', [$startDate, $endDate])
-            ->sum('total_amount');
-
-        // Membres: Count of users validated by this matchmaker in the month
-        $membres = User::role('user')
-            ->whereIn('status', ['member', 'client', 'client_expire'])
-            ->where('assigned_matchmaker_id', $matchmakerId)
-            ->whereBetween('approved_at', [$startDate, $endDate])
-            ->count();
-
-        // RDV: To be implemented later (placeholder)
-        $rdv = 0;
-
-        // Match: To be implemented later (placeholder)
-        $match = 0;
-
-        return [
-            'ventes' => (float) $ventes,
-            'membres' => (int) $membres,
-            'rdv' => (int) $rdv,
-            'match' => (int) $match,
-        ];
-    }
-
-    /**
-     * Calculate realized values for a manager's agency
-     * Aggregates data from all matchmakers in the manager's agency
-     */
-    private function calculateRealizedForAgency($managerId, $month, $year)
-    {
-        $startDate = Carbon::create($year, $month, 1)->startOfMonth();
-        $endDate = Carbon::create($year, $month, 1)->endOfMonth();
-
-        // Get the manager's agency
-        $manager = User::find($managerId);
-        if (! $manager || ! $manager->agency_id) {
-            return [
-                'ventes' => 0,
-                'membres' => 0,
-                'rdv' => 0,
-                'match' => 0,
-            ];
-        }
-
-        // Get all matchmaker IDs in this agency
-        $matchmakerIds = User::role('matchmaker')
-            ->where('agency_id', $manager->agency_id)
-            ->where('approval_status', 'approved')
-            ->pluck('id');
-
-        // Ventes: Sum of paid bills created by all matchmakers in this agency in the month
-        $ventes = Bill::whereIn('matchmaker_id', $matchmakerIds)
-            ->where('status', 'paid')
-            ->whereBetween('created_at', [$startDate, $endDate])
-            ->sum('total_amount');
-
-        // Membres: Count of users validated by matchmakers in this agency or by the manager in the month
-        $membres = User::role('user')
-            ->whereIn('status', ['member', 'client', 'client_expire'])
-            ->where(function ($query) use ($matchmakerIds, $managerId) {
-                $query->whereIn('assigned_matchmaker_id', $matchmakerIds)
-                    ->orWhere('validated_by_manager_id', $managerId);
-            })
-            ->whereBetween('approved_at', [$startDate, $endDate])
-            ->count();
-
-        // RDV: To be implemented later (placeholder)
-        $rdv = 0;
-
-        // Match: To be implemented later (placeholder)
-        $match = 0;
-
-        return [
-            'ventes' => (float) $ventes,
-            'membres' => (int) $membres,
-            'rdv' => (int) $rdv,
-            'match' => (int) $match,
-        ];
-    }
-
-    /**
-     * Calculate realized values for a manager's own production.
-     */
-    private function calculateRealizedForManager($managerId, $month, $year)
-    {
-        $startDate = Carbon::create($year, $month, 1)->startOfMonth();
-        $endDate = Carbon::create($year, $month, 1)->endOfMonth();
-
-        $ventes = Bill::where('matchmaker_id', $managerId)
-            ->where('status', 'paid')
-            ->whereBetween('created_at', [$startDate, $endDate])
-            ->sum('total_amount');
-
-        $membres = User::role('user')
-            ->whereIn('status', ['member', 'client', 'client_expire'])
-            ->where('validated_by_manager_id', $managerId)
-            ->whereBetween('approved_at', [$startDate, $endDate])
-            ->count();
-
-        return [
-            'ventes' => (float) $ventes,
-            'membres' => (int) $membres,
-            'rdv' => 0,
-            'match' => 0,
-        ];
-    }
-
-    /**
-     * Calculate realized values for an agency (all approved matchmakers in the agency).
-     */
-    private function calculateRealizedForAgencyById($agencyId, $month, $year)
-    {
-        $startDate = Carbon::create($year, $month, 1)->startOfMonth();
-        $endDate = Carbon::create($year, $month, 1)->endOfMonth();
-
-        $matchmakerIds = User::role('matchmaker')
-            ->where('agency_id', $agencyId)
-            ->where('approval_status', 'approved')
-            ->pluck('id');
-
-        $ventes = Bill::whereIn('matchmaker_id', $matchmakerIds)
-            ->where('status', 'paid')
-            ->whereBetween('created_at', [$startDate, $endDate])
-            ->sum('total_amount');
-
-        $membres = User::role('user')
-            ->whereIn('status', ['member', 'client', 'client_expire'])
-            ->whereIn('assigned_matchmaker_id', $matchmakerIds)
-            ->whereBetween('approved_at', [$startDate, $endDate])
-            ->count();
-
-        return [
-            'ventes' => (float) $ventes,
-            'membres' => (int) $membres,
-            'rdv' => 0,
-            'match' => 0,
-        ];
-    }
-
-    /**
-     * Calculate realized values across all approved matchmakers.
-     */
-    private function calculateRealizedForAllMatchmakers($month, $year)
-    {
-        $startDate = Carbon::create($year, $month, 1)->startOfMonth();
-        $endDate = Carbon::create($year, $month, 1)->endOfMonth();
-
-        $matchmakerIds = User::role('matchmaker')
-            ->where('approval_status', 'approved')
-            ->pluck('id');
-
-        $ventes = Bill::whereIn('matchmaker_id', $matchmakerIds)
-            ->where('status', 'paid')
-            ->whereBetween('created_at', [$startDate, $endDate])
-            ->sum('total_amount');
-
-        $membres = User::role('user')
-            ->whereIn('status', ['member', 'client', 'client_expire'])
-            ->whereIn('assigned_matchmaker_id', $matchmakerIds)
-            ->whereBetween('approved_at', [$startDate, $endDate])
-            ->count();
-
-        return [
-            'ventes' => (float) $ventes,
-            'membres' => (int) $membres,
-            'rdv' => 0,
-            'match' => 0,
-        ];
-    }
-
-    /**
      * User id to use when resolving a per-user objective row (vs role default).
      */
     private function objectiveUserIdForView(string $roleName, string $scopeType, ?int $targetUserId): ?int
@@ -871,55 +726,44 @@ class ObjectiveController extends Controller
     }
 
     /**
-     * Agency-level objective (aggregated performance) for a specific agency.
-     * Falls back to the global manager role default when no agency row exists.
+     * @param  \App\Models\User  $me
      */
-    private function resolveObjectiveForAgency(int $agencyId, int $month, int $year): ?MonthlyObjective
-    {
-        $agencyObjective = MonthlyObjective::where('agency_id', $agencyId)
-            ->where('role_type', MonthlyObjective::ROLE_TYPE_AGENCY)
-            ->where('month', $month)
-            ->where('year', $year)
-            ->first();
-
-        if ($agencyObjective) {
-            return $agencyObjective;
+    private function buildCommissionPayload(
+        string $roleName,
+        string $scopeType,
+        ?string $targetRoleType,
+        ?int $targetUserId,
+        ?int $targetAgencyId,
+        int $month,
+        int $year,
+        $objective,
+        array $realized,
+        array $progress,
+        $me
+    ): array {
+        if ($targetRoleType === 'matchmaker' && in_array($scopeType, ['self', 'matchmaker_individual'], true)) {
+            return ObjectiveCommissionCalculator::forMatchmaker($progress, $realized);
         }
 
-        return MonthlyObjective::whereNull('agency_id')
-            ->where('role_type', 'manager')
-            ->whereNull('user_id')
-            ->where('month', $month)
-            ->where('year', $year)
-            ->first();
+        if ($targetRoleType === 'manager' && $scopeType === 'manager_individual' && $targetUserId) {
+            $manager = User::find($targetUserId);
+            if (! $manager || ! $manager->agency_id) {
+                return ObjectiveCommissionCalculator::none($progress);
+            }
+
+            return $this->buildManagerCommissionPayload((int) $targetUserId, (int) $manager->agency_id, $month, $year);
+        }
+
+        if ($roleName === 'manager' && $scopeType === 'agency' && $me->agency_id) {
+            return $this->buildManagerCommissionPayload((int) $me->id, (int) $me->agency_id, $month, $year);
+        }
+
+        return ObjectiveCommissionCalculator::none($progress);
     }
 
-    /**
-     * Prefer per-user objective when set; otherwise role-based default (user_id null).
-     */
-    private function resolveObjectiveForView(?string $roleType, int $month, int $year, ?int $userId): ?MonthlyObjective
+    private function buildManagerCommissionPayload(int $managerId, int $agencyId, int $month, int $year): array
     {
-        if (empty($roleType)) {
-            return null;
-        }
-        if ($userId !== null) {
-            $perUser = MonthlyObjective::where('role_type', $roleType)
-                ->where('user_id', $userId)
-                ->whereNull('agency_id')
-                ->where('month', $month)
-                ->where('year', $year)
-                ->first();
-            if ($perUser) {
-                return $perUser;
-            }
-        }
-
-        return MonthlyObjective::where('role_type', $roleType)
-            ->whereNull('user_id')
-            ->whereNull('agency_id')
-            ->where('month', $month)
-            ->where('year', $year)
-            ->first();
+        return ObjectiveCommissionCalculator::forManagerDashboard($managerId, $agencyId, $month, $year);
     }
 
     /**
@@ -943,64 +787,5 @@ class ObjectiveController extends Controller
                 'user_ids' => 'Each selected user must belong to the selected agency.',
             ]);
         }
-    }
-
-    /**
-     * Calculate progress percentage for each metric
-     */
-    private function calculateProgress($objective, $realized)
-    {
-        if (! $objective) {
-            return [
-                'ventes' => 0,
-                'membres' => 0,
-                'rdv' => 0,
-                'match' => 0,
-            ];
-        }
-
-        return [
-            'ventes' => $objective->target_ventes > 0
-                ? min(100, ($realized['ventes'] / $objective->target_ventes) * 100)
-                : 0,
-            'membres' => $objective->target_membres > 0
-                ? min(100, ($realized['membres'] / $objective->target_membres) * 100)
-                : 0,
-            'rdv' => $objective->target_rdv > 0
-                ? min(100, ($realized['rdv'] / $objective->target_rdv) * 100)
-                : 0,
-            'match' => $objective->target_match > 0
-                ? min(100, ($realized['match'] / $objective->target_match) * 100)
-                : 0,
-        ];
-    }
-
-    /**
-     * Calculate commission eligibility and amount
-     * Note: Commission amount is only calculated for Ventes (monetary)
-     * For other metrics, only eligibility is tracked
-     */
-    private function calculateCommission($progress, $realized)
-    {
-        $commission = [
-            'ventes' => [
-                'eligible' => $progress['ventes'] >= 50,
-                'amount' => $progress['ventes'] >= 50 ? $realized['ventes'] * 0.10 : 0,
-            ],
-            'membres' => [
-                'eligible' => $progress['membres'] >= 50,
-                'amount' => 0, // Commission amount for membres to be determined separately
-            ],
-            'rdv' => [
-                'eligible' => $progress['rdv'] >= 50,
-                'amount' => 0, // Commission amount for RDV to be determined separately
-            ],
-            'match' => [
-                'eligible' => $progress['match'] >= 50,
-                'amount' => 0, // Commission amount for Match to be determined separately
-            ],
-        ];
-
-        return $commission;
     }
 }

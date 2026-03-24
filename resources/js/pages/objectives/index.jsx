@@ -53,6 +53,14 @@ export default function ObjectivesIndex() {
         setIsNavigating(false); // Reset when props update (navigation finished)
     }, [objective, realized, progress, commission, month, year]);
 
+    useEffect(() => {
+        setSelectedUserId(userId || null);
+    }, [userId]);
+
+    useEffect(() => {
+        setSelectedAgencyId(agencyId || null);
+    }, [agencyId]);
+
     const { data, setData, post, processing, errors, reset } = useForm({
         objective_scope: 'staff',
         role_type: roleType || 'matchmaker',
@@ -280,7 +288,17 @@ export default function ObjectivesIndex() {
                 month: month.toString(),
                 year: year.toString(),
             });
-            if (selectedUserId) params.set('user_id', selectedUserId.toString());
+            if (selectedUserId) {
+                params.set('user_id', selectedUserId.toString());
+            } else if (
+                currentUser?.role === 'manager' &&
+                scopeType === 'manager_individual' &&
+                roleType === 'manager' &&
+                currentUser?.id
+            ) {
+                // Personal manager scope: backend needs explicit user_id for details (dropdown has no "self" id)
+                params.set('user_id', String(currentUser.id));
+            }
             if (selectedAgencyId) params.set('agency_id', selectedAgencyId.toString());
             const url = `/objectives/details?${params.toString()}`;
             const response = await fetch(url, {
@@ -536,11 +554,14 @@ export default function ObjectivesIndex() {
                                                     <div className="flex flex-col gap-1">
                                                         <Badge className="bg-green-500 text-white w-fit">
                                                             <CheckCircle className="w-3 h-3 mr-1" />
-                                                            10% {t('staff.objectives.eligible')}
+                                                            {metric.key === 'ventes'
+                                                                ? t('staff.objectives.commissionPayoutEligible')
+                                                                : t('staff.objectives.kpiThresholdMet')}
                                                         </Badge>
-                                                        {metric.key === 'ventes' && metric.commission.amount > 0 && (
+                                                        {metric.key === 'ventes' &&
+                                                            (parseFloat(commission?.summary?.total_amount ?? metric.commission.amount) || 0) > 0 && (
                                                             <span className="text-xs text-muted-foreground">
-                                                                {(parseFloat(metric.commission.amount) || 0).toFixed(2)} MAD
+                                                                {(parseFloat(commission?.summary?.total_amount ?? metric.commission.amount) || 0).toFixed(2)} MAD
                                                             </span>
                                                         )}
                                                     </div>
@@ -550,7 +571,10 @@ export default function ObjectivesIndex() {
                                             </TableCell>
                                             {canEdit && objective && (
                                                 <TableCell onClick={(e) => e.stopPropagation()}>
-                                                    {metric.commission?.eligible && !objective.commission_paid && (
+                                                    {metric.key === 'ventes' &&
+                                                        (commission?.summary?.eligible ?? metric.commission?.eligible) &&
+                                                        (parseFloat(commission?.summary?.total_amount ?? 0) > 0) &&
+                                                        !objective.commission_paid && (
                                                         <Button
                                                             size="sm"
                                                             variant="outline"
@@ -562,7 +586,7 @@ export default function ObjectivesIndex() {
                                                             {t('staff.objectives.markPaid')}
                                                         </Button>
                                                     )}
-                                                    {objective.commission_paid && (
+                                                    {metric.key === 'ventes' && objective.commission_paid && (
                                                         <Badge className="bg-blue-500 text-white">
                                                             {t('staff.objectives.paid')}
                                                         </Badge>

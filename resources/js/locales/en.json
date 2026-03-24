@@ -710,6 +710,8 @@
             "actions": "Actions",
             "eligible": "eligible",
             "notEligible": "Not eligible",
+            "commissionPayoutEligible": "Payout eligible",
+            "kpiThresholdMet": "KPI ≥ 50%",
             "markPaid": "Mark Paid",
             "paid": "Paid",
             "update": "Update",

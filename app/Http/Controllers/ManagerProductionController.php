@@ -3,8 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Bill;
-use App\Models\MonthlyObjective;
 use App\Models\User;
+use App\Services\ObjectiveCommissionCalculator;
+use App\Services\ObjectiveMetricsService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -31,15 +32,11 @@ class ManagerProductionController extends Controller
         $month = $request->integer('month', now()->month);
         $year = $request->integer('year', now()->year);
 
-        // Personal targets: per-manager row first, then global manager default — never agency objectives.
-        $objective = $this->resolveManagerPersonalObjective((int) $me->id, $month, $year);
+        $objective = ObjectiveMetricsService::resolveManagerPersonalObjective((int) $me->id, $month, $year);
 
         $startDate = Carbon::create($year, $month, 1)->startOfMonth();
         $endDate = Carbon::create($year, $month, 1)->endOfMonth();
 
-        // Manager personal productivity:
-        // - Ventes: bills created by manager (stored in bills.matchmaker_id)
-        // - Membres: users validated by this manager
         $ventes = Bill::where('matchmaker_id', $me->id)
             ->where('status', 'paid')
             ->whereBetween('created_at', [$startDate, $endDate])
@@ -58,39 +55,11 @@ class ManagerProductionController extends Controller
             'match' => 0,
         ];
 
-        $progress = [
-            'ventes' => ($objective && (float) $objective->target_ventes > 0)
-                ? min(100, ($realized['ventes'] / (float) $objective->target_ventes) * 100)
-                : 0,
-            'membres' => ($objective && (int) $objective->target_membres > 0)
-                ? min(100, ($realized['membres'] / (int) $objective->target_membres) * 100)
-                : 0,
-            'rdv' => ($objective && (int) $objective->target_rdv > 0)
-                ? min(100, ($realized['rdv'] / (int) $objective->target_rdv) * 100)
-                : 0,
-            'match' => ($objective && (int) $objective->target_match > 0)
-                ? min(100, ($realized['match'] / (int) $objective->target_match) * 100)
-                : 0,
-        ];
+        $progress = ObjectiveCommissionCalculator::calculateProgress($objective, $realized);
 
-        $commission = [
-            'ventes' => [
-                'eligible' => $progress['ventes'] >= 50,
-                'amount' => $progress['ventes'] >= 50 ? $realized['ventes'] * 0.10 : 0,
-            ],
-            'membres' => [
-                'eligible' => $progress['membres'] >= 50,
-                'amount' => 0,
-            ],
-            'rdv' => [
-                'eligible' => $progress['rdv'] >= 50,
-                'amount' => 0,
-            ],
-            'match' => [
-                'eligible' => $progress['match'] >= 50,
-                'amount' => 0,
-            ],
-        ];
+        $commission = $me->agency_id
+            ? ObjectiveCommissionCalculator::forManagerDashboard((int) $me->id, (int) $me->agency_id, $month, $year)
+            : ObjectiveCommissionCalculator::none($progress);
 
         return Inertia::render('manager/my-production', [
             'objective' => $objective,
@@ -105,30 +74,5 @@ class ManagerProductionController extends Controller
                 'role' => $roleName,
             ],
         ]);
-    }
-
-    /**
-     * Prefer a monthly objective row for this manager (user_id set); otherwise the shared manager default.
-     * Excludes agency-level rows (role_type agency).
-     */
-    private function resolveManagerPersonalObjective(int $managerId, int $month, int $year): ?MonthlyObjective
-    {
-        $perUser = MonthlyObjective::where('role_type', 'manager')
-            ->where('user_id', $managerId)
-            ->whereNull('agency_id')
-            ->where('month', $month)
-            ->where('year', $year)
-            ->first();
-
-        if ($perUser) {
-            return $perUser;
-        }
-
-        return MonthlyObjective::where('role_type', 'manager')
-            ->whereNull('user_id')
-            ->whereNull('agency_id')
-            ->where('month', $month)
-            ->where('year', $year)
-            ->first();
     }
 }
