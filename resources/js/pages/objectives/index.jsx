@@ -103,6 +103,14 @@ export default function ObjectivesIndex() {
         setData('user_ids', arr);
     };
 
+    /** Manager + agency scope on /objectives: show full payout on Ventes row; Ma production & other scopes use personal ventes slice only. */
+    const ventesCommissionDisplayMAD = useMemo(() => {
+        if (currentUser?.role === 'manager' && scopeType === 'agency' && commission?.mode === 'manager') {
+            return parseFloat(commission?.summary?.total_amount ?? 0);
+        }
+        return parseFloat(commission?.ventes?.amount ?? 0);
+    }, [currentUser?.role, scopeType, commission]);
+
     const metrics = [
         {
             key: 'ventes',
@@ -290,16 +298,10 @@ export default function ObjectivesIndex() {
             });
             if (selectedUserId) {
                 params.set('user_id', selectedUserId.toString());
-            } else if (
-                currentUser?.role === 'manager' &&
-                scopeType === 'manager_individual' &&
-                roleType === 'manager' &&
-                currentUser?.id
-            ) {
-                // Personal manager scope: backend needs explicit user_id for details (dropdown has no "self" id)
-                params.set('user_id', String(currentUser.id));
             }
-            if (selectedAgencyId) params.set('agency_id', selectedAgencyId.toString());
+            if (selectedAgencyId) {
+                params.set('agency_id', selectedAgencyId.toString());
+            }
             const url = `/objectives/details?${params.toString()}`;
             const response = await fetch(url, {
                 headers: {
@@ -467,15 +469,26 @@ export default function ObjectivesIndex() {
                             {selectedUserId && users.find(u => u.id === selectedUserId) && (
                                 <> - {users.find(u => u.id === selectedUserId).name} ({roleType === 'matchmaker' ? t('staff.matchmaker') : t('staff.agencies.manager')})</>
                             )}
-                            {!selectedUserId && selectedAgencyId && agencies.find(a => a.id === selectedAgencyId) && (
-                                <> - {agencies.find(a => a.id === selectedAgencyId).name} ({t('staff.agencies.agencies')})</>
+                            {!selectedUserId && selectedAgencyId && agencies.find((a) => a.id === selectedAgencyId) && (
+                                <> - {agencies.find((a) => a.id === selectedAgencyId).name} ({t('staff.agencies.agencies')})</>
                             )}
+                            {!selectedUserId &&
+                                selectedAgencyId &&
+                                currentUser?.role === 'manager' &&
+                                scopeType === 'agency' &&
+                                !agencies?.length && (
+                                    <> - {t('staff.agencies.agencies')}</>
+                                )}
                             {!selectedUserId && !selectedAgencyId && currentUser?.role === 'admin' && scopeType === 'all' && (
                                 <> - {t('staff.objectives.editDialog.matchmakersAll')}</>
                             )}
-                            {!selectedUserId && !selectedAgencyId && currentUser?.role && !(currentUser.role === 'admin' && scopeType === 'all') && (
-                                <> - {currentUser.name} ({roleType === 'matchmaker' ? t('staff.matchmaker') : t('staff.agencies.manager')})</>
-                            )}
+                            {!selectedUserId &&
+                                !selectedAgencyId &&
+                                currentUser?.role &&
+                                !(currentUser.role === 'admin' && scopeType === 'all') &&
+                                !(currentUser.role === 'manager' && scopeType === 'agency') && (
+                                    <> - {currentUser.name} ({roleType === 'matchmaker' ? t('staff.matchmaker') : t('staff.agencies.manager')})</>
+                                )}
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -558,10 +571,9 @@ export default function ObjectivesIndex() {
                                                                 ? t('staff.objectives.commissionPayoutEligible')
                                                                 : t('staff.objectives.kpiThresholdMet')}
                                                         </Badge>
-                                                        {metric.key === 'ventes' &&
-                                                            (parseFloat(commission?.summary?.total_amount ?? metric.commission.amount) || 0) > 0 && (
+                                                        {metric.key === 'ventes' && ventesCommissionDisplayMAD > 0 && (
                                                             <span className="text-xs text-muted-foreground">
-                                                                {(parseFloat(commission?.summary?.total_amount ?? metric.commission.amount) || 0).toFixed(2)} MAD
+                                                                {ventesCommissionDisplayMAD.toFixed(2)} MAD
                                                             </span>
                                                         )}
                                                     </div>

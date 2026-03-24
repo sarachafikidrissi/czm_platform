@@ -182,12 +182,9 @@ export default function ManagerMyProduction() {
                                                                 : t('staff.objectives.kpiThresholdMet')}
                                                         </Badge>
                                                         {r.key === 'ventes' &&
-                                                            (parseFloat(commission?.summary?.total_amount ?? r.commission?.amount) || 0) > 0 && (
+                                                            (parseFloat(r.commission?.amount) || 0) > 0 && (
                                                                 <span className="text-xs text-muted-foreground">
-                                                                    {(
-                                                                        parseFloat(commission?.summary?.total_amount ?? r.commission?.amount) || 0
-                                                                    ).toFixed(2)}{' '}
-                                                                    MAD
+                                                                    {(parseFloat(r.commission?.amount) || 0).toFixed(2)} MAD
                                                                 </span>
                                                             )}
                                                     </div>

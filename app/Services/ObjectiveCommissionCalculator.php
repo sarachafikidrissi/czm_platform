@@ -168,7 +168,7 @@ class ObjectiveCommissionCalculator
             ],
             'ventes' => [
                 'eligible' => $bothGates,
-                'amount' => round($totalAmount, 2),
+                'amount' => round($personalVentesCommission, 2),
             ],
             'membres' => [
                 'eligible' => $rowProgressForKpiDisplay['membres'] >= self::KPI_THRESHOLD,

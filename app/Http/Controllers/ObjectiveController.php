@@ -82,7 +82,7 @@ class ObjectiveController extends Controller
             $targetRoleType = 'matchmaker';
             $scopeType = 'self';
         } elseif ($roleName === 'manager') {
-            // Manager default: personal objective (same as admin selecting this manager); optional matchmaker filter
+            // Manager default: agency aggregate; optional matchmaker filter for individual MM stats
             if ($userId) {
                 $targetUser = User::where('id', $userId)
                     ->where('agency_id', $me->agency_id)
@@ -102,7 +102,12 @@ class ObjectiveController extends Controller
             } else {
                 $targetUserId = $me->id;
                 $targetRoleType = 'manager';
-                $scopeType = 'manager_individual';
+                if ($me->agency_id) {
+                    $scopeType = 'agency';
+                    $targetAgencyId = (int) $me->agency_id;
+                } else {
+                    $scopeType = 'manager_individual';
+                }
             }
         } else {
             abort(403, 'Unauthorized access.');
@@ -195,10 +200,6 @@ class ObjectiveController extends Controller
         }
 
         $selectedFilterUserId = in_array($scopeType, ['matchmaker_individual', 'manager_individual']) ? $targetUserId : null;
-        // Manager viewing own personal objective: dropdown only lists matchmakers — keep userId null so "All" stays valid
-        if ($roleName === 'manager' && $scopeType === 'manager_individual' && $targetUserId === $me->id) {
-            $selectedFilterUserId = null;
-        }
 
         return Inertia::render('objectives/index', [
             'objective' => $objective,
@@ -219,6 +220,7 @@ class ObjectiveController extends Controller
                 'id' => $me->id,
                 'name' => $me->name,
                 'role' => $roleName,
+                'agency_id' => $me->agency_id ? (int) $me->agency_id : null,
             ],
         ]);
     }
@@ -443,8 +445,19 @@ class ObjectiveController extends Controller
                     $targetUserId = $targetUser->id;
                     $targetRoleType = 'matchmaker';
                     $scopeType = 'matchmaker_individual';
+                } elseif ($userId && (int) $userId === (int) $me->id) {
+                    // Explicit manager personal scope (e.g. linked from Ma production)
+                    $targetUserId = $me->id;
+                    $targetRoleType = 'manager';
+                    $scopeType = 'manager_individual';
+                } elseif ($me->agency_id) {
+                    if ($agencyId !== null && (int) $agencyId !== (int) $me->agency_id) {
+                        abort(403, 'Unauthorized agency scope.');
+                    }
+                    $targetRoleType = 'manager';
+                    $scopeType = 'agency';
+                    $agencyId = (int) $me->agency_id;
                 } else {
-                    // No user_id, or explicit self (details API may send manager id when dropdown has no "self")
                     $targetUserId = $me->id;
                     $targetRoleType = 'manager';
                     $scopeType = 'manager_individual';
