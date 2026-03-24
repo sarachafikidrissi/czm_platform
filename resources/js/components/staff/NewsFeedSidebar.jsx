@@ -1,6 +1,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { AlertTriangle, ArrowRightLeft, Calendar, ClipboardList, Hourglass } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { AlertTriangle, ArrowRightLeft, Calendar, ClipboardList, Hourglass, User } from 'lucide-react';
+
 
 export default function NewsFeedSidebar({ statistics, role }) {
     if (!statistics) {
@@ -11,18 +13,23 @@ export default function NewsFeedSidebar({ statistics, role }) {
         <div className="w-full space-y-6">
             {/* Production par agence */}
             {statistics.productionByAgency && statistics.productionByAgency.length > 0 && (
-                <Card className="rounded-2xl border border-black/5 bg-white shadow-sm">
-                    <CardHeader className="px-5 pt-4 pb-2">
-                        <CardTitle className="text-lg font-semibold tracking-tight text-[#4b2a24]">Production par agence</CardTitle>
+                <Card className="rounded-[18px] border border-black/[0.06] bg-white shadow-sm">
+                    <CardHeader className="px-6 pb-2 pt-6">
+                        <CardTitle className="font-serif text-xl font-bold tracking-tight text-neutral-900">
+                            Production par agence
+                        </CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-3 px-5 pt-1 pb-5">
+                    <CardContent className="space-y-4 px-6 pb-6 pt-0">
                         {statistics.productionByAgency.map((agency, index) => (
-                            <div key={index} className="space-y-1">
-                                <div className="text-muted-foreground flex items-center justify-between gap-3 text-xs">
-                                    <span className="truncate">{agency.name}</span>
-                                    <span className="text-foreground font-medium tabular-nums">{agency.percentage}%</span>
+                            <div key={index} className="space-y-2">
+                                <div className="flex items-center justify-between gap-3 text-sm">
+                                    <span className="truncate font-medium text-slate-500">{agency.name}</span>
+                                    <span className="shrink-0 font-bold tabular-nums text-neutral-900">{agency.percentage}%</span>
                                 </div>
-                                <Progress value={agency.percentage} className="h-2 rounded-full" />
+                                <Progress
+                                    value={agency.percentage}
+                                    className="h-2.5 w-full rounded-full bg-zinc-200/90 [&>div]:rounded-full [&>div]:bg-[#890505]"
+                                />
                             </div>
                         ))}
                     </CardContent>

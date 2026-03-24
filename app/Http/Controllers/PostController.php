@@ -988,29 +988,61 @@ class PostController extends Controller
         return $stats;
     }
 
+    /**
+     * Sidebar "Production par agence": mean % attainment on agency monthly objectives (KPIs with a target only).
+     * Admin: all agencies. Manager: only their agency.
+     */
     private function getProductionByAgency(?int $agencyId = null): array
     {
+        $month = now()->month;
+        $year = now()->year;
+
         $agencies = $agencyId
             ? Agency::where('id', $agencyId)->get()
             : Agency::all();
 
         $production = [];
         foreach ($agencies as $agency) {
-            $usersCount = User::role('user')
-                ->where('agency_id', $agency->id)
-                ->whereIn('status', ['member', 'client', 'client_expire'])
-                ->count();
-
-            $totalUsers = User::role('user')->whereIn('status', ['member', 'client', 'client_expire'])->count();
-            $percentage = $totalUsers > 0 ? round(($usersCount / $totalUsers) * 100, 1) : 0;
-
             $production[] = [
                 'name' => $agency->name,
-                'count' => $usersCount,
-                'percentage' => $percentage,
+                'percentage' => $this->agencyObjectiveCompletionPercent((int) $agency->id, $month, $year),
             ];
         }
 
         return $production;
+    }
+
+    /**
+     * @return float Completion 0–100, one decimal; average of per-KPI progress where that KPI has a positive target.
+     */
+    private function agencyObjectiveCompletionPercent(int $agencyId, int $month, int $year): float
+    {
+        $objective = ObjectiveMetricsService::resolveObjectiveForAgency($agencyId, $month, $year);
+        $realized = ObjectiveMetricsService::calculateRealizedForAgencyById($agencyId, $month, $year);
+        $progress = ObjectiveCommissionCalculator::calculateProgress($objective, $realized);
+
+        if (! $objective) {
+            return 0.0;
+        }
+
+        $parts = [];
+        if ((float) $objective->target_ventes > 0) {
+            $parts[] = $progress['ventes'];
+        }
+        if ((int) $objective->target_membres > 0) {
+            $parts[] = $progress['membres'];
+        }
+        if ((int) $objective->target_rdv > 0) {
+            $parts[] = $progress['rdv'];
+        }
+        if ((int) $objective->target_match > 0) {
+            $parts[] = $progress['match'];
+        }
+
+        if ($parts === []) {
+            return 0.0;
+        }
+
+        return round(array_sum($parts) / count($parts), 1);
     }
 }
