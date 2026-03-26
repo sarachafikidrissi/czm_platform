@@ -3,8 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Proposition;
-use App\Models\User;
 use App\Models\PropositionRequest;
+use App\Models\User;
 use App\Services\UserActivityService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -19,7 +19,7 @@ class PropositionController extends Controller
     public function index()
     {
         $me = Auth::user();
-        if (!$me || !$me->hasRole('user')) {
+        if (! $me || ! $me->hasRole('user')) {
             abort(403, 'Unauthorized.');
         }
 
@@ -35,9 +35,10 @@ class PropositionController extends Controller
             ->latest()
             ->get()
             ->map(function (Proposition $proposition) {
-                $isExpired = $proposition->status === 'pending'
-                    && $proposition->created_at
-                    && $proposition->created_at->lt(now()->subDays(5));
+                $isExpired = $proposition->status === 'expired'
+                    || ($proposition->status === 'pending'
+                        && $proposition->created_at
+                        && $proposition->created_at->lt(now()->subDays(7)));
 
                 return [
                     'id' => $proposition->id,
@@ -79,7 +80,7 @@ class PropositionController extends Controller
     public function store(Request $request)
     {
         $me = Auth::user();
-        if (!$me || !$me->hasRole('matchmaker')) {
+        if (! $me || ! $me->hasRole('matchmaker')) {
             abort(403, 'Unauthorized.');
         }
 
@@ -94,7 +95,7 @@ class PropositionController extends Controller
         $sendToReference = (bool) ($data['send_to_reference'] ?? false);
         $sendToCompatible = (bool) ($data['send_to_compatible'] ?? false);
 
-        if (!$sendToReference && !$sendToCompatible) {
+        if (! $sendToReference && ! $sendToCompatible) {
             return response()->json([
                 'message' => 'Select at least one recipient.',
             ], 422);
@@ -128,7 +129,7 @@ class PropositionController extends Controller
 
         $hasAcceptedRequest = (bool) $acceptedRequest;
 
-        if (!$hasAcceptedRequest && $compatibleUser->assigned_matchmaker_id !== $me->id) {
+        if (! $hasAcceptedRequest && $compatibleUser->assigned_matchmaker_id !== $me->id) {
             abort(403, 'You can only propose between profiles assigned to you.');
         }
 
@@ -145,7 +146,7 @@ class PropositionController extends Controller
             $acceptedAt = $acceptedRequest?->responded_at ?? $acceptedRequest?->created_at;
             $rejectedAt = $latestRejection->responded_at ?? $latestRejection->created_at;
 
-            if (!$acceptedAt || $acceptedAt->lte($rejectedAt)) {
+            if (! $acceptedAt || $acceptedAt->lte($rejectedAt)) {
                 abort(403, 'A new proposition request is required after refusal.');
             }
         }
@@ -174,6 +175,7 @@ class PropositionController extends Controller
                 if ($proposition->status === 'not_interested') {
                     return 'rejected';
                 }
+
                 return 'pending';
             });
 
@@ -199,6 +201,7 @@ class PropositionController extends Controller
                 if ($proposition->status === 'not_interested') {
                     return 'rejected';
                 }
+
                 return 'pending';
             });
 
@@ -240,14 +243,14 @@ class PropositionController extends Controller
             $referenceUser->id,
             $me->id,
             'proposition',
-            "Proposition envoyée avec {$otherNameRef}. " . (strlen(trim($data['message'])) > 0 ? 'Message : ' . \Illuminate\Support\Str::limit(trim($data['message']), 100) : ''),
+            "Proposition envoyée avec {$otherNameRef}. ".(strlen(trim($data['message'])) > 0 ? 'Message : '.\Illuminate\Support\Str::limit(trim($data['message']), 100) : ''),
             []
         );
         UserActivityService::log(
             $compatibleUser->id,
             $me->id,
             'proposition',
-            "Proposition envoyée avec {$otherNameComp}. " . (strlen(trim($data['message'])) > 0 ? 'Message : ' . \Illuminate\Support\Str::limit(trim($data['message']), 100) : ''),
+            "Proposition envoyée avec {$otherNameComp}. ".(strlen(trim($data['message'])) > 0 ? 'Message : '.\Illuminate\Support\Str::limit(trim($data['message']), 100) : ''),
             []
         );
 
@@ -263,7 +266,7 @@ class PropositionController extends Controller
     public function sendToOther(Request $request)
     {
         $me = Auth::user();
-        if (!$me || !$me->hasRole('matchmaker')) {
+        if (! $me || ! $me->hasRole('matchmaker')) {
             abort(403, 'Unauthorized.');
         }
 
@@ -281,7 +284,7 @@ class PropositionController extends Controller
         }
 
         $recipientId = (int) $data['recipient_user_id'];
-        if (!in_array($recipientId, [(int) $data['reference_user_id'], (int) $data['compatible_user_id']], true)) {
+        if (! in_array($recipientId, [(int) $data['reference_user_id'], (int) $data['compatible_user_id']], true)) {
             return response()->json([
                 'message' => 'Recipient must be one of the proposition profiles.',
             ], 422);
@@ -309,7 +312,7 @@ class PropositionController extends Controller
 
         $hasAcceptedRequest = (bool) $acceptedRequest;
 
-        if (!$hasAcceptedRequest && $compatibleUser->assigned_matchmaker_id !== $me->id) {
+        if (! $hasAcceptedRequest && $compatibleUser->assigned_matchmaker_id !== $me->id) {
             abort(403, 'You can only propose between profiles assigned to you.');
         }
 
@@ -326,7 +329,7 @@ class PropositionController extends Controller
             $acceptedAt = $acceptedRequest?->responded_at ?? $acceptedRequest?->created_at;
             $rejectedAt = $latestRejection->responded_at ?? $latestRejection->created_at;
 
-            if (!$acceptedAt || $acceptedAt->lte($rejectedAt)) {
+            if (! $acceptedAt || $acceptedAt->lte($rejectedAt)) {
                 abort(403, 'A new proposition request is required after refusal.');
             }
         }
@@ -362,14 +365,14 @@ class PropositionController extends Controller
             $referenceUser->id,
             $me->id,
             'proposition',
-            "Proposition envoyée avec {$otherNameRef}. " . (strlen(trim($data['message'])) > 0 ? 'Message : ' . \Illuminate\Support\Str::limit(trim($data['message']), 100) : ''),
+            "Proposition envoyée avec {$otherNameRef}. ".(strlen(trim($data['message'])) > 0 ? 'Message : '.\Illuminate\Support\Str::limit(trim($data['message']), 100) : ''),
             []
         );
         UserActivityService::log(
             $compatibleUser->id,
             $me->id,
             'proposition',
-            "Proposition envoyée avec {$otherNameComp}. " . (strlen(trim($data['message'])) > 0 ? 'Message : ' . \Illuminate\Support\Str::limit(trim($data['message']), 100) : ''),
+            "Proposition envoyée avec {$otherNameComp}. ".(strlen(trim($data['message'])) > 0 ? 'Message : '.\Illuminate\Support\Str::limit(trim($data['message']), 100) : ''),
             []
         );
 
@@ -385,7 +388,7 @@ class PropositionController extends Controller
     public function respond(Request $request, Proposition $proposition)
     {
         $me = Auth::user();
-        if (!$me) {
+        if (! $me) {
             abort(403, 'Unauthorized.');
         }
 
@@ -400,7 +403,7 @@ class PropositionController extends Controller
             && $recipient
             && $recipient->assigned_matchmaker_id === $me->id;
 
-        if (!$canRespondAsUser && !$canRespondAsMatchmaker) {
+        if (! $canRespondAsUser && ! $canRespondAsMatchmaker) {
             abort(403, 'Unauthorized.');
         }
 
@@ -423,6 +426,7 @@ class PropositionController extends Controller
                     'new_status' => 'expired',
                 ]
             );
+
             return response()->json([
                 'message' => 'Proposition expired.',
             ], 422);
@@ -473,4 +477,3 @@ class PropositionController extends Controller
         ]);
     }
 }
-

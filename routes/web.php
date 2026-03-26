@@ -493,7 +493,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Post routes (accessible by all authenticated users)
     Route::middleware(['auth'])->group(function () {
         Route::get('/posts', [\App\Http\Controllers\PostController::class, 'index'])->name('posts.index');
-        Route::post('/posts', [\App\Http\Controllers\PostController::class, 'store'])->name('posts.store');
+        Route::post('/posts', [\App\Http\Controllers\PostController::class, 'store'])->middleware('role:admin|manager|matchmaker')->name('posts.store');
         Route::post('/posts/like', [\App\Http\Controllers\PostController::class, 'like'])->name('posts.like');
         Route::post('/posts/comment', [\App\Http\Controllers\PostController::class, 'comment'])->name('posts.comment');
         Route::put('/posts/comments/{comment}', [\App\Http\Controllers\PostController::class, 'updateComment'])->name('posts.comments.update');
@@ -502,7 +502,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
 
     // News feed (posts + activity feed) – visible to all authenticated users
-    Route::middleware(['auth'])->group(function () {
+    Route::middleware(['auth', 'role:admin|manager|matchmaker'])->group(function () {
         Route::get('/staff/news-feed', [\App\Http\Controllers\PostController::class, 'staffNewsFeed'])->name('staff.news-feed');
     });
 

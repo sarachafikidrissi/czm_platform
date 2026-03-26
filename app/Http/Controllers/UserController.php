@@ -2,15 +2,15 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
-use App\Models\Proposition;
 use App\Models\Post;
+use App\Models\Proposition;
+use App\Models\User;
+use App\Services\MatchmakingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
-use App\Services\MatchmakingService;
 
 class UserController extends Controller
 {
@@ -18,7 +18,7 @@ class UserController extends Controller
     {
         /** @var User $user */
         $user = Auth::user();
-        
+
         // Check account status
         $profile = $user->profile;
         if ($profile && $profile->account_status === 'desactivated') {
@@ -38,9 +38,9 @@ class UserController extends Controller
                     WHERE r.name = "matchmaker" AND u.approval_status = "approved"
                 )
                 GROUP BY user_id
-            ) as latest_posts'), function($join) {
+            ) as latest_posts'), function ($join) {
                 $join->on('posts.user_id', '=', 'latest_posts.user_id')
-                     ->on('posts.created_at', '=', 'latest_posts.latest_created_at');
+                    ->on('posts.created_at', '=', 'latest_posts.latest_created_at');
             })
             ->with(['user.profile', 'user.agency', 'likes.user.profile', 'comments.user.roles', 'comments.user.profile'])
             ->orderBy('posts.created_at', 'desc')
@@ -52,7 +52,7 @@ class UserController extends Controller
                 $post->is_liked = $post->isLikedBy(Auth::id());
                 $post->likes_count = $post->likes_count;
                 $post->comments_count = $post->comments_count;
-                
+
                 // Parse media_url if it's JSON (multiple images)
                 if ($post->type === 'image' && $post->media_url) {
                     $decoded = json_decode($post->media_url, true);
@@ -75,11 +75,11 @@ class UserController extends Controller
     {
         /** @var User $user */
         $user = Auth::user();
-        
-        if (!$user) {
+
+        if (! $user) {
             return redirect()->back()->with('error', 'User not authenticated.');
         }
-        
+
         // Check if user already has a matchmaker
         if ($user->assigned_matchmaker_id) {
             return redirect()->back()->with('error', 'You already have an assigned matchmaker.');
@@ -88,7 +88,7 @@ class UserController extends Controller
         $matchmaker = User::role('matchmaker')
             ->where('approval_status', 'approved')
             ->findOrFail($id);
-        
+
         $user->update([
             'assigned_matchmaker_id' => $matchmaker->id,
         ]);
@@ -99,7 +99,7 @@ class UserController extends Controller
     public function profile($username)
     {
         $currentUser = Auth::user();
-        
+
         // If current user is a regular user (not admin/manager/matchmaker), check their account status
         if ($currentUser && $currentUser->hasRole('user')) {
             $currentProfile = $currentUser->profile;
@@ -107,21 +107,21 @@ class UserController extends Controller
                 return redirect()->route('dashboard');
             }
         }
-        
+
         $user = User::with([
-            'profile.matrimonialPack', 
-            'agency', 
-            'roles', 
+            'profile.matrimonialPack',
+            'agency',
+            'roles',
             'assignedMatchmaker:id,agency_id,name,email', // Include more fields for better debugging
-            'posts' => function($query) {
-                $query->with(['user.profile','user', 'likes.user.profile', 'comments.user.roles', 'comments.user.profile'])
-                      ->orderBy('created_at', 'desc');
-            }, 
+            'posts' => function ($query) {
+                $query->with(['user.profile', 'user', 'likes.user.profile', 'comments.user.roles', 'comments.user.profile'])
+                    ->orderBy('created_at', 'desc');
+            },
             'photos',
         ])
             ->where('username', $username)
             ->firstOrFail();
-        
+
         // Check if the profile being viewed belongs to a desactivated account (if viewer is a regular user)
         if ($currentUser && $currentUser->hasRole('user')) {
             $viewedProfile = $user->profile;
@@ -129,7 +129,7 @@ class UserController extends Controller
                 return redirect()->route('dashboard')->with('error', 'Ce profil n\'est pas accessible.');
             }
         }
-        
+
         // Get user role
         $userRole = $user->roles->first()?->name ?? 'user';
 
@@ -157,9 +157,10 @@ class UserController extends Controller
                 ->first();
 
             if ($proposition) {
-                $isExpired = $proposition->status === 'pending'
-                    && $proposition->created_at
-                    && $proposition->created_at->lt(now()->subDays(7));
+                $isExpired = $proposition->status === 'expired'
+                    || ($proposition->status === 'pending'
+                        && $proposition->created_at
+                        && $proposition->created_at->lt(now()->subDays(7)));
 
                 $propositionToRespond = [
                     'id' => $proposition->id,
@@ -189,14 +190,14 @@ class UserController extends Controller
                 ];
             }
         }
-        
+
         // Add like status for current user and append accessor attributes
         if (Auth::check()) {
             $user->posts->each(function ($post) {
                 $post->is_liked = $post->isLikedBy(Auth::id());
                 $post->likes_count = $post->likes_count;
                 $post->comments_count = $post->comments_count;
-                
+
                 // Parse media_url if it's JSON (multiple images)
                 if ($post->type === 'image' && $post->media_url) {
                     $decoded = json_decode($post->media_url, true);
@@ -208,7 +209,7 @@ class UserController extends Controller
                 }
             });
         }
-        
+
         // Load notes and evaluation
         $notes = \App\Models\MatchmakerNote::where('user_id', $user->id)
             ->with('author:id,name,username')
@@ -234,18 +235,18 @@ class UserController extends Controller
         if ($user->relationLoaded('photos') && $user->photos && $user->photos->isNotEmpty()) {
             $photos = $user->photos->map(function ($photo) use ($currentUser, $user) {
                 $filePath = $photo->file_path;
-                
+
                 // Generate URL - for public disk, use /storage/ prefix
                 $url = null;
                 if ($filePath) {
                     // Remove any leading slashes or storage/ prefix if present
                     $cleanPath = ltrim($filePath, '/');
                     $cleanPath = preg_replace('#^storage/#', '', $cleanPath);
-                    
+
                     // Build the correct storage URL
-                    $url = '/storage/' . $cleanPath;
+                    $url = '/storage/'.$cleanPath;
                 }
-                
+
                 // Check if current user can delete this specific photo
                 $canDeleteThisPhoto = false;
                 if ($currentUser && $currentUser->hasRole('user') && $user->id === $currentUser->id) {
@@ -258,7 +259,7 @@ class UserController extends Controller
                     // Admin can delete any photo
                     $canDeleteThisPhoto = true;
                 }
-                
+
                 return [
                     'id' => $photo->id,
                     'file_path' => $filePath,
@@ -270,7 +271,7 @@ class UserController extends Controller
                 ];
             })->filter(function ($photo) {
                 // Filter out photos with no file path or URL
-                return !empty($photo['file_path']) && !empty($photo['url']);
+                return ! empty($photo['file_path']) && ! empty($photo['url']);
             })->values();
         }
 
@@ -280,7 +281,7 @@ class UserController extends Controller
         $matchmakingSearch = null;
         $matchmakingResults = null;
         $hasBill = false;
-        
+
         if ($currentUser && ($currentUser->hasRole('matchmaker') || $currentUser->hasRole('admin') || $currentUser->hasRole('manager'))) {
             // Load bills
             $bills = $user->bills()
@@ -356,11 +357,11 @@ class UserController extends Controller
             // Load matchmaking results (À proposer functionality)
             if ($user->profile && $user->profile->is_completed) {
                 try {
-                    $matchmakingService = new MatchmakingService();
+                    $matchmakingService = new MatchmakingService;
                     $result = $matchmakingService->findMatches($user->id);
-                    
+
                     // Format matches for frontend
-                    $matchmakingResults = array_map(function($match) {
+                    $matchmakingResults = array_map(function ($match) {
                         return [
                             'user' => [
                                 'id' => $match['user']->id,
@@ -406,25 +407,25 @@ class UserController extends Controller
     {
         /** @var User $user */
         $user = Auth::user();
-        
+
         // Check account status
         $profile = $user->profile;
         if ($profile && $profile->account_status === 'desactivated') {
             return redirect()->route('dashboard');
         }
-        
+
         // Load assigned matchmaker relationship
         $user->load('assignedMatchmaker');
-        
+
         // Get user's latest subscription
         $latestSubscription = $user->subscriptions()
             ->with(['matrimonialPack', 'assignedMatchmaker'])
             ->orderBy('created_at', 'desc')
             ->first();
-        
+
         // Get user's profile with matrimonial pack info
         $profile = $user->profile;
-        
+
         return Inertia::render('user/subscription', [
             'user' => $user,
             'profile' => $profile,

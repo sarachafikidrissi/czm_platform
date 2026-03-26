@@ -21,7 +21,7 @@ const getMainNavItems = (t: TFunction, role: string): NavItem[] => [
         title: t('navigation.newsFeed', { defaultValue: 'Fil d\'actualité' }),
         url: '/staff/news-feed',
         icon: Newspaper,
-        roles: ['user', 'admin', 'matchmaker', 'manager'],
+        roles: ['admin', 'matchmaker', 'manager'],
     },
     {
         title: t('navigation.myProfile'),

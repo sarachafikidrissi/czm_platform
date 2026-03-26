@@ -2,32 +2,30 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
-use App\Models\Bill;
-use App\Models\MatrimonialPack;
-use App\Models\MatchmakerNote;
-use App\Models\MatchmakerEvaluation;
-use App\Models\TransferRequest;
-use App\Models\UserPhoto;
-use App\Models\AppointmentRequest;
-use App\Models\Proposition;
-use App\Models\PropositionRequest;
-use App\Models\Activity;
-use App\Services\UserActivityService;
 use App\Mail\BillEmail;
 use App\Mail\ProspectCredentialsMail;
+use App\Models\Activity;
+use App\Models\AppointmentRequest;
+use App\Models\Bill;
+use App\Models\MatchmakerNote;
+use App\Models\MatrimonialPack;
+use App\Models\Proposition;
+use App\Models\PropositionRequest;
+use App\Models\TransferRequest;
+use App\Models\User;
+use App\Models\UserPhoto;
+use App\Services\MatchmakingService;
+use App\Services\UserActivityService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules;
 use Inertia\Inertia;
-use App\Models\Service;
-use Illuminate\Support\Facades\Schema;
-use App\Services\MatchmakingService;
-use Illuminate\Support\Facades\Storage;
 
 class MatchmakerController extends Controller
 {
@@ -42,16 +40,16 @@ class MatchmakerController extends Controller
                 ->where('model_has_roles.model_id', $me->id)
                 ->value('roles.name');
         }
-        
+
         // Check approval status for matchmaker and manager
-        if (in_array($roleName, ['manager','matchmaker'], true)) {
+        if (in_array($roleName, ['manager', 'matchmaker'], true)) {
             if ($me->approval_status !== 'approved') {
                 abort(403, 'Your account is not validated yet.');
             }
         }
 
         // Restrict matchmaker access: must be linked to an agency
-        if ($roleName === 'matchmaker' && !$me->agency_id) {
+        if ($roleName === 'matchmaker' && ! $me->agency_id) {
             abort(403, 'You must be linked to an agency to access prospects.');
         }
 
@@ -73,30 +71,30 @@ class MatchmakerController extends Controller
                 ->where('agency_id', $me->agency_id)
                 ->pluck('id')
                 ->toArray();
-            
+
             // Get all manager IDs in the manager's agency (excluding themselves)
             $otherManagerIds = User::role('manager')
                 ->where('agency_id', $me->agency_id)
                 ->where('id', '!=', $me->id)
                 ->pluck('id')
                 ->toArray();
-            
-            $query->where(function($q) use ($me, $matchmakerIds, $otherManagerIds) {
+
+            $query->where(function ($q) use ($me, $matchmakerIds, $otherManagerIds) {
                 // Prospects from their agency
                 $q->where('agency_id', $me->agency_id)
-                  ->where(function($subQ) use ($me, $matchmakerIds) {
-                      // Prospects assigned to matchmakers in their agency
-                      if (!empty($matchmakerIds)) {
-                          $subQ->whereIn('assigned_matchmaker_id', $matchmakerIds);
-                      }
-                      // OR prospects assigned to them (prospects they created)
-                      $subQ->orWhere('assigned_matchmaker_id', $me->id);
-                      // OR unassigned prospects from their agency
-                      $subQ->orWhereNull('assigned_matchmaker_id');
-                  });
-                
+                    ->where(function ($subQ) use ($me, $matchmakerIds) {
+                        // Prospects assigned to matchmakers in their agency
+                        if (! empty($matchmakerIds)) {
+                            $subQ->whereIn('assigned_matchmaker_id', $matchmakerIds);
+                        }
+                        // OR prospects assigned to them (prospects they created)
+                        $subQ->orWhere('assigned_matchmaker_id', $me->id);
+                        // OR unassigned prospects from their agency
+                        $subQ->orWhereNull('assigned_matchmaker_id');
+                    });
+
                 // Exclude prospects assigned to other managers in the same agency
-                if (!empty($otherManagerIds)) {
+                if (! empty($otherManagerIds)) {
                     $q->whereNotIn('assigned_matchmaker_id', $otherManagerIds);
                 }
             });
@@ -120,11 +118,11 @@ class MatchmakerController extends Controller
         }
 
         if ($filter === 'complete') {
-            $query->whereHas('profile', function($q) {
+            $query->whereHas('profile', function ($q) {
                 $q->where('is_completed', true);
             });
-        } else if ($filter === 'incomplete') {
-            $query->whereHas('profile', function($q) {
+        } elseif ($filter === 'incomplete') {
+            $query->whereHas('profile', function ($q) {
                 $q->where('is_completed', false);
             });
         }
@@ -138,17 +136,17 @@ class MatchmakerController extends Controller
             });
         }
 
-        $prospects = $query->orderBy('created_at', 'desc')->get(['id','name','username','email','phone','country','city','status','agency_id','assigned_matchmaker_id','rejection_reason','rejected_by','rejected_at','is_traite','created_at']);
+        $prospects = $query->orderBy('created_at', 'desc')->get(['id', 'name', 'username', 'email', 'phone', 'country', 'city', 'status', 'agency_id', 'assigned_matchmaker_id', 'rejection_reason', 'rejected_by', 'rejected_at', 'is_traite', 'created_at']);
         $prospects->load(['profile', 'assignedMatchmaker', 'agency']);
-        
+
         $services = [];
         if (Schema::hasTable('services')) {
-            $services = \App\Models\Service::all(['id','name']);
+            $services = \App\Models\Service::all(['id', 'name']);
         }
-        
+
         $matrimonialPacks = [];
         if (Schema::hasTable('matrimonial_packs')) {
-            $matrimonialPacks = \App\Models\MatrimonialPack::all(['id','name','duration']);
+            $matrimonialPacks = \App\Models\MatrimonialPack::all(['id', 'name', 'duration']);
         }
 
         // Decrypt CNI for prospects who already provided it (for validation form display)
@@ -177,12 +175,12 @@ class MatchmakerController extends Controller
     {
         $prospect = User::findOrFail($id);
         $profile = $prospect->profile;
-        
+
         // Check if user already provided CNI and front
         // Note: cin is encrypted, so we check if it exists (not null/empty)
-        $hasExistingCin = $profile && $profile->cin && !empty($profile->cin);
+        $hasExistingCin = $profile && $profile->cin && ! empty($profile->cin);
         $hasExistingFront = $profile && $profile->identity_card_front_path;
-        
+
         // Build validation rules
         $rules = [
             'notes' => 'nullable|string|max:1000',
@@ -193,11 +191,11 @@ class MatchmakerController extends Controller
             'pack_advantages.*' => 'string|in:Suivi et accompagnement personnalisé,Suivi et accompagnement approfondi,Suivi et accompagnement premium,Suivi et accompagnement exclusif avec assistance personnalisée,Rendez-vous avec des profils compatibles,Rendez-vous avec des profils correspondant à vos attentes,Rendez-vous avec des profils soigneusement sélectionnés,Rendez-vous illimités avec des profils rigoureusement sélectionnés,Formations pré-mariage avec le profil choisi,Formations pré-mariage avancées avec le profil choisi,Accès prioritaire aux nouveaux profils,Accès prioritaire aux profils VIP,Réduction à vie sur les séances de conseil conjugal et coaching familial (-10% à -25%)',
             'payment_mode' => 'required|string|in:Virement,Caisse agence,Chèque,CMI,TPE,Avance,Reliquat,RDV',
         ];
-        
+
         // CNI is required only if user didn't provide it
         // Note: We can't use 'unique:profiles,cin' because cin is encrypted
         // We'll check uniqueness manually in validation
-        if (!$hasExistingCin) {
+        if (! $hasExistingCin) {
             $rules['cin'] = [
                 'required',
                 'string',
@@ -205,17 +203,18 @@ class MatchmakerController extends Controller
                 'regex:/^[A-Za-z]{1,2}\d{4,6}$/',
                 function ($attribute, $value, $fail) use ($prospect) {
                     $cinUpper = strtoupper($value);
-                    
+
                     // Check if this CNI is already used by another user
                     $existingProfiles = \App\Models\Profile::where('user_id', '!=', $prospect->id)
                         ->whereNotNull('cin')
                         ->get();
-                    
+
                     foreach ($existingProfiles as $existingProfile) {
                         try {
                             $decrypted = Crypt::decryptString($existingProfile->cin);
                             if ($decrypted === $cinUpper) {
                                 $fail('Ce numéro de CNI est déjà utilisé par un autre utilisateur.');
+
                                 return;
                             }
                         } catch (\Exception $e) {
@@ -226,18 +225,18 @@ class MatchmakerController extends Controller
                 },
             ];
         }
-        
+
         // Front is required only if user didn't provide it
         // But matchmaker can optionally replace it even if user uploaded one
-        if (!$hasExistingFront) {
+        if (! $hasExistingFront) {
             $rules['identity_card_front'] = 'required|image|mimes:jpeg,png,jpg,gif|max:4096';
         } else {
             // Allow optional upload to replace existing image
             $rules['identity_card_front'] = 'nullable|image|mimes:jpeg,png,jpg,gif|max:4096';
         }
-        
+
         $request->validate($rules);
-        
+
         // Check if matchmaker can validate this prospect
         $me = Auth::user();
         if ($me) {
@@ -245,7 +244,7 @@ class MatchmakerController extends Controller
                 ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
                 ->where('model_has_roles.model_id', $me->id)
                 ->value('roles.name');
-            
+
             if ($roleName === 'matchmaker') {
                 // Matchmaker can only validate prospects assigned to them
                 if ($prospect->assigned_matchmaker_id !== $me->id) {
@@ -259,7 +258,7 @@ class MatchmakerController extends Controller
                 }
             }
         }
-        
+
         // Prepare app key for hashing
         $appKey = (string) config('app.key');
         if (str_starts_with($appKey, 'base64:')) {
@@ -268,37 +267,37 @@ class MatchmakerController extends Controller
                 $appKey = $decoded;
             }
         }
-        
+
         // Store ID card images and hashes
         $frontPath = ($hasExistingFront && $profile) ? $profile->identity_card_front_path : null;
         $frontHash = ($hasExistingFront && $profile) ? $profile->identity_card_front_hash : null;
         $cinValue = ($hasExistingCin && $profile) ? $profile->cin : null;
         $cinHash = ($hasExistingCin && $profile) ? $profile->cin_hash : null;
-        
+
         // Handle front upload if matchmaker needs to fill it OR wants to replace existing one
         if ($request->hasFile('identity_card_front')) {
             // Delete old file if it exists
             if ($hasExistingFront && $profile && $profile->identity_card_front_path) {
-                $oldPath = storage_path('app/public/' . $profile->identity_card_front_path);
+                $oldPath = storage_path('app/public/'.$profile->identity_card_front_path);
                 if (file_exists($oldPath)) {
                     unlink($oldPath);
                 }
             }
-            
+
             $frontFile = $request->file('identity_card_front');
             $frontPath = $frontFile->store('identity-cards', 'public');
             $frontContent = file_get_contents($frontFile->getRealPath());
             $frontHash = hash_hmac('sha256', $frontContent, $appKey);
         }
-        
+
         // Handle CNI if matchmaker needs to fill it
-        if (!$hasExistingCin && $request->filled('cin')) {
+        if (! $hasExistingCin && $request->filled('cin')) {
             $cinPlain = strtoupper($request->cin);
             // Encrypt the CNI number for security
             $cinValue = Crypt::encryptString($cinPlain);
             $cinHash = hash_hmac('sha256', (string) $cinPlain, $appKey);
         }
-        
+
         $prospect->profile()->updateOrCreate(
             ['user_id' => $prospect->id],
             [
@@ -318,13 +317,13 @@ class MatchmakerController extends Controller
         $actor = Auth::user();
         $assignedId = null;
         $validatedByManagerId = null;
-        
+
         if ($actor) {
             $actorRole = \Illuminate\Support\Facades\DB::table('model_has_roles')
                 ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
                 ->where('model_has_roles.model_id', $actor->id)
                 ->value('roles.name');
-            
+
             if ($actorRole === 'matchmaker') {
                 $assignedId = $actor->id;
                 // When a matchmaker validates, only they can add notes/evaluation
@@ -342,7 +341,7 @@ class MatchmakerController extends Controller
         // Record initial matchmaker assignment in history when prospect becomes member
         $history = $prospect->matchmaker_assignment_history ?? [];
         $oldAssignedId = $prospect->assigned_matchmaker_id;
-        
+
         // If assigned_matchmaker_id is being set/changed and not already in history, record it
         if ($assignedId && ($oldAssignedId !== $assignedId || empty($history))) {
             // Check if this matchmaker is already in history
@@ -353,16 +352,16 @@ class MatchmakerController extends Controller
                     break;
                 }
             }
-            
+
             // If not already recorded, add initial assignment
-            if (!$alreadyRecorded) {
+            if (! $alreadyRecorded) {
                 $history[] = [
                     'matchmaker_id' => $assignedId,
                     'assigned_at' => now()->toIso8601String(),
                 ];
             }
         }
-        
+
         $prospect->update([
             'assigned_matchmaker_id' => $assignedId,
             'approval_status' => 'approved',
@@ -407,14 +406,14 @@ class MatchmakerController extends Controller
         ]);
 
         $prospect = User::findOrFail($id);
-        
+
         // Check if prospect status is 'prospect'
         if ($prospect->status !== 'prospect') {
             return redirect()->back()->with('error', 'Seuls les prospects peuvent être rejetés.');
         }
 
         $me = Auth::user();
-        if (!$me) {
+        if (! $me) {
             abort(403, 'Unauthorized.');
         }
 
@@ -425,7 +424,7 @@ class MatchmakerController extends Controller
 
         // Check authorization: admin, assigned matchmaker, matchmaker from same agency (for manager-added prospects), or manager of the agency
         $canReject = false;
-        
+
         if ($roleName === 'admin') {
             $canReject = true;
         } elseif ($roleName === 'matchmaker') {
@@ -440,7 +439,7 @@ class MatchmakerController extends Controller
             }
         }
 
-        if (!$canReject) {
+        if (! $canReject) {
             abort(403, 'Vous n\'êtes pas autorisé à rejeter ce prospect.');
         }
 
@@ -461,9 +460,9 @@ class MatchmakerController extends Controller
         ]);
 
         $prospect = User::findOrFail($id);
-        
+
         // Check if prospect was previously rejected
-        if (!$prospect->rejection_reason) {
+        if (! $prospect->rejection_reason) {
             return redirect()->back()->with('error', 'Ce prospect n\'a pas été rejeté.');
         }
 
@@ -473,7 +472,7 @@ class MatchmakerController extends Controller
         }
 
         $me = Auth::user();
-        if (!$me) {
+        if (! $me) {
             abort(403, 'Unauthorized.');
         }
 
@@ -484,7 +483,7 @@ class MatchmakerController extends Controller
 
         // Check authorization: admin, assigned matchmaker, or manager assigned to the prospect
         $canAccept = false;
-        
+
         if ($roleName === 'admin') {
             $canAccept = true;
         } elseif ($roleName === 'matchmaker') {
@@ -499,7 +498,7 @@ class MatchmakerController extends Controller
             }
         }
 
-        if (!$canAccept) {
+        if (! $canAccept) {
             abort(403, 'Vous n\'êtes pas autorisé à accepter ce prospect.');
         }
 
@@ -519,17 +518,17 @@ class MatchmakerController extends Controller
     public function markAsRappeler(Request $request, $id)
     {
         $user = User::findOrFail($id);
-        
+
         // Check if user is a rejected prospect OR an expired client
         $isRejectedProspect = $user->rejection_reason && $user->status === 'prospect';
         $isExpiredClient = $user->status === 'client_expire';
-        
-        if (!$isRejectedProspect && !$isExpiredClient) {
+
+        if (! $isRejectedProspect && ! $isExpiredClient) {
             return redirect()->back()->with('error', 'Seuls les prospects rejetés ou les clients expirés peuvent être marqués comme "A rappeler".');
         }
 
         $me = Auth::user();
-        if (!$me) {
+        if (! $me) {
             abort(403, 'Unauthorized.');
         }
 
@@ -540,7 +539,7 @@ class MatchmakerController extends Controller
 
         // Check authorization: admin, assigned matchmaker, or manager assigned to the user
         $canMarkRappeler = false;
-        
+
         if ($roleName === 'admin') {
             $canMarkRappeler = true;
         } elseif ($roleName === 'matchmaker') {
@@ -570,7 +569,7 @@ class MatchmakerController extends Controller
             }
         }
 
-        if (!$canMarkRappeler) {
+        if (! $canMarkRappeler) {
             abort(403, 'Vous n\'êtes pas autorisé à marquer cet utilisateur comme "A rappeler".');
         }
 
@@ -580,7 +579,8 @@ class MatchmakerController extends Controller
         ]);
 
         $userType = $isRejectedProspect ? 'Prospect' : 'Utilisateur';
-        return redirect()->back()->with('success', $userType . ' marqué comme "A rappeler" avec succès.');
+
+        return redirect()->back()->with('success', $userType.' marqué comme "A rappeler" avec succès.');
     }
 
     /**
@@ -589,7 +589,7 @@ class MatchmakerController extends Controller
     public function toggleTraite(Request $request, $id)
     {
         $me = Auth::user();
-        if (!$me) {
+        if (! $me) {
             abort(403, 'Unauthorized.');
         }
 
@@ -598,7 +598,7 @@ class MatchmakerController extends Controller
             ->where('model_has_roles.model_id', $me->id)
             ->value('roles.name');
 
-        if (!in_array($roleName, ['matchmaker', 'manager', 'admin'])) {
+        if (! in_array($roleName, ['matchmaker', 'manager', 'admin'])) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -623,16 +623,17 @@ class MatchmakerController extends Controller
             }
         }
 
-        if (!$canToggle) {
+        if (! $canToggle) {
             abort(403, 'You are not authorized to toggle this prospect\'s status.');
         }
 
         // Toggle the is_traite status
         $prospect->update([
-            'is_traite' => !$prospect->is_traite,
+            'is_traite' => ! $prospect->is_traite,
         ]);
 
         $status = $prospect->is_traite ? 'traité' : 'pas traité';
+
         return redirect()->back()->with('success', "Prospect marqué comme {$status}.");
     }
 
@@ -643,7 +644,7 @@ class MatchmakerController extends Controller
     public function updateProspectPassword(Request $request, $id)
     {
         $me = Auth::user();
-        if (!$me) {
+        if (! $me) {
             abort(403, 'Unauthorized.');
         }
 
@@ -652,7 +653,7 @@ class MatchmakerController extends Controller
             ->where('model_has_roles.model_id', $me->id)
             ->value('roles.name');
 
-        if (!in_array($roleName, ['matchmaker', 'manager', 'admin'])) {
+        if (! in_array($roleName, ['matchmaker', 'manager', 'admin'])) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -667,7 +668,7 @@ class MatchmakerController extends Controller
             $canUpdate = ($prospect->agency_id && $prospect->agency_id === $me->agency_id) || $prospect->assigned_matchmaker_id === $me->id;
         }
 
-        if (!$canUpdate) {
+        if (! $canUpdate) {
             abort(403, 'You are not authorized to update this prospect\'s password.');
         }
 
@@ -691,7 +692,7 @@ class MatchmakerController extends Controller
     public function getProspectCurrentPassword($id)
     {
         $me = Auth::user();
-        if (!$me) {
+        if (! $me) {
             abort(403, 'Unauthorized.');
         }
 
@@ -700,7 +701,7 @@ class MatchmakerController extends Controller
             ->where('model_has_roles.model_id', $me->id)
             ->value('roles.name');
 
-        if (!in_array($roleName, ['matchmaker', 'manager', 'admin'])) {
+        if (! in_array($roleName, ['matchmaker', 'manager', 'admin'])) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -715,12 +716,12 @@ class MatchmakerController extends Controller
             $canAccess = ($prospect->agency_id && $prospect->agency_id === $me->agency_id) || $prospect->assigned_matchmaker_id === $me->id;
         }
 
-        if (!$canAccess) {
+        if (! $canAccess) {
             abort(403, 'You are not authorized to view this prospect\'s password.');
         }
 
         $currentPassword = null;
-        if (!empty($prospect->password_reveal)) {
+        if (! empty($prospect->password_reveal)) {
             try {
                 $currentPassword = Crypt::decryptString($prospect->password_reveal);
             } catch (\Exception $e) {
@@ -742,22 +743,22 @@ class MatchmakerController extends Controller
                 ->where('model_has_roles.model_id', $me->id)
                 ->value('roles.name');
         }
-        
+
         // Check approval status for matchmaker and manager
-        if (in_array($roleName, ['manager','matchmaker'], true)) {
+        if (in_array($roleName, ['manager', 'matchmaker'], true)) {
             if ($me->approval_status !== 'approved') {
                 abort(403, 'Your account is not validated yet.');
             }
         }
 
         // Restrict matchmaker access: must be linked to an agency
-        if ($roleName === 'matchmaker' && !$me->agency_id) {
+        if ($roleName === 'matchmaker' && ! $me->agency_id) {
             abort(403, 'You must be linked to an agency to access prospects.');
         }
 
         $status = $request->input('status', 'all'); // all|member|client|client_expire|rappeler
         $query = User::role('user')
-            ->whereIn('status', ['member','client','client_expire'])
+            ->whereIn('status', ['member', 'client', 'client_expire'])
             ->with(['profile', 'assignedMatchmaker']);
 
         // Role-based filtering
@@ -776,41 +777,41 @@ class MatchmakerController extends Controller
                     ->where('agency_id', $me->agency_id)
                     ->pluck('id')
                     ->toArray();
-                
+
                 // Get all manager IDs in the manager's agency (excluding themselves)
                 $otherManagerIds = User::role('manager')
                     ->where('agency_id', $me->agency_id)
                     ->where('id', '!=', $me->id)
                     ->pluck('id')
                     ->toArray();
-                
-                $query->where(function($q) use ($me, $matchmakerIds, $otherManagerIds) {
+
+                $query->where(function ($q) use ($me, $matchmakerIds, $otherManagerIds) {
                     // Members validated when this manager was in charge
                     $q->where('validated_by_manager_id', $me->id)
                       // OR members from prospects that were dispatched to their agency
-                      ->orWhere(function($subQ) use ($me, $matchmakerIds) {
-                          // Users from their agency
-                          $subQ->where('agency_id', $me->agency_id)
-                            ->where(function($subSubQ) use ($me, $matchmakerIds) {
-                                // Users assigned to matchmakers in their agency
-                                if (!empty($matchmakerIds)) {
-                                    $subSubQ->whereIn('assigned_matchmaker_id', $matchmakerIds);
-                                }
-                                // OR users assigned to them (prospects they created)
-                                $subSubQ->orWhere('assigned_matchmaker_id', $me->id);
-                                // OR unassigned users from their agency
-                                $subSubQ->orWhereNull('assigned_matchmaker_id');
-                            });
-                      })
+                        ->orWhere(function ($subQ) use ($me, $matchmakerIds) {
+                            // Users from their agency
+                            $subQ->where('agency_id', $me->agency_id)
+                                ->where(function ($subSubQ) use ($me, $matchmakerIds) {
+                                    // Users assigned to matchmakers in their agency
+                                    if (! empty($matchmakerIds)) {
+                                        $subSubQ->whereIn('assigned_matchmaker_id', $matchmakerIds);
+                                    }
+                                    // OR users assigned to them (prospects they created)
+                                    $subSubQ->orWhere('assigned_matchmaker_id', $me->id);
+                                    // OR unassigned users from their agency
+                                    $subSubQ->orWhereNull('assigned_matchmaker_id');
+                                });
+                        })
                       // OR members assigned to matchmakers in their agency (even if agency_id is null)
-                      ->orWhere(function($subQ) use ($matchmakerIds) {
-                          if (!empty($matchmakerIds)) {
-                              $subQ->whereIn('assigned_matchmaker_id', $matchmakerIds);
-                          }
-                      });
-                    
+                        ->orWhere(function ($subQ) use ($matchmakerIds) {
+                            if (! empty($matchmakerIds)) {
+                                $subQ->whereIn('assigned_matchmaker_id', $matchmakerIds);
+                            }
+                        });
+
                     // Exclude users assigned to other managers in the same agency
-                    if (!empty($otherManagerIds)) {
+                    if (! empty($otherManagerIds)) {
                         $q->whereNotIn('assigned_matchmaker_id', $otherManagerIds);
                     }
                 });
@@ -827,33 +828,33 @@ class MatchmakerController extends Controller
             if ($status === 'rappeler') {
                 // Show only expired clients marked as "A rappeler"
                 $query->where('status', 'client_expire')
-                      ->where('to_rappeler', true);
+                    ->where('to_rappeler', true);
             } elseif ($status === 'en_attente_paiement') {
                 // Show members OR clients (including expired) with unpaid bills
                 $query->whereIn('status', ['member', 'client', 'client_expire'])
-                      ->whereHas('bills', function($billQuery) {
-                          $billQuery->where('status', 'unpaid');
-                      });
+                    ->whereHas('bills', function ($billQuery) {
+                        $billQuery->where('status', 'unpaid');
+                    });
             } elseif ($status === 'client_expire') {
                 // Show only expired clients who DON'T have unpaid bills
                 // If they have unpaid bills, they should appear in "en attente de paiement" instead
                 $query->where('status', 'client_expire')
-                      ->whereDoesntHave('bills', function($billQuery) {
-                          $billQuery->where('status', 'unpaid');
-                      });
+                    ->whereDoesntHave('bills', function ($billQuery) {
+                        $billQuery->where('status', 'unpaid');
+                    });
             } elseif ($status === 'expiring_in_3_days') {
                 // Show clients with active subscriptions expiring within 3 days (0-3 days)
                 $today = \Carbon\Carbon::today();
                 $threeDaysFromNow = $today->copy()->addDays(3);
                 $query->whereIn('status', ['client', 'client_expire'])
-                      ->whereHas('subscriptions', function($subQuery) use ($today, $threeDaysFromNow) {
-                          $subQuery->where('status', 'active')
-                                   ->whereDate('subscription_end', '>=', $today)
-                                   ->whereDate('subscription_end', '<=', $threeDaysFromNow);
-                      });
+                    ->whereHas('subscriptions', function ($subQuery) use ($today, $threeDaysFromNow) {
+                        $subQuery->where('status', 'active')
+                            ->whereDate('subscription_end', '>=', $today)
+                            ->whereDate('subscription_end', '<=', $threeDaysFromNow);
+                    });
             } elseif ($status === 'deactivated') {
                 // Show only deactivated users
-                $query->whereHas('profile', function($profileQuery) {
+                $query->whereHas('profile', function ($profileQuery) {
                     $profileQuery->where('account_status', 'desactivated');
                 });
             } else {
@@ -872,47 +873,47 @@ class MatchmakerController extends Controller
         }
 
         $prospects = $query->with([
-            'profile', 
-            'profile.matrimonialPack', 
-            'agency', 
+            'profile',
+            'profile.matrimonialPack',
+            'agency',
             'validatedByManager',
             'approvedBy',
             'assignedMatchmaker',
-            'bills', 
-            'subscriptions' => function($q) {
+            'bills',
+            'subscriptions' => function ($q) {
                 $q->orderBy('created_at', 'desc');
             },
             'subscriptions.matrimonialPack',
-            'subscriptions.assignedMatchmaker'
+            'subscriptions.assignedMatchmaker',
         ])->orderBy('created_at', 'desc')->paginate(5)->withQueryString();
-        
+
         // Ensure to_rappeler is included in the response
-        $prospects->each(function($prospect) {
+        $prospects->each(function ($prospect) {
             $prospect->to_rappeler = $prospect->to_rappeler ?? false;
         });
 
         // Add has_bill flag to each prospect
-        $prospects->each(function($prospect) {
+        $prospects->each(function ($prospect) {
             $prospect->has_bill = $prospect->bills->where('status', '!=', 'paid')->isNotEmpty();
         });
 
         // Add expiring_in_3_days flag to each prospect
         $today = \Carbon\Carbon::today();
         $threeDaysFromNow = $today->copy()->addDays(3);
-        $prospects->each(function($prospect) use ($today, $threeDaysFromNow) {
+        $prospects->each(function ($prospect) use ($today) {
             $prospect->expiring_in_3_days = false;
             $prospect->expiration_date = null;
             $prospect->expiring_pack_name = null;
-            
+
             // Check if user has an active subscription expiring within 3 days (0-3 days)
             $activeSubscription = $prospect->subscriptions
                 ->where('status', 'active')
                 ->first();
-            
+
             if ($activeSubscription && $activeSubscription->subscription_end) {
                 $expirationDate = \Carbon\Carbon::parse($activeSubscription->subscription_end);
                 $daysUntilExpiration = $today->diffInDays($expirationDate, false);
-                
+
                 // Check if subscription expires within 3 days (0 to 3 days)
                 if ($daysUntilExpiration >= 0 && $daysUntilExpiration <= 3) {
                     $prospect->expiring_in_3_days = true;
@@ -929,7 +930,7 @@ class MatchmakerController extends Controller
             ->where('from_matchmaker_id', $me->id)
             ->get()
             ->keyBy('user_id');
-        
+
         // Add pending transfer request info to each prospect
         $prospects->each(function ($prospect) use ($pendingTransferRequests) {
             $transferRequest = $pendingTransferRequests->get($prospect->id);
@@ -983,21 +984,21 @@ class MatchmakerController extends Controller
             'user.agency',
             'user.validatedByManager.agency',
             'user.validatedByManager',
-            'author' => function($q) {
+            'author' => function ($q) {
                 // Load author with agency_id so we can query their agency if needed
                 $q->select('id', 'name', 'username', 'agency_id');
-            }
+            },
         ])->whereHas('user'); // Ensure user still exists
 
         // Role-based filtering
         if ($roleName === 'matchmaker') {
             // Matchmaker: see evaluations for users assigned to them OR evaluations they created
-            $query->where(function($q) use ($me) {
+            $query->where(function ($q) use ($me) {
                 $q->where('author_id', $me->id) // Evaluations they created
-                  ->orWhereHas('user', function($subQ) use ($me) {
-                      // OR evaluations for users assigned to them
-                      $subQ->where('assigned_matchmaker_id', $me->id);
-                  });
+                    ->orWhereHas('user', function ($subQ) use ($me) {
+                        // OR evaluations for users assigned to them
+                        $subQ->where('assigned_matchmaker_id', $me->id);
+                    });
             });
         } elseif ($roleName === 'manager') {
             // Manager: see evaluations for users they validated OR users from their agency
@@ -1011,31 +1012,31 @@ class MatchmakerController extends Controller
                 ->pluck('id')
                 ->toArray();
 
-            $query->whereHas('user', function($q) use ($me, $matchmakerIds) {
-                $q->where(function($subQ) use ($me, $matchmakerIds) {
+            $query->whereHas('user', function ($q) use ($me, $matchmakerIds) {
+                $q->where(function ($subQ) use ($me, $matchmakerIds) {
                     // Users validated by this manager
                     $subQ->where('validated_by_manager_id', $me->id)
                       // OR users from their agency
-                      ->orWhere(function($subSubQ) use ($me, $matchmakerIds) {
-                          // Users from their agency
-                          $subSubQ->where('agency_id', $me->agency_id)
-                            ->where(function($subSubSubQ) use ($me, $matchmakerIds) {
-                                // Users assigned to matchmakers in their agency
-                                if (!empty($matchmakerIds)) {
-                                    $subSubSubQ->whereIn('assigned_matchmaker_id', $matchmakerIds);
-                                }
-                                // OR users assigned to them
-                                $subSubSubQ->orWhere('assigned_matchmaker_id', $me->id);
-                                // OR unassigned users from their agency
-                                $subSubSubQ->orWhereNull('assigned_matchmaker_id');
-                            });
-                      })
+                        ->orWhere(function ($subSubQ) use ($me, $matchmakerIds) {
+                            // Users from their agency
+                            $subSubQ->where('agency_id', $me->agency_id)
+                                ->where(function ($subSubSubQ) use ($me, $matchmakerIds) {
+                                    // Users assigned to matchmakers in their agency
+                                    if (! empty($matchmakerIds)) {
+                                        $subSubSubQ->whereIn('assigned_matchmaker_id', $matchmakerIds);
+                                    }
+                                    // OR users assigned to them
+                                    $subSubSubQ->orWhere('assigned_matchmaker_id', $me->id);
+                                    // OR unassigned users from their agency
+                                    $subSubSubQ->orWhereNull('assigned_matchmaker_id');
+                                });
+                        })
                       // OR users assigned to matchmakers in their agency (even if agency_id is null)
-                      ->orWhere(function($subSubQ) use ($matchmakerIds) {
-                          if (!empty($matchmakerIds)) {
-                              $subSubQ->whereIn('assigned_matchmaker_id', $matchmakerIds);
-                          }
-                      });
+                        ->orWhere(function ($subSubQ) use ($matchmakerIds) {
+                            if (! empty($matchmakerIds)) {
+                                $subSubQ->whereIn('assigned_matchmaker_id', $matchmakerIds);
+                            }
+                        });
                 });
             });
         }
@@ -1049,7 +1050,7 @@ class MatchmakerController extends Controller
         $evaluations = $query->orderBy('updated_at', 'desc')->get();
 
         // Transform data for frontend
-        $evaluatedUsers = $evaluations->map(function($evaluation) {
+        $evaluatedUsers = $evaluations->map(function ($evaluation) {
             // Get agency from multiple sources with fallback priority:
             // 1. User's agency (if agency_id is set)
             // 2. Assigned matchmaker's agency
@@ -1057,7 +1058,7 @@ class MatchmakerController extends Controller
             // 4. Evaluator's (author's) agency
             // 5. Direct query by agency_id if relationship didn't load
             $agency = null;
-            
+
             // Try user's agency first (check both relationship and direct ID)
             if ($evaluation->user->agency) {
                 $agency = [
@@ -1074,9 +1075,9 @@ class MatchmakerController extends Controller
                     ];
                 }
             }
-            
+
             // Fallback to assigned matchmaker's agency
-            if (!$agency && $evaluation->user->assignedMatchmaker) {
+            if (! $agency && $evaluation->user->assignedMatchmaker) {
                 if ($evaluation->user->assignedMatchmaker->agency) {
                     $agency = [
                         'id' => $evaluation->user->assignedMatchmaker->agency->id,
@@ -1093,9 +1094,9 @@ class MatchmakerController extends Controller
                     }
                 }
             }
-            
+
             // Fallback to validated manager's agency
-            if (!$agency && $evaluation->user->validatedByManager) {
+            if (! $agency && $evaluation->user->validatedByManager) {
                 if ($evaluation->user->validatedByManager->agency) {
                     $agency = [
                         'id' => $evaluation->user->validatedByManager->agency->id,
@@ -1112,9 +1113,9 @@ class MatchmakerController extends Controller
                     }
                 }
             }
-            
+
             // Fallback to evaluator's (author's) agency
-            if (!$agency && $evaluation->author) {
+            if (! $agency && $evaluation->author) {
                 if ($evaluation->author->agency_id) {
                     $authorAgency = \App\Models\Agency::find($evaluation->author->agency_id);
                     if ($authorAgency) {
@@ -1170,11 +1171,11 @@ class MatchmakerController extends Controller
     public function markAsClient(Request $request)
     {
         $request->validate([
-            'user_id' => 'required|exists:users,id'
+            'user_id' => 'required|exists:users,id',
         ]);
 
         $me = Auth::user();
-        
+
         // Check if user has permission
         $roleName = null;
         if ($me) {
@@ -1185,20 +1186,20 @@ class MatchmakerController extends Controller
         }
 
         // Only matchmakers and managers can mark as client
-        if (!in_array($roleName, ['matchmaker', 'manager', 'admin'])) {
+        if (! in_array($roleName, ['matchmaker', 'manager', 'admin'])) {
             abort(403, 'Unauthorized action.');
         }
 
         $user = User::findOrFail($request->user_id);
-        
+
         // Check if user is currently a member or client_expire (can become a client again)
-        if (!in_array($user->status, ['member', 'client_expire'])) {
+        if (! in_array($user->status, ['member', 'client_expire'])) {
             return redirect()->back()->with('error', 'User is not a member or already a client.');
         }
 
         // Get user's profile with matrimonial pack information
         $profile = $user->profile;
-        if (!$profile || !$profile->matrimonial_pack_id) {
+        if (! $profile || ! $profile->matrimonial_pack_id) {
             return redirect()->back()->with('error', 'User profile or matrimonial pack information not found.');
         }
         $profile->load('matrimonialPack');
@@ -1241,21 +1242,21 @@ class MatchmakerController extends Controller
                 ->where('model_has_roles.model_id', $me->id)
                 ->value('roles.name');
         }
-        
+
         // Check approval status for matchmaker and manager
-        if (in_array($roleName, ['manager','matchmaker'], true)) {
+        if (in_array($roleName, ['manager', 'matchmaker'], true)) {
             if ($me->approval_status !== 'approved') {
                 abort(403, 'Your account is not validated yet.');
             }
         }
 
         // Restrict matchmaker access: must be linked to an agency
-        if ($roleName === 'matchmaker' && !$me->agency_id) {
+        if ($roleName === 'matchmaker' && ! $me->agency_id) {
             abort(403, 'You must be linked to an agency to access prospects.');
         }
-        
+
         // Restrict manager access: must be linked to an agency
-        if ($roleName === 'manager' && !$me->agency_id) {
+        if ($roleName === 'manager' && ! $me->agency_id) {
             abort(403, 'You must be linked to an agency to access prospects.');
         }
 
@@ -1275,35 +1276,35 @@ class MatchmakerController extends Controller
                 ->where('agency_id', $me->agency_id)
                 ->pluck('id')
                 ->toArray();
-            
+
             // Get all manager IDs in the manager's agency (excluding themselves)
             $otherManagerIds = User::role('manager')
                 ->where('agency_id', $me->agency_id)
                 ->where('id', '!=', $me->id)
                 ->pluck('id')
                 ->toArray();
-            
-            $query->where(function($q) use ($me, $matchmakerIds, $otherManagerIds) {
+
+            $query->where(function ($q) use ($me, $matchmakerIds, $otherManagerIds) {
                 // Option 1: Prospects from their agency (normal case)
-                $q->where(function($subQ) use ($me, $otherManagerIds) {
+                $q->where(function ($subQ) use ($me, $otherManagerIds) {
                     $subQ->where('agency_id', $me->agency_id);
-                    
+
                     // Exclude prospects assigned to other managers in the same agency
-                    if (!empty($otherManagerIds)) {
-                        $subQ->where(function($subSubQ) use ($otherManagerIds) {
+                    if (! empty($otherManagerIds)) {
+                        $subQ->where(function ($subSubQ) use ($otherManagerIds) {
                             $subSubQ->whereNotIn('assigned_matchmaker_id', $otherManagerIds)
-                                    ->orWhereNull('assigned_matchmaker_id');
+                                ->orWhereNull('assigned_matchmaker_id');
                         });
                     }
                 });
-                
+
                 // Option 2: Prospects dispatched to matchmakers in their agency (even if agency_id is null)
-                if (!empty($matchmakerIds)) {
-                    $q->orWhere(function($subQ) use ($matchmakerIds, $otherManagerIds) {
+                if (! empty($matchmakerIds)) {
+                    $q->orWhere(function ($subQ) use ($matchmakerIds, $otherManagerIds) {
                         $subQ->whereIn('assigned_matchmaker_id', $matchmakerIds);
-                        
+
                         // Exclude prospects assigned to other managers
-                        if (!empty($otherManagerIds)) {
+                        if (! empty($otherManagerIds)) {
                             $subQ->whereNotIn('assigned_matchmaker_id', $otherManagerIds);
                         }
                     });
@@ -1354,12 +1355,12 @@ class MatchmakerController extends Controller
             });
         }
 
-        $prospects = $query->select(['id','name','username','email','phone','country','city','gender','status','agency_id','assigned_matchmaker_id','rejection_reason','rejected_by','rejected_at','to_rappeler','is_traite','created_at'])
+        $prospects = $query->select(['id', 'name', 'username', 'email', 'phone', 'country', 'city', 'gender', 'status', 'agency_id', 'assigned_matchmaker_id', 'rejection_reason', 'rejected_by', 'rejected_at', 'to_rappeler', 'is_traite', 'created_at'])
             ->with(['profile', 'assignedMatchmaker', 'agency'])
             ->orderBy('created_at', 'desc')
             ->paginate(5)
             ->withQueryString();
-        
+
         // Load pending transfer requests for each prospect
         $prospectIds = $prospects->pluck('id')->toArray();
         $pendingTransferRequests = TransferRequest::whereIn('user_id', $prospectIds)
@@ -1367,7 +1368,7 @@ class MatchmakerController extends Controller
             ->where('from_matchmaker_id', $me->id)
             ->get()
             ->keyBy('user_id');
-        
+
         // Transform the collection to add additional data
         $prospects->getCollection()->transform(function ($prospect) use ($pendingTransferRequests) {
             // Add pending transfer request info
@@ -1380,7 +1381,7 @@ class MatchmakerController extends Controller
                     'name' => $transferRequest->toMatchmaker->name,
                 ] : null,
             ] : null;
-            
+
             // Decrypt CNI for prospects who already provided it (for validation form display)
             if ($prospect->profile && $prospect->profile->cin) {
                 try {
@@ -1390,18 +1391,18 @@ class MatchmakerController extends Controller
                     $prospect->profile->cin_decrypted = null;
                 }
             }
-            
+
             return $prospect;
         });
-        
+
         $services = [];
         if (\Illuminate\Support\Facades\Schema::hasTable('services')) {
-            $services = \App\Models\Service::all(['id','name']);
+            $services = \App\Models\Service::all(['id', 'name']);
         }
 
         $matrimonialPacks = [];
         if (\Illuminate\Support\Facades\Schema::hasTable('matrimonial_packs')) {
-            $matrimonialPacks = \App\Models\MatrimonialPack::all(['id','name','duration']);
+            $matrimonialPacks = \App\Models\MatrimonialPack::all(['id', 'name', 'duration']);
         }
 
         return Inertia::render('matchmaker/agency-prospects', [
@@ -1418,12 +1419,12 @@ class MatchmakerController extends Controller
     {
         $profile = $prospect->profile;
         $matrimonialPack = MatrimonialPack::find($request->matrimonial_pack_id);
-        
+
         $billNumber = Bill::generateBillNumber();
         $orderNumber = Bill::generateOrderNumber();
         $billDate = now()->toDateString();
         $dueDate = now()->addDays(30)->toDateString(); // 30 days from now
-        
+
         $taxRate = 20.00; // 20% TVA
         $amount = $request->pack_price; // Base amount (pack price)
         $taxAmount = $amount * ($taxRate / 100); // Calculate tax: 20% of pack price
@@ -1476,20 +1477,20 @@ class MatchmakerController extends Controller
                 ->value('roles.name');
         }
 
-        if (!in_array($roleName, ['matchmaker', 'manager', 'admin'])) {
+        if (! in_array($roleName, ['matchmaker', 'manager', 'admin'])) {
             abort(403, 'Unauthorized action.');
         }
 
         $user = User::findOrFail($request->user_id);
-        
+
         // Check if user is currently a member or client_expire (can create new subscription)
-        if (!in_array($user->status, ['member', 'client_expire'])) {
+        if (! in_array($user->status, ['member', 'client_expire'])) {
             return redirect()->back()->with('error', 'User is not a member or already has a subscription.');
         }
 
         // Get user's profile
         $profile = $user->profile;
-        if (!$profile) {
+        if (! $profile) {
             return redirect()->back()->with('error', 'User profile not found.');
         }
 
@@ -1507,7 +1508,7 @@ class MatchmakerController extends Controller
         // Send bill email
         try {
             Mail::to($user->email)->send(new BillEmail($bill));
-            
+
             // Mark email as sent
             $bill->update([
                 'email_sent' => true,
@@ -1534,18 +1535,18 @@ class MatchmakerController extends Controller
                 ->value('roles.name');
         }
 
-        if (!in_array($roleName, ['matchmaker', 'manager', 'admin'])) {
+        if (! in_array($roleName, ['matchmaker', 'manager', 'admin'])) {
             abort(403, 'Unauthorized action.');
         }
 
         $user = User::findOrFail($userId);
-        
-        if (!in_array($user->status, ['member', 'client_expire'])) {
+
+        if (! in_array($user->status, ['member', 'client_expire'])) {
             return response()->json(['error' => 'User is not a member or client expired'], 400);
         }
 
         $profile = $user->profile;
-        if (!$profile) {
+        if (! $profile) {
             return response()->json(['error' => 'User profile not found'], 400);
         }
 
@@ -1577,12 +1578,12 @@ class MatchmakerController extends Controller
                 ->value('roles.name');
         }
 
-        if (!in_array($roleName, ['matchmaker', 'manager', 'admin'])) {
+        if (! in_array($roleName, ['matchmaker', 'manager', 'admin'])) {
             abort(403, 'Unauthorized action.');
         }
 
         $user = User::findOrFail($request->user_id);
-        
+
         // Find active subscription
         $subscription = \App\Models\UserSubscription::where('user_id', $user->id)
             ->where('status', 'active')
@@ -1590,7 +1591,7 @@ class MatchmakerController extends Controller
             ->latest()
             ->first();
 
-        if (!$subscription) {
+        if (! $subscription) {
             return redirect()->back()->with('error', 'No active subscription found for this user.');
         }
 
@@ -1601,7 +1602,7 @@ class MatchmakerController extends Controller
         $subscription->refresh();
         $subscription->load(['matrimonialPack', 'assignedMatchmaker']);
         $subscription->update(['status' => 'expired']);
-        
+
         $statusChanged = false;
         $emailSent = false;
         $emailError = null;
@@ -1622,7 +1623,7 @@ class MatchmakerController extends Controller
             }
         }
 
-        $message = "Test completed: ";
+        $message = 'Test completed: ';
         if ($statusChanged) {
             $message .= "Status changed to 'client_expire'. ";
         }
@@ -1653,12 +1654,12 @@ class MatchmakerController extends Controller
                 ->value('roles.name');
         }
 
-        if (!in_array($roleName, ['matchmaker', 'manager', 'admin'])) {
+        if (! in_array($roleName, ['matchmaker', 'manager', 'admin'])) {
             abort(403, 'Unauthorized action.');
         }
 
         $user = User::findOrFail($request->user_id);
-        
+
         // Find active subscription
         $subscription = \App\Models\UserSubscription::where('user_id', $user->id)
             ->where('status', 'active')
@@ -1666,7 +1667,7 @@ class MatchmakerController extends Controller
             ->latest()
             ->first();
 
-        if (!$subscription) {
+        if (! $subscription) {
             return redirect()->back()->with('error', 'No active subscription found for this user.');
         }
 
@@ -1677,7 +1678,7 @@ class MatchmakerController extends Controller
         // Send 3-day reminder email
         $emailSent = false;
         $emailError = null;
-        
+
         try {
             $daysRemaining = \Carbon\Carbon::today()->diffInDays($subscription->subscription_end, false);
             \Illuminate\Support\Facades\Mail::to($user->email)->send(
@@ -1688,7 +1689,7 @@ class MatchmakerController extends Controller
             $emailError = $e->getMessage();
         }
 
-        $message = "Test 3-day reminder completed: ";
+        $message = 'Test 3-day reminder completed: ';
         $message .= "Subscription end date set to {$threeDaysFromNow->format('d/m/Y')}. ";
         if ($emailSent) {
             $message .= "Email sent successfully to {$user->email}.";
@@ -1705,7 +1706,7 @@ class MatchmakerController extends Controller
     public function createProspect()
     {
         $me = Auth::user();
-        if (!$me) {
+        if (! $me) {
             abort(403, 'Unauthorized.');
         }
 
@@ -1715,7 +1716,7 @@ class MatchmakerController extends Controller
             ->value('roles.name');
 
         // Only matchmakers and managers can add prospects
-        if (!in_array($roleName, ['matchmaker', 'manager'])) {
+        if (! in_array($roleName, ['matchmaker', 'manager'])) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -1725,7 +1726,7 @@ class MatchmakerController extends Controller
         }
 
         // Restrict matchmaker access: must be linked to an agency
-        if ($roleName === 'matchmaker' && !$me->agency_id) {
+        if ($roleName === 'matchmaker' && ! $me->agency_id) {
             abort(403, 'You must be linked to an agency to add prospects.');
         }
 
@@ -1738,7 +1739,7 @@ class MatchmakerController extends Controller
     public function storeProspect(Request $request)
     {
         $me = Auth::user();
-        if (!$me) {
+        if (! $me) {
             abort(403, 'Unauthorized.');
         }
 
@@ -1748,7 +1749,7 @@ class MatchmakerController extends Controller
             ->value('roles.name');
 
         // Only matchmakers and managers can add prospects
-        if (!in_array($roleName, ['matchmaker', 'manager'])) {
+        if (! in_array($roleName, ['matchmaker', 'manager'])) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -1758,7 +1759,7 @@ class MatchmakerController extends Controller
         }
 
         // Restrict matchmaker access: must be linked to an agency
-        if ($roleName === 'matchmaker' && !$me->agency_id) {
+        if ($roleName === 'matchmaker' && ! $me->agency_id) {
             abort(403, 'You must be linked to an agency to add prospects.');
         }
 
@@ -1776,9 +1777,9 @@ class MatchmakerController extends Controller
         $baseUsername = Str::slug($request->name);
         $username = $baseUsername;
         $counter = 1;
-        
+
         while (User::where('username', $username)->exists()) {
-            $username = $baseUsername . $counter;
+            $username = $baseUsername.$counter;
             $counter++;
         }
 
@@ -1842,7 +1843,7 @@ class MatchmakerController extends Controller
     public function editProspectProfile($id)
     {
         $me = Auth::user();
-        if (!$me) {
+        if (! $me) {
             abort(403, 'Unauthorized.');
         }
 
@@ -1852,7 +1853,7 @@ class MatchmakerController extends Controller
             ->value('roles.name');
 
         // Only matchmakers and managers can edit profiles
-        if (!in_array($roleName, ['matchmaker', 'manager', 'admin'])) {
+        if (! in_array($roleName, ['matchmaker', 'manager', 'admin'])) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -1865,19 +1866,19 @@ class MatchmakerController extends Controller
             // 1. Prospect/member/client is assigned to them, OR
             // 2. User is a member/client with incomplete profile and was approved by them
             $canEdit = false;
-            
+
             if ($prospect->assigned_matchmaker_id === $me->id) {
                 $canEdit = true;
             } elseif (in_array($prospect->status, ['member', 'client', 'client_expire'])) {
                 // For members/clients, allow if profile is incomplete and they approved them
-                if (!$profile || !$profile->is_completed) {
+                if (! $profile || ! $profile->is_completed) {
                     if ($prospect->approved_by === $me->id) {
                         $canEdit = true;
                     }
                 }
             }
-            
-            if (!$canEdit) {
+
+            if (! $canEdit) {
                 abort(403, 'You can only edit prospects assigned to you or members/clients with incomplete profiles that you approved.');
             }
         } elseif ($roleName === 'manager') {
@@ -1886,22 +1887,22 @@ class MatchmakerController extends Controller
             // 2. Prospect/member/client is assigned to them, OR
             // 3. User is a member/client with incomplete profile and was validated by them
             $canEdit = false;
-            
+
             // If prospect is not dispatched and from manager's agency, manager can edit
-            if ($prospect->status === 'prospect' && !$prospect->assigned_matchmaker_id && $prospect->agency_id === $me->agency_id) {
+            if ($prospect->status === 'prospect' && ! $prospect->assigned_matchmaker_id && $prospect->agency_id === $me->agency_id) {
                 $canEdit = true;
             } elseif ($prospect->assigned_matchmaker_id === $me->id) {
                 $canEdit = true;
             } elseif (in_array($prospect->status, ['member', 'client', 'client_expire'])) {
                 // For members/clients, allow if profile is incomplete and they validated them
-                if (!$profile || !$profile->is_completed) {
+                if (! $profile || ! $profile->is_completed) {
                     if ($prospect->validated_by_manager_id === $me->id) {
                         $canEdit = true;
                     }
                 }
             }
-            
-            if (!$canEdit) {
+
+            if (! $canEdit) {
                 abort(403, 'You can only edit prospects that are not dispatched (from your agency), prospects assigned to you, or members/clients with incomplete profiles that you validated.');
             }
         } elseif ($roleName === 'admin') {
@@ -1970,7 +1971,7 @@ class MatchmakerController extends Controller
     public function createSubscriptionPage($id)
     {
         $me = Auth::user();
-        if (!$me) {
+        if (! $me) {
             abort(403, 'Unauthorized.');
         }
 
@@ -1979,19 +1980,19 @@ class MatchmakerController extends Controller
             ->where('model_has_roles.model_id', $me->id)
             ->value('roles.name');
 
-        if (!in_array($roleName, ['matchmaker', 'manager', 'admin'])) {
+        if (! in_array($roleName, ['matchmaker', 'manager', 'admin'])) {
             abort(403, 'Unauthorized action.');
         }
 
         $user = User::findOrFail($id);
-        
+
         // Check if user is a member or client_expire
-        if (!in_array($user->status, ['member', 'client_expire'])) {
+        if (! in_array($user->status, ['member', 'client_expire'])) {
             return redirect()->back()->with('error', 'Seuls les membres ou clients expirés peuvent avoir un abonnement créé.');
         }
 
         $profile = $user->profile;
-        if (!$profile) {
+        if (! $profile) {
             return redirect()->back()->with('error', 'Profil utilisateur non trouvé.');
         }
 
@@ -2009,7 +2010,7 @@ class MatchmakerController extends Controller
             }
         }
 
-        if (!$canCreate) {
+        if (! $canCreate) {
             abort(403, 'Vous n\'êtes pas autorisé à créer un abonnement pour cet utilisateur.');
         }
 
@@ -2029,7 +2030,7 @@ class MatchmakerController extends Controller
     public function updateProspectProfile(Request $request, $id)
     {
         $me = Auth::user();
-        if (!$me) {
+        if (! $me) {
             abort(403, 'Unauthorized.');
         }
 
@@ -2039,7 +2040,7 @@ class MatchmakerController extends Controller
             ->value('roles.name');
 
         // Only matchmakers and managers can update profiles
-        if (!in_array($roleName, ['matchmaker', 'manager', 'admin'])) {
+        if (! in_array($roleName, ['matchmaker', 'manager', 'admin'])) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -2065,8 +2066,8 @@ class MatchmakerController extends Controller
 
         $profile = \App\Models\Profile::where('user_id', $prospect->id)->first();
 
-        if (!$profile) {
-            $profile = new \App\Models\Profile();
+        if (! $profile) {
+            $profile = new \App\Models\Profile;
             $profile->user_id = $prospect->id;
         }
 
@@ -2077,26 +2078,26 @@ class MatchmakerController extends Controller
                 $this->updateStep1DataForStaff($profile, $request);
                 $profile->current_step = 2;
                 break;
-                
+
             case 2:
                 $this->validateStep2ForStaff($request);
                 $this->updateStep2DataForStaff($profile, $request);
                 $profile->current_step = 3;
                 break;
-                
+
             case 3:
                 $this->validateStep3ForStaff($request);
                 $this->updateStep3DataForStaff($profile, $request);
                 $profile->current_step = 4;
                 break;
-                
+
             case 4:
                 $this->validateStep4ForStaff($request);
                 $this->updateStep4DataForStaff($profile, $request);
                 $profile->current_step = 4;
                 $profile->is_completed = true;
                 $profile->completed_at = now();
-                
+
                 // Handle photo uploads
                 if ($request->hasFile('photos')) {
                     $this->handlePhotoUploads($prospect, $request);
@@ -2144,16 +2145,16 @@ class MatchmakerController extends Controller
             'heardAboutUs' => 'required|string|in:recommande,passage,pub,online_ads,google_search,youtube_video,facebook_post,instagram_post,tiktok_video,collaboration,phone_call,commercial_terrain',
             'heardAboutReference' => 'nullable|string|max:255',
         ];
-        
+
         if ($request->filled('situationSante')) {
             $situationSante = $request->situationSante;
             $situationArray = is_string($situationSante) ? json_decode($situationSante, true) : $situationSante;
             if (is_array($situationArray)) {
                 $validValues = ['sante_tres_bonne', 'maladie_chronique', 'personne_handicap', 'non_voyant_malvoyant', 'cecite_totale', 'troubles_psychiques', 'autres'];
                 foreach ($situationArray as $value) {
-                    if (!in_array($value, $validValues)) {
+                    if (! in_array($value, $validValues)) {
                         throw \Illuminate\Validation\ValidationException::withMessages([
-                            'situationSante' => ['Valeur invalide pour la situation de santé: ' . $value],
+                            'situationSante' => ['Valeur invalide pour la situation de santé: '.$value],
                         ]);
                     }
                 }
@@ -2182,18 +2183,18 @@ class MatchmakerController extends Controller
             'paysRecherche' => 'required',
         ];
         $request->validate($rules);
-        
+
         $situationMatrimonialeRecherche = $request->situationMatrimonialeRecherche;
         $situationArray = is_string($situationMatrimonialeRecherche) ? json_decode($situationMatrimonialeRecherche, true) : $situationMatrimonialeRecherche;
-        if (!is_array($situationArray) || count($situationArray) === 0) {
+        if (! is_array($situationArray) || count($situationArray) === 0) {
             throw \Illuminate\Validation\ValidationException::withMessages([
                 'situationMatrimonialeRecherche' => ['Au moins une situation matrimoniale doit être sélectionnée.'],
             ]);
         }
-        
+
         $paysRecherche = $request->paysRecherche;
         $paysArray = is_string($paysRecherche) ? json_decode($paysRecherche, true) : $paysRecherche;
-        if (!is_array($paysArray) || count($paysArray) === 0) {
+        if (! is_array($paysArray) || count($paysArray) === 0) {
             throw \Illuminate\Validation\ValidationException::withMessages([
                 'paysRecherche' => ['Au moins un pays doit être sélectionné.'],
             ]);
@@ -2203,7 +2204,7 @@ class MatchmakerController extends Controller
     private function validateStep4ForStaff(Request $request)
     {
         $rules = [];
-        
+
         if ($request->filled('cin')) {
             $rules['cin'] = [
                 'string',
@@ -2213,23 +2214,23 @@ class MatchmakerController extends Controller
                     $existingProfile = \App\Models\Profile::where('cin', $cinUpper)
                         ->where('user_id', '!=', $request->route('user'))
                         ->first();
-                    
+
                     if ($existingProfile) {
                         $fail('Ce numéro de CNI est déjà utilisé par un autre utilisateur.');
                     }
                 },
             ];
         }
-        
+
         if ($request->hasFile('identityCardFront')) {
             $rules['identityCardFront'] = 'file|mimes:jpeg,png,jpg,pdf|max:5120';
         }
-        
+
         if ($request->hasFile('profilePicture')) {
             $rules['profilePicture'] = 'image|mimes:jpeg,png,jpg|max:2048';
         }
-        
-        if (!empty($rules)) {
+
+        if (! empty($rules)) {
             $request->validate($rules);
         }
     }
@@ -2271,7 +2272,7 @@ class MatchmakerController extends Controller
         $profile->children_count = $request->childrenCount;
         $profile->children_guardian = $request->childrenGuardian;
         $profile->hijab_choice = $request->hijabChoice;
-        
+
         $situationSante = $request->situationSante;
         if (is_string($situationSante)) {
             $decoded = json_decode($situationSante, true);
@@ -2279,7 +2280,7 @@ class MatchmakerController extends Controller
         } else {
             $profile->situation_sante = is_array($situationSante) ? $situationSante : ($situationSante ? [$situationSante] : []);
         }
-        
+
         $profile->heard_about_us = $request->heardAboutUs;
         $profile->heard_about_reference = $request->heardAboutReference;
     }
@@ -2288,7 +2289,7 @@ class MatchmakerController extends Controller
     {
         $profile->age_minimum = $request->ageMinimum;
         $profile->age_maximum = $request->ageMaximum;
-        
+
         $situationMatrimonialeRecherche = $request->situationMatrimonialeRecherche;
         if (is_string($situationMatrimonialeRecherche)) {
             $decoded = json_decode($situationMatrimonialeRecherche, true);
@@ -2296,7 +2297,7 @@ class MatchmakerController extends Controller
         } else {
             $profile->situation_matrimoniale_recherche = is_array($situationMatrimonialeRecherche) ? $situationMatrimonialeRecherche : [$situationMatrimonialeRecherche];
         }
-        
+
         $paysRecherche = $request->paysRecherche;
         if (is_string($paysRecherche)) {
             $decoded = json_decode($paysRecherche, true);
@@ -2304,7 +2305,7 @@ class MatchmakerController extends Controller
         } else {
             $profile->pays_recherche = is_array($paysRecherche) ? $paysRecherche : [$paysRecherche];
         }
-        
+
         $villesRecherche = $request->villesRecherche;
         if (is_string($villesRecherche)) {
             $decoded = json_decode($villesRecherche, true);
@@ -2312,7 +2313,7 @@ class MatchmakerController extends Controller
         } else {
             $profile->villes_recherche = is_array($villesRecherche) ? $villesRecherche : [];
         }
-        
+
         $profile->niveau_etudes_recherche = $request->niveauEtudesRecherche;
         $profile->statut_emploi_recherche = $request->statutEmploiRecherche;
         $profile->revenu_minimum = $request->revenuMinimum;
@@ -2329,7 +2330,7 @@ class MatchmakerController extends Controller
             $path = $request->file('profilePicture')->store('profile-pictures', 'public');
             $profile->profile_picture_path = $path;
         }
-        
+
         if ($request->hasFile('identityCardFront')) {
             if ($profile->identity_card_front_path) {
                 \Illuminate\Support\Facades\Storage::disk('public')->delete($profile->identity_card_front_path);
@@ -2337,7 +2338,7 @@ class MatchmakerController extends Controller
             $file = $request->file('identityCardFront');
             $path = $file->store('identity-cards', 'public');
             $profile->identity_card_front_path = $path;
-            
+
             $appKey = (string) config('app.key');
             if (str_starts_with($appKey, 'base64:')) {
                 $decoded = base64_decode(substr($appKey, 7));
@@ -2364,7 +2365,7 @@ class MatchmakerController extends Controller
 
         foreach ($request->file('photos') as $file) {
             $path = $file->store('user-photos', 'public');
-            
+
             UserPhoto::create([
                 'user_id' => $user->id,
                 'uploaded_by' => $currentUser->id, // Track who uploaded the photo
@@ -2383,7 +2384,7 @@ class MatchmakerController extends Controller
     public function getMatchmakersForTransfer()
     {
         $me = Auth::user();
-        if (!$me) {
+        if (! $me) {
             abort(403, 'Unauthorized.');
         }
 
@@ -2392,7 +2393,7 @@ class MatchmakerController extends Controller
             ->where('model_has_roles.model_id', $me->id)
             ->value('roles.name');
 
-        if (!in_array($roleName, ['matchmaker', 'manager', 'admin'])) {
+        if (! in_array($roleName, ['matchmaker', 'manager', 'admin'])) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -2413,7 +2414,7 @@ class MatchmakerController extends Controller
     public function createTransferRequest(Request $request)
     {
         $me = Auth::user();
-        if (!$me) {
+        if (! $me) {
             abort(403, 'Unauthorized.');
         }
 
@@ -2422,7 +2423,7 @@ class MatchmakerController extends Controller
             ->where('model_has_roles.model_id', $me->id)
             ->value('roles.name');
 
-        if (!in_array($roleName, ['matchmaker', 'manager', 'admin'])) {
+        if (! in_array($roleName, ['matchmaker', 'manager', 'admin'])) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -2436,7 +2437,7 @@ class MatchmakerController extends Controller
         $toMatchmaker = User::findOrFail($request->to_matchmaker_id);
 
         // Verify the to_matchmaker_id is actually a matchmaker
-        if (!$toMatchmaker->hasRole('matchmaker')) {
+        if (! $toMatchmaker->hasRole('matchmaker')) {
             return redirect()->back()->with('error', 'Selected user is not a matchmaker.');
         }
 
@@ -2472,7 +2473,7 @@ class MatchmakerController extends Controller
     public function getTransferRequests(Request $request)
     {
         $me = Auth::user();
-        if (!$me) {
+        if (! $me) {
             abort(403, 'Unauthorized.');
         }
 
@@ -2481,7 +2482,7 @@ class MatchmakerController extends Controller
             ->where('model_has_roles.model_id', $me->id)
             ->value('roles.name');
 
-        if (!in_array($roleName, ['matchmaker', 'manager', 'admin'])) {
+        if (! in_array($roleName, ['matchmaker', 'manager', 'admin'])) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -2489,11 +2490,11 @@ class MatchmakerController extends Controller
         $receivedRequests = TransferRequest::where('to_matchmaker_id', $me->id)
             ->where('status', 'pending')
             ->with([
-                'user.profile', 
+                'user.profile',
                 'user.agency',
-                'fromMatchmaker', 
+                'fromMatchmaker',
                 'fromMatchmaker.agency',
-                'user.assignedMatchmaker'
+                'user.assignedMatchmaker',
             ])
             ->orderBy('created_at', 'desc')
             ->get();
@@ -2501,11 +2502,11 @@ class MatchmakerController extends Controller
         // Get requests sent by current user
         $sentRequests = TransferRequest::where('from_matchmaker_id', $me->id)
             ->with([
-                'user.profile', 
+                'user.profile',
                 'user.agency',
-                'toMatchmaker', 
+                'toMatchmaker',
                 'toMatchmaker.agency',
-                'user.assignedMatchmaker'
+                'user.assignedMatchmaker',
             ])
             ->orderBy('created_at', 'desc')
             ->get();
@@ -2522,7 +2523,7 @@ class MatchmakerController extends Controller
     public function acceptTransferRequest(Request $request, $id)
     {
         $me = Auth::user();
-        if (!$me) {
+        if (! $me) {
             abort(403, 'Unauthorized.');
         }
 
@@ -2531,7 +2532,7 @@ class MatchmakerController extends Controller
             ->where('model_has_roles.model_id', $me->id)
             ->value('roles.name');
 
-        if (!in_array($roleName, ['matchmaker', 'manager', 'admin'])) {
+        if (! in_array($roleName, ['matchmaker', 'manager', 'admin'])) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -2550,10 +2551,10 @@ class MatchmakerController extends Controller
         // Update user's assigned matchmaker and record history
         $user = $transferRequest->user;
         $oldMatchmakerId = $user->assigned_matchmaker_id;
-        
+
         // Get existing history or initialize empty array
         $history = $user->matchmaker_assignment_history ?? [];
-        
+
         // Add old matchmaker to history if exists
         if ($oldMatchmakerId) {
             // Check if old matchmaker is already in history
@@ -2566,9 +2567,9 @@ class MatchmakerController extends Controller
                     break;
                 }
             }
-            
+
             // If not found, add new entry
-            if (!$found) {
+            if (! $found) {
                 $history[] = [
                     'matchmaker_id' => $oldMatchmakerId,
                     'assigned_at' => $user->updated_at ? $user->updated_at->toIso8601String() : now()->toIso8601String(),
@@ -2576,7 +2577,7 @@ class MatchmakerController extends Controller
                 ];
             }
         }
-        
+
         // Add new matchmaker to history
         $newMatchmakerId = $me->id;
         // Check if new matchmaker is already in history
@@ -2587,15 +2588,15 @@ class MatchmakerController extends Controller
                 break;
             }
         }
-        
+
         // If not already recorded, add new assignment entry
-        if (!$alreadyRecorded) {
+        if (! $alreadyRecorded) {
             $history[] = [
                 'matchmaker_id' => $newMatchmakerId,
                 'assigned_at' => now()->toIso8601String(),
             ];
         }
-        
+
         // Update user's assigned matchmaker and history
         $user->update([
             'assigned_matchmaker_id' => $me->id,
@@ -2616,7 +2617,7 @@ class MatchmakerController extends Controller
     public function rejectTransferRequest(Request $request, $id)
     {
         $me = Auth::user();
-        if (!$me) {
+        if (! $me) {
             abort(403, 'Unauthorized.');
         }
 
@@ -2625,7 +2626,7 @@ class MatchmakerController extends Controller
             ->where('model_has_roles.model_id', $me->id)
             ->value('roles.name');
 
-        if (!in_array($roleName, ['matchmaker', 'manager', 'admin'])) {
+        if (! in_array($roleName, ['matchmaker', 'manager', 'admin'])) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -2667,9 +2668,9 @@ class MatchmakerController extends Controller
                 ->where('model_has_roles.model_id', $me->id)
                 ->value('roles.name');
         }
-        
+
         // Check approval status for matchmaker and manager
-        if (in_array($roleName, ['manager','matchmaker'], true)) {
+        if (in_array($roleName, ['manager', 'matchmaker'], true)) {
             if ($me->approval_status !== 'approved') {
                 abort(403, 'Your account is not validated yet.');
             }
@@ -2688,9 +2689,10 @@ class MatchmakerController extends Controller
             ->latest()
             ->get()
             ->map(function (Proposition $proposition) {
-                $isExpired = $proposition->status === 'pending'
-                    && $proposition->created_at
-                    && $proposition->created_at->lt(now()->subDays(7));
+                $isExpired = $proposition->status === 'expired'
+                    || ($proposition->status === 'pending'
+                        && $proposition->created_at
+                        && $proposition->created_at->lt(now()->subDays(7)));
 
                 return [
                     'id' => $proposition->id,
@@ -2745,9 +2747,9 @@ class MatchmakerController extends Controller
                 ->where('model_has_roles.model_id', $me->id)
                 ->value('roles.name');
         }
-        
+
         // Check approval status for matchmaker and manager
-        if (in_array($roleName, ['manager','matchmaker'], true)) {
+        if (in_array($roleName, ['manager', 'matchmaker'], true)) {
             if ($me->approval_status !== 'approved') {
                 abort(403, 'Your account is not validated yet.');
             }
@@ -2769,9 +2771,9 @@ class MatchmakerController extends Controller
                 ->where('model_has_roles.model_id', $me->id)
                 ->value('roles.name');
         }
-        
+
         // Check approval status for matchmaker and manager
-        if (in_array($roleName, ['manager','matchmaker'], true)) {
+        if (in_array($roleName, ['manager', 'matchmaker'], true)) {
             if ($me->approval_status !== 'approved') {
                 abort(403, 'Your account is not validated yet.');
             }
@@ -2801,7 +2803,7 @@ class MatchmakerController extends Controller
             }
         }
 
-        $matchmakingService = new MatchmakingService();
+        $matchmakingService = new MatchmakingService;
         $matchmakerId = ($roleName === 'matchmaker') ? $me->id : null;
         $managerId = ($roleName === 'manager') ? $me->id : null;
         $agencyId = ($roleName === 'matchmaker') ? $me->agency_id : null;
@@ -2815,11 +2817,11 @@ class MatchmakerController extends Controller
         if ($search->isNotEmpty()) {
             $searchLower = $search->lower()->toString();
             $query->where(function ($q) use ($searchLower) {
-                $q->whereRaw('LOWER(name) LIKE ?', ['%' . $searchLower . '%'])
-                    ->orWhereRaw('LOWER(email) LIKE ?', ['%' . $searchLower . '%'])
-                    ->orWhereRaw('LOWER(username) LIKE ?', ['%' . $searchLower . '%'])
+                $q->whereRaw('LOWER(name) LIKE ?', ['%'.$searchLower.'%'])
+                    ->orWhereRaw('LOWER(email) LIKE ?', ['%'.$searchLower.'%'])
+                    ->orWhereRaw('LOWER(username) LIKE ?', ['%'.$searchLower.'%'])
                     ->orWhereHas('profile', function ($pq) use ($searchLower) {
-                        $pq->whereRaw('LOWER(ville_residence) LIKE ?', ['%' . $searchLower . '%']);
+                        $pq->whereRaw('LOWER(ville_residence) LIKE ?', ['%'.$searchLower.'%']);
                     });
             });
         }
@@ -2835,7 +2837,7 @@ class MatchmakerController extends Controller
         $statusMap = [];
         foreach ($latest as $prop) {
             $id = (int) $prop->reference_user_id;
-            if (!array_key_exists($id, $statusMap)) {
+            if (! array_key_exists($id, $statusMap)) {
                 $statusMap[$id] = $prop->status;
             }
         }
@@ -2877,16 +2879,16 @@ class MatchmakerController extends Controller
                 ->where('model_has_roles.model_id', $me->id)
                 ->value('roles.name');
         }
-        
+
         // Check approval status
-        if (in_array($roleName, ['manager','matchmaker'], true)) {
+        if (in_array($roleName, ['manager', 'matchmaker'], true)) {
             if ($me->approval_status !== 'approved') {
                 abort(403, 'Your account is not validated yet.');
             }
         }
 
-        $matchmakingService = new MatchmakingService();
-        
+        $matchmakingService = new MatchmakingService;
+
         // Get filter overrides from request
         $filterOverrides = $request->only([
             'age_min', 'age_max', 'pays_recherche', 'villes_recherche', 'religion',
@@ -2896,7 +2898,7 @@ class MatchmakerController extends Controller
             'pays_residence', 'pays_origine', 'ville_residence', 'ville_origine',
             'situation_sante', 'motorise', 'children_count',
             'hijab_choice', 'veil', 'niqab_acceptance', 'sport', 'secteur',
-            'polygamy', 'foreign_marriage', 'work_after_marriage'
+            'polygamy', 'foreign_marriage', 'work_after_marriage',
         ]);
 
         // Handle array fields
@@ -2945,16 +2947,17 @@ class MatchmakerController extends Controller
         }
 
         // Remove empty values
-        $filterOverrides = array_filter($filterOverrides, function($value) {
+        $filterOverrides = array_filter($filterOverrides, function ($value) {
             if (is_array($value)) {
-                return !empty($value);
+                return ! empty($value);
             }
+
             return $value !== null && $value !== '';
         });
 
         try {
             $result = $matchmakingService->findMatches($userAId, $filterOverrides);
-            
+
             $me = Auth::user();
 
             $compatibleIds = array_map(function ($match) {
@@ -2963,7 +2966,7 @@ class MatchmakerController extends Controller
 
             $statusMap = [];
             $requestMetaMap = [];
-            if (!empty($compatibleIds)) {
+            if (! empty($compatibleIds)) {
                 $requestQuery = PropositionRequest::query()
                     ->where('from_matchmaker_id', $me->id)
                     ->whereIn('compatible_user_id', $compatibleIds)
@@ -2976,7 +2979,7 @@ class MatchmakerController extends Controller
                 $sentRequests = $requestQuery->get(['compatible_user_id', 'status', 'created_at', 'responded_at']);
                 foreach ($sentRequests as $sent) {
                     $compId = (int) $sent->compatible_user_id;
-                    if (!array_key_exists($compId, $statusMap)) {
+                    if (! array_key_exists($compId, $statusMap)) {
                         $statusMap[$compId] = $sent->status;
                         $requestMetaMap[$compId] = [
                             'status' => $sent->status,
@@ -2988,7 +2991,7 @@ class MatchmakerController extends Controller
 
             $propositionStatusMap = [];
             $latestRejectionMap = [];
-            if (!empty($compatibleIds)) {
+            if (! empty($compatibleIds)) {
                 $latestPropositions = Proposition::query()
                     ->where('matchmaker_id', $me->id)
                     ->where('reference_user_id', $userAId)
@@ -2998,10 +3001,11 @@ class MatchmakerController extends Controller
 
                 foreach ($latestPropositions as $proposition) {
                     $compId = (int) $proposition->compatible_user_id;
-                    if (!array_key_exists($compId, $propositionStatusMap)) {
-                        $isExpired = $proposition->status === 'pending'
-                            && $proposition->created_at
-                            && $proposition->created_at->lt(now()->subDays(7));
+                    if (! array_key_exists($compId, $propositionStatusMap)) {
+                        $isExpired = $proposition->status === 'expired'
+                            || ($proposition->status === 'pending'
+                                && $proposition->created_at
+                                && $proposition->created_at->lt(now()->subDays(7)));
 
                         $propositionStatusMap[$compId] = $isExpired ? 'expired' : $proposition->status;
                     }
@@ -3018,20 +3022,21 @@ class MatchmakerController extends Controller
 
                 foreach ($latestRejections as $rejection) {
                     $compId = (int) $rejection->compatible_user_id;
-                    if (!array_key_exists($compId, $latestRejectionMap)) {
+                    if (! array_key_exists($compId, $latestRejectionMap)) {
                         $latestRejectionMap[$compId] = $rejection->responded_at ?? $rejection->created_at;
                     }
                 }
             }
 
             // Format matches for Inertia (ensure proper serialization)
-            $formattedMatches = array_map(function($match) use ($me, $statusMap, $requestMetaMap, $propositionStatusMap, $latestRejectionMap) {
+            $formattedMatches = array_map(function ($match) use ($me, $statusMap, $requestMetaMap, $propositionStatusMap, $latestRejectionMap) {
                 $compatId = $match['user']->id;
                 $requestMeta = $requestMetaMap[$compatId] ?? null;
                 $acceptedAt = $requestMeta['accepted_at'] ?? null;
                 $rejectedAt = $latestRejectionMap[$compatId] ?? null;
                 $canProposeFromRequest = ($requestMeta['status'] ?? null) === 'accepted'
-                    && (!$rejectedAt || ($acceptedAt && $acceptedAt->gt($rejectedAt)));
+                    && (! $rejectedAt || ($acceptedAt && $acceptedAt->gt($rejectedAt)));
+
                 // dd($statusMap);
                 return [
                     'user' => [
@@ -3059,7 +3064,7 @@ class MatchmakerController extends Controller
                     'proposition_status' => $propositionStatusMap[$match['user']->id] ?? null,
                 ];
             }, $result['matches']);
-            
+
             return Inertia::render('matchmaker/matchmaking-results', [
                 'userA' => [
                     'id' => $result['userA']->id,
@@ -3077,7 +3082,7 @@ class MatchmakerController extends Controller
                 'authenticatedMatchmaker' => [
                     'id' => $me->id,
                     'name' => $me->name,
-                ]
+                ],
             ]);
         } catch (\Exception $e) {
             return redirect()->route('staff.match.search')
@@ -3092,7 +3097,7 @@ class MatchmakerController extends Controller
     public function updateMatchmakingFilters(Request $request, $userAId)
     {
         $me = Auth::user();
-        
+
         // Check approval status
         $roleName = null;
         if ($me) {
@@ -3101,15 +3106,15 @@ class MatchmakerController extends Controller
                 ->where('model_has_roles.model_id', $me->id)
                 ->value('roles.name');
         }
-        
-        if (in_array($roleName, ['manager','matchmaker'], true)) {
+
+        if (in_array($roleName, ['manager', 'matchmaker'], true)) {
             if ($me->approval_status !== 'approved') {
                 return response()->json(['error' => 'Unauthorized'], 403);
             }
         }
 
-        $matchmakingService = new MatchmakingService();
-        
+        $matchmakingService = new MatchmakingService;
+
         // Get filter overrides from request
         $filterOverrides = $request->only([
             'age_min', 'age_max', 'pays_recherche', 'villes_recherche', 'religion',
@@ -3119,7 +3124,7 @@ class MatchmakerController extends Controller
             'pays_residence', 'pays_origine', 'ville_residence', 'ville_origine',
             'situation_sante', 'motorise', 'children_count',
             'hijab_choice', 'veil', 'niqab_acceptance', 'sport', 'secteur',
-            'polygamy', 'foreign_marriage', 'work_after_marriage'
+            'polygamy', 'foreign_marriage', 'work_after_marriage',
         ]);
 
         // Handle array fields
@@ -3175,29 +3180,30 @@ class MatchmakerController extends Controller
                 if ($filterOverrides[$field] === '' || $filterOverrides[$field] === null) {
                     unset($filterOverrides[$field]);
                 } else {
-                    $filterOverrides[$field] = (int)$filterOverrides[$field];
+                    $filterOverrides[$field] = (int) $filterOverrides[$field];
                 }
             }
         }
 
         // Remove empty values
-        $filterOverrides = array_filter($filterOverrides, function($value) {
+        $filterOverrides = array_filter($filterOverrides, function ($value) {
             if (is_array($value)) {
-                return !empty($value);
+                return ! empty($value);
             }
+
             return $value !== null && $value !== '';
         });
 
         try {
             // Mixed logic: unchanged filters use OR, manually changed filters use AND
             $result = $matchmakingService->findMatches($userAId, $filterOverrides);
-            
+
             $compatibleIds = array_map(function ($match) {
                 return $match['user']->id;
             }, $result['matches']);
 
             $statusMap = [];
-            if (!empty($compatibleIds)) {
+            if (! empty($compatibleIds)) {
                 $requestQuery = PropositionRequest::query()
                     ->where('from_matchmaker_id', $me->id)
                     ->whereIn('compatible_user_id', $compatibleIds)
@@ -3210,14 +3216,14 @@ class MatchmakerController extends Controller
                 $sentRequests = $requestQuery->get(['compatible_user_id', 'status']);
                 foreach ($sentRequests as $sent) {
                     $compId = (int) $sent->compatible_user_id;
-                    if (!array_key_exists($compId, $statusMap)) {
+                    if (! array_key_exists($compId, $statusMap)) {
                         $statusMap[$compId] = $sent->status;
                     }
                 }
             }
 
             // Format matches for JSON response
-            $formattedMatches = array_map(function($match) use ($me, $statusMap) {
+            $formattedMatches = array_map(function ($match) use ($me, $statusMap) {
                 return [
                     'user' => [
                         'id' => $match['user']->id,
@@ -3242,7 +3248,7 @@ class MatchmakerController extends Controller
                     'proposition_request_status' => $statusMap[$match['user']->id] ?? null,
                 ];
             }, $result['matches']);
-            
+
             return response()->json([
                 'matches' => $formattedMatches,
                 'defaultFilters' => $result['defaultFilters'],
@@ -3267,7 +3273,7 @@ class MatchmakerController extends Controller
                 ->value('roles.name');
         }
 
-        if (!in_array($roleName, ['matchmaker', 'manager', 'admin'])) {
+        if (! in_array($roleName, ['matchmaker', 'manager', 'admin'])) {
             abort(403, 'Unauthorized.');
         }
 
@@ -3285,17 +3291,17 @@ class MatchmakerController extends Controller
 
         if ($request->hasFile('profile_picture')) {
             $profilePicturePath = $request->file('profile_picture')->store('profile-pictures', 'public');
-            
+
             $profile = $targetUser->profile;
-            if (!$profile) {
+            if (! $profile) {
                 $profile = $targetUser->profile()->create([]);
             }
-            
+
             // Delete old profile picture if exists
             if ($profile->profile_picture_path) {
                 Storage::disk('public')->delete($profile->profile_picture_path);
             }
-            
+
             $profile->update(['profile_picture_path' => $profilePicturePath]);
         }
 
@@ -3316,7 +3322,7 @@ class MatchmakerController extends Controller
                 ->value('roles.name');
         }
 
-        if (!in_array($roleName, ['matchmaker', 'manager', 'admin'])) {
+        if (! in_array($roleName, ['matchmaker', 'manager', 'admin'])) {
             abort(403, 'Unauthorized.');
         }
 
@@ -3334,18 +3340,18 @@ class MatchmakerController extends Controller
 
         if ($request->hasFile('banner_image')) {
             $bannerImagePath = $request->file('banner_image')->store('banner-images', 'public');
-            
+
             // For regular users, store in profiles table
             $profile = $targetUser->profile;
-            if (!$profile) {
+            if (! $profile) {
                 $profile = $targetUser->profile()->create([]);
             }
-            
+
             // Delete old banner image if exists
             if ($profile->banner_image_path) {
                 Storage::disk('public')->delete($profile->banner_image_path);
             }
-            
+
             $profile->update(['banner_image_path' => $bannerImagePath]);
         }
 
@@ -3374,7 +3380,7 @@ class MatchmakerController extends Controller
         }
 
         // Restrict matchmaker access: must be linked to an agency
-        if ($roleName === 'matchmaker' && !$me->agency_id) {
+        if ($roleName === 'matchmaker' && ! $me->agency_id) {
             abort(403, 'You must be linked to an agency to access appointment requests.');
         }
 

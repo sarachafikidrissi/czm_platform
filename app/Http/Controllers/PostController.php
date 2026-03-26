@@ -65,6 +65,9 @@ class PostController extends Controller
     public function store(Request $request)
     {
         $user = Auth::user();
+        if (! $user || ! $user->hasAnyRole(['admin', 'manager', 'matchmaker'])) {
+            abort(403, 'Unauthorized');
+        }
         $isManager = $user->hasRole('manager');
 
         // Conditional validation: content is required only for text type
