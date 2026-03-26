@@ -8,10 +8,18 @@ import { type PropsWithChildren, useEffect, useState } from 'react';
 import { usePage } from '@inertiajs/react';
 import { useTranslation } from 'react-i18next';
 
+type SidebarLayoutPageProps = {
+    flash?: {
+        success?: string;
+        error?: string;
+        status?: string;
+    };
+};
+
 export default function AppSidebarLayout({ children, breadcrumbs = [] }: PropsWithChildren<{ breadcrumbs?: BreadcrumbItem[] }>) {
     const { props } = usePage();
     const { i18n } = useTranslation();
-    const flash = (props as any)?.flash || {};
+    const flash = (props as SidebarLayoutPageProps)?.flash || {};
     const [message, setMessage] = useState<string | null>(null);
 
     useEffect(() => {

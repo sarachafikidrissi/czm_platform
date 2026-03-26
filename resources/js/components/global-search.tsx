@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Search, User, X, ArrowUpDown } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { router } from '@inertiajs/react';
 import axios from 'axios';
 import { cn } from '@/lib/utils';
 
@@ -40,10 +39,6 @@ export function GlobalSearch({ role }: GlobalSearchProps) {
     // Only show for staff roles
     const shouldShow = ['admin', 'matchmaker', 'manager'].includes(role);
     
-    if (!shouldShow) {
-        return null;
-    }
-
     // Debounced search
     useEffect(() => {
         if (!isOpen) return;
@@ -185,6 +180,10 @@ export function GlobalSearch({ role }: GlobalSearchProps) {
                 return 'bg-gray-500';
         }
     };
+
+    if (!shouldShow) {
+        return null;
+    }
 
     return (
         <>

@@ -1,16 +1,16 @@
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
-import { ChevronDown, ChevronRight, Moon } from 'lucide-react';
 import { NavUser } from '@/components/nav-user';
 import { GlobalSearch } from '@/components/global-search';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { CalendarHeart, Flame, HeartHandshake, Images, LayoutGrid, User, UserRoundSearch, Users, UserCheck, Plus, ShoppingCart, CreditCard, RotateCcw, Building2, Target, ArrowRightLeft, List, Search, UserCog, Newspaper, Calendar, FileText } from 'lucide-react';
+import { CalendarHeart, Flame, HeartHandshake, Images, LayoutGrid, User, UserRoundSearch, Users, UserCheck, Plus, ShoppingCart, CreditCard, RotateCcw, Building2, Target, ArrowRightLeft, UserCog, Newspaper, Calendar, FileText } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 
 const getMainNavItems = (t: TFunction, role: string): NavItem[] => [
+    ...(role ? [] : []),
     {
         title: t('common.dashboard'),
         url: '/dashboard',
@@ -267,14 +267,14 @@ const filterNavItemsByRole = (navItems: NavItem[], userRole: string): NavItem[] 
 export function AppSidebar() {
     const { props } = usePage();
     const role = typeof props?.role === 'string' ? props.role : '';
-    const user = (props as any)?.auth?.user;
+    const user = (props as { auth?: { user?: { username?: string }; profile_completed?: boolean } })?.auth?.user;
     const { t, i18n } = useTranslation();
     
     // Get navigation items with translations
     const mainNavItems = getMainNavItems(t, role);
     
     // Profile completed: use auth.profile_completed (avoids withDefault() virtual profile)
-    const profileCompleted = (props as any)?.auth?.profile_completed === true;
+    const profileCompleted = (props as { auth?: { profile_completed?: boolean } })?.auth?.profile_completed === true;
 
     // Process nav items to handle dynamic URLs and conditional titles
     const processedNavItems = mainNavItems.map(item => {

@@ -10,6 +10,17 @@ import { Building } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
+type LocationCountry = {
+    iso2: string;
+    frenchName?: string;
+    name?: string;
+    cities?: string[];
+};
+
+type LocationResponse = {
+    countries?: LocationCountry[];
+};
+
 export default function CreateAgencyButton({ buttonLabel, className = '' }: { buttonLabel?: string; className?: string }) {
     const { t } = useTranslation();
     const defaultButtonLabel = buttonLabel || t('admin.createAgency.newAgency');
@@ -38,18 +49,20 @@ export default function CreateAgencyButton({ buttonLabel, className = '' }: { bu
                 const response = await axios.get('/locations');
                 if (!isMounted) return;
                 
-                const countriesData = Array.isArray(response.data?.countries) ? response.data.countries : [];
+                const countriesData = Array.isArray((response.data as LocationResponse)?.countries)
+                    ? ((response.data as LocationResponse).countries as LocationCountry[])
+                    : [];
                 
                 // Map: keep iso2 and cities; use existing frenchName from JSON
                 const normalized = countriesData
-                    .filter((item: any) => item?.iso2)
-                    .map((item: any) => ({
+                    .filter((item: LocationCountry) => item?.iso2)
+                    .map((item: LocationCountry) => ({
                         iso2: item.iso2 as string,
                         frenchName: item.frenchName || item.name,
                         cities: Array.isArray(item.cities) ? (item.cities as string[]) : [],
                     }))
-                    .sort((a: any, b: any) => a.frenchName.localeCompare(b.frenchName, 'fr'));
-                const codeToCities = normalized.reduce((acc: Record<string, string[]>, item: any) => {
+                    .sort((a: { frenchName: string }, b: { frenchName: string }) => a.frenchName.localeCompare(b.frenchName, 'fr'));
+                const codeToCities = normalized.reduce((acc: Record<string, string[]>, item: { iso2: string; cities: string[] }) => {
                     acc[item.iso2] = item.cities;
                     return acc;
                 }, {} as Record<string, string[]>);
@@ -57,7 +70,7 @@ export default function CreateAgencyButton({ buttonLabel, className = '' }: { bu
                     setCountries(normalized);
                     setCountryCodeToCities(codeToCities);
                 }
-            } catch (e) {
+            } catch {
                 if (!isMounted) return;
                 setErrorCountries(t('admin.createAgency.errorLoadingCountries'));
             } finally {
@@ -68,6 +81,8 @@ export default function CreateAgencyButton({ buttonLabel, className = '' }: { bu
         return () => {
             isMounted = false;
         };
+    // Keep one-time load behavior on mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const availableCities = useMemo(() => {

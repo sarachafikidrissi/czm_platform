@@ -1,5 +1,4 @@
 import { useForm } from '@inertiajs/react';
-import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -7,7 +6,6 @@ import { Label } from '@/components/ui/label';
 import { Plus } from 'lucide-react';
 
 export default function CreateSecteurButton({ buttonLabel, className = '' }: { buttonLabel?: string; className?: string }) {
-    const { t } = useTranslation();
     const defaultButtonLabel = buttonLabel || 'Ajouter un secteur';
     const { data, setData, post, processing, reset, errors } = useForm({
         name: '',

@@ -18,8 +18,6 @@ const languages = [
 export function LanguageSwitcher() {
     const { i18n, t } = useTranslation();
 
-    const currentLanguage = languages.find((lang) => lang.code === i18n.language) || languages[0];
-
     const changeLanguage = (langCode: string) => {
         i18n.changeLanguage(langCode);
         // Update HTML dir attribute for RTL support

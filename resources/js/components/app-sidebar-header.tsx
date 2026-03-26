@@ -7,16 +7,38 @@ import { type BreadcrumbItem as BreadcrumbItemType } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
+type NotificationUser = {
+    name?: string;
+    profile_picture_path?: string;
+};
+
+type NotificationItem = {
+    id: number | string;
+    type?: string;
+    status?: string;
+    reference_user?: NotificationUser;
+    compatible_user?: NotificationUser;
+};
+
+type PagePropsWithNotifications = {
+    notifications?: {
+        propositionRequests?: {
+            total?: number;
+            items?: NotificationItem[];
+        };
+    };
+};
+
 export function AppSidebarHeader({ breadcrumbs = [] }: { breadcrumbs?: BreadcrumbItemType[] }) {
     const handleBack = () => {
         window.history.back();
     };
     const { props } = usePage();
-    const notifications = (props as any)?.notifications;
+    const notifications = (props as PagePropsWithNotifications)?.notifications;
     const totalNotifications = notifications?.propositionRequests?.total || 0;
     const notificationItems = notifications?.propositionRequests?.items || [];
 
-    const getAvatarSrc = (item: any) => {
+    const getAvatarSrc = (item: NotificationItem) => {
         const profilePath = item?.compatible_user?.profile_picture_path || item?.reference_user?.profile_picture_path;
         const name = item?.compatible_user?.name || item?.reference_user?.name || 'User';
         if (profilePath) {
@@ -25,7 +47,7 @@ export function AppSidebarHeader({ breadcrumbs = [] }: { breadcrumbs?: Breadcrum
         return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`;
     };
 
-    const getNotificationText = (item: any) => {
+    const getNotificationText = (item: NotificationItem) => {
         const refName = item?.reference_user?.name || 'Profil A';
         const compName = item?.compatible_user?.name || 'Profil B';
         if (item?.type === 'received') {
@@ -79,7 +101,7 @@ export function AppSidebarHeader({ breadcrumbs = [] }: { breadcrumbs?: Breadcrum
                             {notificationItems.length === 0 ? (
                                 <div className="px-3 py-4 text-sm text-muted-foreground">Aucune notification.</div>
                             ) : (
-                                notificationItems.map((item: any) => (
+                                notificationItems.map((item: NotificationItem) => (
                                     <Link
                                         key={item.id}
                                         href={`/staff/matchmaker/proposition-requests?type=${item.type}`}
