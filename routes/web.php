@@ -399,6 +399,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/prospects/{user}/activity', [\App\Http\Controllers\ActivityHistoryController::class, 'forUser'])->name('prospects.activity');
         Route::get('/prospects/{user}/subscription', [\App\Http\Controllers\MatchmakerController::class, 'createSubscriptionPage'])->name('prospects.subscription');
         Route::post('/prospects/{user}/validate', [\App\Http\Controllers\MatchmakerController::class, 'validateProspect'])->name('prospects.validate');
+        Route::post('/prospects/{user}/validation-info', [\App\Http\Controllers\MatchmakerController::class, 'updateValidationInfo'])->name('prospects.validation-info.update');
         Route::post('/prospects/{user}/reject', [\App\Http\Controllers\MatchmakerController::class, 'rejectProspect'])->name('prospects.reject');
         Route::post('/prospects/{user}/accept', [\App\Http\Controllers\MatchmakerController::class, 'acceptRejectedProspect'])->name('prospects.accept');
         Route::post('/prospects/{user}/rappeler', [\App\Http\Controllers\MatchmakerController::class, 'markAsRappeler'])->name('prospects.rappeler');

@@ -17,6 +17,26 @@ import { LayoutGrid, Table2, Mail, MapPin, CheckCircle, Pencil, XCircle, Search,
 import { Skeleton } from '@/components/ui/skeleton';
 import { getCommercialCodeDisplay } from '@/lib/heard-about';
 
+const DOCUMENT_TYPE_OPTIONS = [
+    { value: 'cin', label: 'CIN' },
+    { value: 'passport', label: 'Passport' },
+    { value: 'driver_license', label: 'Driver License' },
+];
+
+const getDocumentLabel = (documentType) => {
+    if (documentType === 'passport') return 'Passport';
+    if (documentType === 'driver_license') return 'Driver License';
+    return 'CIN';
+};
+
+const getDocumentRegex = (documentType) => {
+    return /^[A-Za-z0-9-]{5,20}$/;
+};
+
+const getDocumentExample = (documentType) => {
+    return 'Ex: AB12345 or B-123456';
+};
+
 export default function AgencyProspects() {
     const { t } = useTranslation();
     const { showToast } = useToast();
@@ -43,6 +63,7 @@ export default function AgencyProspects() {
     const { data, setData, post, processing, errors, reset } = useForm({
         notes: '',
         contact_type: '',
+        document_type: 'cin',
         cin: '',
         identity_card_front: null,
         service_id: '',
@@ -516,6 +537,7 @@ export default function AgencyProspects() {
         const profile = prospect.profile;
         
         if (profile) {
+            setData('document_type', profile.document_type || 'cin');
             // Pre-fill CNI if user already provided it (show masked version)
             if (profile.cin && profile.cin_decrypted) {
                 const decryptedCin = profile.cin_decrypted;
@@ -924,8 +946,22 @@ export default function AgencyProspects() {
                     </DialogHeader>
                     <div className="grid gap-4 py-2">
                         <div className="grid gap-2">
+                            <Label htmlFor="document_type">Document Type</Label>
+                            <Select
+                                value={data.document_type || 'cin'}
+                                onValueChange={(value) => setData('document_type', value)}
+                            >
+                                <SelectTrigger className="h-9 w-full"><SelectValue placeholder="Select document type" /></SelectTrigger>
+                                <SelectContent>
+                                    {DOCUMENT_TYPE_OPTIONS.map((option) => (
+                                        <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="grid gap-2">
                             <Label htmlFor="cin">
-                                CIN {!validatingProspect?.profile?.cin && '*'}
+                                {getDocumentLabel(data.document_type)} {!validatingProspect?.profile?.cin && '*'}
                                 {validatingProspect?.profile?.cin && (
                                     <span className="text-xs text-muted-foreground ml-2">(Déjà rempli par le prospect)</span>
                                 )}
@@ -934,15 +970,14 @@ export default function AgencyProspects() {
                                 <Input 
                                     id="cin" 
                                     value={data.cin} 
-                                    disabled 
-                                    className="bg-muted"
+                                    onChange={(e) => setData('cin', e.target.value)}
                                 />
                             ) : (
                                 <Input 
                                     id="cin" 
                                     value={data.cin} 
                                     onChange={(e) => setData('cin', e.target.value)} 
-                                    placeholder="Ex: A123456 or AB1234" 
+                                    placeholder={getDocumentExample(data.document_type)}
                                 />
                             )}
                             {errors.cin && <p className="text-error text-sm">{errors.cin}</p>}
@@ -1127,11 +1162,20 @@ export default function AgencyProspects() {
                                     const hasExistingFront = validatingProspect?.profile?.identity_card_front_path;
                                     const needsCin = !hasExistingCin;
                                     const needsFront = !hasExistingFront;
+                                    const documentRegex = getDocumentRegex(data.document_type);
                                     
                                     // Basic validation
                                     // Note: identity_card_front is only required if user didn't upload one
                                     // If user uploaded one, matchmaker can optionally replace it
-                                    if ((needsCin && !data.cin) || (needsFront && !data.identity_card_front) || !data.service_id || !data.matrimonial_pack_id || !data.pack_price || !data.payment_mode || data.pack_advantages.length === 0) {
+                                    if (
+                                        (needsCin && (!data.cin || !documentRegex.test(data.cin.trim()))) ||
+                                        (needsFront && !data.identity_card_front) ||
+                                        !data.service_id ||
+                                        !data.matrimonial_pack_id ||
+                                        !data.pack_price ||
+                                        !data.payment_mode ||
+                                        data.pack_advantages.length === 0
+                                    ) {
                                         showToast('Champs requis', 'Please fill in all required fields', 'warning');
                                         return;
                                     }
@@ -1151,7 +1195,7 @@ export default function AgencyProspects() {
                                 }}
                             disabled={processing}
                         >
-                            Validate & Assign
+                            {validatingProspect?.status === 'prospect' ? 'Validate & Assign' : 'Update Validation Info'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

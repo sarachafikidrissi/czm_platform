@@ -16,6 +16,26 @@ import AppLayout from '@/layouts/app-layout';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getCommercialCodeDisplay } from '@/lib/heard-about';
 
+const DOCUMENT_TYPE_OPTIONS = [
+    { value: 'cin', label: 'CIN' },
+    { value: 'passport', label: 'Passport' },
+    { value: 'driver_license', label: 'Driver License' },
+];
+
+const getDocumentLabel = (documentType) => {
+    if (documentType === 'passport') return 'Passport';
+    if (documentType === 'driver_license') return 'Driver License';
+    return 'CIN';
+};
+
+const getDocumentRegex = (documentType) => {
+    return /^[A-Za-z0-9-]{5,20}$/;
+};
+
+const getDocumentExample = (documentType) => {
+    return 'Ex: AB12345 or B-123456';
+};
+
 export default function MatchmakerProspects() {
     const { t } = useTranslation();
     const { prospects = [], filter, statusFilter = 'active', commercialOnly = false, services = [], matrimonialPacks = [], auth } = usePage().props;
@@ -28,6 +48,7 @@ export default function MatchmakerProspects() {
     const [packPrice, setPackPrice] = useState('');
     const [packAdvantages, setPackAdvantages] = useState([]);
     const [paymentMode, setPaymentMode] = useState('');
+    const [documentType, setDocumentType] = useState('cin');
     const [cin, setCin] = useState('');
     const [cinError, setCinError] = useState(null);
     const [front, setFront] = useState(null);
@@ -146,6 +167,7 @@ export default function MatchmakerProspects() {
         setPackPrice(prospect.profile?.pack_price || '');
         setPackAdvantages(prospect.profile?.pack_advantages || []);
         setPaymentMode(prospect.profile?.payment_mode || '');
+        setDocumentType(prospect.profile?.document_type || 'cin');
         
         // Pre-fill CNI if user already provided it
         // Backend sends cin_decrypted for display (we show masked version)
@@ -169,17 +191,17 @@ export default function MatchmakerProspects() {
         const hasExistingFront = selectedProspect?.profile?.identity_card_front_path;
         const needsCin = !hasExistingCin;
         const needsFront = !hasExistingFront;
+        const documentRegex = getDocumentRegex(documentType);
         // Validate CNI only if needed and provided
         let cinOk = true;
         let cinValue = null;
         if (needsCin) {
             if (!cin || cin.trim() === '' || cin.includes('****')) {
-                setCinError('CIN est requis');
+                setCinError(`${getDocumentLabel(documentType)} est requis`);
                 cinOk = false;
             } else {
-                const re = /^[A-Za-z]{1,2}\d{4,6}$/;
-                cinOk = re.test(cin.trim());
-                setCinError(cinOk ? null : 'CIN invalide. Ex: A123456 ou AB1234');
+                cinOk = documentRegex.test(cin.trim());
+                setCinError(cinOk ? null : `${getDocumentLabel(documentType)} invalide. ${getDocumentExample(documentType)}`);
                 if (cinOk) {
                     cinValue = cin.trim();
                 }
@@ -194,7 +216,7 @@ export default function MatchmakerProspects() {
         setErrors({ 
             notes: null, 
             recommendations: null, 
-            cin: cinOk ? null : (needsCin ? 'CIN est requis' : 'CIN invalide. Ex: A123456 ou AB1234'), 
+            cin: cinOk ? null : `${getDocumentLabel(documentType)} invalide`, 
             identity_card_front: (needsFront && !front) ? 'Front image is required' : null, 
             payment_mode: null, 
             general: null 
@@ -216,6 +238,7 @@ export default function MatchmakerProspects() {
         // Only send CNI if matchmaker needs to fill it (user didn't provide it)
         // Backend will use existing value if user already provided it
         if (needsCin && cinValue) {
+            fd.append('document_type', documentType);
             fd.append('cin', cinValue);
         }
         
@@ -249,6 +272,7 @@ export default function MatchmakerProspects() {
                 setPackPrice('');
                 setPackAdvantages([]);
                 setPaymentMode('');
+                setDocumentType('cin');
                 setCin('');
                 setFront(null);
                 setErrors({ notes: null, recommendations: null, cin: null, identity_card_front: null, payment_mode: null, general: null });
@@ -558,8 +582,23 @@ export default function MatchmakerProspects() {
                                                         {errors.payment_mode && <p className="text-error text-sm">{errors.payment_mode}</p>}
                                                     </div>
                                                     <div className="grid gap-2">
+                                                        <Label htmlFor="document_type">Document Type</Label>
+                                                        <Select
+                                                            value={documentType}
+                                                            onValueChange={setDocumentType}
+                                                            disabled={!!selectedProspect?.profile?.cin}
+                                                        >
+                                                            <SelectTrigger className="h-9 w-full"><SelectValue placeholder="Select document type" /></SelectTrigger>
+                                                            <SelectContent>
+                                                                {DOCUMENT_TYPE_OPTIONS.map((option) => (
+                                                                    <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                                                                ))}
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+                                                    <div className="grid gap-2">
                                                         <Label htmlFor="cin">
-                                                            CIN {!selectedProspect?.profile?.cin && '*'}
+                                                            {getDocumentLabel(documentType)} {!selectedProspect?.profile?.cin && '*'}
                                                             {selectedProspect?.profile?.cin && (
                                                                 <span className="text-xs text-muted-foreground ml-2">(Déjà rempli par le prospect)</span>
                                                             )}
@@ -576,7 +615,7 @@ export default function MatchmakerProspects() {
                                                                 id="cin" 
                                                                 value={cin} 
                                                                 onChange={(e) => setCin(e.target.value)} 
-                                                                placeholder="Ex: A123456 or AB1234" 
+                                                                placeholder={getDocumentExample(documentType)}
                                                             />
                                                         )}
                                                         {cinError && <p className="text-error text-sm">{cinError}</p>}

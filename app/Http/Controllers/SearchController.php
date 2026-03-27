@@ -34,11 +34,11 @@ class SearchController extends Controller
             return response()->json(['users' => []]);
         }
 
-        // Prepare CIN hash for search if query looks like a CIN (alphanumeric, typically uppercase)
+        // Prepare document hash for CIN/passport/driver license search
         $cinHash = null;
         $cinUpper = strtoupper(trim($query));
-        // Check if query might be a CIN (alphanumeric, typically 6-12 characters)
-        if (preg_match('/^[A-Z0-9]{6,12}$/i', $cinUpper)) {
+        // Match the same unified validation format used for document numbers.
+        if (preg_match('/^[A-Z0-9-]{5,20}$/i', $cinUpper)) {
             $appKey = (string) config('app.key');
             if (str_starts_with($appKey, 'base64:')) {
                 $decoded = base64_decode(substr($appKey, 7));
@@ -57,7 +57,7 @@ class SearchController extends Controller
                   ->orWhere('email', 'like', "%{$query}%")
                   ->orWhere('phone', 'like', "%{$query}%");
                 
-                // Add CIN search if hash was generated
+                // Add document hash search if hash was generated
                 if ($cinHash) {
                     $q->orWhereHas('profile', function($profileQ) use ($cinHash) {
                         $profileQ->where('cin_hash', $cinHash);
@@ -126,6 +126,7 @@ class SearchController extends Controller
                     'name' => $user->assignedMatchmaker->name,
                 ] : null,
                 'role' => $isStaffMember ? ($userRoles[0] ?? null) : null,
+                'document_type' => $user->profile?->document_type ?? 'cin',
             ];
         });
 

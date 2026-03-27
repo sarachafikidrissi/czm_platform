@@ -299,13 +299,15 @@ class ProfileController extends Controller
     {
         // CNI and front picture are optional for prospects
         $rules = [];
+        $rules['document_type'] = 'nullable|string|in:cin,passport,driver_license';
         
         // Only validate CNI if provided
         if ($request->filled('cin')) {
+            $documentType = $request->input('document_type', 'cin');
             $rules['cin'] = [
                 'string',
-                'regex:/^[A-Za-z]{1,2}\d{4,6}$/',
-                function ($attribute, $value, $fail) {
+                'regex:'.$this->documentNumberPattern($documentType),
+                function ($attribute, $value, $fail) use ($documentType) {
                     $cinUpper = strtoupper($value);
                     
                     // Check if this CNI is already used by another user
@@ -314,7 +316,7 @@ class ProfileController extends Controller
                         ->first();
                     
                     if ($existingProfile) {
-                        $fail('Ce numéro de CNI est déjà utilisé par un autre utilisateur.');
+                        $fail('Ce numéro de '.$this->documentTypeLabel($documentType).' est déjà utilisé par un autre utilisateur.');
                     }
                 },
             ];
@@ -457,6 +459,7 @@ class ProfileController extends Controller
         // Update CNI number and hash - only if provided
         if ($request->filled('cin')) {
             $cinUpper = strtoupper($request->cin);
+            $documentType = $request->input('document_type', $profile->document_type ?? 'cin');
             // Decrypt current CNI to compare
             $currentCin = null;
             try {
@@ -480,7 +483,7 @@ class ProfileController extends Controller
                         $decrypted = Crypt::decryptString($existingProfile->cin);
                         if ($decrypted === $cinUpper) {
                             throw \Illuminate\Validation\ValidationException::withMessages([
-                                'cin' => ['Ce numéro de CNI est déjà utilisé par un autre utilisateur.'],
+                                'cin' => ['Ce numéro de '.$this->documentTypeLabel($documentType).' est déjà utilisé par un autre utilisateur.'],
                             ]);
                         }
                     } catch (\Illuminate\Validation\ValidationException $e) {
@@ -504,6 +507,7 @@ class ProfileController extends Controller
                 }
                 $profile->cin_hash = hash_hmac('sha256', (string) $cinUpper, $appKey);
             }
+            $profile->document_type = $documentType;
         }
         
         // Handle CNI front upload and hash
@@ -536,5 +540,19 @@ class ProfileController extends Controller
     public function destroy(Profile $profile)
     {
         //
+    }
+
+    private function documentNumberPattern(?string $documentType): string
+    {
+        return '/^[A-Za-z0-9-]{5,20}$/';
+    }
+
+    private function documentTypeLabel(?string $documentType): string
+    {
+        return match ($documentType) {
+            'passport' => 'passeport',
+            'driver_license' => 'permis de conduire',
+            default => 'CNI',
+        };
     }
 }

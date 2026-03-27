@@ -13,6 +13,7 @@ class Profile extends Model
         'heard_about_reference',
         'cin',
         'cin_hash',
+        'document_type',
         'identity_card_front_path',
         'identity_card_front_hash',
         'profile_picture_path',

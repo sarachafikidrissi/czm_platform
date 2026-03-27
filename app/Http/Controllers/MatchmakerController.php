@@ -184,6 +184,7 @@ class MatchmakerController extends Controller
         // Build validation rules
         $rules = [
             'notes' => 'nullable|string|max:1000',
+            'document_type' => 'nullable|string|in:cin,passport,driver_license',
             'service_id' => 'required|exists:services,id',
             'matrimonial_pack_id' => 'required|exists:matrimonial_packs,id',
             'pack_price' => 'required|numeric|min:0',
@@ -192,39 +193,40 @@ class MatchmakerController extends Controller
             'payment_mode' => 'required|string|in:Virement,Caisse agence,Chèque,CMI,TPE,Avance,Reliquat,RDV',
         ];
 
-        // CNI is required only if user didn't provide it
-        // Note: We can't use 'unique:profiles,cin' because cin is encrypted
-        // We'll check uniqueness manually in validation
-        if (! $hasExistingCin) {
-            $rules['cin'] = [
-                'required',
-                'string',
-                'max:20',
-                'regex:/^[A-Za-z]{1,2}\d{4,6}$/',
-                function ($attribute, $value, $fail) use ($prospect) {
-                    $cinUpper = strtoupper($value);
+        // CNI/document number can be created or updated here.
+        // Note: cin is encrypted, so uniqueness is checked manually after decryption.
+        $documentType = $request->input('document_type', $profile?->document_type ?? 'cin');
+        $rules['cin'] = [
+            $hasExistingCin ? 'nullable' : 'required',
+            'string',
+            'max:20',
+            'regex:'.$this->documentNumberPattern($documentType),
+            function ($attribute, $value, $fail) use ($prospect, $documentType) {
+                if (! is_string($value) || trim($value) === '') {
+                    return;
+                }
+                $cinUpper = strtoupper($value);
 
-                    // Check if this CNI is already used by another user
-                    $existingProfiles = \App\Models\Profile::where('user_id', '!=', $prospect->id)
-                        ->whereNotNull('cin')
-                        ->get();
+                // Check if this document number is already used by another user
+                $existingProfiles = \App\Models\Profile::where('user_id', '!=', $prospect->id)
+                    ->whereNotNull('cin')
+                    ->get();
 
-                    foreach ($existingProfiles as $existingProfile) {
-                        try {
-                            $decrypted = Crypt::decryptString($existingProfile->cin);
-                            if ($decrypted === $cinUpper) {
-                                $fail('Ce numéro de CNI est déjà utilisé par un autre utilisateur.');
+                foreach ($existingProfiles as $existingProfile) {
+                    try {
+                        $decrypted = Crypt::decryptString($existingProfile->cin);
+                        if ($decrypted === $cinUpper) {
+                            $fail('Ce numéro de '.$this->documentTypeLabel($documentType).' est déjà utilisé par un autre utilisateur.');
 
-                                return;
-                            }
-                        } catch (\Exception $e) {
-                            // If decryption fails, skip this profile
-                            continue;
+                            return;
                         }
+                    } catch (\Exception $e) {
+                        // If decryption fails, skip this profile
+                        continue;
                     }
-                },
-            ];
-        }
+                }
+            },
+        ];
 
         // Front is required only if user didn't provide it
         // But matchmaker can optionally replace it even if user uploaded one
@@ -273,6 +275,7 @@ class MatchmakerController extends Controller
         $frontHash = ($hasExistingFront && $profile) ? $profile->identity_card_front_hash : null;
         $cinValue = ($hasExistingCin && $profile) ? $profile->cin : null;
         $cinHash = ($hasExistingCin && $profile) ? $profile->cin_hash : null;
+        $documentTypeValue = $request->input('document_type', ($profile?->document_type ?? 'cin'));
 
         // Handle front upload if matchmaker needs to fill it OR wants to replace existing one
         if ($request->hasFile('identity_card_front')) {
@@ -290,8 +293,8 @@ class MatchmakerController extends Controller
             $frontHash = hash_hmac('sha256', $frontContent, $appKey);
         }
 
-        // Handle CNI if matchmaker needs to fill it
-        if (! $hasExistingCin && $request->filled('cin')) {
+        // Handle CNI/document number create/update
+        if ($request->filled('cin')) {
             $cinPlain = strtoupper($request->cin);
             // Encrypt the CNI number for security
             $cinValue = Crypt::encryptString($cinPlain);
@@ -303,6 +306,7 @@ class MatchmakerController extends Controller
             [
                 'cin' => $cinValue,
                 'cin_hash' => $cinHash,
+                'document_type' => $documentTypeValue,
                 'identity_card_front_path' => $frontPath,
                 'identity_card_front_hash' => $frontHash,
                 'notes' => $request->notes,
@@ -897,6 +901,17 @@ class MatchmakerController extends Controller
             $prospect->has_bill = $prospect->bills->where('status', '!=', 'paid')->isNotEmpty();
         });
 
+        // Decrypt document number for validation update form prefill
+        $prospects->each(function ($prospect) {
+            if ($prospect->profile && $prospect->profile->cin) {
+                try {
+                    $prospect->profile->cin_decrypted = Crypt::decryptString($prospect->profile->cin);
+                } catch (\Exception $e) {
+                    $prospect->profile->cin_decrypted = null;
+                }
+            }
+        });
+
         // Add expiring_in_3_days flag to each prospect
         $today = \Carbon\Carbon::today();
         $threeDaysFromNow = $today->copy()->addDays(3);
@@ -944,12 +959,136 @@ class MatchmakerController extends Controller
             ] : null;
         });
 
+        $services = [];
+        if (\Illuminate\Support\Facades\Schema::hasTable('services')) {
+            $services = \App\Models\Service::all(['id', 'name']);
+        }
+
+        $matrimonialPacks = [];
+        if (\Illuminate\Support\Facades\Schema::hasTable('matrimonial_packs')) {
+            $matrimonialPacks = \App\Models\MatrimonialPack::all(['id', 'name', 'duration']);
+        }
+
         return Inertia::render('matchmaker/validated-prospects', [
             'prospects' => $prospects,
             'status' => $status ?: 'all',
             'commercialOnly' => $commercialOnly,
             'assignedMatchmaker' => $me,
+            'services' => $services,
+            'matrimonialPacks' => $matrimonialPacks,
         ]);
+    }
+
+    public function updateValidationInfo(Request $request, $id)
+    {
+        $user = User::findOrFail($id);
+        $profile = $user->profile;
+        $me = Auth::user();
+
+        if (! $me) {
+            abort(403, 'Unauthorized.');
+        }
+
+        $roleName = \Illuminate\Support\Facades\DB::table('model_has_roles')
+            ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+            ->where('model_has_roles.model_id', $me->id)
+            ->value('roles.name');
+
+        if (! in_array($roleName, ['matchmaker', 'manager', 'admin'], true)) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        if ($roleName === 'matchmaker' && $user->assigned_matchmaker_id !== $me->id) {
+            abort(403, 'You can only update validation info for users assigned to you.');
+        }
+
+        if ($roleName === 'manager' && $user->assigned_matchmaker_id !== null && $user->assigned_matchmaker_id !== $me->id) {
+            abort(403, 'You cannot update validation info for users assigned to another matchmaker.');
+        }
+
+        $documentType = $request->input('document_type', $profile?->document_type ?? 'cin');
+        $rules = [
+            'notes' => 'nullable|string|max:1000',
+            'document_type' => 'nullable|string|in:cin,passport,driver_license',
+            'service_id' => 'required|exists:services,id',
+            'matrimonial_pack_id' => 'required|exists:matrimonial_packs,id',
+            'pack_price' => 'required|numeric|min:0',
+            'pack_advantages' => 'required|array|min:1',
+            'pack_advantages.*' => 'string|in:Suivi et accompagnement personnalisé,Suivi et accompagnement approfondi,Suivi et accompagnement premium,Suivi et accompagnement exclusif avec assistance personnalisée,Rendez-vous avec des profils compatibles,Rendez-vous avec des profils correspondant à vos attentes,Rendez-vous avec des profils soigneusement sélectionnés,Rendez-vous illimités avec des profils rigoureusement sélectionnés,Formations pré-mariage avec le profil choisi,Formations pré-mariage avancées avec le profil choisi,Accès prioritaire aux nouveaux profils,Accès prioritaire aux profils VIP,Réduction à vie sur les séances de conseil conjugal et coaching familial (-10% à -25%)',
+            'payment_mode' => 'required|string|in:Virement,Caisse agence,Chèque,CMI,TPE,Avance,Reliquat,RDV',
+            'cin' => [
+                'required',
+                'string',
+                'max:20',
+                'regex:'.$this->documentNumberPattern($documentType),
+                function ($attribute, $value, $fail) use ($user, $documentType) {
+                    $cinUpper = strtoupper($value);
+                    $existingProfiles = \App\Models\Profile::where('user_id', '!=', $user->id)
+                        ->whereNotNull('cin')
+                        ->get();
+                    foreach ($existingProfiles as $existingProfile) {
+                        try {
+                            $decrypted = Crypt::decryptString($existingProfile->cin);
+                            if ($decrypted === $cinUpper) {
+                                $fail('Ce numéro de '.$this->documentTypeLabel($documentType).' est déjà utilisé par un autre utilisateur.');
+                                return;
+                            }
+                        } catch (\Exception $e) {
+                            continue;
+                        }
+                    }
+                },
+            ],
+            'identity_card_front' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:4096',
+        ];
+
+        $request->validate($rules);
+
+        $appKey = (string) config('app.key');
+        if (str_starts_with($appKey, 'base64:')) {
+            $decoded = base64_decode(substr($appKey, 7));
+            if ($decoded !== false) {
+                $appKey = $decoded;
+            }
+        }
+
+        $frontPath = $profile?->identity_card_front_path;
+        $frontHash = $profile?->identity_card_front_hash;
+
+        if ($request->hasFile('identity_card_front')) {
+            if ($profile && $profile->identity_card_front_path) {
+                $oldPath = storage_path('app/public/'.$profile->identity_card_front_path);
+                if (file_exists($oldPath)) {
+                    unlink($oldPath);
+                }
+            }
+            $frontFile = $request->file('identity_card_front');
+            $frontPath = $frontFile->store('identity-cards', 'public');
+            $frontHash = hash_hmac('sha256', file_get_contents($frontFile->getRealPath()), $appKey);
+        }
+
+        $cinPlain = strtoupper((string) $request->cin);
+        $cinValue = Crypt::encryptString($cinPlain);
+        $cinHash = hash_hmac('sha256', $cinPlain, $appKey);
+
+        $user->profile()->updateOrCreate(
+            ['user_id' => $user->id],
+            [
+                'cin' => $cinValue,
+                'cin_hash' => $cinHash,
+                'document_type' => $documentType,
+                'identity_card_front_path' => $frontPath,
+                'identity_card_front_hash' => $frontHash,
+                'notes' => $request->notes,
+                'service_id' => $request->service_id,
+                'matrimonial_pack_id' => $request->matrimonial_pack_id,
+                'pack_price' => $request->pack_price,
+                'pack_advantages' => $request->pack_advantages,
+                'payment_mode' => $request->payment_mode,
+            ]
+        );
+
+        return redirect()->back()->with('success', 'Informations de validation mises à jour avec succès.');
     }
 
     /**
@@ -2204,19 +2343,21 @@ class MatchmakerController extends Controller
     private function validateStep4ForStaff(Request $request)
     {
         $rules = [];
+        $rules['document_type'] = 'nullable|string|in:cin,passport,driver_license';
 
         if ($request->filled('cin')) {
+            $documentType = $request->input('document_type', 'cin');
             $rules['cin'] = [
                 'string',
-                'regex:/^[A-Za-z]{1,2}\d{4,6}$/',
-                function ($attribute, $value, $fail) use ($request) {
+                'regex:'.$this->documentNumberPattern($documentType),
+                function ($attribute, $value, $fail) use ($request, $documentType) {
                     $cinUpper = strtoupper($value);
                     $existingProfile = \App\Models\Profile::where('cin', $cinUpper)
                         ->where('user_id', '!=', $request->route('user'))
                         ->first();
 
                     if ($existingProfile) {
-                        $fail('Ce numéro de CNI est déjà utilisé par un autre utilisateur.');
+                        $fail('Ce numéro de '.$this->documentTypeLabel($documentType).' est déjà utilisé par un autre utilisateur.');
                     }
                 },
             ];
@@ -2233,6 +2374,20 @@ class MatchmakerController extends Controller
         if (! empty($rules)) {
             $request->validate($rules);
         }
+    }
+
+    private function documentNumberPattern(?string $documentType): string
+    {
+        return '/^[A-Za-z0-9-]{5,20}$/';
+    }
+
+    private function documentTypeLabel(?string $documentType): string
+    {
+        return match ($documentType) {
+            'passport' => 'passeport',
+            'driver_license' => 'permis de conduire',
+            default => 'CNI',
+        };
     }
 
     // Helper methods for updating profile data (similar to ProfileController but for staff)

@@ -717,6 +717,17 @@ class PostController extends Controller
             $expiredClients = User::role('user')
                 ->where('assigned_matchmaker_id', $user->id)
                 ->where('status', 'client_expire')
+                ->whereDoesntHave('bills', function ($billQuery) {
+                    $billQuery->where('status', 'unpaid');
+                })
+                ->count();
+
+            $clientsAwaitingPayment = User::role('user')
+                ->where('assigned_matchmaker_id', $user->id)
+                ->where('status', 'client_expire')
+                ->whereHas('bills', function ($billQuery) {
+                    $billQuery->where('status', 'unpaid');
+                })
                 ->count();
 
             // Objectives (same resolution as /objectives): per-user row, then role default
@@ -757,6 +768,7 @@ class PostController extends Controller
                     'pendingRequests' => (int) $pendingPropositionRequests,
                     'pendingTransferRequests' => (int) $pendingTransferRequests,
                     'expiredClients' => (int) $expiredClients,
+                    'clientsAwaitingPayment' => (int) $clientsAwaitingPayment,
                 ],
                 'objectives' => $objectives,
                 'clients' => [

@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { AlertTriangle, ArrowRightLeft, Calendar, ClipboardList, Hourglass, User } from 'lucide-react';
+import { AlertTriangle, ArrowRightLeft, Calendar, ClipboardList, HandCoins, Hourglass, User } from 'lucide-react';
 
 
 export default function NewsFeedSidebar({ statistics, role }) {
@@ -169,6 +169,16 @@ export default function NewsFeedSidebar({ statistics, role }) {
                                 <div className="text-foreground min-w-0 flex-1 text-base font-medium">Clients expirés</div>
                                 <div className="rounded-full bg-red-100 px-3 py-1 text-sm font-semibold text-red-600 tabular-nums">
                                     {String(statistics.activities.expiredClients ?? 0).padStart(2, '0')}
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-4 px-5 py-4">
+                                <div className="bg-muted/60 flex h-12 w-12 items-center justify-center rounded-full">
+                                    <HandCoins  className="text-muted-foreground h-5 w-5" />
+                                </div>
+                                <div className="text-foreground min-w-0 flex-1 text-base font-medium">Clients en attente de paiement</div>
+                                <div className="rounded-full bg-orange-100 px-3 py-1 text-sm font-semibold text-orange-700 tabular-nums">
+                                    {String(statistics.activities.clientsAwaitingPayment ?? 0).padStart(2, '0')}
                                 </div>
                             </div>
                         </div>

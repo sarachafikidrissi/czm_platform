@@ -18,10 +18,40 @@ import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getCommercialCodeDisplay } from '@/lib/heard-about';
 
+const DOCUMENT_TYPE_OPTIONS = [
+    { value: 'cin', label: 'CIN' },
+    { value: 'passport', label: 'Passport' },
+    { value: 'driver_license', label: 'Driver License' },
+];
+
+const VALIDATION_ADVANTAGES = [
+    'Suivi et accompagnement personnalisé',
+    'Suivi et accompagnement approfondi',
+    'Suivi et accompagnement premium',
+    'Suivi et accompagnement exclusif avec assistance personnalisée',
+    'Rendez-vous avec des profils compatibles',
+    'Rendez-vous avec des profils correspondant à vos attentes',
+    'Rendez-vous avec des profils soigneusement sélectionnés',
+    'Rendez-vous illimités avec des profils rigoureusement sélectionnés',
+    'Formations pré-mariage avec le profil choisi',
+    'Formations pré-mariage avancées avec le profil choisi',
+    'Accès prioritaire aux nouveaux profils',
+    'Accès prioritaire aux profils VIP',
+    'Réduction à vie sur les séances de conseil conjugal et coaching familial (-10% à -25%)',
+];
+
+const getDocumentLabel = (documentType) => {
+    if (documentType === 'passport') return 'Passport';
+    if (documentType === 'driver_license') return 'Driver License';
+    return 'CIN';
+};
+
+const getDocumentRegex = () => /^[A-Za-z0-9-]{5,20}$/;
+
 export default function ValidatedProspects() {
     const { t } = useTranslation();
     const { showToast } = useToast();
-    const { prospects, status, commercialOnly = false, assignedMatchmaker, auth } = usePage().props;
+    const { prospects, status, commercialOnly = false, assignedMatchmaker, auth, services: validationServices = [], matrimonialPacks: validationPacks = [] } = usePage().props;
     const isLoading = prospects === null || prospects === undefined;
     
     // Handle pagination data structure
@@ -52,6 +82,21 @@ export default function ValidatedProspects() {
     const [statusSubmitting, setStatusSubmitting] = useState(false);
     const [userInfoModalOpen, setUserInfoModalOpen] = useState(false);
     const [selectedUserForInfo, setSelectedUserForInfo] = useState(null);
+    const [validationModalOpen, setValidationModalOpen] = useState(false);
+    const [selectedUserForValidation, setSelectedUserForValidation] = useState(null);
+    const [validationSubmitting, setValidationSubmitting] = useState(false);
+    const [validationErrors, setValidationErrors] = useState({});
+    const [validationData, setValidationData] = useState({
+        notes: '',
+        document_type: 'cin',
+        cin: '',
+        identity_card_front: null,
+        service_id: '',
+        matrimonial_pack_id: '',
+        pack_price: '',
+        pack_advantages: [],
+        payment_mode: '',
+    });
     const [userFormData, setUserFormData] = useState({
         firstName: '',
         lastName: '',
@@ -371,6 +416,75 @@ export default function ValidatedProspects() {
         if (selectedUserForInfo) {
             window.open(`/profile/${selectedUserForInfo.username || selectedUserForInfo.id}`, '_blank', 'noopener,noreferrer');
         }
+    };
+
+    const openValidationUpdateModal = (user) => {
+        const profile = user?.profile || {};
+        setSelectedUserForValidation(user);
+        setValidationErrors({});
+        setValidationData({
+            notes: profile.notes || '',
+            document_type: profile.document_type || 'cin',
+            cin: profile.cin_decrypted || '',
+            identity_card_front: null,
+            service_id: profile.service_id ? String(profile.service_id) : '',
+            matrimonial_pack_id: profile.matrimonial_pack_id ? String(profile.matrimonial_pack_id) : '',
+            pack_price: profile.pack_price ? String(profile.pack_price) : '',
+            pack_advantages: Array.isArray(profile.pack_advantages) ? profile.pack_advantages : [],
+            payment_mode: profile.payment_mode || '',
+        });
+        setValidationModalOpen(true);
+    };
+
+    const submitValidationUpdate = () => {
+        if (!selectedUserForValidation) return;
+        const documentRegex = getDocumentRegex();
+        const currentCin = (validationData.cin || '').trim();
+        const errors = {};
+        if (!currentCin || !documentRegex.test(currentCin)) {
+            errors.cin = `${getDocumentLabel(validationData.document_type)} invalide`;
+        }
+        if (!validationData.service_id) errors.service_id = 'Service requis';
+        if (!validationData.matrimonial_pack_id) errors.matrimonial_pack_id = 'Pack requis';
+        if (!validationData.pack_price) errors.pack_price = 'Prix requis';
+        if (!validationData.payment_mode) errors.payment_mode = 'Mode de paiement requis';
+        if (!validationData.pack_advantages || validationData.pack_advantages.length === 0) errors.pack_advantages = 'Au moins un avantage est requis';
+        if (Object.keys(errors).length > 0) {
+            setValidationErrors(errors);
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('notes', validationData.notes || '');
+        formData.append('document_type', validationData.document_type || 'cin');
+        formData.append('cin', currentCin);
+        formData.append('service_id', validationData.service_id);
+        formData.append('matrimonial_pack_id', validationData.matrimonial_pack_id);
+        formData.append('pack_price', validationData.pack_price);
+        validationData.pack_advantages.forEach((item, index) => {
+            formData.append(`pack_advantages[${index}]`, item);
+        });
+        formData.append('payment_mode', validationData.payment_mode);
+        if (validationData.identity_card_front) {
+            formData.append('identity_card_front', validationData.identity_card_front);
+        }
+
+        setValidationSubmitting(true);
+        router.post(`/staff/prospects/${selectedUserForValidation.id}/validation-info`, formData, {
+            forceFormData: true,
+            preserveScroll: true,
+            onError: (err) => {
+                setValidationSubmitting(false);
+                setValidationErrors(err || {});
+            },
+            onSuccess: () => {
+                setValidationSubmitting(false);
+                setValidationModalOpen(false);
+                setSelectedUserForValidation(null);
+                setValidationErrors({});
+                router.reload({ only: ['prospects'] });
+            },
+        });
     };
 
     const openPasswordDialog = async () => {
@@ -1489,6 +1603,19 @@ export default function ValidatedProspects() {
                                         Éditer le profil
                                     </button>
                                 )}
+                                {canEditProfile(selectedUserForInfo) && (
+                                    <button
+                                        type="button"
+                                        className="flex w-full items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/70 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                                        onClick={() => {
+                                            setUserInfoModalOpen(false);
+                                            openValidationUpdateModal(selectedUserForInfo);
+                                        }}
+                                    >
+                                        <FileText className="h-4 w-4 text-rose-700" />
+                                        Mettre à jour infos de validation
+                                    </button>
+                                )}
                                 <button
                                     type="button"
                                     className="flex w-full items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/70 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-100"
@@ -1607,6 +1734,156 @@ export default function ValidatedProspects() {
                             </div>
                         </>
                     )}
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={validationModalOpen} onOpenChange={setValidationModalOpen}>
+                <DialogContent className="sm:max-w-[620px] max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle>Mettre à jour infos de validation</DialogTitle>
+                        <DialogDescription>
+                            Modifier les informations de validation pour {selectedUserForValidation?.name}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-2">
+                        <div className="grid gap-2">
+                            <Label htmlFor="validation-document-type">Document Type</Label>
+                            <Select
+                                value={validationData.document_type}
+                                onValueChange={(value) => setValidationData((prev) => ({ ...prev, document_type: value }))}
+                            >
+                                <SelectTrigger className="h-9 w-full"><SelectValue placeholder="Select document type" /></SelectTrigger>
+                                <SelectContent>
+                                    {DOCUMENT_TYPE_OPTIONS.map((option) => (
+                                        <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="validation-cin">{getDocumentLabel(validationData.document_type)}</Label>
+                            <Input
+                                id="validation-cin"
+                                value={validationData.cin}
+                                onChange={(e) => setValidationData((prev) => ({ ...prev, cin: e.target.value }))}
+                                placeholder="Ex: AB12345 or B-123456"
+                            />
+                            {validationErrors.cin && <p className="text-xs text-red-600">{validationErrors.cin}</p>}
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="validation-front">Identity Card Front (optional replacement)</Label>
+                            <Input
+                                id="validation-front"
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) => {
+                                    const file = e.target.files?.[0] || null;
+                                    setValidationData((prev) => ({ ...prev, identity_card_front: file }));
+                                }}
+                            />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="validation-service">Service</Label>
+                            <Select
+                                value={validationData.service_id}
+                                onValueChange={(value) => setValidationData((prev) => ({ ...prev, service_id: value }))}
+                            >
+                                <SelectTrigger className="h-9 w-full"><SelectValue placeholder="Choose a service" /></SelectTrigger>
+                                <SelectContent>
+                                    {validationServices.map((service) => (
+                                        <SelectItem key={service.id} value={String(service.id)}>{service.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            {validationErrors.service_id && <p className="text-xs text-red-600">{validationErrors.service_id}</p>}
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="validation-pack">Matrimonial Pack</Label>
+                            <Select
+                                value={validationData.matrimonial_pack_id}
+                                onValueChange={(value) => setValidationData((prev) => ({ ...prev, matrimonial_pack_id: value }))}
+                            >
+                                <SelectTrigger className="h-9 w-full"><SelectValue placeholder="Choose a pack" /></SelectTrigger>
+                                <SelectContent>
+                                    {validationPacks.map((pack) => (
+                                        <SelectItem key={pack.id} value={String(pack.id)}>{pack.name} - {pack.duration} mois</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            {validationErrors.matrimonial_pack_id && <p className="text-xs text-red-600">{validationErrors.matrimonial_pack_id}</p>}
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="validation-pack-price">Pack Price (MAD)</Label>
+                            <Input
+                                id="validation-pack-price"
+                                type="number"
+                                value={validationData.pack_price}
+                                onChange={(e) => setValidationData((prev) => ({ ...prev, pack_price: e.target.value }))}
+                                placeholder="Enter price"
+                            />
+                            {validationErrors.pack_price && <p className="text-xs text-red-600">{validationErrors.pack_price}</p>}
+                        </div>
+                        <div className="grid gap-2">
+                            <Label>Pack Advantages</Label>
+                            <div className="grid gap-2 max-h-40 overflow-y-auto border rounded p-2">
+                                {VALIDATION_ADVANTAGES.map((advantage) => (
+                                    <label key={advantage} className="flex items-center gap-2">
+                                        <input
+                                            type="checkbox"
+                                            checked={validationData.pack_advantages.includes(advantage)}
+                                            onChange={(e) => {
+                                                if (e.target.checked) {
+                                                    setValidationData((prev) => ({ ...prev, pack_advantages: [...prev.pack_advantages, advantage] }));
+                                                } else {
+                                                    setValidationData((prev) => ({ ...prev, pack_advantages: prev.pack_advantages.filter((a) => a !== advantage) }));
+                                                }
+                                            }}
+                                        />
+                                        <span className="text-sm">{advantage}</span>
+                                    </label>
+                                ))}
+                            </div>
+                            {validationErrors.pack_advantages && <p className="text-xs text-red-600">{validationErrors.pack_advantages}</p>}
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="validation-payment-mode">Mode de Paiement</Label>
+                            <Select
+                                value={validationData.payment_mode}
+                                onValueChange={(value) => setValidationData((prev) => ({ ...prev, payment_mode: value }))}
+                            >
+                                <SelectTrigger className="h-9 w-full"><SelectValue placeholder="Choisir un mode de paiement" /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Virement">Virement</SelectItem>
+                                    <SelectItem value="Caisse agence">Caisse agence</SelectItem>
+                                    <SelectItem value="Chèque">Chèque</SelectItem>
+                                    <SelectItem value="CMI">CMI</SelectItem>
+                                    <SelectItem value="TPE">TPE</SelectItem>
+                                    <SelectItem value="Avance">Avance</SelectItem>
+                                    <SelectItem value="Reliquat">Reliquat</SelectItem>
+                                    <SelectItem value="RDV">RDV</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            {validationErrors.payment_mode && <p className="text-xs text-red-600">{validationErrors.payment_mode}</p>}
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="validation-notes">Notes</Label>
+                            <Textarea
+                                id="validation-notes"
+                                value={validationData.notes}
+                                onChange={(e) => setValidationData((prev) => ({ ...prev, notes: e.target.value }))}
+                                placeholder="Add notes..."
+                            />
+                            {validationErrors.notes && <p className="text-xs text-red-600">{validationErrors.notes}</p>}
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setValidationModalOpen(false)}>
+                            Annuler
+                        </Button>
+                        <Button onClick={submitValidationUpdate} disabled={validationSubmitting}>
+                            {validationSubmitting ? 'Enregistrement...' : 'Mettre à jour'}
+                        </Button>
+                    </DialogFooter>
                 </DialogContent>
             </Dialog>
 

@@ -366,8 +366,8 @@ class AdminController extends Controller
             'profile_picture' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'identity_card_front' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'identity_card_back' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-            // Moroccan CIN: 1-2 letters followed by 4-6 digits (common patterns); adjust if needed
-            'cin' => ['required','string','max:20','regex:/^[A-Za-z]{1,2}\d{4,6}$/'],
+            // Accept CIN, passport, or driver license identifiers.
+            'cin' => ['required','string','max:20','regex:/^[A-Za-z0-9-]{5,20}$/'],
         ]);
 
         $password = Str::random(12);
