@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\MatchmakerEvaluation;
 use App\Models\MatchmakerNote;
+use App\Models\PropositionRequest;
 use App\Models\User;
 use App\Services\UserActivityService;
 use Illuminate\Http\Request;
@@ -12,41 +13,64 @@ use Illuminate\Support\Str;
 
 class ProfileInsightsController extends Controller
 {
-    private function canView(User $target): bool
+    private function hasAcceptedPropositionReadAccess(User $target): bool
+    {
+        /** @var User|null $me */
+        $me = Auth::user();
+        if (!$me || !$me->hasRole('matchmaker')) {
+            return false;
+        }
+
+        return PropositionRequest::query()
+            ->where('from_matchmaker_id', $me->id)
+            ->where('compatible_user_id', $target->id)
+            ->where('status', 'accepted')
+            ->exists();
+    }
+
+    private function evaluationAccessLevel(User $target): string
     {
         /** @var User|null $me */
         $me = Auth::user();
         if (!$me) {
-            return false;
+            return 'none';
         }
 
-        // Admin can always view
+        // Preserve existing write-access behavior.
+        if ($this->canWrite($target)) {
+            return 'write';
+        }
+
+        // Preserve existing read-only behavior.
         if ($me->hasRole('admin')) {
-            return true;
+            return 'read';
         }
 
-        // Matchmaker can view if assigned
-        if ($me->hasRole('matchmaker') && $target->assigned_matchmaker_id === $me->id) {
-            return true;
+        // Added layer: accepted proposition request grants read-only access.
+        if ($this->hasAcceptedPropositionReadAccess($target)) {
+            return 'read';
         }
 
-        // Manager can view if they validated OR if prospect was validated by a matchmaker from their agency
+        // Manager read access remains unchanged.
         if ($me->hasRole('manager')) {
-            // Manager can view if they validated the prospect
             if ($target->validated_by_manager_id === $me->id) {
-                return true;
+                return 'read';
             }
-            
-            // Manager can view if prospect was validated by a matchmaker from their agency
+
             if ($target->assigned_matchmaker_id) {
                 $assignedMatchmaker = User::find($target->assigned_matchmaker_id);
                 if ($assignedMatchmaker && $assignedMatchmaker->agency_id === $me->agency_id) {
-                    return true;
+                    return 'read';
                 }
             }
         }
 
-        return false;
+        return 'none';
+    }
+
+    private function canView(User $target): bool
+    {
+        return $this->evaluationAccessLevel($target) !== 'none';
     }
 
     private function canWrite(User $target): bool

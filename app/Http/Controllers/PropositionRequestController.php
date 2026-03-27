@@ -29,7 +29,13 @@ class PropositionRequestController extends Controller
                 'toMatchmaker',
             ])
             ->orderBy('created_at', 'desc')
-            ->get();
+            ->get()
+            ->map(function (PropositionRequest $request) {
+                return array_merge($request->toArray(), [
+                    'evaluation_access_level' => $request->status === 'accepted' ? 'read' : 'none',
+                ]);
+            })
+            ->values();
 
         $sentRequests = PropositionRequest::where('from_matchmaker_id', $me->id)
             ->with([
@@ -46,8 +52,11 @@ class PropositionRequestController extends Controller
                     $compatiblePhone = $request->compatibleUser?->phone;
                 }
 
+                $evaluationAccessLevel = $request->status === 'accepted' ? 'read' : 'none';
+
                 return array_merge($request->toArray(), [
                     'compatible_phone' => $compatiblePhone,
+                    'evaluation_access_level' => $evaluationAccessLevel,
                 ]);
             })
             ->values();

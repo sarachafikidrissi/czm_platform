@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Post;
 use App\Models\Proposition;
+use App\Models\PropositionRequest;
 use App\Models\User;
 use App\Services\MatchmakingService;
 use Illuminate\Http\Request;
@@ -14,6 +15,52 @@ use Inertia\Inertia;
 
 class UserController extends Controller
 {
+    private function evaluationAccessLevel(?User $viewer, User $target): string
+    {
+        if (!$viewer) {
+            return 'none';
+        }
+
+        $canWrite = ($viewer->hasRole('matchmaker') && $target->assigned_matchmaker_id === $viewer->id)
+            || ($viewer->hasRole('manager') && $target->validated_by_manager_id === $viewer->id);
+
+        if ($canWrite) {
+            return 'write';
+        }
+
+        if ($viewer->hasRole('admin')) {
+            return 'read';
+        }
+
+        if ($viewer->hasRole('manager')) {
+            if ($target->validated_by_manager_id === $viewer->id) {
+                return 'read';
+            }
+
+            if ($target->assigned_matchmaker_id) {
+                $assignedMatchmakerAgencyId = $target->assignedMatchmaker?->agency_id
+                    ?? User::where('id', $target->assigned_matchmaker_id)->value('agency_id');
+                if ($assignedMatchmakerAgencyId && $assignedMatchmakerAgencyId === $viewer->agency_id) {
+                    return 'read';
+                }
+            }
+        }
+
+        if ($viewer->hasRole('matchmaker')) {
+            $hasAcceptedRequest = PropositionRequest::query()
+                ->where('from_matchmaker_id', $viewer->id)
+                ->where('compatible_user_id', $target->id)
+                ->where('status', 'accepted')
+                ->exists();
+
+            if ($hasAcceptedRequest) {
+                return 'read';
+            }
+        }
+
+        return 'none';
+    }
+
     public function matchmakers()
     {
         /** @var User $user */
@@ -228,6 +275,7 @@ class UserController extends Controller
             });
 
         $evaluation = \App\Models\MatchmakerEvaluation::where('user_id', $user->id)->first();
+        $evaluationAccessLevel = $this->evaluationAccessLevel($currentUser, $user);
 
         // Format photos for frontend - ensure photos are loaded
         $currentUser = Auth::user();
@@ -394,6 +442,7 @@ class UserController extends Controller
             'agency' => $user->agency,
             'matchmakerNotes' => $notes,
             'matchmakerEvaluation' => $evaluation,
+            'evaluationAccessLevel' => $evaluationAccessLevel,
             'photos' => $photos,
             'bills' => $bills,
             'subscriptions' => $subscriptions,

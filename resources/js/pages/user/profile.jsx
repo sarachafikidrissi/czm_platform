@@ -35,6 +35,7 @@ export default function UserProfile({
     matchmakingSearch = null,
     matchmakingResults = null,
     propositionToRespond = null,
+    evaluationAccessLevel = 'none',
 }) {
     const { t } = useTranslation();
     const { auth } = usePage().props;
@@ -214,6 +215,11 @@ export default function UserProfile({
     const canWrite =
         (viewerRole === 'matchmaker' && user?.assigned_matchmaker_id === auth?.user?.id) ||
         (viewerRole === 'manager' && user?.validated_by_manager_id === auth?.user?.id);
+
+    // Evaluation permissions come from backend access level only.
+    const normalizedEvaluationAccess = evaluationAccessLevel || 'none';
+    const canManageEvaluation = normalizedEvaluationAccess === 'write';
+    const canViewEvaluation = normalizedEvaluationAccess === 'read' || normalizedEvaluationAccess === 'write';
 
     // Visibility for photos: user themselves, assigned matchmaker, or manager of their agency
     const canViewPhotos =
@@ -1835,9 +1841,9 @@ export default function UserProfile({
                                 {userRole === 'user' && (
                                     <TabsList
                                         className={`grid h-auto w-full rounded-none border-b bg-white p-0 ${
-                                            canManage && canViewPhotos
+                                            canViewEvaluation && canViewPhotos
                                                 ? 'grid-cols-5'
-                                                : canManage
+                                                : canViewEvaluation
                                                   ? 'grid-cols-4'
                                                   : canViewPhotos
                                                     ? 'grid-cols-4'
@@ -1870,7 +1876,7 @@ export default function UserProfile({
                                                 Photos
                                             </TabsTrigger>
                                         )}
-                                        {canManage && (
+                                        {canViewEvaluation && (
                                             <TabsTrigger
                                                 value="notes"
                                                 className="rounded-none px-4 py-3 data-[state=active]:border-b-2 data-[state=active]:border-[#096725] data-[state=active]:text-[#096725]"
@@ -2777,13 +2783,18 @@ export default function UserProfile({
                                 )}
 
                                 {/* Notes & Evaluation Tab for users - Only visible to authorized staff */}
-                                {userRole === 'user' && canManage && (
+                                {userRole === 'user' && canViewEvaluation && (
                                     <TabsContent value="notes" className="mt-6 space-y-6">
                                         <Card className="border-gray-200 bg-white">
                                             <CardContent className="p-6">
                                                 <h3 className="mb-4 text-lg font-semibold text-gray-900">
                                                     {t('profile.userProfile.notesAndEvaluation')}
                                                 </h3>
+                                                {!canManageEvaluation && (
+                                                    <div className="mb-6 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                                                        Vue seule: cet acces est accorde suite a une demande de proposition acceptee.
+                                                    </div>
+                                                )}
 
                                                 {/* Notes list */}
                                                 <div className="mb-6">
@@ -2836,7 +2847,7 @@ export default function UserProfile({
                                                 </div>
 
                                                 {/* Add note - For assigned matchmaker or manager who validated the prospect */}
-                                                {canWrite && (
+                                                {canManageEvaluation && (
                                                     <div className="mb-6">
                                                         <button
                                                             type="button"
@@ -2919,7 +2930,7 @@ export default function UserProfile({
                                                 )}
 
                                                 {/* Evaluation - Editable for assigned matchmaker or manager who validated the prospect */}
-                                                <form onSubmit={canWrite ? saveEvaluation : (e) => e.preventDefault()} className="space-y-4">
+                                                <form onSubmit={canManageEvaluation ? saveEvaluation : (e) => e.preventDefault()} className={`space-y-4 ${!canManageEvaluation ? 'opacity-90' : ''}`}>
                                                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                                         <div>
                                                             <div className="mb-2 text-sm text-gray-600">{t('profile.userProfile.status')}</div>
@@ -2927,7 +2938,7 @@ export default function UserProfile({
                                                                 {['prospect', 'member', 'client'].map((val) => (
                                                                     <label
                                                                         key={val}
-                                                                        className={`inline-flex items-center gap-2 ${!canWrite ? 'cursor-not-allowed opacity-60' : ''}`}
+                                                                        className={`inline-flex items-center gap-2 ${!canManageEvaluation ? 'cursor-not-allowed opacity-60' : ''}`}
                                                                     >
                                                                         <input
                                                                             type="radio"
@@ -2935,9 +2946,9 @@ export default function UserProfile({
                                                                             value={val}
                                                                             checked={evaluation?.status === val}
                                                                             onChange={(e) =>
-                                                                                canWrite && setEvaluation({ ...evaluation, status: e.target.value })
+                                                                                canManageEvaluation && setEvaluation({ ...evaluation, status: e.target.value })
                                                                             }
-                                                                            disabled={!canWrite}
+                                                                            disabled={!canManageEvaluation}
                                                                             className="text-[#096725] focus:ring-[#096725] disabled:cursor-not-allowed"
                                                                         />
                                                                         <span className="capitalize">{t(`profile.userProfile.${val}`)}</span>
@@ -2961,10 +2972,10 @@ export default function UserProfile({
                                                             <label className="mb-1 block text-sm text-gray-600">{label}</label>
                                                             <textarea
                                                                 rows={2}
-                                                                disabled={!canWrite}
-                                                                className={`w-full rounded-md border border-gray-300 p-3 focus:border-[#096725] focus:ring-1 focus:ring-[#096725] focus:outline-none ${!canWrite ? 'cursor-not-allowed bg-gray-50 opacity-60' : ''}`}
+                                                                disabled={!canManageEvaluation}
+                                                                className={`w-full rounded-md border border-gray-300 p-3 focus:border-[#096725] focus:ring-1 focus:ring-[#096725] focus:outline-none ${!canManageEvaluation ? 'cursor-not-allowed bg-gray-50 opacity-60' : ''}`}
                                                                 value={evaluation[key] || ''}
-                                                                onChange={(e) => canWrite && setEvaluation({ ...evaluation, [key]: e.target.value })}
+                                                                onChange={(e) => canManageEvaluation && setEvaluation({ ...evaluation, [key]: e.target.value })}
                                                             />
                                                         </div>
                                                     ))}
@@ -2981,7 +2992,7 @@ export default function UserProfile({
                                                             ].map(([val, label]) => (
                                                                 <label
                                                                     key={val}
-                                                                    className={`inline-flex items-center gap-2 ${!canWrite ? 'cursor-not-allowed opacity-60' : ''}`}
+                                                                    className={`inline-flex items-center gap-2 ${!canManageEvaluation ? 'cursor-not-allowed opacity-60' : ''}`}
                                                                 >
                                                                     <input
                                                                         type="radio"
@@ -2989,10 +3000,10 @@ export default function UserProfile({
                                                                         value={val}
                                                                         checked={evaluation.recommendation === val}
                                                                         onChange={(e) =>
-                                                                            canWrite &&
+                                                                            canManageEvaluation &&
                                                                             setEvaluation({ ...evaluation, recommendation: e.target.value })
                                                                         }
-                                                                        disabled={!canWrite}
+                                                                        disabled={!canManageEvaluation}
                                                                         className="text-[#096725] focus:ring-[#096725] disabled:cursor-not-allowed"
                                                                     />
                                                                     <span>{label}</span>
@@ -3007,10 +3018,10 @@ export default function UserProfile({
                                                         </label>
                                                         <textarea
                                                             rows={2}
-                                                            disabled={!canWrite}
-                                                            className={`w-full rounded-md border border-gray-300 p-3 focus:border-[#096725] focus:ring-1 focus:ring-[#096725] focus:outline-none ${!canWrite ? 'cursor-not-allowed bg-gray-50 opacity-60' : ''}`}
+                                                            disabled={!canManageEvaluation}
+                                                            className={`w-full rounded-md border border-gray-300 p-3 focus:border-[#096725] focus:ring-1 focus:ring-[#096725] focus:outline-none ${!canManageEvaluation ? 'cursor-not-allowed bg-gray-50 opacity-60' : ''}`}
                                                             value={evaluation.remarks}
-                                                            onChange={(e) => canWrite && setEvaluation({ ...evaluation, remarks: e.target.value })}
+                                                            onChange={(e) => canManageEvaluation && setEvaluation({ ...evaluation, remarks: e.target.value })}
                                                         />
                                                     </div>
                                                             {/* this must be moved to rdv feedback later  */}
@@ -3066,7 +3077,7 @@ export default function UserProfile({
                                                         </div>
                                                     </div> */}
 
-                                                    {canWrite && (
+                                                    {canManageEvaluation && (
                                                         <div>
                                                             <button
                                                                 type="submit"
