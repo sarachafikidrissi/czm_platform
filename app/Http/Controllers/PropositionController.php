@@ -407,13 +407,13 @@ class PropositionController extends Controller
             abort(403, 'Unauthorized.');
         }
 
-        if ($proposition->status !== 'pending') {
+        if ($canRespondAsUser && $proposition->status !== 'pending') {
             return response()->json([
                 'message' => 'Proposition already responded.',
             ], 422);
         }
 
-        if ($proposition->created_at && $proposition->created_at->lt(now()->subDays(7))) {
+        if ($proposition->status === 'pending' && $proposition->created_at && $proposition->created_at->lt(now()->subDays(7))) {
             $proposition->update(['status' => 'expired']);
             UserActivityService::log(
                 (int) $proposition->recipient_user_id,

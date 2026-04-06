@@ -11,18 +11,17 @@ import { Plus } from 'lucide-react';
 
 export default function PropositionsList() {
     const { t } = useTranslation();
-    const { propositions: initialPropositions = [], auth } = usePage().props;
+    const { propositions: initialPropositions = [] } = usePage().props;
     const [propositions, setPropositions] = useState(initialPropositions);
     const [isSending, setIsSending] = useState({});
     const [errorByKey, setErrorByKey] = useState({});
     const [responseMessages, setResponseMessages] = useState({});
     const [processingIds, setProcessingIds] = useState({});
     const [responseErrors, setResponseErrors] = useState({});
+    const [responseSuccesses, setResponseSuccesses] = useState({});
     const [isRespondModalOpen, setIsRespondModalOpen] = useState(false);
     const [activeRecipient, setActiveRecipient] = useState(null);
     const [activeRecipientLabel, setActiveRecipientLabel] = useState('');
-    const currentUserId = auth?.user?.id;
-
     const getProfilePicture = (user) => {
         if (user?.profile?.profile_picture_path) {
             return `/storage/${user.profile.profile_picture_path}`;
@@ -52,11 +51,6 @@ export default function PropositionsList() {
         return { label: 'En attente', variant: 'outline', className: 'bg-slate-50 text-slate-600 border border-slate-200' };
     };
 
-    const canRespondAsMatchmaker = (proposition) => {
-        const recipientMatchmakerId = proposition?.recipient_user?.assigned_matchmaker_id;
-        return Boolean(currentUserId && recipientMatchmakerId && recipientMatchmakerId === currentUserId);
-    };
-
     const handleRespond = async (propositionId, status) => {
         const message = (responseMessages[propositionId] || '').trim();
         if (status === 'rejected' && !message) {
@@ -66,6 +60,7 @@ export default function PropositionsList() {
 
         setProcessingIds((prev) => ({ ...prev, [propositionId]: true }));
         setResponseErrors((prev) => ({ ...prev, [propositionId]: '' }));
+        setResponseSuccesses((prev) => ({ ...prev, [propositionId]: '' }));
         try {
             await axios.post(`/propositions/${propositionId}/respond`, {
                 status,
@@ -85,6 +80,7 @@ export default function PropositionsList() {
                         : item,
                 ),
             );
+            setResponseSuccesses((prev) => ({ ...prev, [propositionId]: 'Response updated successfully.' }));
             return true;
         } catch (error) {
             const messageText = error?.response?.data?.message || 'Une erreur est survenue.';
@@ -258,19 +254,25 @@ export default function PropositionsList() {
                                 const showSendToOther = canSendToOther(entry);
                                 const rowError = errorByKey[entry.key];
                                 const refCanRespond = refRecipient
-                                    && normalizeStatus(refRecipient?.status, refRecipient?.is_expired) === 'pending'
                                     && !refRecipient?.is_expired
-                                    && canRespondAsMatchmaker(refRecipient);
+                                    && Boolean(refRecipient?.can_update_response);
                                 const compCanRespond = compRecipient
-                                    && normalizeStatus(compRecipient?.status, compRecipient?.is_expired) === 'pending'
                                     && !compRecipient?.is_expired
-                                    && canRespondAsMatchmaker(compRecipient);
+                                    && Boolean(compRecipient?.can_update_response);
                                 const refProcessing = refRecipient ? processingIds[refRecipient.id] : false;
                                 const compProcessing = compRecipient ? processingIds[compRecipient.id] : false;
                                 const refError = refRecipient ? responseErrors[refRecipient.id] : '';
                                 const compError = compRecipient ? responseErrors[compRecipient.id] : '';
+                                const refSuccess = refRecipient ? responseSuccesses[refRecipient.id] : '';
+                                const compSuccess = compRecipient ? responseSuccesses[compRecipient.id] : '';
                                 const refRespondDisabled = !refCanRespond || refProcessing;
                                 const compRespondDisabled = !compCanRespond || compProcessing;
+                                const refIsAnswered = refRecipient
+                                    ? ['accepted', 'rejected'].includes(normalizeStatus(refRecipient?.status, refRecipient?.is_expired))
+                                    : false;
+                                const compIsAnswered = compRecipient
+                                    ? ['accepted', 'rejected'].includes(normalizeStatus(compRecipient?.status, compRecipient?.is_expired))
+                                    : false;
 
                                 return (
                                     <div
@@ -378,11 +380,16 @@ export default function PropositionsList() {
                                                         setIsRespondModalOpen(true);
                                                     }}
                                                 >
-                                                    Répondre
+                                                    {refIsAnswered ? 'Mettre à jour la réponse' : 'Répondre'}
                                                 </Button>
                                                 {refResponse && (
                                                     <div className="mt-2 text-xs text-slate-600">
                                                         Dernière réponse: {refResponse}
+                                                    </div>
+                                                )}
+                                                {refSuccess && (
+                                                    <div className="mt-2 text-xs text-emerald-700">
+                                                        {refSuccess}
                                                     </div>
                                                 )}
                                             </div>
@@ -400,11 +407,16 @@ export default function PropositionsList() {
                                                         setIsRespondModalOpen(true);
                                                     }}
                                                 >
-                                                    Répondre
+                                                    {compIsAnswered ? 'Mettre à jour la réponse' : 'Répondre'}
                                                 </Button>
                                                 {compResponse && (
                                                     <div className="mt-2 text-xs text-slate-600">
                                                         Dernière réponse: {compResponse}
+                                                    </div>
+                                                )}
+                                                {compSuccess && (
+                                                    <div className="mt-2 text-xs text-emerald-700">
+                                                        {compSuccess}
                                                     </div>
                                                 )}
                                             </div>
@@ -457,6 +469,18 @@ export default function PropositionsList() {
                     <div className="space-y-2">
                         <div className="text-xs font-semibold text-slate-500 uppercase">
                             Motif
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                            Statut actuel:{' '}
+                            {activeRecipient
+                                ? normalizeStatus(activeRecipient.status, activeRecipient.is_expired) === 'accepted'
+                                    ? 'Acceptée'
+                                    : normalizeStatus(activeRecipient.status, activeRecipient.is_expired) === 'rejected'
+                                      ? 'Refusée'
+                                      : normalizeStatus(activeRecipient.status, activeRecipient.is_expired) === 'expired'
+                                        ? 'Expirée'
+                                        : 'En attente'
+                                : '-'}
                         </div>
                         <textarea
                             value={activeRecipient ? responseMessages[activeRecipient.id] || '' : ''}

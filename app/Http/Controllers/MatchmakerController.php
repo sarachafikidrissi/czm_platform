@@ -2832,7 +2832,24 @@ class MatchmakerController extends Controller
         }
 
         $propositions = Proposition::query()
-            ->where('matchmaker_id', $me->id)
+            ->where(function ($query) use ($me) {
+                $query->where('matchmaker_id', $me->id)
+                    ->orWhereHas('recipientUser', function ($recipientQuery) use ($me) {
+                        $recipientQuery->where('assigned_matchmaker_id', $me->id);
+                    })
+                    ->orWhereExists(function ($visibleGroupQuery) use ($me) {
+                        $visibleGroupQuery->selectRaw('1')
+                            ->from('propositions as visible_propositions')
+                            ->leftJoin('users as visible_recipients', 'visible_recipients.id', '=', 'visible_propositions.recipient_user_id')
+                            ->whereColumn('visible_propositions.reference_user_id', 'propositions.reference_user_id')
+                            ->whereColumn('visible_propositions.compatible_user_id', 'propositions.compatible_user_id')
+                            ->whereColumn('visible_propositions.message', 'propositions.message')
+                            ->where(function ($visibleScope) use ($me) {
+                                $visibleScope->where('visible_propositions.matchmaker_id', $me->id)
+                                    ->orWhere('visible_recipients.assigned_matchmaker_id', $me->id);
+                            });
+                    });
+            })
             ->with([
                 'recipientUser:id,name,username,assigned_matchmaker_id',
                 'recipientUser.profile:id,user_id,profile_picture_path',
@@ -2843,7 +2860,7 @@ class MatchmakerController extends Controller
             ])
             ->latest()
             ->get()
-            ->map(function (Proposition $proposition) {
+            ->map(function (Proposition $proposition) use ($me) {
                 $isExpired = $proposition->status === 'expired'
                     || ($proposition->status === 'pending'
                         && $proposition->created_at
@@ -2861,6 +2878,9 @@ class MatchmakerController extends Controller
                     'user_comment' => $proposition->user_comment,
                     'responded_at' => $proposition->responded_at,
                     'created_at' => $proposition->created_at,
+                    'can_update_response' => $proposition->recipientUser
+                        ? (int) $proposition->recipientUser->assigned_matchmaker_id === (int) $me->id
+                        : false,
                     'recipient_user' => $proposition->recipientUser ? [
                         'id' => $proposition->recipientUser->id,
                         'name' => $proposition->recipientUser->name,
