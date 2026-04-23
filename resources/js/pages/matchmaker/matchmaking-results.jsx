@@ -1,16 +1,19 @@
 import { Head, router } from '@inertiajs/react';
-import { useState, useEffect, useMemo } from 'react';
+import MatchResultMatchCard from '@/components/matchmaking/MatchResultMatchCard';
+import MatchmakingProposeRequestModals from '@/components/matchmaking/MatchmakingProposeRequestModals';
+import MatchmakerRespondToPropositionDialog from '@/components/matchmaking/MatchmakerRespondToPropositionDialog';
+import { useMatchmakingProposeRequestFlow } from '@/hooks/use-matchmaking-propose-request-flow';
+import { getProfilePicture, getAge, getLocation, getScoreColor, MATCH_PRIMARY } from '@/lib/matchmaking-result-display';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import AppLayout from '@/layouts/app-layout';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { SearchableMultiSelect } from '@/components/ui/searchable-multi-select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { 
     ArrowLeft, 
     Filter, 
@@ -22,42 +25,68 @@ import {
     GraduationCap,
     Briefcase,
     DollarSign,
-    Heart,
     TrendingUp,
     CheckCircle2,
     XCircle,
     Info,
-    Loader2,
     ChevronLeft,
     ChevronRight
 } from 'lucide-react';
 import axios from 'axios';
+import { useToast } from '@/hooks/use-toast';
+import { propositionToastFr } from '@/lib/proposition-toast-messages';
 
-const MATCH_PRIMARY = '#8B2635';
 const PER_PAGE = 3;
 
 export default function MatchmakingResults({ userA, matches: initialMatches, defaultFilters, appliedFilters: initialAppliedFilters }) {
+    const { showToast } = useToast();
     const [matches, setMatches] = useState(initialMatches || []);
+    const proposeFlow = useMatchmakingProposeRequestFlow(userA, {
+        onAfterProposeSuccess: () =>
+            router.reload({ only: ['matches', 'appliedFilters', 'defaultFilters', 'userA'] }),
+        onAfterRequestSuccess: () =>
+            router.reload({ only: ['matches', 'appliedFilters', 'defaultFilters', 'userA'] }),
+    });
+    const [cancellingPropositionId, setCancellingPropositionId] = useState(null);
+    const [respondDialog, setRespondDialog] = useState({ open: false, propositionId: null });
     const [appliedFilters, setAppliedFilters] = useState(initialAppliedFilters || {});
     const [isLoading, setIsLoading] = useState(false);
     const [showFilters, setShowFilters] = useState(false);
     const [selectedMatch, setSelectedMatch] = useState(null);
     const [showCompatibilityModal, setShowCompatibilityModal] = useState(false);
-    const [showProposeModal, setShowProposeModal] = useState(false);
-    const [proposeMatch, setProposeMatch] = useState(null);
-    const [proposeMessage, setProposeMessage] = useState('');
-    const [sendToReference, setSendToReference] = useState(true);
-    const [sendToCompatible, setSendToCompatible] = useState(true);
-    const [isSendingProposition, setIsSendingProposition] = useState(false);
-    const [propositionError, setPropositionError] = useState('');
-    const [showRequestModal, setShowRequestModal] = useState(false);
-    const [requestMatch, setRequestMatch] = useState(null);
-    const [requestMessage, setRequestMessage] = useState('');
-    const [requestError, setRequestError] = useState('');
-    const [isSendingRequest, setIsSendingRequest] = useState(false);
     const [pendingOpenProposeId, setPendingOpenProposeId] = useState(null);
     const [hasOpenedProposeFromQuery, setHasOpenedProposeFromQuery] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
+
+    const activePairCounterpartId = useMemo(() => {
+        if (!userA?.proposition?.exists || userA?.id == null) {
+            return null;
+        }
+        const refId = Number(userA.id);
+        const p = userA.proposition;
+        const r = Number(p.reference_user_id);
+        const c = Number(p.compatible_user_id);
+        return r === refId ? c : r;
+    }, [userA?.proposition, userA?.id]);
+
+    const displayMatches = useMemo(() => {
+        const list = matches || [];
+        if (!userA?.proposition?.exists) {
+            return list;
+        }
+        if (activePairCounterpartId == null) {
+            return list;
+        }
+        return list.filter((m) => Number(m.user?.id) === activePairCounterpartId);
+    }, [matches, userA?.proposition?.exists, activePairCounterpartId]);
+
+    const showActivePairMissingInList = Boolean(
+        userA?.proposition?.exists && (matches || []).length > 0 && displayMatches.length === 0,
+    );
+
+    const handleRefreshMatchmakingPage = useCallback(() => {
+        router.reload({ only: ['matches', 'appliedFilters', 'defaultFilters', 'userA'] });
+    }, []);
 
     // Countries and cities state
     const [countries, setCountries] = useState([]);
@@ -387,44 +416,6 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
         } finally {
             setIsLoading(false);
         }
-    };
-
-    // Helper functions
-    const getProfilePicture = (user, profile = null) => {
-        // Check if profile is passed directly (for matches) or via user.profile
-        const profilePicturePath = profile?.profile_picture_path || user.profile?.profile_picture_path;
-        if (profilePicturePath) {
-            return `/storage/${profilePicturePath}`;
-        }
-        return `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=random`;
-    };
-
-    const getLocation = (profile) => {
-        // Check residence first, then origin
-        const city = profile?.ville_residence || profile?.ville_origine || '';
-        const country = profile?.pays_residence || profile?.pays_origine || '';
-        if (city && country) {
-            return `${city}, ${country}`;
-        }
-        return city || country || 'Non spécifié';
-    };
-
-    const getAge = (profile) => {
-        if (!profile?.date_naissance) return null;
-        const birthDate = new Date(profile.date_naissance);
-        const today = new Date();
-        let age = today.getFullYear() - birthDate.getFullYear();
-        const monthDiff = today.getMonth() - birthDate.getMonth();
-        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-            age--;
-        }
-        return age;
-    };
-
-    const getScoreColor = (score) => {
-        if (score >= 70) return 'text-green-600';
-        if (score >= 50) return 'text-yellow-600';
-        return 'text-orange-600';
     };
 
     const getCompatibilityDetails = (scoreDetails, profileA, profileB) => {
@@ -877,87 +868,25 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
         setShowCompatibilityModal(true);
     };
 
-    const openProposeModal = (match, event) => {
-        if (event) {
-            event.stopPropagation();
-        }
-        setProposeMatch(match);
-        setProposeMessage('');
-        setSendToReference(true);
-        setSendToCompatible(true);
-        setPropositionError('');
-        setShowProposeModal(true);
-    };
-
-    const openRequestModal = (match, event) => {
-        if (event) {
-            event.stopPropagation();
-        }
-        setRequestMatch(match);
-        setRequestMessage('');
-        setRequestError('');
-        setShowRequestModal(true);
-    };
-
-    const handleSendProposition = async (event) => {
-        event.preventDefault();
-        if (!proposeMatch) return;
-
-        const trimmedMessage = proposeMessage.trim();
-        if (!trimmedMessage) {
-            setPropositionError('Veuillez saisir un message.');
-            return;
-        }
-        if (!sendToReference && !sendToCompatible) {
-            setPropositionError('Veuillez sélectionner au moins un destinataire.');
-            return;
-        }
-
-        setIsSendingProposition(true);
-        setPropositionError('');
+    const handleCancelProposition = async (propositionId) => {
+        setCancellingPropositionId(propositionId);
         try {
-            await axios.post('/staff/propositions', {
-                reference_user_id: userA.id,
-                compatible_user_id: proposeMatch.user.id,
-                message: trimmedMessage,
-                send_to_reference: sendToReference,
-                send_to_compatible: sendToCompatible,
-            });
-            setShowProposeModal(false);
-            setProposeMatch(null);
+            const { data } = await axios.patch(`/staff/propositions/${propositionId}/cancel`);
+            const pairToast = data?.pair_was_cancelled ? propositionToastFr.cancelSuccessPaired : propositionToastFr.cancelSuccess;
+            showToast(pairToast, undefined, 'success');
+            router.reload({ only: ['matches', 'appliedFilters', 'defaultFilters', 'userA'] });
         } catch (error) {
-            const message = error?.response?.data?.message || 'Une erreur est survenue.';
-            setPropositionError(message);
+            const status = error?.response?.status;
+            const backendMsg = error?.response?.data?.message;
+            if (status === 403) {
+                showToast(propositionToastFr.cancelUnauthorized, undefined, 'error');
+            } else if (status === 422 && backendMsg === propositionToastFr.cancelInvalidState) {
+                showToast(propositionToastFr.cancelInvalidState, undefined, 'warning');
+            } else {
+                showToast(propositionToastFr.cancelError, undefined, 'error');
+            }
         } finally {
-            setIsSendingProposition(false);
-        }
-    };
-
-    const handleSendRequest = async (event) => {
-        event.preventDefault();
-        if (!requestMatch) return;
-
-        const trimmedMessage = requestMessage.trim();
-        if (!trimmedMessage) {
-            setRequestError('Veuillez saisir un message.');
-            return;
-        }
-
-        setIsSendingRequest(true);
-        setRequestError('');
-        try {
-            await axios.post('/staff/proposition-requests', {
-                reference_user_id: userA.id,
-                compatible_user_id: requestMatch.user.id,
-                message: trimmedMessage,
-            });
-            setShowRequestModal(false);
-            setRequestMatch(null);
-        } catch (error) {
-            const message = error?.response?.data?.message || 'Une erreur est survenue.';
-            setRequestError(message);
-        } finally {
-            setIsSendingRequest(false);
+            setCancellingPropositionId(null);
         }
     };
 
@@ -978,35 +907,22 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
         const match = matches.find((item) => item?.user?.id === pendingOpenProposeId);
         const canProposeFromRequest = Boolean(match?.can_propose_from_request);
         if (match && (match.isAssignedToMe || canProposeFromRequest)) {
-            openProposeModal(match);
+            proposeFlow.openProposeModal(match);
             setHasOpenedProposeFromQuery(true);
         }
+        // proposeFlow.openProposeModal is stable (useCallback in hook)
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- avoid re-running when flow object identity changes
     }, [pendingOpenProposeId, hasOpenedProposeFromQuery, matches]);
 
     // Reset to first page when matches list changes (e.g. after applying filters)
     useEffect(() => {
         setCurrentPage(1);
-    }, [matches.length]);
+    }, [matches.length, displayMatches.length]);
 
-    const totalPages = Math.max(1, Math.ceil(matches.length / PER_PAGE));
-    const from = matches.length === 0 ? 0 : (currentPage - 1) * PER_PAGE + 1;
-    const to = Math.min(currentPage * PER_PAGE, matches.length);
-    const paginatedMatches = matches.slice((currentPage - 1) * PER_PAGE, currentPage * PER_PAGE);
-
-    const getRequestButtonLabel = (status) => {
-        if (status === 'pending') {
-            return 'Proposition envoyée (en attente de réponse)';
-        }
-        if (status === 'accepted') {
-            return 'Proposer';
-        }
-        if (status === 'rejected') {
-            return 'Proposition refusée';
-        }
-        return 'Demande de propositions';
-    };
-    console.log(proposeMessage);
-    
+    const totalPages = Math.max(1, Math.ceil(displayMatches.length / PER_PAGE));
+    const from = displayMatches.length === 0 ? 0 : (currentPage - 1) * PER_PAGE + 1;
+    const to = Math.min(currentPage * PER_PAGE, displayMatches.length);
+    const paginatedMatches = displayMatches.slice((currentPage - 1) * PER_PAGE, currentPage * PER_PAGE);
 
     return (
         <AppLayout>
@@ -1667,174 +1583,83 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
                 <section className="space-y-4">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                         <h2 className="text-lg font-semibold text-foreground">
-                            {matches.length} profil{matches.length > 1 ? 's' : ''} compatible{matches.length > 1 ? 's' : ''}
+                            {displayMatches.length} profil{displayMatches.length > 1 ? 's' : ''} compatible
+                            {displayMatches.length > 1 ? 's' : ''}
+                            {userA?.proposition?.exists ? (
+                                <span className="ml-2 text-sm font-normal text-muted-foreground">
+                                    (proposition en cours — filtre actif)
+                                </span>
+                            ) : null}
                         </h2>
-                        {matches.length > 0 && totalPages > 1 && (
+                        {displayMatches.length > 0 && totalPages > 1 && (
                             <p className="text-sm text-muted-foreground">
-                                {from}&ndash;{to} sur {matches.length}
+                                {from}&ndash;{to} sur {displayMatches.length}
                             </p>
                         )}
                     </div>
 
                     {matches.length === 0 ? (
                         <Card className="overflow-hidden rounded-xl border border-border shadow-sm">
-                            <CardContent className="py-16 text-center">
+                            <CardContent className="py-16 text-center space-y-3">
                                 <p className="text-muted-foreground">
-                                    Aucun profil compatible trouvé avec les filtres actuels.
+                                    {userA?.proposition?.exists
+                                        ? 'Aucun profil compatible ne correspond aux filtres alors qu’une proposition est en cours pour ce membre. Actualisez ou ajustez les filtres.'
+                                        : 'Aucun profil compatible trouvé avec les filtres actuels.'}
                                 </p>
+                                {userA?.proposition?.exists ? (
+                                    <Button type="button" variant="outline" onClick={handleRefreshMatchmakingPage}>
+                                        Actualiser
+                                    </Button>
+                                ) : null}
+                            </CardContent>
+                        </Card>
+                    ) : showActivePairMissingInList ? (
+                        <Card className="overflow-hidden rounded-xl border border-border shadow-sm">
+                            <CardContent className="py-16 text-center space-y-3">
+                                <p className="text-muted-foreground">
+                                    Une proposition est en cours, mais le profil partenaire n’apparaît pas dans les résultats
+                                    filtrés. Ajustez les filtres ou actualisez la page.
+                                </p>
+                                <Button type="button" variant="outline" onClick={handleRefreshMatchmakingPage}>
+                                    Actualiser
+                                </Button>
                             </CardContent>
                         </Card>
                     ) : (
                         <>
                         <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-                            {paginatedMatches.map((match) => (
-                                <Card
+                            {paginatedMatches.map((match) => {
+                                const isActivePairCard =
+                                    Boolean(userA?.proposition?.exists) &&
+                                    Number(match.user?.id) === activePairCounterpartId;
+                                return (
+                                <MatchResultMatchCard
                                     key={match.user.id}
-                                    className="cursor-pointer overflow-hidden rounded-xl border-2 border-[#8B2635]/40 bg-card shadow-sm transition-shadow hover:shadow-md focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2"
-                                    onClick={() => handleCardClick(match)}
-                                >
-                                    <CardHeader className="pb-3">
-                                        <div className="flex items-start justify-between gap-3">
-                                            <div className="flex min-w-0 flex-1 items-start gap-4">
-                                                <img
-                                                    src={getProfilePicture(match.user, match.profile)}
-                                                    alt={match.user.name}
-                                                    className="h-14 w-14 shrink-0 rounded-full object-cover sm:h-16 sm:w-16"
-                                                />
-                                                <div className="min-w-0 flex-1">
-                                                    <CardTitle className="truncate text-lg font-semibold text-foreground">
-                                                        {match.user.name}
-                                                    </CardTitle>
-                                                    <CardDescription className="mt-0.5 truncate text-sm">
-                                                        {match.user.email}
-                                                    </CardDescription>
-                                                </div>
-                                            </div>
-                                            <div className="flex shrink-0 flex-col items-end gap-0.5">
-                                                <span className={`text-xl font-bold ${getScoreColor(match.score)}`}>
-                                                    <TrendingUp className="mr-1 inline-block h-5 w-5 align-middle" />
-                                                    {match.score.toFixed(1)}%
-                                                </span>
-                                                <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                                                    {match.completeness.toFixed(0)}% complet
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </CardHeader>
-                                    <CardContent className="space-y-3 pt-0">
-                                        <div className="space-y-2 text-sm text-muted-foreground">
-                                            {getAge(match.profile) && (
-                                                <div className="flex items-center gap-2">
-                                                    <Calendar className="h-4 w-4 shrink-0" />
-                                                    <span>{getAge(match.profile)} ans</span>
-                                                </div>
-                                            )}
-                                            <div className="flex items-center gap-2">
-                                                <MapPin className="h-4 w-4 shrink-0" />
-                                                <span className="truncate">{getLocation(match.profile)}</span>
-                                            </div>
-                                            {match.profile.niveau_etudes && (
-                                                <div className="flex items-center gap-2">
-                                                    <GraduationCap className="h-4 w-4 shrink-0" />
-                                                    <span>{match.profile.niveau_etudes}</span>
-                                                </div>
-                                            )}
-                                            {match.profile.situation_professionnelle && (
-                                                <div className="flex items-center gap-2">
-                                                    <Briefcase className="h-4 w-4 shrink-0" />
-                                                    <span>{match.profile.situation_professionnelle}</span>
-                                                </div>
-                                            )}
-                                            {match.profile.religion && (
-                                                <Badge variant="secondary" className="w-fit rounded-md bg-muted text-muted-foreground">
-                                                    {match.profile.religion}
-                                                </Badge>
-                                            )}
-                                        </div>
-                                        {match.isAssignedToMe ? (
-                                            <div className="flex items-center gap-2 text-sm">
-                                                <span className="h-2 w-2 shrink-0 rounded-full bg-green-500" aria-hidden />
-                                                <span className="text-muted-foreground">Assigné à moi</span>
-                                            </div>
-                                        ) : match.assigned_matchmaker ? (
-                                            <div className="flex items-center gap-2 text-sm">
-                                                <span className="h-2 w-2 shrink-0 rounded-full bg-amber-400" aria-hidden />
-                                                <span className="text-muted-foreground">Assigné à: {match.assigned_matchmaker.name}</span>
-                                            </div>
-                                        ) : (
-                                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                                Non assigné
-                                            </div>
-                                        )}
-
-
-                                        <Separator className="my-3" />
-                                        {!match.isAssignedToMe && match.assigned_matchmaker && (() => {
-                                            const requestStatusForLabel = match.can_propose_from_request
-                                                ? match.proposition_request_status
-                                                : null;
-                                            console.log(match);
-                                            
-
-                                            return (
-                                                <Button
-                                                    variant="outline"
-                                                    className="w-full rounded-t-lg border-[#8B2635]/50 bg-[#8B2635]/10 py-2.5 text-sm font-medium text-[#8B2635] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:bg-[#8B2635]/15 disabled:opacity-50"
-                                                    onClick={(event) => {
-                                                        if (match.can_propose_from_request) {
-                                                            openProposeModal(match, event);
-                                                            return;
-                                                        }
-                                                        openRequestModal(match, event);
-                                                    }}
-                                                    disabled={requestStatusForLabel === 'pending' || requestStatusForLabel === 'rejected'}
-                                                >
-                                                    <Info className="mr-2 h-4 w-4" />
-                                                    {getRequestButtonLabel(requestStatusForLabel)}
-                                                </Button>
-                                            );
-                                        })()}
-                                        {match.isAssignedToMe && (
-                                            <Button
-                                                className={`w-full py-2.5 text-sm font-medium focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none ${
-                                                    match.proposition_status === 'pending'
-                                                        ? 'rounded-t-lg bg-amber-50 text-amber-700 hover:bg-amber-50'
-                                                        : 'rounded-t-lg text-white hover:opacity-90'
-                                                }`}
-                                                style={match.proposition_status === 'pending' ? undefined : { backgroundColor: MATCH_PRIMARY }}
-                                                onClick={(event) => {
-                                                    if (match.proposition_status === 'pending') {
-                                                        return;
-                                                    }
-                                                    openProposeModal(match, event);
-                                                }}
-                                                disabled={match.proposition_status === 'pending'}
-                                            >
-                                                {match.proposition_status === 'pending' ? (
-                                                    <Loader2 className="mr-2 h-4 w-4 shrink-0 animate-spin text-amber-600" aria-hidden />
-                                                ) : (
-                                                    <Heart className="mr-2 h-4 w-4" />
-                                                )}
-                                                {match.proposition_status === 'pending'
-                                                    ? 'Proposition en cours...'
-                                                    : 'Proposer'}
-                                            </Button>
-                                        )}
-
-                                        <Button
-                                            variant="outline"
-                                            className="w-full rounded-b-xl rounded-t-none border-t-0 border-border bg-muted/30 py-2.5 text-sm font-medium text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:bg-muted/50"
-                                            onClick={(event) => {
-                                                event.stopPropagation();
-                                                window.open(`/profile/${match.user.username || match.user.id}`, '_blank', 'noopener,noreferrer');
-                                            }}
-                                        >
-                                            <User className="mr-2 h-4 w-4" />
-                                            Voir le profil
-                                        </Button>
-                                    </CardContent>
-                                </Card>
-                            ))}
+                                    match={match}
+                                    onCardClick={handleCardClick}
+                                    onOpenPropose={proposeFlow.openProposeModal}
+                                    onOpenRequest={proposeFlow.openRequestModal}
+                                    onCancelProposition={handleCancelProposition}
+                                    cancellingPropositionId={cancellingPropositionId}
+                                    onOpenRespondDialog={(propositionId) =>
+                                        setRespondDialog({ open: true, propositionId })
+                                    }
+                                    referenceActivePairMode={isActivePairCard}
+                                    referencePendingResponsePropositionId={
+                                        isActivePairCard
+                                            ? userA?.proposition?.pending_response_proposition_id ?? null
+                                            : null
+                                    }
+                                    activePairCancelPropositionId={
+                                        isActivePairCard
+                                            ? match.cancellable_proposition?.id ??
+                                              userA?.proposition?.proposition_id ??
+                                              null
+                                            : null
+                                    }
+                                />
+                                );
+                            })}
                         </div>
 
                         {totalPages > 1 && (
@@ -2015,156 +1840,16 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
                 </DialogContent>
             </Dialog>
 
-            <Dialog open={showProposeModal} onOpenChange={setShowProposeModal}>
-                <DialogContent className="max-w-lg rounded-xl border border-gray-200 bg-white shadow-xl">
-                    <DialogHeader className="space-y-2">
-                        <DialogTitle className="text-xl font-semibold" style={{ color: MATCH_PRIMARY }}>
-                            Envoyer une proposition
-                        </DialogTitle>
-                        <DialogDescription className="text-sm text-muted-foreground">
-                            Cette proposition sera envoyée aux profils sélectionnés.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <form onSubmit={handleSendProposition} className="space-y-6">
-                        <div className="space-y-2">
-                            <Label htmlFor="proposition-message" className="text-sm font-normal text-foreground">
-                                Message
-                            </Label>
-                            <textarea
-                                id="proposition-message"
-                                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                rows={4}
-                                value={proposeMessage}
-                                onChange={(event) => setProposeMessage(event.target.value)}
-                                placeholder="Écrire un message pour la proposition..."
-                                required
-                            />
-                        </div>
-                        <div className="space-y-3">
-                            <Label className="text-sm font-normal text-foreground">Destinataires</Label>
-                            <div className="flex flex-col gap-3">
-                                <label
-                                    htmlFor="send-to-reference"
-                                    className="flex cursor-pointer items-start gap-3 space-x-0"
-                                >
-                                    <Checkbox
-                                        id="send-to-reference"
-                                        checked={sendToReference}
-                                        onCheckedChange={(value) => setSendToReference(Boolean(value))}
-                                        className="mt-0.5 border-gray-300 data-[state=checked]:border-[#8B2635] data-[state=checked]:bg-[#8B2635] data-[state=checked]:text-white"
-                                    />
-                                    <div className="flex flex-col gap-0.5">
-                                        <span className="text-sm font-normal text-foreground">
-                                            Envoyer au profil de référence
-                                        </span>
-                                        <span className="text-xs text-muted-foreground">{userA?.name}</span>
-                                    </div>
-                                </label>
-                                <label
-                                    htmlFor="send-to-compatible"
-                                    className="flex cursor-pointer items-start gap-3 space-x-0"
-                                >
-                                    <Checkbox
-                                        id="send-to-compatible"
-                                        checked={sendToCompatible}
-                                        onCheckedChange={(value) => setSendToCompatible(Boolean(value))}
-                                        className="mt-0.5 border-gray-300 data-[state=checked]:border-[#8B2635] data-[state=checked]:bg-[#8B2635] data-[state=checked]:text-white"
-                                    />
-                                    <div className="flex flex-col gap-0.5">
-                                        <span className="text-sm font-normal text-foreground">
-                                            Envoyer au profil compatible
-                                        </span>
-                                        <span className="text-xs text-muted-foreground">{proposeMatch?.user?.name}</span>
-                                    </div>
-                                </label>
-                            </div>
-                        </div>
-                        {propositionError && (
-                            <div className="text-sm text-destructive">{propositionError}</div>
-                        )}
-                        <DialogFooter className="flex justify-end gap-2 sm:gap-2">
-                            <Button
-                                type="button"
-                                variant="outline"
-                                className="rounded-lg border-gray-200 bg-white text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                                onClick={() => setShowProposeModal(false)}
-                            >
-                                Annuler
-                            </Button>
-                            <Button
-                                type="submit"
-                                className="inline-flex items-center gap-2 rounded-lg text-white hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50"
-                                style={{ backgroundColor: MATCH_PRIMARY }}
-                                disabled={isSendingProposition}
-                            >
-                                {isSendingProposition ? 'Envoi...' : 'Envoyer la proposition'}
-                                {!isSendingProposition && <ChevronRight className="h-4 w-4" />}
-                            </Button>
-                        </DialogFooter>
-                    </form>
-                </DialogContent>
-            </Dialog>
+            <MatchmakingProposeRequestModals userA={userA} {...proposeFlow} />
 
-            <Dialog open={showRequestModal} onOpenChange={setShowRequestModal}>
-                <DialogContent className="max-w-lg rounded-xl border border-gray-200 bg-white shadow-xl">
-                    <DialogHeader className="space-y-2">
-                        <DialogTitle className="text-xl font-semibold" style={{ color: MATCH_PRIMARY }}>
-                            Demande de propositions
-                        </DialogTitle>
-                        <DialogDescription className="text-sm text-muted-foreground">
-                            Envoyez un message au matchmaker assigné au profil compatible.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <form onSubmit={handleSendRequest} className="space-y-6">
-                        <div className="flex items-start gap-3 rounded-lg bg-[#8B2635]/10 px-4 py-3">
-                            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#8B2635] text-white" aria-hidden>
-                                <Info className="h-3.5 w-3.5" />
-                            </span>
-                            <p className="text-sm leading-snug" style={{ color: '#7a2230' }}>
-                                Profil compatible : <span className="font-semibold">{requestMatch?.user?.name}</span>
-                                {' • '}
-                                Matchmaker : <span className="font-semibold">{requestMatch?.assigned_matchmaker?.name || 'N/A'}</span>
-                            </p>
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="request-message" className="text-sm font-normal text-foreground">
-                                Message
-                            </Label>
-                            <textarea
-                                id="request-message"
-                                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                rows={4}
-                                value={requestMessage}
-                                onChange={(event) => setRequestMessage(event.target.value)}
-                                placeholder="Écrire un message pour la demande..."
-                                required
-                            />
-                        </div>
-                        {requestError && (
-                            <div className="text-sm text-destructive">{requestError}</div>
-                        )}
-                        <DialogFooter className="flex justify-end gap-2 sm:gap-2">
-                            <Button
-                                type="button"
-                                variant="outline"
-                                className="rounded-lg border-gray-200 bg-white text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                                onClick={() => setShowRequestModal(false)}
-                            >
-                                Annuler
-                            </Button>
-                            <Button
-                                type="submit"
-                                className="inline-flex items-center gap-2 rounded-lg text-white hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50"
-                                style={{ backgroundColor: MATCH_PRIMARY }}
-                                disabled={isSendingRequest}
-                            >
-                                {isSendingRequest ? 'Envoi...' : 'Envoyer'}
-                                {!isSendingRequest && <ChevronRight className="h-4 w-4" />}
-                            </Button>
-                        </DialogFooter>
-                    </form>
-                </DialogContent>
-            </Dialog>
+            <MatchmakerRespondToPropositionDialog
+                open={respondDialog.open}
+                onOpenChange={(open) => setRespondDialog((prev) => ({ ...prev, open }))}
+                propositionId={respondDialog.propositionId}
+                onSuccess={() =>
+                    router.reload({ only: ['matches', 'appliedFilters', 'defaultFilters', 'userA'] })
+                }
+            />
         </AppLayout>
     );
 }

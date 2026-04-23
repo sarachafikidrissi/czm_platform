@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react';
 import AppLayout from '@/layouts/app-layout';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Send, Calendar, CreditCard, FileText, UserPlus, StickyNote, User, RefreshCw, Search, Star, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { Send, Calendar, CreditCard, FileText, UserPlus, StickyNote, User, RefreshCw, Search, Star, CheckCircle, XCircle, Clock, Ban } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
@@ -12,6 +12,7 @@ const TYPE_CONFIG = {
     proposition_accepted: { label: 'PROPOSITION ACCEPTED', icon: CheckCircle, color: 'text-green-600' },
     proposition_refused: { label: 'PROPOSITION REFUSED', icon: XCircle, color: 'text-red-600' },
     proposition_expired: { label: 'PROPOSITION EXPIRED', icon: Clock, color: 'text-amber-600' },
+    proposition_cancelled: { label: 'PROPOSITION CANCELLED', icon: Ban, color: 'text-rose-600' },
     rdv: { label: 'APPOINTMENT SCHEDULED', icon: Calendar, color: 'text-red-600' },
     subscription: { label: 'SUBSCRIPTION RENEWED', icon: CreditCard, color: 'text-green-600' },
     status_change: { label: 'STATUS CHANGED', icon: User, color: 'text-amber-600' },
@@ -372,6 +373,7 @@ export default function ActivityHistoryIndex() {
                                         <option value="proposition_accepted">Proposition accepted</option>
                                         <option value="proposition_refused">Proposition refused</option>
                                         <option value="proposition_expired">Proposition expired</option>
+                                        <option value="proposition_cancelled">Proposition cancelled</option>
                                         <option value="rdv">RDV</option>
                                         <option value="subscription">Subscription</option>
                                         <option value="status_change">Status change</option>

@@ -79,7 +79,8 @@
         "matchList": "Liste des Match",
         "searchMatchProfiles": "Rechercher Profils Match",
         "agencies": "Agences",
-        "appointmentRequests": "Demandes de Rendez-vous"
+        "appointmentRequests": "Demandes de Rendez-vous",
+        "activityHistory": "Historique d'activité"
     },
     "breadcrumbs": {
         "photos": "Photos",
@@ -1166,6 +1167,76 @@
         "footerQuickLinks": "Liens Rapides",
         "footerRights": "Tous droits réservés",
         "contact": "Contact"
+    },
+    "activityHistory": {
+        "title": "Historique d'activité",
+        "filters": "Filtres",
+        "allActivities": "Toutes les activités",
+        "activityType": "Type d'activité",
+        "dateRange": "Période",
+        "dateFrom": "Du",
+        "dateTo": "Au",
+        "keywords": "Mots-clés",
+        "searchPlaceholder": "Rechercher dans les descriptions...",
+        "resetFilters": "Réinitialiser les filtres",
+        "apply": "Appliquer",
+        "pageTitle": "Historique d'activité",
+        "subtitleClient": "Historique chronologique des actions sur votre compte.",
+        "subtitleStaff": "Historique chronologique des actions liées à ce client.",
+        "empty": "Aucune activité ne correspond aux filtres sélectionnés.",
+        "loadOlder": "Charger plus d'activités",
+        "idPrefix": "ID",
+        "types": {
+            "all": "Toutes les activités",
+            "proposition": "Proposition",
+            "proposition_accepted": "Proposition acceptée",
+            "proposition_refused": "Proposition refusée",
+            "proposition_expired": "Proposition expirée",
+            "proposition_cancelled": "Proposition annulée",
+            "rdv": "Rendez-vous",
+            "subscription": "Abonnement",
+            "status_change": "Changement de statut",
+            "note": "Note",
+            "matchmaker_assigned": "Marieuse assignée"
+        },
+        "badges": {
+            "proposition": "Proposition envoyée",
+            "proposition_accepted": "Proposition acceptée",
+            "proposition_refused": "Proposition refusée",
+            "proposition_expired": "Proposition expirée",
+            "proposition_cancelled": "Proposition annulée",
+            "rdv": "Rendez-vous",
+            "subscription": "Abonnement",
+            "status_change": "Statut modifié",
+            "note": "Note ajoutée",
+            "matchmaker_assigned": "Marieuse assignée"
+        },
+        "desc": {
+            "propositionAccepted": "Proposition acceptée.",
+            "propositionRefused": "Proposition refusée.",
+            "propositionExpired": "Proposition expirée (délai dépassé).",
+            "propositionCancelled": "Proposition annulée par le conseiller.",
+            "propositionSent": "Proposition envoyée avec {{name}}.",
+            "propositionSentWithMessage": "Proposition envoyée avec {{name}}. Message : {{message}}",
+            "subscriptionAdded": "Abonnement ajouté : {{pack}}, {{months}} mois.",
+            "statusProspectToMember": "Statut passé de prospect à membre (validé).",
+            "statusMemberToClient": "Statut passé de membre à client.",
+            "memberAssigned": "Membre assigné à {{name}}.",
+            "prospectAssigned": "Prospect assigné à {{name}} (marieuse).",
+            "prospectReassigned": "Prospect réassigné à {{name}} (marieuse).",
+            "accountActivated": "Compte activé.",
+            "accountActivatedWithReason": "Compte activé. {{reason}}",
+            "accountDeactivated": "Compte désactivé.",
+            "accountDeactivatedWithReason": "Compte désactivé. {{reason}}",
+            "subscriptionExpiredStatus": "Abonnement expiré ; statut passé à client_expire.",
+            "rdvTreated": "Rendez-vous marqué comme traité.",
+            "rdvConvertedProspect": "Demande de rendez-vous convertie en prospect."
+        },
+        "performedBy": {
+            "staffDefault": "Équipe",
+            "system": "Système",
+            "autoRenewal": "Renouvellement automatique"
+        }
     },
     "auth": {
         "phoneWarning": "Veuillez saisir un numéro de téléphone valide afin que nous puissions vous contacter facilement.",

@@ -79,7 +79,8 @@
         "matchList": "قائمة المطابقات",
         "searchMatchProfiles": "البحث عن ملفات المطابقة",
         "agencies": "الوكالات",
-        "appointmentRequests": "طلبات المواعيد"
+        "appointmentRequests": "طلبات المواعيد",
+        "activityHistory": "سجل النشاط"
     },
     "breadcrumbs": {
         "photos": "الصور",
@@ -1163,6 +1164,76 @@
         "footerQuickLinks": "روابط سريعة",
         "footerRights": "جميع الحقوق محفوظة",
         "contact": "اتصل"
+    },
+    "activityHistory": {
+        "title": "سجل النشاط",
+        "filters": "عوامل التصفية",
+        "allActivities": "كل الأنشطة",
+        "activityType": "نوع النشاط",
+        "dateRange": "الفترة",
+        "dateFrom": "من",
+        "dateTo": "إلى",
+        "keywords": "كلمات مفتاحية",
+        "searchPlaceholder": "البحث في الوصف...",
+        "resetFilters": "إعادة تعيين عوامل التصفية",
+        "apply": "تطبيق",
+        "pageTitle": "سجل النشاط",
+        "subtitleClient": "سجل زمني للإجراءات على حسابك.",
+        "subtitleStaff": "سجل زمني للإجراءات المتعلقة بهذا العميل.",
+        "empty": "لا يوجد نشاط يطابق عوامل التصفية المحددة.",
+        "loadOlder": "تحميل نشاط أقدم",
+        "idPrefix": "المعرّف",
+        "types": {
+            "all": "كل الأنشطة",
+            "proposition": "اقتراح",
+            "proposition_accepted": "اقتراح مقبول",
+            "proposition_refused": "اقتراح مرفوض",
+            "proposition_expired": "اقتراح منتهٍ",
+            "proposition_cancelled": "اقتراح ملغى",
+            "rdv": "موعد",
+            "subscription": "اشتراك",
+            "status_change": "تغيير الحالة",
+            "note": "ملاحظة",
+            "matchmaker_assigned": "تعيين وسيط زواج"
+        },
+        "badges": {
+            "proposition": "تم إرسال اقتراح مطابقة",
+            "proposition_accepted": "تم قبول الاقتراح",
+            "proposition_refused": "تم رفض الاقتراح",
+            "proposition_expired": "انتهت صلاحية الاقتراح",
+            "proposition_cancelled": "تم إلغاء الاقتراح",
+            "rdv": "موعد",
+            "subscription": "اشتراك",
+            "status_change": "تم تغيير الحالة",
+            "note": "تمت إضافة ملاحظة",
+            "matchmaker_assigned": "تم تعيين وسيط زواج"
+        },
+        "desc": {
+            "propositionAccepted": "تم قبول الاقتراح.",
+            "propositionRefused": "تم رفض الاقتراح.",
+            "propositionExpired": "انتهت صلاحية الاقتراح (انتهى المهلة).",
+            "propositionCancelled": "تم إلغاء الاقتراح من قبل مستشاركم.",
+            "propositionSent": "تم إرسال اقتراح مطابقة مع {{name}}.",
+            "propositionSentWithMessage": "تم إرسال اقتراح مطابقة مع {{name}}. الرسالة: {{message}}",
+            "subscriptionAdded": "تمت إضافة اشتراك: {{pack}}، {{months}} أشهر.",
+            "statusProspectToMember": "تم تغيير الحالة من مرشح إلى عضو (مُعتمد).",
+            "statusMemberToClient": "تم تغيير الحالة من عضو إلى عميل.",
+            "memberAssigned": "تم تعيين العضو إلى {{name}}.",
+            "prospectAssigned": "تم تعيين المرشح إلى {{name}} (وسيط زواج).",
+            "prospectReassigned": "تم إعادة تعيين المرشح إلى {{name}} (وسيط زواج).",
+            "accountActivated": "تم تفعيل الحساب.",
+            "accountActivatedWithReason": "تم تفعيل الحساب. {{reason}}",
+            "accountDeactivated": "تم تعطيل الحساب.",
+            "accountDeactivatedWithReason": "تم تعطيل الحساب. {{reason}}",
+            "subscriptionExpiredStatus": "انتهى الاشتراك؛ تم تعيين الحالة إلى عميل منتهٍ.",
+            "rdvTreated": "تم وضع علامة على الموعد كمكتمل.",
+            "rdvConvertedProspect": "تم تحويل طلب الموعد إلى مرشح."
+        },
+        "performedBy": {
+            "staffDefault": "الفريق",
+            "system": "النظام",
+            "autoRenewal": "تجديد تلقائي"
+        }
     },
     "auth": {
         "phoneWarning": "يرجى إدخال رقم هاتف صحيح حتى نتمكن من الاتصال بك بسهولة.",

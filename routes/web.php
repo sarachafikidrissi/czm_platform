@@ -438,6 +438,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // Matchmaker section routes
         Route::middleware(['role:matchmaker'])->post('/propositions', [\App\Http\Controllers\PropositionController::class, 'store'])->name('propositions.store');
         Route::middleware(['role:matchmaker'])->post('/propositions/send-to-other', [\App\Http\Controllers\PropositionController::class, 'sendToOther'])->name('propositions.send-to-other');
+        Route::middleware(['role:matchmaker'])->patch('/propositions/{proposition}/cancel', [\App\Http\Controllers\PropositionController::class, 'cancel'])->name('propositions.cancel');
+        Route::middleware(['role:matchmaker'])->delete('/propositions/{proposition}/cancel', [\App\Http\Controllers\PropositionController::class, 'cancel'])->name('propositions.cancel.delete');
         Route::middleware(['role:matchmaker'])->post('/proposition-requests', [\App\Http\Controllers\PropositionRequestController::class, 'store'])->name('proposition-requests.store');
         Route::middleware(['role:matchmaker'])->post('/proposition-requests/{propositionRequest}/respond', [\App\Http\Controllers\PropositionRequestController::class, 'respond'])->name('proposition-requests.respond');
         Route::get('/matchmaker/propositions', [\App\Http\Controllers\MatchmakerController::class, 'propositionsList'])->name('matchmaker.propositions');

@@ -1,16 +1,19 @@
-import { Head, router, usePage } from '@inertiajs/react';
-import { useMemo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import AppLayout from '@/layouts/app-layout';
-import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useToast } from '@/hooks/use-toast';
+import AppLayout from '@/layouts/app-layout';
+import { propositionToastFr } from '@/lib/proposition-toast-messages';
+import { Head, router, usePage } from '@inertiajs/react';
 import axios from 'axios';
 import { Plus } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 export default function PropositionsList() {
     const { t } = useTranslation();
+    const { showToast } = useToast();
     const { propositions: initialPropositions = [] } = usePage().props;
     const [propositions, setPropositions] = useState(initialPropositions);
     const [isSending, setIsSending] = useState({});
@@ -22,6 +25,10 @@ export default function PropositionsList() {
     const [isRespondModalOpen, setIsRespondModalOpen] = useState(false);
     const [activeRecipient, setActiveRecipient] = useState(null);
     const [activeRecipientLabel, setActiveRecipientLabel] = useState('');
+    const [cancelEntry, setCancelEntry] = useState(null);
+    const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
+    /** While a grouped cancel request is in flight (one button per row). */
+    const [cancellingEntryKey, setCancellingEntryKey] = useState(null);
     const getProfilePicture = (user) => {
         if (user?.profile?.profile_picture_path) {
             return `/storage/${user.profile.profile_picture_path}`;
@@ -32,6 +39,7 @@ export default function PropositionsList() {
 
     const normalizeStatus = (status, isExpired) => {
         if (isExpired) return 'expired';
+        if (status === 'cancelled') return 'cancelled';
         if (status === 'interested' || status === 'accepted') return 'accepted';
         if (status === 'not_interested' || status === 'rejected') return 'rejected';
         return 'pending';
@@ -47,6 +55,9 @@ export default function PropositionsList() {
         }
         if (normalized === 'expired') {
             return { label: 'Expirée', variant: 'secondary', className: 'bg-amber-50 text-amber-700 border border-amber-100' };
+        }
+        if (normalized === 'cancelled') {
+            return { label: 'Annulée', variant: 'secondary', className: 'bg-slate-100 text-slate-700 border border-slate-200' };
         }
         return { label: 'En attente', variant: 'outline', className: 'bg-slate-50 text-slate-600 border border-slate-200' };
     };
@@ -80,11 +91,18 @@ export default function PropositionsList() {
                         : item,
                 ),
             );
-            setResponseSuccesses((prev) => ({ ...prev, [propositionId]: 'Response updated successfully.' }));
+            setResponseSuccesses((prev) => ({ ...prev, [propositionId]: propositionToastFr.respondUpdateSuccess }));
+            showToast(propositionToastFr.respondUpdateSuccess, undefined, 'success');
             return true;
         } catch (error) {
-            const messageText = error?.response?.data?.message || 'Une erreur est survenue.';
-            setResponseErrors((prev) => ({ ...prev, [propositionId]: messageText }));
+            const status = error?.response?.status;
+            if (status === 403) {
+                showToast(propositionToastFr.respondUpdateUnauthorized, undefined, 'error');
+                setResponseErrors((prev) => ({ ...prev, [propositionId]: propositionToastFr.respondUpdateUnauthorized }));
+            } else {
+                showToast(propositionToastFr.respondUpdateError, undefined, 'error');
+                setResponseErrors((prev) => ({ ...prev, [propositionId]: propositionToastFr.respondUpdateError }));
+            }
             return false;
         } finally {
             setProcessingIds((prev) => ({ ...prev, [propositionId]: false }));
@@ -121,6 +139,9 @@ export default function PropositionsList() {
         const recipientEntries = Object.values(entry.recipients);
         const normalizedStatuses = recipientEntries.map((item) => normalizeStatus(item.status, item.is_expired));
 
+        if (normalizedStatuses.includes('cancelled')) {
+            return 'cancelled';
+        }
         if (normalizedStatuses.includes('expired')) {
             return 'expired';
         }
@@ -131,6 +152,58 @@ export default function PropositionsList() {
             return 'accepted';
         }
         return 'pending';
+    };
+
+    const getCancellablePropositions = (entry) => Object.values(entry.recipients || {}).filter((p) => p && p.can_cancel);
+
+    const handleConfirmCancel = async () => {
+        if (!cancelEntry) return;
+        const toCancel = getCancellablePropositions(cancelEntry);
+        if (toCancel.length === 0) return;
+
+        const entryKey = cancelEntry.key;
+        setCancellingEntryKey(entryKey);
+        try {
+            const first = toCancel[0];
+            const { data } = await axios.patch(`/staff/propositions/${first.id}/cancel`);
+            const cancelledIds = new Set(
+                Array.isArray(data?.cancelled_proposition_ids) && data.cancelled_proposition_ids.length > 0
+                    ? data.cancelled_proposition_ids
+                    : [first.id],
+            );
+            showToast(
+                data?.pair_was_cancelled ? propositionToastFr.cancelSuccessPaired : propositionToastFr.cancelSuccess,
+                undefined,
+                'success',
+            );
+            setPropositions((prev) =>
+                prev.map((item) =>
+                    cancelledIds.has(item.id)
+                        ? {
+                              ...item,
+                              status: 'cancelled',
+                              is_active: false,
+                              can_cancel: false,
+                              cancelled_at: new Date().toISOString(),
+                          }
+                        : item,
+                ),
+            );
+            setIsCancelDialogOpen(false);
+            setCancelEntry(null);
+        } catch (error) {
+            const status = error?.response?.status;
+            const backendMsg = error?.response?.data?.message;
+            if (status === 403) {
+                showToast(propositionToastFr.cancelUnauthorized, undefined, 'error');
+            } else if (status === 422 && backendMsg === propositionToastFr.cancelInvalidState) {
+                showToast(propositionToastFr.cancelInvalidState, undefined, 'warning');
+            } else {
+                showToast(propositionToastFr.cancelError, undefined, 'error');
+            }
+        } finally {
+            setCancellingEntryKey(null);
+        }
     };
 
     const getOtherRecipientId = (entry) => {
@@ -186,9 +259,17 @@ export default function PropositionsList() {
             };
 
             setPropositions((prev) => [newItem, ...prev]);
+            showToast(propositionToastFr.sendSuccess, undefined, 'success');
         } catch (error) {
-            const message = error?.response?.data?.message || 'Une erreur est survenue.';
-            setErrorByKey((prev) => ({ ...prev, [requestKey]: message }));
+            const status = error?.response?.status;
+            const backendMsg = error?.response?.data?.message;
+            if (status === 422 && backendMsg === propositionToastFr.sendBlockedActive) {
+                showToast(propositionToastFr.sendBlockedActive, undefined, 'warning');
+                setErrorByKey((prev) => ({ ...prev, [requestKey]: propositionToastFr.sendBlockedActive }));
+            } else {
+                showToast(propositionToastFr.sendError, undefined, 'error');
+                setErrorByKey((prev) => ({ ...prev, [requestKey]: propositionToastFr.sendError }));
+            }
         } finally {
             setIsSending((prev) => ({ ...prev, [requestKey]: false }));
         }
@@ -203,250 +284,247 @@ export default function PropositionsList() {
                         <div className="text-2xl font-semibold text-rose-900">
                             {t('navigation.propositionsList', { defaultValue: 'Liste des propositions' })}
                         </div>
-                        <p className="text-sm text-muted-foreground">
-                            Gérez les mises en relation et les retours des candidats.
-                        </p>
+                        <p className="text-muted-foreground text-sm">Gérez les mises en relation et les retours des candidats.</p>
                     </div>
                     <div className="flex items-center gap-2">
                         {/* <Button variant="outline" size="sm" className="gap-2">
                             Filtrer
                         </Button> */}
-                        <Button
-                            size="sm"
-                            className="bg-rose-800 text-white hover:bg-rose-900"
-                            onClick={() => router.visit('/staff/match/search')}
-                        >
-                            <Plus className="w-4 h-4" />
+                        <Button size="sm" className="bg-rose-800 text-white hover:bg-rose-900" onClick={() => router.visit('/staff/match/search')}>
+                            <Plus className="h-4 w-4" />
                             Nouvelle proposition
                         </Button>
                     </div>
                 </div>
                 {groupedPropositions.length === 0 ? (
-                    <div className="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border p-6 text-sm text-neutral-700 dark:text-neutral-200">
+                    <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-6 text-sm text-neutral-700 dark:text-neutral-200">
                         Aucune proposition envoyee pour le moment.
                     </div>
                 ) : (
-                <Card className="border border-rose-100/60 shadow-sm">
-                    <CardContent className="p-0">
-                        <div className="hidden lg:grid grid-cols-[minmax(220px,1.2fr)_minmax(220px,1.2fr)_minmax(200px,1.6fr)_minmax(220px,1.2fr)_minmax(260px,1.6fr)_minmax(120px,0.6fr)] gap-4 border-b bg-rose-50/60 px-5 py-3 text-xs font-semibold uppercase tracking-wide text-rose-900">
-                            <div>Profil de référence</div>
-                            <div>Profil compatible</div>
-                            <div>Message</div>
-                            <div>Statuts globaux</div>
-                            <div>Actions & réponses</div>
-                            <div>Date d'envoi</div>
-                        </div>
-                        <div className="divide-y">
-                            {groupedPropositions.map((entry) => {
-                                const refUser = entry.reference_user;
-                                const compUser = entry.compatible_user;
-                                const refRecipient = entry.recipients[refUser?.id];
-                                const compRecipient = entry.recipients[compUser?.id];
-                                const refStatusMeta = refRecipient
-                                    ? getStatusMeta(refRecipient?.status, refRecipient?.is_expired)
-                                    : { label: 'Non envoyée', variant: 'outline', className: 'bg-slate-50 text-slate-600 border border-slate-200' };
-                                const compStatusMeta = compRecipient
-                                    ? getStatusMeta(compRecipient?.status, compRecipient?.is_expired)
-                                    : { label: 'Non envoyée', variant: 'outline', className: 'bg-slate-50 text-slate-600 border border-slate-200' };
-                                const aggregateMeta = getStatusMeta(getAggregateStatus(entry));
-                                const refResponse = refRecipient?.response_message || refRecipient?.user_comment;
-                                const compResponse = compRecipient?.response_message || compRecipient?.user_comment;
-                                const showSendToOther = canSendToOther(entry);
-                                const rowError = errorByKey[entry.key];
-                                const refCanRespond = refRecipient
-                                    && !refRecipient?.is_expired
-                                    && Boolean(refRecipient?.can_update_response);
-                                const compCanRespond = compRecipient
-                                    && !compRecipient?.is_expired
-                                    && Boolean(compRecipient?.can_update_response);
-                                const refProcessing = refRecipient ? processingIds[refRecipient.id] : false;
-                                const compProcessing = compRecipient ? processingIds[compRecipient.id] : false;
-                                const refError = refRecipient ? responseErrors[refRecipient.id] : '';
-                                const compError = compRecipient ? responseErrors[compRecipient.id] : '';
-                                const refSuccess = refRecipient ? responseSuccesses[refRecipient.id] : '';
-                                const compSuccess = compRecipient ? responseSuccesses[compRecipient.id] : '';
-                                const refRespondDisabled = !refCanRespond || refProcessing;
-                                const compRespondDisabled = !compCanRespond || compProcessing;
-                                const refIsAnswered = refRecipient
-                                    ? ['accepted', 'rejected'].includes(normalizeStatus(refRecipient?.status, refRecipient?.is_expired))
-                                    : false;
-                                const compIsAnswered = compRecipient
-                                    ? ['accepted', 'rejected'].includes(normalizeStatus(compRecipient?.status, compRecipient?.is_expired))
-                                    : false;
+                    <Card className="border border-rose-100/60 shadow-sm">
+                        <CardContent className="p-0">
+                            <div className="hidden grid-cols-[minmax(200px,1.1fr)_minmax(200px,1.1fr)_minmax(180px,1.4fr)_minmax(200px,1.1fr)_minmax(140px,0.75fr)_minmax(240px,1.5fr)_minmax(100px,0.55fr)] gap-4 border-b bg-rose-50/60 px-5 py-3 text-xs font-semibold tracking-wide text-rose-900 uppercase lg:grid">
+                                <div>Profil de référence</div>
+                                <div>Profil compatible</div>
+                                <div>Message</div>
+                                <div>Statuts globaux</div>
+                                <div>Annulation</div>
+                                <div>Actions & réponses</div>
+                                <div>Date d'envoi</div>
+                            </div>
+                            <div className="divide-y">
+                                {groupedPropositions.map((entry) => {
+                                    const refUser = entry.reference_user;
+                                    const compUser = entry.compatible_user;
+                                    const refRecipient = entry.recipients[refUser?.id];
+                                    const compRecipient = entry.recipients[compUser?.id];
+                                    const refStatusMeta = refRecipient
+                                        ? getStatusMeta(refRecipient?.status, refRecipient?.is_expired)
+                                        : {
+                                              label: 'Non envoyée',
+                                              variant: 'outline',
+                                              className: 'bg-slate-50 text-slate-600 border border-slate-200',
+                                          };
+                                    const compStatusMeta = compRecipient
+                                        ? getStatusMeta(compRecipient?.status, compRecipient?.is_expired)
+                                        : {
+                                              label: 'Non envoyée',
+                                              variant: 'outline',
+                                              className: 'bg-slate-50 text-slate-600 border border-slate-200',
+                                          };
+                                    const aggregateMeta = getStatusMeta(getAggregateStatus(entry));
+                                    const refResponse = refRecipient?.response_message || refRecipient?.user_comment;
+                                    const compResponse = compRecipient?.response_message || compRecipient?.user_comment;
+                                    const showSendToOther = canSendToOther(entry);
+                                    const rowError = errorByKey[entry.key];
+                                    const refCanRespond =
+                                        refRecipient &&
+                                        !refRecipient?.is_expired &&
+                                        refRecipient?.status !== 'cancelled' &&
+                                        Boolean(refRecipient?.can_update_response);
+                                    const compCanRespond =
+                                        compRecipient &&
+                                        !compRecipient?.is_expired &&
+                                        compRecipient?.status !== 'cancelled' &&
+                                        Boolean(compRecipient?.can_update_response);
+                                    const refProcessing = refRecipient ? processingIds[refRecipient.id] : false;
+                                    const compProcessing = compRecipient ? processingIds[compRecipient.id] : false;
+                                    const refError = refRecipient ? responseErrors[refRecipient.id] : '';
+                                    const compError = compRecipient ? responseErrors[compRecipient.id] : '';
+                                    const refSuccess = refRecipient ? responseSuccesses[refRecipient.id] : '';
+                                    const compSuccess = compRecipient ? responseSuccesses[compRecipient.id] : '';
+                                    const refRespondDisabled = !refCanRespond || refProcessing;
+                                    const compRespondDisabled = !compCanRespond || compProcessing;
+                                    const refIsAnswered = refRecipient
+                                        ? ['accepted', 'rejected', 'cancelled'].includes(
+                                              normalizeStatus(refRecipient?.status, refRecipient?.is_expired),
+                                          )
+                                        : false;
+                                    const compIsAnswered = compRecipient
+                                        ? ['accepted', 'rejected', 'cancelled'].includes(
+                                              normalizeStatus(compRecipient?.status, compRecipient?.is_expired),
+                                          )
+                                        : false;
 
-                                return (
-                                    <div
-                                        key={entry.key}
-                                        className="grid grid-cols-1 gap-4 px-5 py-4 lg:grid-cols-[minmax(220px,1.2fr)_minmax(220px,1.2fr)_minmax(200px,1.6fr)_minmax(220px,1.2fr)_minmax(260px,1.6fr)_minmax(120px,0.6fr)]"
-                                    >
-                                        <div>
-                                            <div className="flex items-center gap-2">
-                                                <img
-                                                    src={getProfilePicture(refUser)}
-                                                    alt={refUser?.name}
-                                                    className="h-10 w-10 rounded-full object-cover"
-                                                />
-                                                <div>
-                                                    <div className="text-sm font-semibold text-slate-900">
-                                                        {refUser?.name || '-'}
-                                                    </div>
-                                                    <div className="text-xs text-muted-foreground">
-                                                        @{refUser?.username}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            {refUser?.username && (
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    className="mt-3 h-8 border-rose-200 text-rose-700 hover:bg-rose-50"
-                                                    onClick={() =>
-                                                        window.open(
-                                                            `/profile/${refUser.username}`,
-                                                            '_blank',
-                                                            'noopener,noreferrer'
-                                                        )
-                                                    }
-                                                >
-                                                    Voir profil
-                                                </Button>
-                                            )}
-                                        </div>
-                                        <div>
-                                            <div className="flex items-center gap-2">
-                                                <img
-                                                    src={getProfilePicture(compUser)}
-                                                    alt={compUser?.name}
-                                                    className="h-10 w-10 rounded-full object-cover"
-                                                />
-                                                <div>
-                                                    <div className="text-sm font-semibold text-slate-900">
-                                                        {compUser?.name || '-'}
-                                                    </div>
-                                                    <div className="text-xs text-muted-foreground">
-                                                        @{compUser?.username}
+                                    const cancellablePropositions = getCancellablePropositions(entry);
+                                    const canShowGroupCancel = cancellablePropositions.length > 0;
+
+                                    return (
+                                        <div
+                                            key={entry.key}
+                                            className="grid grid-cols-1 gap-4 px-5 py-4 lg:grid-cols-[minmax(200px,1.1fr)_minmax(200px,1.1fr)_minmax(180px,1.4fr)_minmax(200px,1.1fr)_minmax(140px,0.75fr)_minmax(240px,1.5fr)_minmax(100px,0.55fr)]"
+                                        >
+                                            <div>
+                                                <div className="flex items-center gap-2">
+                                                    <img
+                                                        src={getProfilePicture(refUser)}
+                                                        alt={refUser?.name}
+                                                        className="h-10 w-10 rounded-full object-cover"
+                                                    />
+                                                    <div>
+                                                        <div className="text-sm font-semibold text-slate-900">{refUser?.name || '-'}</div>
+                                                        <div className="text-muted-foreground text-xs">@{refUser?.username}</div>
                                                     </div>
                                                 </div>
+                                                {refUser?.username && (
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="mt-3 h-8 border-rose-200 text-rose-700 hover:bg-rose-50"
+                                                        onClick={() => window.open(`/profile/${refUser.username}`, '_blank', 'noopener,noreferrer')}
+                                                    >
+                                                        Voir profil
+                                                    </Button>
+                                                )}
                                             </div>
-                                            {compUser?.username && (
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    className="mt-3 h-8 border-rose-200 text-rose-700 hover:bg-rose-50"
-                                                    onClick={() =>
-                                                        window.open(
-                                                            `/profile/${compUser.username}`,
-                                                            '_blank',
-                                                            'noopener,noreferrer'
-                                                        )
-                                                    }
-                                                >
-                                                    Voir profil
-                                                </Button>
-                                            )}
-                                        </div>
-                                        <div className="text-sm text-muted-foreground">
-                                            {entry.message ? (
-                                                <span className="italic">"{entry.message}"</span>
-                                            ) : (
-                                                <span className="text-xs text-muted-foreground">-</span>
-                                            )}
-                                        </div>
-                                        <div className="space-y-2">
-                                            <div className="flex flex-wrap items-center gap-2">
-                                                <Badge variant={refStatusMeta.variant} className={refStatusMeta.className}>
-                                                    Réf: {refStatusMeta.label}
-                                                </Badge>
-                                                <Badge variant={compStatusMeta.variant} className={compStatusMeta.className}>
-                                                    Comp: {compStatusMeta.label}
+                                            <div>
+                                                <div className="flex items-center gap-2">
+                                                    <img
+                                                        src={getProfilePicture(compUser)}
+                                                        alt={compUser?.name}
+                                                        className="h-10 w-10 rounded-full object-cover"
+                                                    />
+                                                    <div>
+                                                        <div className="text-sm font-semibold text-slate-900">{compUser?.name || '-'}</div>
+                                                        <div className="text-muted-foreground text-xs">@{compUser?.username}</div>
+                                                    </div>
+                                                </div>
+                                                {compUser?.username && (
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="mt-3 h-8 border-rose-200 text-rose-700 hover:bg-rose-50"
+                                                        onClick={() => window.open(`/profile/${compUser.username}`, '_blank', 'noopener,noreferrer')}
+                                                    >
+                                                        Voir profil
+                                                    </Button>
+                                                )}
+                                            </div>
+                                            <div className="text-muted-foreground text-sm">
+                                                {entry.message ? (
+                                                    <span className="italic">"{entry.message}"</span>
+                                                ) : (
+                                                    <span className="text-muted-foreground text-xs">-</span>
+                                                )}
+                                            </div>
+                                            <div className="space-y-2">
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                    <Badge variant={refStatusMeta.variant} className={refStatusMeta.className}>
+                                                        Réf: {refStatusMeta.label}
+                                                    </Badge>
+                                                    <Badge variant={compStatusMeta.variant} className={compStatusMeta.className}>
+                                                        Comp: {compStatusMeta.label}
+                                                    </Badge>
+                                                </div>
+                                                <Badge variant={aggregateMeta.variant} className={aggregateMeta.className}>
+                                                    Global: {aggregateMeta.label}
                                                 </Badge>
                                             </div>
-                                            <Badge variant={aggregateMeta.variant} className={aggregateMeta.className}>
-                                                Global: {aggregateMeta.label}
-                                            </Badge>
-                                        </div>
-                                        <div className="grid gap-3 lg:grid-cols-2">
-                                            <div className="rounded-lg border border-slate-100 bg-slate-50/50 p-3">
-                                                <div className="text-[11px] font-semibold uppercase text-slate-500">
-                                                    Rép. référence
-                                                </div>
-                                                <Button
-                                                    size="sm"
-                                                    className="mt-3 h-8 w-full bg-rose-800 text-white hover:bg-rose-900"
-                                                    disabled={refRespondDisabled}
-                                                    onClick={() => {
-                                                        setActiveRecipient(refRecipient || null);
-                                                        setActiveRecipientLabel('Référence');
-                                                        setIsRespondModalOpen(true);
-                                                    }}
-                                                >
-                                                    {refIsAnswered ? 'Mettre à jour la réponse' : 'Répondre'}
-                                                </Button>
-                                                {refResponse && (
-                                                    <div className="mt-2 text-xs text-slate-600">
-                                                        Dernière réponse: {refResponse}
-                                                    </div>
-                                                )}
-                                                {refSuccess && (
-                                                    <div className="mt-2 text-xs text-emerald-700">
-                                                        {refSuccess}
-                                                    </div>
+                                            <div className="flex flex-col justify-center lg:min-h-[4rem]">
+                                                {canShowGroupCancel ? (
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="h-9 w-full border-rose-200 text-rose-800 hover:bg-rose-50"
+                                                        disabled={cancellingEntryKey === entry.key}
+                                                        onClick={() => {
+                                                            setCancelEntry(entry);
+                                                            setIsCancelDialogOpen(true);
+                                                        }}
+                                                    >
+                                                        {cancellingEntryKey === entry.key
+                                                            ? 'Annulation…'
+                                                            : cancellablePropositions.length > 1
+                                                              ? 'Annuler la proposition'
+                                                              : 'Annuler la proposition'}
+                                                    </Button>
+                                                ) : (
+                                                    <span className="text-muted-foreground text-xs">Proposition annulée</span>
                                                 )}
                                             </div>
-                                            <div className="rounded-lg border border-slate-100 bg-slate-50/50 p-3">
-                                                <div className="text-[11px] font-semibold uppercase text-slate-500">
-                                                    Rép. compatible
-                                                </div>
-                                                <Button
-                                                    size="sm"
-                                                    className="mt-3 h-8 w-full bg-rose-800 text-white hover:bg-rose-900"
-                                                    disabled={compRespondDisabled}
-                                                    onClick={() => {
-                                                        setActiveRecipient(compRecipient || null);
-                                                        setActiveRecipientLabel('Compatible');
-                                                        setIsRespondModalOpen(true);
-                                                    }}
-                                                >
-                                                    {compIsAnswered ? 'Mettre à jour la réponse' : 'Répondre'}
-                                                </Button>
-                                                {compResponse && (
-                                                    <div className="mt-2 text-xs text-slate-600">
-                                                        Dernière réponse: {compResponse}
-                                                    </div>
-                                                )}
-                                                {compSuccess && (
-                                                    <div className="mt-2 text-xs text-emerald-700">
-                                                        {compSuccess}
-                                                    </div>
-                                                )}
-                                            </div>
-                                            {showSendToOther && (
-                                                <div className="lg:col-span-2">
+                                            <div className="grid gap-3 lg:grid-cols-2">
+                                                <div className="rounded-lg border border-slate-100 bg-slate-50/50 p-3">
+                                                    <div className="text-[11px] font-semibold text-slate-500 uppercase">Rép. référence</div>
                                                     <Button
                                                         size="sm"
-                                                        className="h-8"
-                                                        onClick={() => handleSendToOther(entry)}
-                                                        disabled={isSending[entry.key]}
+                                                        className="mt-3 h-8 w-full bg-rose-800 text-white hover:bg-rose-900"
+                                                        disabled={refRespondDisabled}
+                                                        onClick={() => {
+                                                            setActiveRecipient(refRecipient || null);
+                                                            setActiveRecipientLabel('Référence');
+                                                            setIsRespondModalOpen(true);
+                                                        }}
                                                     >
-                                                        {isSending[entry.key] ? 'Envoi...' : 'Envoyer au profil restant'}
+                                                        {refIsAnswered ? 'Mettre à jour la réponse' : 'Répondre'}
                                                     </Button>
-                                                    {rowError && (
-                                                        <div className="mt-2 text-xs text-red-600">
-                                                            {rowError}
-                                                        </div>
+                                                    {refResponse && (
+                                                        <div className="mt-2 text-xs text-slate-600">Dernière réponse: {refResponse}</div>
                                                     )}
+                                                    {refSuccess && <div className="mt-2 text-xs text-emerald-700">{refSuccess}</div>}
                                                 </div>
-                                            )}
+                                                <div className="rounded-lg border border-slate-100 bg-slate-50/50 p-3">
+                                                    <div className="text-[11px] font-semibold text-slate-500 uppercase">Rép. compatible</div>
+                                                    <Button
+                                                        size="sm"
+                                                        className="mt-3 h-8 w-full bg-rose-800 text-white hover:bg-rose-900"
+                                                        disabled={compRespondDisabled}
+                                                        onClick={() => {
+                                                            setActiveRecipient(compRecipient || null);
+                                                            setActiveRecipientLabel('Compatible');
+                                                            setIsRespondModalOpen(true);
+                                                        }}
+                                                    >
+                                                        {compIsAnswered ? 'Mettre à jour la réponse' : 'Répondre'}
+                                                    </Button>
+                                                    {compResponse && (
+                                                        <div className="mt-2 text-xs text-slate-600">Dernière réponse: {compResponse}</div>
+                                                    )}
+                                                    {compSuccess && <div className="mt-2 text-xs text-emerald-700">{compSuccess}</div>}
+                                                </div>
+                                                {showSendToOther && (
+                                                    <div className="lg:col-span-2">
+                                                        <Button
+                                                            size="sm"
+                                                            className="h-8"
+                                                            onClick={() => handleSendToOther(entry)}
+                                                            disabled={isSending[entry.key]}
+                                                        >
+                                                            {isSending[entry.key] ? 'Envoi...' : 'Envoyer au profil restant'}
+                                                        </Button>
+                                                        {rowError && <div className="mt-2 text-xs text-red-600">{rowError}</div>}
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div className="text-muted-foreground text-xs lg:text-right">
+                                                {new Date(entry.created_at).toLocaleDateString()}
+                                            </div>
                                         </div>
-                                        <div className="text-xs text-muted-foreground lg:text-right">
-                                            {new Date(entry.created_at).toLocaleDateString()}
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </CardContent>
-                </Card>
+                                    );
+                                })}
+                            </div>
+                        </CardContent>
+                    </Card>
                 )}
             </div>
             <Dialog
@@ -462,15 +540,11 @@ export default function PropositionsList() {
                 <DialogContent className="max-w-md">
                     <DialogHeader>
                         <DialogTitle>Répondre à la proposition</DialogTitle>
-                        <DialogDescription>
-                            {activeRecipientLabel ? `Profil ${activeRecipientLabel.toLowerCase()}` : 'Réponse'}
-                        </DialogDescription>
+                        <DialogDescription>{activeRecipientLabel ? `Profil ${activeRecipientLabel.toLowerCase()}` : 'Réponse'}</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-2">
-                        <div className="text-xs font-semibold text-slate-500 uppercase">
-                            Motif
-                        </div>
-                        <div className="text-xs text-muted-foreground">
+                        <div className="text-xs font-semibold text-slate-500 uppercase">Motif</div>
+                        <div className="text-muted-foreground text-xs">
                             Statut actuel:{' '}
                             {activeRecipient
                                 ? normalizeStatus(activeRecipient.status, activeRecipient.is_expired) === 'accepted'
@@ -502,10 +576,7 @@ export default function PropositionsList() {
                         )}
                     </div>
                     <DialogFooter className="gap-2 sm:gap-0">
-                        <Button
-                            variant="outline"
-                            onClick={() => setIsRespondModalOpen(false)}
-                        >
+                        <Button variant="outline" onClick={() => setIsRespondModalOpen(false)}>
                             Annuler
                         </Button>
                         <Button
@@ -534,9 +605,37 @@ export default function PropositionsList() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            <Dialog
+                open={isCancelDialogOpen}
+                onOpenChange={(open) => {
+                    setIsCancelDialogOpen(open);
+                    if (!open) setCancelEntry(null);
+                }}
+            >
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Annuler la proposition</DialogTitle>
+                        <DialogDescription>
+                            {cancelEntry && getCancellablePropositions(cancelEntry).length > 1
+                                ? 'Êtes-vous sûr de vouloir annuler cette proposition pour les deux profils (référence et compatible) ? Vous pourrez ensuite en envoyer une nouvelle.'
+                                : 'Êtes-vous sûr de vouloir annuler cette proposition ? Cela permettra d’en envoyer une nouvelle vers ce profil.'}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="gap-2 sm:gap-0">
+                        <Button variant="outline" onClick={() => setIsCancelDialogOpen(false)}>
+                            Retour
+                        </Button>
+                        <Button
+                            className="bg-rose-800 text-white hover:bg-rose-900"
+                            disabled={!cancelEntry || cancellingEntryKey === cancelEntry.key}
+                            onClick={handleConfirmCancel}
+                        >
+                            {cancelEntry && cancellingEntryKey === cancelEntry.key ? 'Annulation…' : 'Confirmer l’annulation'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </AppLayout>
     );
 }
-
-
-

@@ -18,9 +18,15 @@ import {
 import AppLayout from '@/layouts/app-layout';
 import { Head, router, usePage } from '@inertiajs/react';
 import { BookOpen, Building2, Camera, ChevronRight, Eye, Facebook, Heart, Instagram, Linkedin, Mail, MapPin, MessageSquareWarning, User, X, Youtube, Trash2, MoreVertical, UserCircle, Image, ThumbsUp, CheckCircle, Coffee, CreditCard, Lightbulb, Phone, ArrowRightLeft, Pencil, FileText, Calendar, Search, ShoppingCart, GraduationCap, Briefcase, Star } from 'lucide-react';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import MatchResultMatchCard from '@/components/matchmaking/MatchResultMatchCard';
+import MatchmakingProposeRequestModals from '@/components/matchmaking/MatchmakingProposeRequestModals';
+import MatchmakerRespondToPropositionDialog from '@/components/matchmaking/MatchmakerRespondToPropositionDialog';
+import { useMatchmakingProposeRequestFlow } from '@/hooks/use-matchmaking-propose-request-flow';
+import { getProfilePicture, getAge, getLocation, getScoreColor } from '@/lib/matchmaking-result-display';
 import { useTranslation } from 'react-i18next';
 import { useToast } from '@/hooks/use-toast';
+import { propositionToastFr } from '@/lib/proposition-toast-messages';
 import axios from 'axios';
 
 export default function UserProfile({
@@ -36,6 +42,7 @@ export default function UserProfile({
     matchmakingResults = null,
     propositionToRespond = null,
     evaluationAccessLevel = 'none',
+    memberProposition = null,
 }) {
     const { t } = useTranslation();
     const { auth } = usePage().props;
@@ -172,9 +179,26 @@ export default function UserProfile({
                       }
                     : prev,
             );
+            showToast(
+                status === 'accepted' ? propositionToastFr.memberAccept : propositionToastFr.memberDecline,
+                undefined,
+                'success',
+            );
         } catch (error) {
-            const messageText = error?.response?.data?.message || 'Une erreur est survenue.';
-            setResponseErrors((prev) => ({ ...prev, [propositionId]: messageText }));
+            const m = error?.response?.data?.message;
+            if (m === 'Proposition already responded.') {
+                showToast(propositionToastFr.memberAlreadyAnswered, undefined, 'warning');
+                setResponseErrors((prev) => ({ ...prev, [propositionId]: propositionToastFr.memberAlreadyAnswered }));
+            } else if (m === 'Proposition expired.') {
+                showToast(propositionToastFr.memberExpired, undefined, 'warning');
+                setResponseErrors((prev) => ({ ...prev, [propositionId]: propositionToastFr.memberExpired }));
+            } else if (m === 'Cette proposition a été annulée.') {
+                showToast('Cette proposition a été annulée.', undefined, 'warning');
+                setResponseErrors((prev) => ({ ...prev, [propositionId]: 'Cette proposition a été annulée.' }));
+            } else {
+                showToast(propositionToastFr.memberGenericError, undefined, 'error');
+                setResponseErrors((prev) => ({ ...prev, [propositionId]: propositionToastFr.memberGenericError }));
+            }
         } finally {
             setResponseProcessingIds((prev) => ({ ...prev, [propositionId]: false }));
         }
@@ -182,6 +206,140 @@ export default function UserProfile({
 
     // Visibility: who can see notes/evaluation
     const viewerRole = auth?.user?.roles?.[0]?.name || 'user';
+    const viewerIsMatchmaker = viewerRole === 'matchmaker';
+    const staffCanViewMemberInsights =
+        viewerRole === 'matchmaker' || viewerRole === 'admin' || viewerRole === 'manager';
+
+    const matchmakingUserA = useMemo(
+        () =>
+            user?.id
+                ? {
+                      id: user.id,
+                      name: user.name,
+                      email: user.email,
+                      username: user.username,
+                      gender: user.gender,
+                      profile: profile || null,
+                  }
+                : { id: 0 },
+        [user, profile],
+    );
+
+    const [staffMatchmakingRows, setStaffMatchmakingRows] = useState(matchmakingResults || []);
+    useEffect(() => {
+        setStaffMatchmakingRows(matchmakingResults || []);
+    }, [matchmakingResults]);
+
+    const proposeFlow = useMatchmakingProposeRequestFlow(matchmakingUserA, {
+        onAfterProposeSuccess: () => router.reload({ only: ['matchmakingResults', 'memberProposition'] }),
+        onAfterRequestSuccess: () => router.reload({ only: ['matchmakingResults', 'memberProposition'] }),
+    });
+
+    const [profileMmCancellingId, setProfileMmCancellingId] = useState(null);
+    const [profileRespondDialog, setProfileRespondDialog] = useState({ open: false, propositionId: null });
+
+    const handleProfileMatchCancel = useCallback(
+        async (propositionId) => {
+            setProfileMmCancellingId(propositionId);
+            try {
+                const { data } = await axios.patch(`/staff/propositions/${propositionId}/cancel`);
+                const pairToast =
+                    data?.pair_was_cancelled ? propositionToastFr.cancelSuccessPaired : propositionToastFr.cancelSuccess;
+                showToast(pairToast, undefined, 'success');
+                router.reload({ only: ['matchmakingResults', 'memberProposition'] });
+            } catch (error) {
+                const status = error?.response?.status;
+                const backendMsg = error?.response?.data?.message;
+                if (status === 403) {
+                    showToast(propositionToastFr.cancelUnauthorized, undefined, 'error');
+                } else if (status === 422 && backendMsg === propositionToastFr.cancelInvalidState) {
+                    showToast(propositionToastFr.cancelInvalidState, undefined, 'warning');
+                } else {
+                    showToast(propositionToastFr.cancelError, undefined, 'error');
+                }
+            } finally {
+                setProfileMmCancellingId(null);
+            }
+        },
+        [showToast],
+    );
+
+    const isEnrichedStaffMatchmaking =
+        viewerIsMatchmaker &&
+        Array.isArray(staffMatchmakingRows) &&
+        staffMatchmakingRows.length > 0 &&
+        staffMatchmakingRows[0] &&
+        Object.prototype.hasOwnProperty.call(staffMatchmakingRows[0], 'isAssignedToMe');
+
+    const activePairCounterpartIdProfile = useMemo(() => {
+        if (!memberProposition?.exists || user?.id == null) {
+            return null;
+        }
+        const refId = Number(user.id);
+        const p = memberProposition;
+        const r = Number(p.reference_user_id);
+        const c = Number(p.compatible_user_id);
+        return r === refId ? c : r;
+    }, [memberProposition, user?.id]);
+
+    const staffMatchmakingDisplayRows = useMemo(() => {
+        const rows = staffMatchmakingRows || [];
+        if (!memberProposition?.exists) {
+            return rows;
+        }
+        if (activePairCounterpartIdProfile == null) {
+            return rows;
+        }
+        return rows.filter((m) => Number(m.user?.id) === activePairCounterpartIdProfile);
+    }, [staffMatchmakingRows, memberProposition?.exists, activePairCounterpartIdProfile]);
+
+    const showStaffActivePairMissingInList = Boolean(
+        memberProposition?.exists &&
+            isEnrichedStaffMatchmaking &&
+            (staffMatchmakingRows || []).length > 0 &&
+            staffMatchmakingDisplayRows.length === 0,
+    );
+
+    const [managePropositionModalOpen, setManagePropositionModalOpen] = useState(false);
+    const [manageModalCancelConfirm, setManageModalCancelConfirm] = useState(false);
+    const [manageModalCancelling, setManageModalCancelling] = useState(false);
+
+    useEffect(() => {
+        if (!managePropositionModalOpen) {
+            setManageModalCancelConfirm(false);
+        }
+    }, [managePropositionModalOpen]);
+
+    const handleManageModalCancelProposition = useCallback(async () => {
+        const pid = memberProposition?.proposition_id;
+        if (!pid) return;
+        if (!manageModalCancelConfirm) {
+            setManageModalCancelConfirm(true);
+            return;
+        }
+        setManageModalCancelling(true);
+        try {
+            const { data } = await axios.patch(`/staff/propositions/${pid}/cancel`);
+            const pairToast =
+                data?.pair_was_cancelled ? propositionToastFr.cancelSuccessPaired : propositionToastFr.cancelSuccess;
+            showToast(pairToast, undefined, 'success');
+            setManagePropositionModalOpen(false);
+            setManageModalCancelConfirm(false);
+            router.reload({ only: ['matchmakingResults', 'memberProposition'] });
+        } catch (error) {
+            const status = error?.response?.status;
+            const backendMsg = error?.response?.data?.message;
+            if (status === 403) {
+                showToast(propositionToastFr.cancelUnauthorized, undefined, 'error');
+            } else if (status === 422 && backendMsg === propositionToastFr.cancelInvalidState) {
+                showToast(propositionToastFr.cancelInvalidState, undefined, 'warning');
+            } else {
+                showToast(propositionToastFr.cancelError, undefined, 'error');
+            }
+        } finally {
+            setManageModalCancelling(false);
+        }
+    }, [memberProposition?.proposition_id, manageModalCancelConfirm, showToast]);
 
     // Helper function to check if matchmaker belongs to manager's agency
     const isMatchmakerFromManagerAgency = () => {
@@ -227,7 +385,6 @@ export default function UserProfile({
         viewerRole === 'admin' ||
         (viewerRole === 'matchmaker' && user?.assigned_matchmaker_id === auth?.user?.id) ||
         (viewerRole === 'manager' && user?.agency_id && user?.agency_id === auth?.user?.agency_id);
-    viewerRole === 'manager' && user?.agency_id && user?.agency_id === auth?.user?.agency_id;
 
     // Can delete photos: user can delete their own, matchmaker can delete assigned user's photos
     const canDeletePhotos =
@@ -1670,114 +1827,225 @@ export default function UserProfile({
                                                 </Card>
 
                                                 {/* Matchmaking Results (À proposer) */}
-                                                {matchmakingResults && matchmakingResults.length > 0 && (
+                                                {staffCanViewMemberInsights &&
+                                                    ((staffMatchmakingRows && staffMatchmakingRows.length > 0) ||
+                                                        memberProposition?.exists) && (
                                                     <Card className="border-gray-200 bg-white">
                                                         <CardContent className="p-6">
+                                                            {memberProposition?.exists && (
+                                                                <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+                                                                    <Badge className="bg-amber-700 text-white hover:bg-amber-700">
+                                                                        Proposition en cours
+                                                                    </Badge>
+                                                                    {memberProposition.status ? (
+                                                                        <Badge variant="outline" className="border-amber-300 text-amber-950">
+                                                                            {String(memberProposition.status)}
+                                                                        </Badge>
+                                                                    ) : null}
+                                                                    <Button
+                                                                        type="button"
+                                                                        size="sm"
+                                                                        variant="outline"
+                                                                        className="border-amber-400 text-amber-950"
+                                                                        onClick={() => setManagePropositionModalOpen(true)}
+                                                                    >
+                                                                        Gérer la proposition
+                                                                    </Button>
+                                                                </div>
+                                                            )}
                                                             <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-gray-900">
                                                                 <Heart className="h-5 w-5 text-red-600" />
-                                                                Résultats de Matchmaking ({matchmakingResults.length} profil{matchmakingResults.length > 1 ? 's' : ''} compatible{matchmakingResults.length > 1 ? 's' : ''})
+                                                                Résultats de Matchmaking (
+                                                                {memberProposition?.exists
+                                                                    ? staffMatchmakingDisplayRows.length
+                                                                    : staffMatchmakingRows.length}{' '}
+                                                                profil
+                                                                {(memberProposition?.exists
+                                                                    ? staffMatchmakingDisplayRows.length
+                                                                    : staffMatchmakingRows.length) > 1
+                                                                    ? 's'
+                                                                    : ''}{' '}
+                                                                compatible
+                                                                {(memberProposition?.exists
+                                                                    ? staffMatchmakingDisplayRows.length
+                                                                    : staffMatchmakingRows.length) > 1
+                                                                    ? 's'
+                                                                    : ''}
+                                                                )
+                                                                {memberProposition?.exists ? (
+                                                                    <span className="text-sm font-normal text-gray-500">
+                                                                        — filtre proposition active
+                                                                    </span>
+                                                                ) : null}
                                                             </h3>
-                                                            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                                                                {matchmakingResults.map((match) => {
-                                                                    // Helper functions for display
-                                                                    const getProfilePicture = (user, profile) => {
-                                                                        const profilePicturePath = profile?.profile_picture_path;
-                                                                        if (profilePicturePath) {
-                                                                            return `/storage/${profilePicturePath}`;
+                                                            {memberProposition?.exists &&
+                                                            (!staffMatchmakingRows || staffMatchmakingRows.length === 0) ? (
+                                                                <div className="space-y-3 py-6 text-center">
+                                                                    <p className="text-gray-600">
+                                                                        Une proposition est en cours, mais aucun profil compatible n’a été
+                                                                        chargé. Actualisez la page.
+                                                                    </p>
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="outline"
+                                                                        onClick={() =>
+                                                                            router.reload({
+                                                                                only: ['matchmakingResults', 'memberProposition'],
+                                                                            })
                                                                         }
-                                                                        return `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=random`;
-                                                                    };
-
-                                                                    const getLocation = (profile) => {
-                                                                        const city = profile?.ville_residence || profile?.ville_origine || '';
-                                                                        const country = profile?.pays_residence || profile?.pays_origine || '';
-                                                                        if (city && country) {
-                                                                            return `${city}, ${country}`;
+                                                                    >
+                                                                        Actualiser
+                                                                    </Button>
+                                                                </div>
+                                                            ) : showStaffActivePairMissingInList ? (
+                                                                <div className="space-y-3 py-6 text-center">
+                                                                    <p className="text-gray-600">
+                                                                        Le profil partenaire de la proposition en cours n’apparaît pas dans
+                                                                        cette liste. Ajustez les critères ou actualisez.
+                                                                    </p>
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="outline"
+                                                                        onClick={() =>
+                                                                            router.reload({
+                                                                                only: ['matchmakingResults', 'memberProposition'],
+                                                                            })
                                                                         }
-                                                                        return city || country || 'Non spécifié';
-                                                                    };
-
-                                                                    const getAge = (profile) => {
-                                                                        if (!profile?.date_naissance) return null;
-                                                                        const birthDate = new Date(profile.date_naissance);
-                                                                        const today = new Date();
-                                                                        let age = today.getFullYear() - birthDate.getFullYear();
-                                                                        const monthDiff = today.getMonth() - birthDate.getMonth();
-                                                                        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-                                                                            age--;
-                                                                        }
-                                                                        return age;
-                                                                    };
-
-                                                                    const getScoreColor = (score) => {
-                                                                        if (score >= 70) return 'text-green-600 border-green-600';
-                                                                        if (score >= 50) return 'text-yellow-600 border-yellow-600';
-                                                                        return 'text-orange-600 border-orange-600';
-                                                                    };
-
-                                                                    return (
-                                                                        <Card 
-                                                                            key={match.user.id} 
+                                                                    >
+                                                                        Actualiser
+                                                                    </Button>
+                                                                </div>
+                                                            ) : isEnrichedStaffMatchmaking ? (
+                                                                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                                                                    {staffMatchmakingDisplayRows.map((match) => {
+                                                                        const isActivePairCard =
+                                                                            Boolean(memberProposition?.exists) &&
+                                                                            Number(match.user?.id) ===
+                                                                                activePairCounterpartIdProfile;
+                                                                        return (
+                                                                            <MatchResultMatchCard
+                                                                                key={match.user.id}
+                                                                                match={match}
+                                                                                compactTypography
+                                                                                onCardClick={() =>
+                                                                                    window.open(
+                                                                                        `/staff/match/results/${user.id}`,
+                                                                                        '_blank',
+                                                                                        'noopener,noreferrer',
+                                                                                    )
+                                                                                }
+                                                                                onOpenPropose={proposeFlow.openProposeModal}
+                                                                                onOpenRequest={proposeFlow.openRequestModal}
+                                                                                onCancelProposition={handleProfileMatchCancel}
+                                                                                cancellingPropositionId={profileMmCancellingId}
+                                                                                onOpenRespondDialog={(propositionId) =>
+                                                                                    setProfileRespondDialog({
+                                                                                        open: true,
+                                                                                        propositionId,
+                                                                                    })
+                                                                                }
+                                                                                referenceActivePairMode={isActivePairCard}
+                                                                                referencePendingResponsePropositionId={
+                                                                                    isActivePairCard
+                                                                                        ? memberProposition?.pending_response_proposition_id ??
+                                                                                          null
+                                                                                        : null
+                                                                                }
+                                                                                activePairCancelPropositionId={
+                                                                                    isActivePairCard
+                                                                                        ? match.cancellable_proposition?.id ??
+                                                                                          memberProposition?.proposition_id ??
+                                                                                          null
+                                                                                        : null
+                                                                                }
+                                                                            />
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            ) : (
+                                                                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                                                                    {staffMatchmakingDisplayRows.map((match) => (
+                                                                        <Card
+                                                                            key={match.user.id}
                                                                             className="hover:shadow-md transition-shadow"
                                                                         >
                                                                             <CardContent className="p-4">
-                                                                                <div className="flex items-start gap-3 mb-3">
+                                                                                <div className="mb-3 flex items-start gap-3">
                                                                                     <img
                                                                                         src={getProfilePicture(match.user, match.profile)}
                                                                                         alt={match.user.name}
-                                                                                        className="w-12 h-12 rounded-full object-cover"
+                                                                                        className="h-12 w-12 rounded-full object-cover"
                                                                                     />
-                                                                                    <div className="flex-1 min-w-0">
-                                                                                        <h4 className="font-semibold text-sm truncate">{match.user.name}</h4>
-                                                                                        <p className="text-xs text-gray-500 truncate">{match.user.email}</p>
+                                                                                    <div className="min-w-0 flex-1">
+                                                                                        <h4 className="truncate text-sm font-semibold">
+                                                                                            {match.user.name}
+                                                                                        </h4>
+                                                                                        <p className="truncate text-xs text-gray-500">
+                                                                                            {match.user.email}
+                                                                                        </p>
                                                                                     </div>
-                                                                                    <Badge 
-                                                                                        variant="outline" 
+                                                                                    <Badge
+                                                                                        variant="outline"
                                                                                         className={`${getScoreColor(match.score)} text-xs font-semibold`}
                                                                                     >
-                                                                                        {match.score.toFixed(1)}%
+                                                                                        {Number(match.score).toFixed(1)}%
                                                                                     </Badge>
                                                                                 </div>
                                                                                 <div className="space-y-1.5 text-xs text-gray-600">
                                                                                     {getAge(match.profile) && (
                                                                                         <div className="flex items-center gap-1">
-                                                                                            <Calendar className="w-3 h-3" />
+                                                                                            <Calendar className="h-3 w-3" />
                                                                                             <span>{getAge(match.profile)} ans</span>
                                                                                         </div>
                                                                                     )}
                                                                                     <div className="flex items-center gap-1">
-                                                                                        <MapPin className="w-3 h-3" />
-                                                                                        <span className="truncate">{getLocation(match.profile)}</span>
+                                                                                        <MapPin className="h-3 w-3" />
+                                                                                        <span className="truncate">
+                                                                                            {getLocation(match.profile)}
+                                                                                        </span>
                                                                                     </div>
                                                                                     {match.profile.niveau_etudes && (
                                                                                         <div className="flex items-center gap-1">
-                                                                                            <GraduationCap className="w-3 h-3" />
-                                                                                            <span className="truncate">{match.profile.niveau_etudes}</span>
+                                                                                            <GraduationCap className="h-3 w-3" />
+                                                                                            <span className="truncate">
+                                                                                                {match.profile.niveau_etudes}
+                                                                                            </span>
                                                                                         </div>
                                                                                     )}
                                                                                     {match.profile.situation_professionnelle && (
                                                                                         <div className="flex items-center gap-1">
-                                                                                            <Briefcase className="w-3 h-3" />
-                                                                                            <span className="truncate">{match.profile.situation_professionnelle}</span>
+                                                                                            <Briefcase className="h-3 w-3" />
+                                                                                            <span className="truncate">
+                                                                                                {
+                                                                                                    match.profile
+                                                                                                        .situation_professionnelle
+                                                                                                }
+                                                                                            </span>
                                                                                         </div>
                                                                                     )}
                                                                                 </div>
-                                                                                <div className="mt-3 pt-3 border-t">
+                                                                                <div className="mt-3 border-t pt-3">
                                                                                     <Button
                                                                                         variant="outline"
                                                                                         size="sm"
                                                                                         className="w-full text-xs"
-                                                                                        onClick={() => window.open(`/profile/${match.user.username || match.user.id}`, '_blank', 'noopener,noreferrer')}
+                                                                                        onClick={() =>
+                                                                                            window.open(
+                                                                                                `/profile/${match.user.username || match.user.id}`,
+                                                                                                '_blank',
+                                                                                                'noopener,noreferrer',
+                                                                                            )
+                                                                                        }
                                                                                     >
-                                                                                        <User className="w-3 h-3 mr-1" />
+                                                                                        <User className="mr-1 h-3 w-3" />
                                                                                         Voir le profil
                                                                                     </Button>
                                                                                 </div>
                                                                             </CardContent>
                                                                         </Card>
-                                                                    );
-                                                                })}
-                                                            </div>
+                                                                    ))}
+                                                                </div>
+                                                            )}
                                                         </CardContent>
                                                     </Card>
                                                 )}
@@ -3351,6 +3619,80 @@ export default function UserProfile({
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {staffCanViewMemberInsights && memberProposition?.exists ? (
+                <Dialog open={managePropositionModalOpen} onOpenChange={setManagePropositionModalOpen}>
+                    <DialogContent className="max-w-md rounded-xl border border-gray-200 bg-white">
+                        <DialogHeader>
+                            <DialogTitle>Gérer la proposition</DialogTitle>
+                            <DialogDescription>
+                                Actions disponibles pour la proposition en cours sur ce profil.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="flex flex-col gap-2 py-2">
+                            {memberProposition.pending_response_proposition_id ? (
+                                <Button
+                                    type="button"
+                                    className="w-full"
+                                    onClick={() => {
+                                        setManagePropositionModalOpen(false);
+                                        setProfileRespondDialog({
+                                            open: true,
+                                            propositionId: memberProposition.pending_response_proposition_id,
+                                        });
+                                    }}
+                                >
+                                    Répondre à la proposition
+                                </Button>
+                            ) : null}
+                            <Button
+                                type="button"
+                                variant="outline"
+                                className="w-full border-destructive/40 text-destructive hover:bg-destructive/10"
+                                disabled={manageModalCancelling || !memberProposition.proposition_id}
+                                onClick={() => void handleManageModalCancelProposition()}
+                            >
+                                {manageModalCancelling
+                                    ? 'Annulation...'
+                                    : manageModalCancelConfirm
+                                      ? 'Confirmer l’annulation'
+                                      : 'Annuler la proposition'}
+                            </Button>
+                            {manageModalCancelConfirm ? (
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    className="w-full text-xs text-muted-foreground"
+                                    onClick={() => setManageModalCancelConfirm(false)}
+                                >
+                                    Retour
+                                </Button>
+                            ) : null}
+                            <Button
+                                type="button"
+                                variant="secondary"
+                                className="w-full"
+                                onClick={() => setManagePropositionModalOpen(false)}
+                            >
+                                Fermer
+                            </Button>
+                        </div>
+                    </DialogContent>
+                </Dialog>
+            ) : null}
+
+            {viewerIsMatchmaker && matchmakingUserA?.id ? (
+                <MatchmakingProposeRequestModals userA={matchmakingUserA} {...proposeFlow} />
+            ) : null}
+
+            {staffCanViewMemberInsights ? (
+                <MatchmakerRespondToPropositionDialog
+                    open={profileRespondDialog.open}
+                    onOpenChange={(open) => setProfileRespondDialog((prev) => ({ ...prev, open }))}
+                    propositionId={profileRespondDialog.propositionId}
+                    onSuccess={() => router.reload({ only: ['matchmakingResults', 'memberProposition'] })}
+                />
+            ) : null}
         </AppLayout>
     );
 }

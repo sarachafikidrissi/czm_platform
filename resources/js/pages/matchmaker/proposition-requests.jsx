@@ -1,5 +1,6 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useMemo, useState } from 'react';
+import axios from 'axios';
 import AppLayout from '@/layouts/app-layout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -9,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { AlertTriangle, Eye, XCircle } from 'lucide-react';
 
 export default function PropositionRequests() {
     const { receivedRequests = [], sentRequests = [] } = usePage().props;
@@ -26,6 +28,25 @@ export default function PropositionRequests() {
     const [organizer, setOrganizer] = useState('');
     const [responseMessage, setResponseMessage] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const [closePropositionDialog, setClosePropositionDialog] = useState({ open: false, propositionId: null, userName: '' });
+    const [isClosing, setIsClosing] = useState(false);
+    const [closeError, setCloseError] = useState(null);
+
+    const handleCloseProposition = async () => {
+        if (!closePropositionDialog.propositionId) return;
+        setIsClosing(true);
+        setCloseError(null);
+        try {
+            await axios.patch(`/staff/propositions/${closePropositionDialog.propositionId}/cancel`);
+            setClosePropositionDialog({ open: false, propositionId: null, userName: '' });
+            router.reload({ only: ['receivedRequests', 'sentRequests'] });
+        } catch {
+            setCloseError('Une erreur est survenue. Veuillez réessayer.');
+        } finally {
+            setIsClosing(false);
+        }
+    };
 
     const getProfilePicture = (user) => {
         if (user?.profile?.profile_picture_path) {
@@ -163,6 +184,15 @@ export default function PropositionRequests() {
                                                     ? (request.from_matchmaker || request.fromMatchmaker)
                                                     : (request.to_matchmaker || request.toMatchmaker);
 
+                                                const refProposition = request.reference_user_proposition;
+                                                const compProposition = request.compatible_user_proposition;
+                                                const compHasActive = compProposition?.exists === true;
+                                                const refHasActive = refProposition?.exists === true;
+
+                                                const compPendingResponse = compProposition?.recipient_pending_response === true;
+
+                                                const isReceivedPending = type === 'received' && request.status === 'pending';
+
                                                 return (
                                                     <tr
                                                         key={request.id}
@@ -179,6 +209,12 @@ export default function PropositionRequests() {
                                                                 <div>
                                                                     <div className="font-medium">{refUser?.name || '-'}</div>
                                                                     <div className="text-xs text-muted-foreground">@{refUser?.username}</div>
+                                                                    {refHasActive && (
+                                                                        <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700">
+                                                                            <AlertTriangle className="h-2.5 w-2.5" />
+                                                                            Proposition active
+                                                                        </span>
+                                                                    )}
                                                                 </div>
                                                             </div>
                                                         </td>
@@ -192,6 +228,12 @@ export default function PropositionRequests() {
                                                                 <div>
                                                                     <div className="font-medium">{compUser?.name || '-'}</div>
                                                                     <div className="text-xs text-muted-foreground">@{compUser?.username}</div>
+                                                                    {compHasActive && (
+                                                                        <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700">
+                                                                            <AlertTriangle className="h-2.5 w-2.5" />
+                                                                            Proposition active
+                                                                        </span>
+                                                                    )}
                                                                 </div>
                                                             </div>
                                                             {request.compatible_phone && (
@@ -219,13 +261,50 @@ export default function PropositionRequests() {
                                                             })}
                                                         </td>
                                                         <td className="py-3 pr-4" onClick={(event) => event.stopPropagation()}>
-                                                            {type === 'received' && request.status === 'pending' ? (
-                                                                <Button
-                                                                    size="sm"
-                                                                    onClick={() => openRespondDialog(request)}
-                                                                >
-                                                                    Répondre
-                                                                </Button>
+                                                            {isReceivedPending && compHasActive ? (
+                                                                <div className="flex flex-col gap-1.5">
+                                                                    {compPendingResponse ? (
+                                                                        <Button size="sm" variant="outline" className="gap-1.5 border-amber-300 text-amber-700 hover:bg-amber-50" asChild>
+                                                                            <Link href="/staff/matchmaker/propositions">
+                                                                                <Eye className="h-3.5 w-3.5" />
+                                                                                Voir la proposition
+                                                                            </Link>
+                                                                        </Button>
+                                                                    ) : (
+                                                                        <Button
+                                                                            size="sm"
+                                                                            variant="outline"
+                                                                            className="gap-1.5 border-red-300 text-red-700 hover:bg-red-50"
+                                                                            onClick={() => setClosePropositionDialog({
+                                                                                open: true,
+                                                                                propositionId: compProposition.proposition_id,
+                                                                                userName: compUser?.name || 'ce profil',
+                                                                            })}
+                                                                        >
+                                                                            <XCircle className="h-3.5 w-3.5" />
+                                                                            Clôturer la proposition
+                                                                        </Button>
+                                                                    )}
+                                                                    <p className="text-[10px] text-muted-foreground leading-tight max-w-[160px]">
+                                                                        {compPendingResponse
+                                                                            ? 'En attente de réponse du profil compatible.'
+                                                                            : 'Clôturez la proposition en cours avant de répondre.'}
+                                                                    </p>
+                                                                </div>
+                                                            ) : isReceivedPending ? (
+                                                                <div className="flex flex-col gap-1">
+                                                                    <Button
+                                                                        size="sm"
+                                                                        onClick={() => openRespondDialog(request)}
+                                                                    >
+                                                                        Répondre
+                                                                    </Button>
+                                                                    {refHasActive && (
+                                                                        <p className="text-[10px] text-amber-700 leading-tight max-w-[160px]">
+                                                                            Le profil de référence a une proposition active.
+                                                                        </p>
+                                                                    )}
+                                                                </div>
                                                             ) : type === 'sent' && request.status === 'accepted' ? (
                                                                 <Button size="sm" asChild>
                                                                     <Link href={`/staff/match/results/${request.reference_user_id}?openPropose=${request.compatible_user_id}`}>
@@ -316,6 +395,44 @@ export default function PropositionRequests() {
                     <DialogFooter>
                         <Button type="button" variant="outline" onClick={() => setDetailsDialogOpen(false)}>
                             Fermer
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog
+                open={closePropositionDialog.open}
+                onOpenChange={(open) => {
+                    if (!open) setClosePropositionDialog({ open: false, propositionId: null, userName: '' });
+                    setCloseError(null);
+                }}
+            >
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Clôturer la proposition en cours</DialogTitle>
+                        <DialogDescription>
+                            La proposition active de <strong>{closePropositionDialog.userName}</strong> sera annulée.
+                            Cette action est irréversible. Souhaitez-vous continuer ?
+                        </DialogDescription>
+                    </DialogHeader>
+                    {closeError && (
+                        <p className="text-sm text-destructive">{closeError}</p>
+                    )}
+                    <DialogFooter>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setClosePropositionDialog({ open: false, propositionId: null, userName: '' })}
+                            disabled={isClosing}
+                        >
+                            Annuler
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={handleCloseProposition}
+                            disabled={isClosing}
+                        >
+                            {isClosing ? 'Clôture en cours…' : 'Confirmer la clôture'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

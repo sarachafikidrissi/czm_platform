@@ -6,9 +6,12 @@ import { Head, usePage } from '@inertiajs/react';
 import axios from 'axios';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useToast } from '@/hooks/use-toast';
+import { propositionToastFr } from '@/lib/proposition-toast-messages';
 
 export default function PropositionsPage() {
     const { t } = useTranslation();
+    const { showToast } = useToast();
     const { propositions: initialPropositions = [], auth } = usePage().props;
     const [propositions, setPropositions] = useState(initialPropositions);
     const [responseMessages, setResponseMessages] = useState({});
@@ -83,9 +86,26 @@ export default function PropositionsPage() {
                         : item,
                 ),
             );
+            showToast(
+                status === 'accepted' ? propositionToastFr.memberAccept : propositionToastFr.memberDecline,
+                undefined,
+                'success',
+            );
         } catch (error) {
-            const messageText = error?.response?.data?.message || 'Une erreur est survenue.';
-            setErrors((prev) => ({ ...prev, [propositionId]: messageText }));
+            const backendMsg = error?.response?.data?.message;
+            if (backendMsg === 'Proposition already responded.') {
+                showToast(propositionToastFr.memberAlreadyAnswered, undefined, 'warning');
+                setErrors((prev) => ({ ...prev, [propositionId]: propositionToastFr.memberAlreadyAnswered }));
+            } else if (backendMsg === 'Proposition expired.') {
+                showToast(propositionToastFr.memberExpired, undefined, 'warning');
+                setErrors((prev) => ({ ...prev, [propositionId]: propositionToastFr.memberExpired }));
+            } else if (backendMsg === 'Cette proposition a été annulée.') {
+                showToast('Cette proposition a été annulée.', undefined, 'warning');
+                setErrors((prev) => ({ ...prev, [propositionId]: 'Cette proposition a été annulée.' }));
+            } else {
+                showToast(propositionToastFr.memberGenericError, undefined, 'error');
+                setErrors((prev) => ({ ...prev, [propositionId]: propositionToastFr.memberGenericError }));
+            }
         } finally {
             setProcessingIds((prev) => ({ ...prev, [propositionId]: false }));
         }
@@ -143,11 +163,13 @@ export default function PropositionsPage() {
                             const status = proposition.status;
                             const normalizedStatus = proposition.is_expired
                                 ? 'expired'
-                                : status === 'interested' || status === 'accepted'
-                                  ? 'accepted'
-                                  : status === 'not_interested' || status === 'rejected'
-                                    ? 'rejected'
-                                    : 'pending';
+                                : status === 'cancelled'
+                                  ? 'cancelled'
+                                  : status === 'interested' || status === 'accepted'
+                                    ? 'accepted'
+                                    : status === 'not_interested' || status === 'rejected'
+                                      ? 'rejected'
+                                      : 'pending';
                             const isPending = normalizedStatus === 'pending';
                             const isProcessing = processingIds[proposition.id];
 
@@ -163,7 +185,7 @@ export default function PropositionsPage() {
                                                     ? 'default'
                                                     : normalizedStatus === 'rejected'
                                                       ? 'destructive'
-                                                      : normalizedStatus === 'expired'
+                                                      : normalizedStatus === 'expired' || normalizedStatus === 'cancelled'
                                                         ? 'secondary'
                                                         : 'outline'
                                             }
@@ -174,7 +196,9 @@ export default function PropositionsPage() {
                                                   ? 'Refusée'
                                                   : normalizedStatus === 'expired'
                                                     ? 'Expirée'
-                                                    : 'En attente'}
+                                                    : normalizedStatus === 'cancelled'
+                                                      ? 'Annulée'
+                                                      : 'En attente'}
                                         </Badge>
                                     </CardHeader>
                                     <CardContent className="space-y-4">

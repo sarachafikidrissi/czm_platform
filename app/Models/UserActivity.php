@@ -24,13 +24,23 @@ class UserActivity extends Model
     ];
 
     public const TYPE_PROPOSITION = 'proposition';
+
     public const TYPE_PROPOSITION_ACCEPTED = 'proposition_accepted';
+
     public const TYPE_PROPOSITION_REFUSED = 'proposition_refused';
+
     public const TYPE_PROPOSITION_EXPIRED = 'proposition_expired';
+
+    public const TYPE_PROPOSITION_CANCELLED = 'proposition_cancelled';
+
     public const TYPE_RDV = 'rdv';
+
     public const TYPE_SUBSCRIPTION = 'subscription';
+
     public const TYPE_STATUS_CHANGE = 'status_change';
+
     public const TYPE_NOTE = 'note';
+
     public const TYPE_MATCHMAKER_ASSIGNED = 'matchmaker_assigned';
 
     public static function types(): array
@@ -40,6 +50,7 @@ class UserActivity extends Model
             self::TYPE_PROPOSITION_ACCEPTED,
             self::TYPE_PROPOSITION_REFUSED,
             self::TYPE_PROPOSITION_EXPIRED,
+            self::TYPE_PROPOSITION_CANCELLED,
             self::TYPE_RDV,
             self::TYPE_SUBSCRIPTION,
             self::TYPE_STATUS_CHANGE,

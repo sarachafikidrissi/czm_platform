@@ -11,28 +11,59 @@ interface ToastContextType {
   toasts: ToastData[]
   addToast: (toast: Omit<ToastData, "id">) => void
   removeToast: (id: string) => void
-  showToast: (title: string, message?: string, variant?: ToastVariant) => void
+  showToast: (
+    title: string,
+    message?: string,
+    variant?: ToastVariant,
+    options?: { duration?: number; dedupeKey?: string }
+  ) => void
 }
 
 const ToastContext = React.createContext<ToastContextType | undefined>(undefined)
 
+function defaultDurationForVariant(variant: ToastVariant): number {
+  if (variant === "success") return 3000
+  if (variant === "warning" || variant === "error") return 5000
+  return 5000
+}
+
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = React.useState<ToastData[]>([])
-
-  const addToast = React.useCallback((toast: Omit<ToastData, "id">) => {
-    const id = Math.random().toString(36).substring(2, 9)
-    setToasts((prev) => [...prev, { ...toast, id }])
-  }, [])
+  const lastDedupeKeyRef = React.useRef<string | null>(null)
+  const lastDedupeIdRef = React.useRef<string | null>(null)
 
   const removeToast = React.useCallback((id: string) => {
     setToasts((prev) => prev.filter((toast) => toast.id !== id))
   }, [])
 
+  const addToast = React.useCallback((toast: Omit<ToastData, "id">) => {
+    const id = Math.random().toString(36).substring(2, 9)
+    setToasts((prev) => [...prev, { ...toast, id }])
+    return id
+  }, [])
+
   const showToast = React.useCallback(
-    (title: string, message?: string, variant: ToastVariant = "info") => {
-      addToast({ title, message, variant })
+    (
+      title: string,
+      message?: string,
+      variant: ToastVariant = "info",
+      options?: { duration?: number; dedupeKey?: string }
+    ) => {
+      const duration = options?.duration ?? defaultDurationForVariant(variant)
+      const dedupeKey =
+        options?.dedupeKey ?? `${variant}|${title}|${message ?? ""}`
+
+      if (lastDedupeKeyRef.current === dedupeKey && lastDedupeIdRef.current) {
+        removeToast(lastDedupeIdRef.current)
+      }
+
+      const id = Math.random().toString(36).substring(2, 9)
+      lastDedupeKeyRef.current = dedupeKey
+      lastDedupeIdRef.current = id
+
+      setToasts((prev) => [...prev, { title, message, variant, duration, id }])
     },
-    [addToast]
+    [removeToast]
   )
 
   return (

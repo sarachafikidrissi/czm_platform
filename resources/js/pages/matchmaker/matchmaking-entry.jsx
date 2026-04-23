@@ -193,6 +193,10 @@ export default function MatchmakingEntry({ prospects, search: initialSearch = ''
                                 const location = getLocation(prospect);
                                 const statusInfo = getStatusInfo(prospect.status);
                                 const genreBadgeClass = prospect.gender === 'female' ? 'bg-red-100 text-red-800 border-0' : 'bg-gray-100 text-gray-800 border-0';
+                                const proposeDisabled =
+                                    Boolean(prospect.recipient_has_active_proposition) ||
+                                    prospect.proposition_status === 'pending' ||
+                                    prospect.proposition_status === 'interested';
                                 return (
                                     <Card key={prospect.id} className="overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-shadow hover:shadow-md">
                                         <CardHeader className="pb-2">
@@ -239,20 +243,29 @@ export default function MatchmakingEntry({ prospects, search: initialSearch = ''
                                             <button
                                                 type="button"
                                                 onClick={() => handlePropose(prospect.id)}
-                                                disabled={prospect.proposition_status === 'pending'}
+                                                disabled={proposeDisabled}
+                                                title={
+                                                    prospect.recipient_has_active_proposition
+                                                        ? "Ce profil a déjà une proposition active. Annulez-la avant d'en envoyer une nouvelle."
+                                                        : undefined
+                                                }
                                                 className={`flex w-full items-center justify-center gap-2 rounded-b-xl py-2.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none ${
-                                                    prospect.proposition_status === 'pending'
+                                                    proposeDisabled
                                                         ? 'bg-amber-50 text-amber-700'
                                                         : 'text-white hover:bg-[#7a2230]'
                                                 }`}
-                                                style={prospect.proposition_status === 'pending' ? undefined : { backgroundColor: MATCH_PRIMARY }}
+                                                style={proposeDisabled ? undefined : { backgroundColor: MATCH_PRIMARY }}
                                             >
-                                                {prospect.proposition_status === 'pending' ? (
+                                                {proposeDisabled ? (
                                                     <Loader2 className="h-4 w-4 shrink-0  text-amber-600" aria-hidden />
                                                 ) : (
                                                     <Heart className="h-4 w-4" aria-hidden />
                                                 )}
-                                                {prospect.proposition_status === 'pending' ? 'Proposition en cours...' : 'À proposer'}
+                                                {proposeDisabled
+                                                    ? prospect.recipient_has_active_proposition
+                                                        ? 'Proposition active sur ce profil'
+                                                        : 'Proposition en cours...'
+                                                    : 'À proposer'}
                                             </button>
                                         </CardContent>
                                     </Card>
@@ -292,6 +305,10 @@ export default function MatchmakingEntry({ prospects, search: initialSearch = ''
                                             const location = getLocation(prospect);
                                             const statusInfo = getStatusInfo(prospect.status);
                                             const genreBadgeClass = prospect.gender === 'female' ? 'bg-red-100 text-red-800 border-0' : 'bg-gray-100 text-gray-800 border-0';
+                                            const proposeDisabled =
+                                                Boolean(prospect.recipient_has_active_proposition) ||
+                                                prospect.proposition_status === 'pending' ||
+                                                prospect.proposition_status === 'interested';
                                             return (
                                                 <TableRow key={prospect.id} className="border-b border-border transition-colors hover:bg-muted/50">
                                                     <TableCell className="px-4 py-3 align-middle">
@@ -337,11 +354,21 @@ export default function MatchmakingEntry({ prospects, search: initialSearch = ''
                                                         <button
                                                             type="button"
                                                             onClick={() => handlePropose(prospect.id)}
-                                                            className="inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:bg-[#7a2230]"
-                                                            style={{ backgroundColor: MATCH_PRIMARY }}
+                                                            disabled={proposeDisabled}
+                                                            title={
+                                                                prospect.recipient_has_active_proposition
+                                                                    ? "Ce profil a déjà une proposition active. Annulez-la avant d'en envoyer une nouvelle."
+                                                                    : undefined
+                                                            }
+                                                            className="inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 enabled:hover:bg-[#7a2230] disabled:cursor-not-allowed disabled:bg-amber-100 disabled:text-amber-800"
+                                                            style={proposeDisabled ? undefined : { backgroundColor: MATCH_PRIMARY }}
                                                         >
                                                             <Heart className="h-4 w-4" aria-hidden />
-                                                            À proposer
+                                                            {proposeDisabled
+                                                                ? prospect.recipient_has_active_proposition
+                                                                    ? 'Indisponible'
+                                                                    : 'En cours'
+                                                                : 'À proposer'}
                                                         </button>
                                                     </TableCell>
                                                 </TableRow>

@@ -10,10 +10,10 @@ use App\Models\Bill;
 use App\Models\MatchmakerNote;
 use App\Models\MatrimonialPack;
 use App\Models\Proposition;
-use App\Models\PropositionRequest;
 use App\Models\TransferRequest;
 use App\Models\User;
 use App\Models\UserPhoto;
+use App\Services\MatchmakingResultsPayloadService;
 use App\Services\MatchmakingService;
 use App\Services\UserActivityService;
 use Illuminate\Http\Request;
@@ -1031,6 +1031,7 @@ class MatchmakerController extends Controller
                             $decrypted = Crypt::decryptString($existingProfile->cin);
                             if ($decrypted === $cinUpper) {
                                 $fail('Ce numéro de '.$this->documentTypeLabel($documentType).' est déjà utilisé par un autre utilisateur.');
+
                                 return;
                             }
                         } catch (\Exception $e) {
@@ -2866,21 +2867,28 @@ class MatchmakerController extends Controller
                         && $proposition->created_at
                         && $proposition->created_at->lt(now()->subDays(7)));
 
+                $isActive = $proposition->isActive();
+                $canCancel = $proposition->canBeCancelledByMatchmaker() && $me->can('cancel', $proposition);
+
                 return [
                     'id' => $proposition->id,
+                    'pair_id' => $proposition->pair_id,
                     'reference_user_id' => $proposition->reference_user_id,
                     'compatible_user_id' => $proposition->compatible_user_id,
                     'recipient_user_id' => $proposition->recipient_user_id,
                     'message' => $proposition->message,
                     'status' => $proposition->status,
                     'is_expired' => $isExpired,
+                    'is_active' => $isActive,
+                    'can_cancel' => $canCancel,
+                    'cancelled_at' => $proposition->cancelled_at,
                     'response_message' => $proposition->response_message,
                     'user_comment' => $proposition->user_comment,
                     'responded_at' => $proposition->responded_at,
                     'created_at' => $proposition->created_at,
                     'can_update_response' => $proposition->recipientUser
-                        ? (int) $proposition->recipientUser->assigned_matchmaker_id === (int) $me->id
-                        : false,
+                        && $proposition->status !== Proposition::STATUS_CANCELLED
+                        && (int) $proposition->recipientUser->assigned_matchmaker_id === (int) $me->id,
                     'recipient_user' => $proposition->recipientUser ? [
                         'id' => $proposition->recipientUser->id,
                         'name' => $proposition->recipientUser->name,
@@ -3017,7 +3025,12 @@ class MatchmakerController extends Controller
             }
         }
 
-        $formatted = $paginated->getCollection()->map(function ($prospect) use ($statusMap) {
+        $recipientActiveMap = [];
+        foreach ($prospectIds as $pid) {
+            $recipientActiveMap[(int) $pid] = Proposition::hasActiveProposition((int) $pid);
+        }
+
+        $formatted = $paginated->getCollection()->map(function ($prospect) use ($statusMap, $recipientActiveMap) {
             return [
                 'id' => $prospect->id,
                 'name' => $prospect->name,
@@ -3029,6 +3042,7 @@ class MatchmakerController extends Controller
                 'approved_by' => $prospect->approved_by,
                 'profile' => $prospect->profile ? $prospect->profile->toArray() : null,
                 'proposition_status' => $statusMap[$prospect->id] ?? null,
+                'recipient_has_active_proposition' => $recipientActiveMap[$prospect->id] ?? false,
             ];
         })->values();
 
@@ -3135,110 +3149,11 @@ class MatchmakerController extends Controller
 
             $me = Auth::user();
 
-            $compatibleIds = array_map(function ($match) {
-                return $match['user']->id;
-            }, $result['matches']);
-
-            $statusMap = [];
-            $requestMetaMap = [];
-            if (! empty($compatibleIds)) {
-                $requestQuery = PropositionRequest::query()
-                    ->where('from_matchmaker_id', $me->id)
-                    ->whereIn('compatible_user_id', $compatibleIds)
-                    ->orderByDesc('created_at');
-
-                if (Schema::hasColumn('proposition_requests', 'reference_user_id')) {
-                    $requestQuery->where('reference_user_id', $userAId);
-                }
-
-                $sentRequests = $requestQuery->get(['compatible_user_id', 'status', 'created_at', 'responded_at']);
-                foreach ($sentRequests as $sent) {
-                    $compId = (int) $sent->compatible_user_id;
-                    if (! array_key_exists($compId, $statusMap)) {
-                        $statusMap[$compId] = $sent->status;
-                        $requestMetaMap[$compId] = [
-                            'status' => $sent->status,
-                            'accepted_at' => $sent->responded_at ?? $sent->created_at,
-                        ];
-                    }
-                }
-            }
-
-            $propositionStatusMap = [];
-            $latestRejectionMap = [];
-            if (! empty($compatibleIds)) {
-                $latestPropositions = Proposition::query()
-                    ->where('matchmaker_id', $me->id)
-                    ->where('reference_user_id', $userAId)
-                    ->whereIn('compatible_user_id', $compatibleIds)
-                    ->orderByDesc('created_at')
-                    ->get(['compatible_user_id', 'status', 'created_at']);
-
-                foreach ($latestPropositions as $proposition) {
-                    $compId = (int) $proposition->compatible_user_id;
-                    if (! array_key_exists($compId, $propositionStatusMap)) {
-                        $isExpired = $proposition->status === 'expired'
-                            || ($proposition->status === 'pending'
-                                && $proposition->created_at
-                                && $proposition->created_at->lt(now()->subDays(7)));
-
-                        $propositionStatusMap[$compId] = $isExpired ? 'expired' : $proposition->status;
-                    }
-                }
-
-                $latestRejections = Proposition::query()
-                    ->where('matchmaker_id', $me->id)
-                    ->where('reference_user_id', $userAId)
-                    ->whereIn('compatible_user_id', $compatibleIds)
-                    ->whereIn('status', ['not_interested', 'rejected'])
-                    ->orderByDesc('responded_at')
-                    ->orderByDesc('created_at')
-                    ->get(['compatible_user_id', 'status', 'created_at', 'responded_at']);
-
-                foreach ($latestRejections as $rejection) {
-                    $compId = (int) $rejection->compatible_user_id;
-                    if (! array_key_exists($compId, $latestRejectionMap)) {
-                        $latestRejectionMap[$compId] = $rejection->responded_at ?? $rejection->created_at;
-                    }
-                }
-            }
-
-            // Format matches for Inertia (ensure proper serialization)
-            $formattedMatches = array_map(function ($match) use ($me, $statusMap, $requestMetaMap, $propositionStatusMap, $latestRejectionMap) {
-                $compatId = $match['user']->id;
-                $requestMeta = $requestMetaMap[$compatId] ?? null;
-                $acceptedAt = $requestMeta['accepted_at'] ?? null;
-                $rejectedAt = $latestRejectionMap[$compatId] ?? null;
-                $canProposeFromRequest = ($requestMeta['status'] ?? null) === 'accepted'
-                    && (! $rejectedAt || ($acceptedAt && $acceptedAt->gt($rejectedAt)));
-
-                // dd($statusMap);
-                return [
-                    'user' => [
-                        'id' => $match['user']->id,
-                        'name' => $match['user']->name,
-                        'email' => $match['user']->email,
-                        'username' => $match['user']->username,
-                        'gender' => $match['user']->gender,
-                        'created_at' => $match['user']->created_at,
-                        'updated_at' => $match['user']->updated_at,
-                        'assigned_matchmaker_id' => $match['user']->assigned_matchmaker_id,
-                    ],
-                    'assigned_matchmaker' => $match['user']->assignedMatchmaker ? [
-                        'id' => $match['user']->assignedMatchmaker->id,
-                        'name' => $match['user']->assignedMatchmaker->name,
-                        'username' => $match['user']->assignedMatchmaker->username,
-                    ] : null,
-                    'isAssignedToMe' => $match['user']->assigned_matchmaker_id === $me->id,
-                    'profile' => $match['profile']->toArray(),
-                    'score' => $match['score'],
-                    'scoreDetails' => $match['scoreDetails'],
-                    'completeness' => $match['completeness'],
-                    'proposition_request_status' => $statusMap[$match['user']->id] ?? null,
-                    'can_propose_from_request' => $canProposeFromRequest,
-                    'proposition_status' => $propositionStatusMap[$match['user']->id] ?? null,
-                ];
-            }, $result['matches']);
+            $formattedMatches = MatchmakingResultsPayloadService::formatMatchesForMatchmaker(
+                $result['matches'],
+                $me,
+                (int) $userAId
+            );
 
             return Inertia::render('matchmaker/matchmaking-results', [
                 'userA' => [
@@ -3250,6 +3165,7 @@ class MatchmakerController extends Controller
                     'assigned_matchmaker_id' => $result['userA']->assigned_matchmaker_id,
                     'isAssignedToMe' => $result['userA']->assigned_matchmaker_id === $me->id,
                     'profile' => $result['userA']->profile ? $result['userA']->profile->toArray() : null,
+                    'proposition' => Proposition::activeSnapshotForUser((int) $result['userA']->id),
                 ],
                 'matches' => $formattedMatches,
                 'defaultFilters' => $result['defaultFilters'],
@@ -3373,56 +3289,11 @@ class MatchmakerController extends Controller
             // Mixed logic: unchanged filters use OR, manually changed filters use AND
             $result = $matchmakingService->findMatches($userAId, $filterOverrides);
 
-            $compatibleIds = array_map(function ($match) {
-                return $match['user']->id;
-            }, $result['matches']);
-
-            $statusMap = [];
-            if (! empty($compatibleIds)) {
-                $requestQuery = PropositionRequest::query()
-                    ->where('from_matchmaker_id', $me->id)
-                    ->whereIn('compatible_user_id', $compatibleIds)
-                    ->orderByDesc('created_at');
-
-                if (Schema::hasColumn('proposition_requests', 'reference_user_id')) {
-                    $requestQuery->where('reference_user_id', $userAId);
-                }
-
-                $sentRequests = $requestQuery->get(['compatible_user_id', 'status']);
-                foreach ($sentRequests as $sent) {
-                    $compId = (int) $sent->compatible_user_id;
-                    if (! array_key_exists($compId, $statusMap)) {
-                        $statusMap[$compId] = $sent->status;
-                    }
-                }
-            }
-
-            // Format matches for JSON response
-            $formattedMatches = array_map(function ($match) use ($me, $statusMap) {
-                return [
-                    'user' => [
-                        'id' => $match['user']->id,
-                        'name' => $match['user']->name,
-                        'email' => $match['user']->email,
-                        'username' => $match['user']->username,
-                        'gender' => $match['user']->gender,
-                        'created_at' => $match['user']->created_at,
-                        'updated_at' => $match['user']->updated_at,
-                        'assigned_matchmaker_id' => $match['user']->assigned_matchmaker_id,
-                    ],
-                    'assignedMatchmaker' => $match['user']->assignedMatchmaker ? [
-                        'id' => $match['user']->assignedMatchmaker->id,
-                        'name' => $match['user']->assignedMatchmaker->name,
-                        'username' => $match['user']->assignedMatchmaker->username,
-                    ] : null,
-                    'isAssignedToMe' => $match['user']->assigned_matchmaker_id === $me->id,
-                    'profile' => $match['profile']->toArray(),
-                    'score' => $match['score'],
-                    'scoreDetails' => $match['scoreDetails'],
-                    'completeness' => $match['completeness'],
-                    'proposition_request_status' => $statusMap[$match['user']->id] ?? null,
-                ];
-            }, $result['matches']);
+            $formattedMatches = MatchmakingResultsPayloadService::formatMatchesForMatchmaker(
+                $result['matches'],
+                $me,
+                (int) $userAId
+            );
 
             return response()->json([
                 'matches' => $formattedMatches,

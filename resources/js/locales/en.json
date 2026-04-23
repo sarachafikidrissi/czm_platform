@@ -79,7 +79,8 @@
         "matchList": "List of Matches",
         "searchMatchProfiles": "Search Match Profiles",
         "agencies": "Agencies",
-        "appointmentRequests": "Appointment Requests"
+        "appointmentRequests": "Appointment Requests",
+        "activityHistory": "Activity history"
     },
     "breadcrumbs": {
         "photos": "Photos",
@@ -1163,6 +1164,76 @@
         "footerQuickLinks": "Quick Links",
         "footerRights": "All rights reserved",
         "contact": "Contact"
+    },
+    "activityHistory": {
+        "title": "Activity history",
+        "filters": "Filters",
+        "allActivities": "All activities",
+        "activityType": "Activity type",
+        "dateRange": "Date range",
+        "dateFrom": "From",
+        "dateTo": "To",
+        "keywords": "Keywords",
+        "searchPlaceholder": "Search in descriptions...",
+        "resetFilters": "Reset filters",
+        "apply": "Apply",
+        "pageTitle": "Activity history",
+        "subtitleClient": "Chronological record of actions on your account.",
+        "subtitleStaff": "Chronological record of actions related to this client.",
+        "empty": "No activity found for the selected filters.",
+        "loadOlder": "Load older activity",
+        "idPrefix": "ID",
+        "types": {
+            "all": "All activities",
+            "proposition": "Proposal",
+            "proposition_accepted": "Proposal accepted",
+            "proposition_refused": "Proposal refused",
+            "proposition_expired": "Proposal expired",
+            "proposition_cancelled": "Proposal cancelled",
+            "rdv": "Appointment",
+            "subscription": "Subscription",
+            "status_change": "Status change",
+            "note": "Note",
+            "matchmaker_assigned": "Matchmaker assigned"
+        },
+        "badges": {
+            "proposition": "Match proposal sent",
+            "proposition_accepted": "Proposal accepted",
+            "proposition_refused": "Proposal refused",
+            "proposition_expired": "Proposal expired",
+            "proposition_cancelled": "Proposal cancelled",
+            "rdv": "Appointment",
+            "subscription": "Subscription",
+            "status_change": "Status changed",
+            "note": "Note added",
+            "matchmaker_assigned": "Matchmaker assigned"
+        },
+        "desc": {
+            "propositionAccepted": "Proposal accepted.",
+            "propositionRefused": "Proposal refused.",
+            "propositionExpired": "Proposal expired (deadline passed).",
+            "propositionCancelled": "Proposal cancelled by your matchmaker.",
+            "propositionSent": "Match proposal sent with {{name}}.",
+            "propositionSentWithMessage": "Match proposal sent with {{name}}. Message: {{message}}",
+            "subscriptionAdded": "Subscription added: {{pack}}, {{months}} months.",
+            "statusProspectToMember": "Status changed from prospect to member (validated).",
+            "statusMemberToClient": "Status changed from member to client.",
+            "memberAssigned": "Member assigned to {{name}}.",
+            "prospectAssigned": "Prospect assigned to {{name}} (matchmaker).",
+            "prospectReassigned": "Prospect reassigned to {{name}} (matchmaker).",
+            "accountActivated": "Account activated.",
+            "accountActivatedWithReason": "Account activated. {{reason}}",
+            "accountDeactivated": "Account deactivated.",
+            "accountDeactivatedWithReason": "Account deactivated. {{reason}}",
+            "subscriptionExpiredStatus": "Subscription expired; status set to client expired.",
+            "rdvTreated": "Appointment marked as completed.",
+            "rdvConvertedProspect": "Appointment request converted to prospect."
+        },
+        "performedBy": {
+            "staffDefault": "Staff",
+            "system": "System",
+            "autoRenewal": "Auto-renewal"
+        }
     },
     "auth": {
         "phoneWarning": "Please enter a valid phone number so we can contact you easily.",

@@ -6,6 +6,7 @@ use App\Models\Post;
 use App\Models\Proposition;
 use App\Models\PropositionRequest;
 use App\Models\User;
+use App\Services\MatchmakingResultsPayloadService;
 use App\Services\MatchmakingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -17,7 +18,7 @@ class UserController extends Controller
 {
     private function evaluationAccessLevel(?User $viewer, User $target): string
     {
-        if (!$viewer) {
+        if (! $viewer) {
             return 'none';
         }
 
@@ -408,22 +409,30 @@ class UserController extends Controller
                     $matchmakingService = new MatchmakingService;
                     $result = $matchmakingService->findMatches($user->id);
 
-                    // Format matches for frontend
-                    $matchmakingResults = array_map(function ($match) {
-                        return [
-                            'user' => [
-                                'id' => $match['user']->id,
-                                'name' => $match['user']->name,
-                                'email' => $match['user']->email,
-                                'username' => $match['user']->username,
-                                'gender' => $match['user']->gender,
-                            ],
-                            'profile' => $match['profile']->toArray(),
-                            'score' => $match['score'],
-                            'scoreDetails' => $match['scoreDetails'],
-                            'completeness' => $match['completeness'],
-                        ];
-                    }, $result['matches']);
+                    if ($currentUser->hasRole('matchmaker')) {
+                        $matchmakingResults = MatchmakingResultsPayloadService::formatMatchesForMatchmaker(
+                            $result['matches'],
+                            $currentUser,
+                            (int) $user->id
+                        );
+                    } else {
+                        $matchmakingResults = array_map(static function ($match) {
+                            return [
+                                'user' => [
+                                    'id' => $match['user']->id,
+                                    'name' => $match['user']->name,
+                                    'email' => $match['user']->email,
+                                    'username' => $match['user']->username,
+                                    'gender' => $match['user']->gender,
+                                ],
+                                'profile' => $match['profile']->toArray(),
+                                'score' => $match['score'],
+                                'scoreDetails' => $match['scoreDetails'],
+                                'completeness' => $match['completeness'],
+                                'proposition' => Proposition::activeSnapshotForUser((int) $match['user']->id),
+                            ];
+                        }, $result['matches']);
+                    }
                 } catch (\Exception $e) {
                     // If matchmaking fails, just set to empty array
                     $matchmakingResults = [];
@@ -432,8 +441,10 @@ class UserController extends Controller
         }
 
         // Add has_bill to user object if it's a matchmaker/admin/manager viewing
+        $memberProposition = null;
         if ($currentUser && ($currentUser->hasRole('matchmaker') || $currentUser->hasRole('admin') || $currentUser->hasRole('manager'))) {
             $user->has_bill = $hasBill;
+            $memberProposition = Proposition::activeSnapshotForUser((int) $user->id);
         }
 
         return Inertia::render('user/profile', [
@@ -449,6 +460,7 @@ class UserController extends Controller
             'matchmakingSearch' => $matchmakingSearch,
             'matchmakingResults' => $matchmakingResults ?? null,
             'propositionToRespond' => $propositionToRespond,
+            'memberProposition' => $memberProposition,
         ]);
     }
 

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Proposition;
 use App\Models\PropositionRequest;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -30,9 +31,11 @@ class PropositionRequestController extends Controller
             ])
             ->orderBy('created_at', 'desc')
             ->get()
-            ->map(function (PropositionRequest $request) {
-                return array_merge($request->toArray(), [
-                    'evaluation_access_level' => $request->status === 'accepted' ? 'read' : 'none',
+            ->map(function (PropositionRequest $propRequest) {
+                return array_merge($propRequest->toArray(), [
+                    'evaluation_access_level' => $propRequest->status === 'accepted' ? 'read' : 'none',
+                    'reference_user_proposition' => Proposition::activeSnapshotForUser((int) $propRequest->reference_user_id),
+                    'compatible_user_proposition' => Proposition::activeSnapshotForUser((int) $propRequest->compatible_user_id),
                 ]);
             })
             ->values();
@@ -46,17 +49,19 @@ class PropositionRequestController extends Controller
             ])
             ->orderBy('created_at', 'desc')
             ->get()
-            ->map(function (PropositionRequest $request) {
+            ->map(function (PropositionRequest $propRequest) {
                 $compatiblePhone = null;
-                if ($request->status === 'accepted' && $request->share_phone) {
-                    $compatiblePhone = $request->compatibleUser?->phone;
+                if ($propRequest->status === 'accepted' && $propRequest->share_phone) {
+                    $compatiblePhone = $propRequest->compatibleUser?->phone;
                 }
 
-                $evaluationAccessLevel = $request->status === 'accepted' ? 'read' : 'none';
+                $evaluationAccessLevel = $propRequest->status === 'accepted' ? 'read' : 'none';
 
-                return array_merge($request->toArray(), [
+                return array_merge($propRequest->toArray(), [
                     'compatible_phone' => $compatiblePhone,
                     'evaluation_access_level' => $evaluationAccessLevel,
+                    'reference_user_proposition' => Proposition::activeSnapshotForUser((int) $propRequest->reference_user_id),
+                    'compatible_user_proposition' => Proposition::activeSnapshotForUser((int) $propRequest->compatible_user_id),
                 ]);
             })
             ->values();
