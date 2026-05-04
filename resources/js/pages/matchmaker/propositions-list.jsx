@@ -2,12 +2,13 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import CreateRdvModal from '@/components/rdv/CreateRdvModal';
 import { useToast } from '@/hooks/use-toast';
 import AppLayout from '@/layouts/app-layout';
 import { propositionToastFr } from '@/lib/proposition-toast-messages';
 import { Head, router, usePage } from '@inertiajs/react';
 import axios from 'axios';
-import { Plus } from 'lucide-react';
+import { Plus, CalendarPlus } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -29,6 +30,7 @@ export default function PropositionsList() {
     const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
     /** While a grouped cancel request is in flight (one button per row). */
     const [cancellingEntryKey, setCancellingEntryKey] = useState(null);
+    const [rdvModalEntry, setRdvModalEntry] = useState(null);
     const getProfilePicture = (user) => {
         if (user?.profile?.profile_picture_path) {
             return `/storage/${user.profile.profile_picture_path}`;
@@ -308,8 +310,8 @@ export default function PropositionsList() {
                                 <div>Profil compatible</div>
                                 <div>Message</div>
                                 <div>Statuts globaux</div>
-                                <div>Annulation</div>
-                                <div>Actions & réponses</div>
+                                <div>Actions</div>
+                                <div>Réponses</div>
                                 <div>Date d'envoi</div>
                             </div>
                             <div className="divide-y">
@@ -368,6 +370,13 @@ export default function PropositionsList() {
 
                                     const cancellablePropositions = getCancellablePropositions(entry);
                                     const canShowGroupCancel = cancellablePropositions.length > 0;
+
+                                    // can_create_rdv: true when any proposition in the group has the flag
+                                    const canCreateRdv = Object.values(entry.recipients).some((p) => p?.can_create_rdv);
+                                    // Use the first recipient proposition_id that has can_create_rdv
+                                    const rdvPropositionId = canCreateRdv
+                                        ? (Object.values(entry.recipients).find((p) => p?.can_create_rdv)?.id ?? null)
+                                        : null;
 
                                     return (
                                         <div
@@ -440,13 +449,13 @@ export default function PropositionsList() {
                                                     Global: {aggregateMeta.label}
                                                 </Badge>
                                             </div>
-                                            <div className="flex flex-col justify-center lg:min-h-[4rem]">
+                                            <div className="flex flex-col w-full gap-2 justify-center lg:min-h-[4rem]">
                                                 {canShowGroupCancel ? (
                                                     <Button
                                                         type="button"
                                                         variant="outline"
                                                         size="sm"
-                                                        className="h-9 w-full border-rose-200 text-rose-800 hover:bg-rose-50"
+                                                        className="h-9 w-full  border-rose-200 text-rose-800 hover:bg-rose-50"
                                                         disabled={cancellingEntryKey === entry.key}
                                                         onClick={() => {
                                                             setCancelEntry(entry);
@@ -456,11 +465,22 @@ export default function PropositionsList() {
                                                         {cancellingEntryKey === entry.key
                                                             ? 'Annulation…'
                                                             : cancellablePropositions.length > 1
-                                                              ? 'Annuler la proposition'
-                                                              : 'Annuler la proposition'}
+                                                              ? 'Annuler'
+                                                              : 'Annuler'}
                                                     </Button>
                                                 ) : (
                                                     <span className="text-muted-foreground text-xs">Proposition annulée</span>
+                                                )}
+                                                {canCreateRdv && rdvPropositionId && (
+                                                    <Button
+                                                        type="button"
+                                                        size="sm"
+                                                        className="h-9 w-full bg-emerald-700 text-white hover:bg-emerald-800"
+                                                        onClick={() => setRdvModalEntry({ key: entry.key, propositionId: rdvPropositionId })}
+                                                    >
+                                                        <CalendarPlus className="mr-1.5 h-4 w-4" />
+                                                        Créer un RDV
+                                                    </Button>
                                                 )}
                                             </div>
                                             <div className="grid gap-3 lg:grid-cols-2">
@@ -636,6 +656,28 @@ export default function PropositionsList() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {rdvModalEntry && (
+                <CreateRdvModal
+                    open={Boolean(rdvModalEntry)}
+                    propositionId={rdvModalEntry.propositionId}
+                    onClose={() => setRdvModalEntry(null)}
+                    onSuccess={() => {
+                        const propId = rdvModalEntry.propositionId;
+                        setPropositions((prev) => {
+                            const source = prev.find((p) => p.id === propId);
+                            if (!source) return prev;
+                            return prev.map((p) =>
+                                p.reference_user_id === source.reference_user_id &&
+                                p.compatible_user_id === source.compatible_user_id
+                                    ? { ...p, can_create_rdv: false }
+                                    : p,
+                            );
+                        });
+                        setRdvModalEntry(null);
+                    }}
+                />
+            )}
         </AppLayout>
     );
 }

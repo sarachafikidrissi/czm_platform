@@ -2832,7 +2832,7 @@ class MatchmakerController extends Controller
             }
         }
 
-        $propositions = Proposition::query()
+        $rawPropositions = Proposition::query()
             ->where(function ($query) use ($me) {
                 $query->where('matchmaker_id', $me->id)
                     ->orWhereHas('recipientUser', function ($recipientQuery) use ($me) {
@@ -2860,8 +2860,33 @@ class MatchmakerController extends Controller
                 'compatibleUser.profile:id,user_id,profile_picture_path',
             ])
             ->latest()
-            ->get()
-            ->map(function (Proposition $proposition) use ($me) {
+            ->get();
+
+        // Build pair-level maps for can_create_rdv computation
+        $pairStatusMap = [];
+        foreach ($rawPropositions as $p) {
+            $pairKey = $p->reference_user_id . '-' . $p->compatible_user_id;
+            if (! isset($pairStatusMap[$pairKey])) {
+                $pairStatusMap[$pairKey] = ['ref_accepted' => false, 'comp_accepted' => false];
+            }
+            if ((int) $p->recipient_user_id === (int) $p->reference_user_id && $p->status === 'interested') {
+                $pairStatusMap[$pairKey]['ref_accepted'] = true;
+            }
+            if ((int) $p->recipient_user_id === (int) $p->compatible_user_id && $p->status === 'interested') {
+                $pairStatusMap[$pairKey]['comp_accepted'] = true;
+            }
+        }
+        $bothAcceptedPairKeys = array_keys(array_filter($pairStatusMap, fn ($v) => $v['ref_accepted'] && $v['comp_accepted']));
+
+        // Batch-check which pairs already have an en_cours RDV
+        $existingRdvPairKeys = \App\Models\Rdv::query()
+            ->where('status', \App\Models\Rdv::STATUS_EN_COURS)
+            ->get(['reference_user_id', 'compatible_user_id'])
+            ->map(fn ($r) => $r->reference_user_id . '-' . $r->compatible_user_id)
+            ->all();
+
+        $propositions = $rawPropositions
+            ->map(function (Proposition $proposition) use ($me, $bothAcceptedPairKeys, $existingRdvPairKeys) {
                 $isExpired = $proposition->status === 'expired'
                     || ($proposition->status === 'pending'
                         && $proposition->created_at
@@ -2869,6 +2894,13 @@ class MatchmakerController extends Controller
 
                 $isActive = $proposition->isActive();
                 $canCancel = $proposition->canBeCancelledByMatchmaker() && $me->can('cancel', $proposition);
+
+                $pairKey = $proposition->reference_user_id . '-' . $proposition->compatible_user_id;
+                $bothSidesAccepted = in_array($pairKey, $bothAcceptedPairKeys, true);
+                $rdvExists = in_array($pairKey, $existingRdvPairKeys, true);
+                $canCreateRdv = $bothSidesAccepted
+                    && ! $rdvExists
+                    && (int) $proposition->matchmaker_id === (int) $me->id;
 
                 return [
                     'id' => $proposition->id,
@@ -2881,6 +2913,7 @@ class MatchmakerController extends Controller
                     'is_expired' => $isExpired,
                     'is_active' => $isActive,
                     'can_cancel' => $canCancel,
+                    'can_create_rdv' => $canCreateRdv,
                     'cancelled_at' => $proposition->cancelled_at,
                     'response_message' => $proposition->response_message,
                     'user_comment' => $proposition->user_comment,

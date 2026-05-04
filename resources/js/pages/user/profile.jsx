@@ -1194,6 +1194,19 @@ export default function UserProfile({
                                                     <ChevronRight className="h-4 w-4 shrink-0 text-rose-400" />
                                                 </div>
                                             )}
+                                            {/* proposition status */}
+                                            {memberProposition && (
+                                                <div className="flex items-center justify-between gap-3 border-t border-gray-100/80 py-2.5">
+                                                    <div className="flex min-w-0 flex-1 items-center gap-3">
+                                                        <UserCircle className="h-5 w-5 shrink-0 text-rose-400" />
+                                                        <div className="min-w-0">
+                                                            <p className="text-xs font-medium uppercase tracking-wider text-gray-400">Proposition status</p>
+                                                            <p className="truncate text-sm font-semibold text-gray-900">{memberProposition.status == 'pending' ? 'proposition en cours' : memberProposition.status == 'interested' ? 'Interested' : memberProposition.status == 'accepted' ? 'Accepted' : memberProposition.status == 'not_interested' ? 'Not interested' : memberProposition.status == 'cancelled' ? 'Cancelled' : memberProposition.status == 'expired' ? 'Expired' : 'Unknown'}</p>
+                                                        </div>
+                                                    </div>
+                                                    <ChevronRight className="h-4 w-4 shrink-0 text-rose-400" />
+                                                </div>
+                                            )}
                                             {(user?.assignedMatchmaker?.name || user?.assigned_matchmaker?.name) && (
                                                 <div className="flex items-center justify-between gap-3 border-t border-gray-100/80 py-2.5">
                                                     <div className="flex min-w-0 flex-1 items-center gap-3">

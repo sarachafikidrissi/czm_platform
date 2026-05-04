@@ -26,3 +26,15 @@ export const propositionToastFr = {
     memberExpired: 'Cette proposition a expiré et ne peut plus recevoir de réponse.',
     memberGenericError: 'Une erreur est survenue. Veuillez réessayer.',
 } as const
+
+export const rdvToastFr = {
+    createSuccess: 'RDV créé avec succès. Les deux profils ont été notifiés.',
+    createBlockedAlreadyExists: 'Un RDV existe déjà pour cette proposition.',
+    createBlockedNotBothAccepted: 'Les deux profils doivent avoir accepté la proposition.',
+    createError: 'Erreur lors de la création du RDV. Veuillez réessayer.',
+    feedbackSuccess: 'Feedback envoyé avec succès.',
+    feedbackMatchmakerSuccess: 'Feedback matchmaker enregistré.',
+    feedbackAlreadySubmitted: 'Vous avez déjà soumis un feedback pour ce RDV.',
+    feedbackError: 'Erreur lors de l\'envoi du feedback.',
+    genericError: 'Une erreur est survenue. Veuillez réessayer.',
+} as const

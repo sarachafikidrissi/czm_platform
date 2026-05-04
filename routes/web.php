@@ -450,6 +450,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/match/search', [\App\Http\Controllers\MatchmakerController::class, 'searchMatchProfiles'])->name('match.search');
         Route::get('/match/results/{userAId}', [\App\Http\Controllers\MatchmakerController::class, 'matchmakingResults'])->name('match.results');
         Route::post('/match/filters/{userAId}', [\App\Http\Controllers\MatchmakerController::class, 'updateMatchmakingFilters'])->name('match.filters.update');
+        // RDV routes for matchmaker
+        Route::middleware(['role:matchmaker'])->group(function () {
+            Route::post('/rdv', [\App\Http\Controllers\RdvController::class, 'store'])->name('rdv.store');
+            Route::get('/rdv', [\App\Http\Controllers\RdvController::class, 'matchmakerRdvsPage'])->name('rdv.matchmaker.list');
+            Route::get('/rdv/{rdv}', [\App\Http\Controllers\RdvController::class, 'show'])->name('rdv.show');
+            Route::patch('/rdv/{rdv}/status', [\App\Http\Controllers\RdvController::class, 'updateStatus'])->name('rdv.update-status');
+            Route::put('/rdv-feedbacks/{feedback}', [\App\Http\Controllers\RdvController::class, 'updateFeedback'])->name('rdv-feedbacks.update');
+            Route::delete('/rdv-feedbacks/{feedback}', [\App\Http\Controllers\RdvController::class, 'deleteFeedback'])->name('rdv-feedbacks.delete');
+        });
     });
 
     // Objectives routes - accessible to admin, manager, and matchmaker
@@ -549,9 +558,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::middleware(['role:user'])->group(function () {
         Route::get('/propositions', [\App\Http\Controllers\PropositionController::class, 'index'])->name('propositions');
+        // Mes RDVs pages for members
+        Route::get('/mes-rdvs', [\App\Http\Controllers\RdvController::class, 'mesRdvsPage'])->name('mes-rdvs');
+        Route::get('/mes-rdvs/{rdv}/feedback', [\App\Http\Controllers\RdvController::class, 'feedbackPage'])->name('mes-rdvs.feedback');
     });
     Route::middleware(['role:user|matchmaker'])->group(function () {
         Route::post('/propositions/{proposition}/respond', [\App\Http\Controllers\PropositionController::class, 'respond'])->name('propositions.respond');
+        // RDV feedback – accessible to both member participants and the matchmaker
+        Route::post('/rdv/{rdv}/feedback', [\App\Http\Controllers\RdvController::class, 'addFeedback'])->name('rdv.feedback.store');
     });
 
     Route::get('/appointments', function () {

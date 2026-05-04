@@ -5,7 +5,7 @@ import { GlobalSearch } from '@/components/global-search';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { CalendarHeart, Flame, HeartHandshake, Images, LayoutGrid, User, UserRoundSearch, Users, UserCheck, Plus, ShoppingCart, CreditCard, RotateCcw, Building2, Target, ArrowRightLeft, UserCog, Newspaper, Calendar, FileText } from 'lucide-react';
+import { CalendarHeart, Flame, HeartHandshake, Images, LayoutGrid, User, UserRoundSearch, Users, UserCheck, Plus, ShoppingCart, CreditCard, RotateCcw, Building2, Target, ArrowRightLeft, UserCog, Newspaper, Calendar, FileText, CalendarPlus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 
@@ -51,6 +51,12 @@ const getMainNavItems = (t: TFunction, role: string): NavItem[] => [
         title: t('navigation.propositions'),
         url: '/propositions',
         icon: Flame,
+        roles: ['user'],
+    },
+    {
+        title: t('navigation.mesRdvs', { defaultValue: 'Mes RDVs' }),
+        url: '/mes-rdvs',
+        icon: CalendarPlus,
         roles: ['user'],
     },
     {
@@ -248,6 +254,17 @@ const getMainNavItems = (t: TFunction, role: string): NavItem[] => [
         children: [
             { title: t('navigation.matchList', { defaultValue: 'Liste des Match' }), url: '/staff/match/list', roles: ['matchmaker', 'manager'] },
             { title: t('navigation.searchMatchProfiles', { defaultValue: 'Rechercher Profils Match' }), url: '/staff/match/search', roles: ['matchmaker', 'manager'] },
+        ],
+    },
+    {
+        title: t('navigation.rdv', { defaultValue: 'RDV' }),
+        url: '/staff/rdv?status=en_cours',
+        icon: CalendarPlus,
+        roles: ['matchmaker'],
+        children: [
+            { title: t('navigation.rdvEnCours', { defaultValue: 'RDV en cours' }), url: '/staff/rdv?status=en_cours', roles: ['matchmaker'] },
+            { title: t('navigation.rdvReussis', { defaultValue: 'RDV réussis' }), url: '/staff/rdv?status=reussi', roles: ['matchmaker'] },
+            { title: t('navigation.rdvEchecs', { defaultValue: 'RDV échecs' }), url: '/staff/rdv?status=echec', roles: ['matchmaker'] },
         ],
     },
     {

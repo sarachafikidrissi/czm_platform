@@ -1003,6 +1003,13 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
                                                     {getAge(userA.profile)} ans
                                                 </span>
                                             )}
+                                            {/* gender */}
+                                            {userA.gender && (
+                                                <span className="flex items-center gap-1.5">
+                                                    <User className="h-4 w-4 shrink-0" />
+                                                    {userA.gender === 'male' ? 'Homme' : 'Femme'}
+                                                </span>
+                                            )}
                                             <span className="flex items-center gap-1.5">
                                                 <MapPin className="h-4 w-4 shrink-0" />
                                                 {getLocation(userA.profile)}

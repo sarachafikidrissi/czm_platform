@@ -10,7 +10,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { User, MapPin, Calendar, GraduationCap, Briefcase, Heart, TrendingUp, Info, Loader2, ChevronDown } from 'lucide-react';
+import { User, MapPin, Calendar, GraduationCap, Briefcase, Heart, TrendingUp, Info, Loader2, ChevronDown, CalendarPlus } from 'lucide-react';
 import {
     getProfilePicture,
     getAge,
@@ -20,6 +20,7 @@ import {
     MATCH_PRIMARY,
 } from '@/lib/matchmaking-result-display';
 import { propositionToastFr } from '@/lib/proposition-toast-messages';
+import CreateRdvModal from '@/components/rdv/CreateRdvModal';
 
 /**
  * @param {object} props
@@ -65,6 +66,11 @@ export default function MatchResultMatchCard({
     const refOrCompatHasActiveProposition =
         Boolean(match.user_a_has_active_proposition) || Boolean(match.compatible_user_has_active_proposition);
 
+    const [rdvModalOpen, setRdvModalOpen] = useState(false);
+    const [canCreateRdvLocal, setCanCreateRdvLocal] = useState(Boolean(match.can_create_rdv));
+    // Use the proposition_id from the active proposition pair for RDV creation
+    const rdvPropositionId = match.proposition?.proposition_id ?? null;
+
     return (
         <Card
             className="cursor-pointer overflow-hidden rounded-xl border-2 border-[#8B2635]/40 bg-card shadow-sm transition-shadow hover:shadow-md focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2"
@@ -100,6 +106,12 @@ export default function MatchResultMatchCard({
                         <div className="flex items-center gap-2">
                             <Calendar className="h-4 w-4 shrink-0" />
                             <span>{getAge(match.profile)} ans</span>
+                        </div>
+                    )}
+                    {match.user.gender && (
+                        <div className="flex items-center gap-2">
+                            <User className="h-4 w-4 shrink-0" />
+                            <span>{match.user.gender === 'male' ? 'Homme' : 'Femme'}</span>
                         </div>
                     )}
                     <div className="flex items-center gap-2">
@@ -334,6 +346,20 @@ export default function MatchResultMatchCard({
                     </Button>
                 )}
 
+                {canCreateRdvLocal && rdvPropositionId && (
+                    <Button
+                        className="w-full rounded-none border-t-0 border-emerald-200 bg-emerald-50 py-2.5 text-sm font-medium text-emerald-800 hover:bg-emerald-100"
+                        variant="outline"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setRdvModalOpen(true);
+                        }}
+                    >
+                        <CalendarPlus className="mr-2 h-4 w-4" />
+                        Créer un RDV
+                    </Button>
+                )}
+
                 <Button
                     variant="outline"
                     className="w-full rounded-b-xl rounded-t-none border-t-0 border-border bg-muted/30 py-2.5 text-sm font-medium text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:bg-muted/50"
@@ -347,6 +373,18 @@ export default function MatchResultMatchCard({
                 </Button>
                     </>
                 )}
+
+            {canCreateRdvLocal && rdvPropositionId && (
+                <CreateRdvModal
+                    open={rdvModalOpen}
+                    propositionId={rdvPropositionId}
+                    onClose={() => setRdvModalOpen(false)}
+                    onSuccess={() => {
+                        setCanCreateRdvLocal(false);
+                        setRdvModalOpen(false);
+                    }}
+                />
+            )}
             </CardContent>
         </Card>
     );

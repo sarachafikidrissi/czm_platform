@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Proposition;
 use App\Models\PropositionRequest;
+use App\Models\Rdv;
 use App\Models\User;
 use Illuminate\Support\Facades\Schema;
 
@@ -120,7 +121,46 @@ class MatchmakingResultsPayloadService
             }
         }
 
-        return array_map(function ($match) use ($me, $referenceUserId, $statusMap, $requestMetaMap, $propositionStatusMap, $userAHasActiveProposition, $compatibleRecipientActiveMap, $pairActions) {
+        // Batch-compute both-sides-accepted and RDV-exists for the reference user against each compatible
+        $bothAcceptedCompatIds = [];
+        if ($compatibleIds !== []) {
+            $acceptedBothQuery = Proposition::query()
+                ->where('reference_user_id', $referenceUserId)
+                ->whereIn('compatible_user_id', $compatibleIds)
+                ->where('status', 'interested')
+                ->get(['compatible_user_id', 'recipient_user_id']);
+
+            $refAcceptedSet = $acceptedBothQuery
+                ->where('recipient_user_id', $referenceUserId)
+                ->pluck('compatible_user_id')
+                ->flip();
+
+            $compAcceptedSet = $acceptedBothQuery
+                ->whereIn('recipient_user_id', $compatibleIds)
+                ->filter(fn ($p) => (int) $p->recipient_user_id === (int) $p->compatible_user_id)
+                ->pluck('compatible_user_id')
+                ->flip();
+
+            foreach ($compatibleIds as $cid) {
+                if ($refAcceptedSet->has($cid) && $compAcceptedSet->has($cid)) {
+                    $bothAcceptedCompatIds[$cid] = true;
+                }
+            }
+        }
+
+        $rdvExistsCompatIds = [];
+        if (! empty($bothAcceptedCompatIds)) {
+            $existingRdvs = Rdv::query()
+                ->where('reference_user_id', $referenceUserId)
+                ->whereIn('compatible_user_id', array_keys($bothAcceptedCompatIds))
+                ->where('status', Rdv::STATUS_EN_COURS)
+                ->pluck('compatible_user_id')
+                ->flip()
+                ->toArray();
+            $rdvExistsCompatIds = $existingRdvs;
+        }
+
+        return array_map(function ($match) use ($me, $referenceUserId, $statusMap, $requestMetaMap, $propositionStatusMap, $userAHasActiveProposition, $compatibleRecipientActiveMap, $pairActions, $bothAcceptedCompatIds, $rdvExistsCompatIds) {
             $compatId = $match['user']->id;
             $requestMeta = $requestMetaMap[$compatId] ?? null;
             $canProposeFromRequest = ($requestMeta['status'] ?? null) === 'accepted';
@@ -128,6 +168,10 @@ class MatchmakingResultsPayloadService
                 'cancellable_proposition' => null,
                 'pending_response_proposition' => null,
             ];
+
+            $bothSidesAccepted = isset($bothAcceptedCompatIds[$compatId]);
+            $rdvExists = isset($rdvExistsCompatIds[$compatId]);
+            $canCreateRdv = $bothSidesAccepted && ! $rdvExists;
 
             return [
                 'user' => [
@@ -160,6 +204,7 @@ class MatchmakingResultsPayloadService
                 'can_cancel' => $actions['cancellable_proposition'] !== null,
                 'has_active_proposition' => Proposition::pairMatchHasActiveProposition((int) $referenceUserId, (int) $compatId),
                 'proposition' => Proposition::activeSnapshotForPair((int) $referenceUserId, (int) $compatId, (int) $compatId),
+                'can_create_rdv' => $canCreateRdv,
             ];
         }, $matches);
     }
