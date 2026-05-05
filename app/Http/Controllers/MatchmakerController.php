@@ -2910,6 +2910,7 @@ class MatchmakerController extends Controller
                     'recipient_user_id' => $proposition->recipient_user_id,
                     'message' => $proposition->message,
                     'status' => $proposition->status,
+                    'user_response' => $proposition->user_response,
                     'is_expired' => $isExpired,
                     'is_active' => $isActive,
                     'can_cancel' => $canCancel,

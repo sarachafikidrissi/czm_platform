@@ -112,7 +112,11 @@ class MatchmakingResultsPayloadService
                 if (! $canManagePair) {
                     continue;
                 }
-                if ($prop->status === 'pending' && $recipient && (int) $recipient->assigned_matchmaker_id === $mmId && $pairActions[$cid]['pending_response_proposition'] === null) {
+                if ($prop->status === 'pending'
+                    && $prop->responded_at === null
+                    && $recipient
+                    && (int) $recipient->assigned_matchmaker_id === $mmId
+                    && $pairActions[$cid]['pending_response_proposition'] === null) {
                     $pairActions[$cid]['pending_response_proposition'] = ['id' => $prop->id];
                 }
                 if ($prop->canBeCancelledByMatchmaker() && $pairActions[$cid]['cancellable_proposition'] === null) {

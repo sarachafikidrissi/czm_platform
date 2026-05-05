@@ -233,19 +233,16 @@ export default function PropositionsPage() {
                                             {proposition.message}
                                         </div>
                                         <div className="flex justify-center">
-                                            {normalizedStatus === 'expired' ? (
-                                                <div className="text-center text-sm  bg-red-600 text-white rounded-full px-4 py-1">Proposition expirée</div>
-                                            ) : (
-                                                <Button
-                                                    variant="outline"
-                                                    onClick={() =>
-                                                        window.open(`/profile/${otherUser.username || otherUser.id}`, '_blank', 'noopener,noreferrer')
-                                                    }
-                                                    className="bg-[#096725] text-white hover:bg-[#07501d] hover:text-white"
-                                                >
-                                                    Visiter le profil compatible
-                                                </Button>
-                                            )}
+                                            <Button
+                                                variant="outline"
+                                                disabled={['cancelled', 'expired', 'rejected'].includes(normalizedStatus)}
+                                                onClick={() =>
+                                                    window.open(`/profile/${otherUser.username || otherUser.id}`, '_blank', 'noopener,noreferrer')
+                                                }
+                                                className="bg-[#096725] text-white hover:bg-[#07501d] hover:text-white disabled:bg-slate-300 disabled:text-slate-500 disabled:hover:bg-slate-300"
+                                            >
+                                                Visiter le profil compatible
+                                            </Button>
                                         </div>
 
                                         {/* <div className="space-y-3">

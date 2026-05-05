@@ -43,10 +43,12 @@ export default function UserProfile({
     propositionToRespond = null,
     evaluationAccessLevel = 'none',
     memberProposition = null,
+    latestMemberProposition = null,
 }) {
     const { t } = useTranslation();
     const { auth } = usePage().props;
     const { showToast } = useToast();
+    
 
     // Use Number conversion to handle string/number type differences in IDs
     // Also check with string comparison as fallback
@@ -59,6 +61,7 @@ export default function UserProfile({
 
     // Get user role
     const userRole = user?.roles?.[0]?.name || 'user';
+    
 
     // Calculate age from date of birth
     const calculateAge = (dateOfBirth) => {
@@ -231,8 +234,8 @@ export default function UserProfile({
     }, [matchmakingResults]);
 
     const proposeFlow = useMatchmakingProposeRequestFlow(matchmakingUserA, {
-        onAfterProposeSuccess: () => router.reload({ only: ['matchmakingResults', 'memberProposition'] }),
-        onAfterRequestSuccess: () => router.reload({ only: ['matchmakingResults', 'memberProposition'] }),
+        onAfterProposeSuccess: () => router.reload({ only: ['matchmakingResults', 'memberProposition', 'latestMemberProposition'] }),
+        onAfterRequestSuccess: () => router.reload({ only: ['matchmakingResults', 'memberProposition', 'latestMemberProposition'] }),
     });
 
     const [profileMmCancellingId, setProfileMmCancellingId] = useState(null);
@@ -246,7 +249,7 @@ export default function UserProfile({
                 const pairToast =
                     data?.pair_was_cancelled ? propositionToastFr.cancelSuccessPaired : propositionToastFr.cancelSuccess;
                 showToast(pairToast, undefined, 'success');
-                router.reload({ only: ['matchmakingResults', 'memberProposition'] });
+                router.reload({ only: ['matchmakingResults', 'memberProposition', 'latestMemberProposition'] });
             } catch (error) {
                 const status = error?.response?.status;
                 const backendMsg = error?.response?.data?.message;
@@ -325,7 +328,7 @@ export default function UserProfile({
             showToast(pairToast, undefined, 'success');
             setManagePropositionModalOpen(false);
             setManageModalCancelConfirm(false);
-            router.reload({ only: ['matchmakingResults', 'memberProposition'] });
+            router.reload({ only: ['matchmakingResults', 'memberProposition', 'latestMemberProposition'] });
         } catch (error) {
             const status = error?.response?.status;
             const backendMsg = error?.response?.data?.message;
@@ -557,7 +560,7 @@ export default function UserProfile({
     const getStatusBadgeInfo = () => {
         const packName = user?.profile?.matrimonial_pack?.name ?? user?.profile?.matrimonialPack?.name ?? subscriptions?.[0]?.matrimonial_pack?.name;
         const statusForPrefix = user?.status === 'client_expire' ? 'client' : user?.status;
-        if (packName) {
+        if (staffCanViewMemberInsights && packName) {
             return getPackBadgeStyle(packName, statusForPrefix);
         }
         return getStatusInfo(user?.status);
@@ -1145,30 +1148,38 @@ export default function UserProfile({
                                     {/* Name & Status badge & Location */}
                                     <div className="mb-3 text-center">
                                         <h2 className="text-xl font-bold tracking-tight text-gray-900">{user?.name}</h2>
-                                        <div className="mt-2 flex justify-center">
-                                            {userRole === 'user' ? (() => {
-                                                const badge = getStatusBadgeInfo();
-                                                const StatusIcon = badge.icon;
-                                                return (
-                                                    <span className={user?.status == 'prospect' ? 'inline-flex rounded-md px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide bg-rose-100 text-red-700' : badge.className}>
-                                                        {StatusIcon && <StatusIcon className="h-3.5 w-3.5" strokeWidth={2.5} />}
-                                                        {badge.label}
+                                        {staffCanViewMemberInsights && (
+                                            <div className="mt-2 flex justify-center">
+                                                {userRole === 'user' ? (() => {
+                                                    const badge = getStatusBadgeInfo();
+                                                    const StatusIcon = badge.icon;
+                                                    return (
+                                                        <span className={user?.status == 'prospect' ? 'inline-flex rounded-md px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide bg-rose-100 text-red-700' : badge.className}>
+                                                            {StatusIcon && <StatusIcon className="h-3.5 w-3.5" strokeWidth={2.5} />}
+                                                            {badge.label}
+                                                        </span>
+                                                    );
+                                                })() : (
+                                                    <span className="inline-flex rounded-md px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide bg-rose-100 text-red-700">
+                                                        Matchmaker
                                                     </span>
-                                                );
-                                            })() : (
-                                                <span className="inline-flex rounded-md px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide bg-rose-100 text-red-700">
-                                                    Matchmaker
-                                                </span>
-                                            )}
-                                        </div>
+                                                )}
+                                            </div>
+                                        )}
                                         <div className="mt-2 flex items-center justify-center gap-1.5 text-sm text-gray-500">
                                             <MapPin className="h-4 w-4 shrink-0 text-[#8B2635]" />
                                             <span>{user?.city}, {user?.country}</span>
+                                            {age !== null && (
+                                                <>
+                                                    <span className="text-gray-400">•</span>
+                                                    <span>{age} ans</span>
+                                                </>
+                                            )}
                                         </div>
                                     </div>
 
                                     {/* Agency, Pack & Assigned Matchmaker - label above value, icon left, chevron right */}
-                                    {userRole === 'user' && (agency || user?.agency || (subscriptions?.length > 0 && subscriptions[0]?.matrimonial_pack) || user?.profile?.matrimonial_pack || user?.profile?.matrimonialPack || user?.assignedMatchmaker || user?.assigned_matchmaker) && (
+                                    {userRole === 'user' && (agency || user?.agency || (subscriptions?.length > 0 && subscriptions[0]?.matrimonial_pack) || user?.profile?.matrimonial_pack || user?.profile?.matrimonialPack || memberProposition || (staffCanViewMemberInsights && (user?.assignedMatchmaker || user?.assigned_matchmaker))) && (
                                         <div className="mb-5 rounded-lg border border-gray-100 bg-amber-50/80 px-4 py-3">
                                             {(agency?.name || user?.agency?.name) && (
                                                 <div className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
@@ -1182,7 +1193,7 @@ export default function UserProfile({
                                                     <ChevronRight className="h-4 w-4 shrink-0 text-rose-400" />
                                                 </div>
                                             )}
-                                            {(subscriptions?.[0]?.matrimonial_pack?.name || user?.profile?.matrimonial_pack?.name || user?.profile?.matrimonialPack?.name) && (
+                                            {staffCanViewMemberInsights && (subscriptions?.[0]?.matrimonial_pack?.name || user?.profile?.matrimonial_pack?.name || user?.profile?.matrimonialPack?.name) && (
                                                 <div className="flex items-center justify-between gap-3 border-t border-gray-100/80 py-2.5">
                                                     <div className="flex min-w-0 flex-1 items-center gap-3">
                                                         <CreditCard className="h-5 w-5 shrink-0 text-rose-400" />
@@ -1195,19 +1206,42 @@ export default function UserProfile({
                                                 </div>
                                             )}
                                             {/* proposition status */}
+
                                             {memberProposition && (
                                                 <div className="flex items-center justify-between gap-3 border-t border-gray-100/80 py-2.5">
                                                     <div className="flex min-w-0 flex-1 items-center gap-3">
                                                         <UserCircle className="h-5 w-5 shrink-0 text-rose-400" />
                                                         <div className="min-w-0">
                                                             <p className="text-xs font-medium uppercase tracking-wider text-gray-400">Proposition status</p>
-                                                            <p className="truncate text-sm font-semibold text-gray-900">{memberProposition.status == 'pending' ? 'proposition en cours' : memberProposition.status == 'interested' ? 'Interested' : memberProposition.status == 'accepted' ? 'Accepted' : memberProposition.status == 'not_interested' ? 'Not interested' : memberProposition.status == 'cancelled' ? 'Cancelled' : memberProposition.status == 'expired' ? 'Expired' : 'Unknown'}</p>
+                                                            <p className="truncate text-sm font-semibold text-gray-900">
+                                                                {(() => {
+                                                                    const propositionForDisplay = latestMemberProposition?.exists ? latestMemberProposition : memberProposition;
+                                                                    const rawStatus = String(propositionForDisplay?.status ?? '').trim().toLowerCase();
+                                                                    const rawUserResponse = String(propositionForDisplay?.user_response ?? '').trim().toLowerCase();
+                                                                    const displayState = rawStatus === 'cancelled' || rawStatus === 'expired'
+                                                                        ? rawStatus
+                                                                        : rawUserResponse !== ''
+                                                                            ? rawUserResponse
+                                                                            : rawStatus;
+                                                                    const normalizedState = String(displayState ?? '').trim().toLowerCase();
+
+                                                                    return normalizedState == 'pending' ? 'Proposition en cours'
+                                                                        : normalizedState == 'interested' ? 'Proposition acceptée'
+                                                                            : normalizedState == 'accepted' ? 'Proposition acceptée'
+                                                                                : normalizedState == 'not_interested' ? 'Proposition non acceptée'
+                                                                                    : normalizedState == 'rejected' ? 'Proposition non acceptée'
+                                                                                        : normalizedState == 'cancelled' ? 'Proposition annulée'
+                                                                                            : normalizedState == 'expired' ? 'Proposition expirée'
+                                                                                            : 'Unknown';
+                                                                })()}
+
+                                                            </p>
                                                         </div>
                                                     </div>
                                                     <ChevronRight className="h-4 w-4 shrink-0 text-rose-400" />
                                                 </div>
                                             )}
-                                            {(user?.assignedMatchmaker?.name || user?.assigned_matchmaker?.name) && (
+                                            {staffCanViewMemberInsights && (user?.assignedMatchmaker?.name || user?.assigned_matchmaker?.name) && (
                                                 <div className="flex items-center justify-between gap-3 border-t border-gray-100/80 py-2.5">
                                                     <div className="flex min-w-0 flex-1 items-center gap-3">
                                                         <UserCircle className="h-5 w-5 shrink-0 text-rose-400" />
@@ -1903,7 +1937,7 @@ export default function UserProfile({
                                                                         variant="outline"
                                                                         onClick={() =>
                                                                             router.reload({
-                                                                                only: ['matchmakingResults', 'memberProposition'],
+                                                                                only: ['matchmakingResults', 'memberProposition', 'latestMemberProposition'],
                                                                             })
                                                                         }
                                                                     >
@@ -1921,7 +1955,7 @@ export default function UserProfile({
                                                                         variant="outline"
                                                                         onClick={() =>
                                                                             router.reload({
-                                                                                only: ['matchmakingResults', 'memberProposition'],
+                                                                                only: ['matchmakingResults', 'memberProposition', 'latestMemberProposition'],
                                                                             })
                                                                         }
                                                                     >
@@ -3703,7 +3737,7 @@ export default function UserProfile({
                     open={profileRespondDialog.open}
                     onOpenChange={(open) => setProfileRespondDialog((prev) => ({ ...prev, open }))}
                     propositionId={profileRespondDialog.propositionId}
-                    onSuccess={() => router.reload({ only: ['matchmakingResults', 'memberProposition'] })}
+                    onSuccess={() => router.reload({ only: ['matchmakingResults', 'memberProposition', 'latestMemberProposition'] })}
                 />
             ) : null}
         </AppLayout>

@@ -62,6 +62,32 @@ class ExpirePropositions extends Command
                     ]
                 );
                 $expired++;
+
+                if ($proposition->pair_id) {
+                    $siblings = Proposition::query()
+                        ->where('pair_id', $proposition->pair_id)
+                        ->where('id', '!=', $proposition->id)
+                        ->where('status', 'pending')
+                        ->get();
+
+                    foreach ($siblings as $sibling) {
+                        $sibling->update(['status' => 'expired']);
+                        UserActivityService::log(
+                            (int) $sibling->recipient_user_id,
+                            null,
+                            'proposition_expired',
+                            'Proposition expirée (délai dépassé).',
+                            [
+                                'proposition_id' => $sibling->id,
+                                'previous_status' => 'pending',
+                                'new_status' => 'expired',
+                                'source' => 'auto',
+                                'paired_expiry' => true,
+                            ]
+                        );
+                        $expired++;
+                    }
+                }
             }
         });
 

@@ -442,12 +442,15 @@ class UserController extends Controller
 
         // Add has_bill to user object if it's a matchmaker/admin/manager viewing
         $memberProposition = null;
+        $latestMemberProposition = null;
         if ($currentUser && ($currentUser->hasRole('matchmaker') || $currentUser->hasRole('admin') || $currentUser->hasRole('manager'))) {
             $user->has_bill = $hasBill;
             $memberProposition = Proposition::activeSnapshotForUser((int) $user->id);
+            $latestMemberProposition = Proposition::latestSnapshotForUser((int) $user->id);
         }
 
-        return Inertia::render('user/profile', [
+
+        return Inertia::render('user/profile', [  
             'user' => $user,
             'profile' => $user->profile,
             'agency' => $user->agency,
@@ -461,6 +464,7 @@ class UserController extends Controller
             'matchmakingResults' => $matchmakingResults ?? null,
             'propositionToRespond' => $propositionToRespond,
             'memberProposition' => $memberProposition,
+            'latestMemberProposition' => $latestMemberProposition,
         ]);
     }
 

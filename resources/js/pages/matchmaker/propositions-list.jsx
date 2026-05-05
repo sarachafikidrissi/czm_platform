@@ -47,6 +47,12 @@ export default function PropositionsList() {
         return 'pending';
     };
 
+    const getRecipientDisplayStatus = (recipient) => {
+        if (!recipient) return null;
+        const response = typeof recipient.user_response === 'string' ? recipient.user_response.trim() : recipient.user_response;
+        return response ? response : recipient.status;
+    };
+
     const getStatusMeta = (status, isExpired) => {
         const normalized = normalizeStatus(status, isExpired);
         if (normalized === 'accepted') {
@@ -75,24 +81,38 @@ export default function PropositionsList() {
         setResponseErrors((prev) => ({ ...prev, [propositionId]: '' }));
         setResponseSuccesses((prev) => ({ ...prev, [propositionId]: '' }));
         try {
-            await axios.post(`/propositions/${propositionId}/respond`, {
+            const { data } = await axios.post(`/propositions/${propositionId}/respond`, {
                 status,
                 response_message: message || null,
             });
 
             const mappedStatus = status === 'accepted' ? 'interested' : 'not_interested';
-            setPropositions((prev) =>
-                prev.map((item) =>
-                    item.id === propositionId
-                        ? {
-                              ...item,
-                              status: mappedStatus,
-                              response_message: message || null,
-                              responded_at: new Date().toISOString(),
-                          }
-                        : item,
-                ),
-            );
+            const syncedStatus = typeof data?.status === 'string' && data.status.trim() !== '' ? data.status : mappedStatus;
+            setPropositions((prev) => {
+                const responded = prev.find((item) => item.id === propositionId);
+                const pairId = responded?.pair_id ?? null;
+
+                return prev.map((item) => {
+                    if (item.id === propositionId) {
+                        return {
+                            ...item,
+                            status: syncedStatus,
+                            user_response: mappedStatus,
+                            response_message: message || null,
+                            responded_at: new Date().toISOString(),
+                        };
+                    }
+
+                    if (pairId !== null && item.pair_id === pairId) {
+                        return {
+                            ...item,
+                            status: syncedStatus,
+                        };
+                    }
+
+                    return item;
+                });
+            });
             setResponseSuccesses((prev) => ({ ...prev, [propositionId]: propositionToastFr.respondUpdateSuccess }));
             showToast(propositionToastFr.respondUpdateSuccess, undefined, 'success');
             return true;
@@ -115,7 +135,7 @@ export default function PropositionsList() {
         const map = new Map();
 
         propositions.forEach((proposition) => {
-            const key = `${proposition.reference_user_id}-${proposition.compatible_user_id}-${proposition.message}`;
+            const key = proposition.pair_id ? `pair-${proposition.pair_id}` : `single-${proposition.id}`;
             if (!map.has(key)) {
                 map.set(key, {
                     key,
@@ -227,7 +247,7 @@ export default function PropositionsList() {
         const hasComp = !!entry.recipients[compId];
         if (hasRef === hasComp) return false;
         const currentRecipient = hasRef ? entry.recipients[refId] : entry.recipients[compId];
-        return normalizeStatus(currentRecipient?.status, currentRecipient?.is_expired) === 'accepted';
+        return normalizeStatus(getRecipientDisplayStatus(currentRecipient), currentRecipient?.is_expired) === 'accepted';
     };
 
     const handleSendToOther = async (entry) => {
@@ -255,6 +275,7 @@ export default function PropositionsList() {
                 recipient_user: recipientId === entry.reference_user?.id ? entry.reference_user : entry.compatible_user,
                 message: entry.message,
                 status: 'pending',
+                user_response: null,
                 response_message: null,
                 user_comment: null,
                 created_at: new Date().toISOString(),
@@ -321,14 +342,14 @@ export default function PropositionsList() {
                                     const refRecipient = entry.recipients[refUser?.id];
                                     const compRecipient = entry.recipients[compUser?.id];
                                     const refStatusMeta = refRecipient
-                                        ? getStatusMeta(refRecipient?.status, refRecipient?.is_expired)
+                                        ? getStatusMeta(getRecipientDisplayStatus(refRecipient), refRecipient?.is_expired)
                                         : {
                                               label: 'Non envoyée',
                                               variant: 'outline',
                                               className: 'bg-slate-50 text-slate-600 border border-slate-200',
                                           };
                                     const compStatusMeta = compRecipient
-                                        ? getStatusMeta(compRecipient?.status, compRecipient?.is_expired)
+                                        ? getStatusMeta(getRecipientDisplayStatus(compRecipient), compRecipient?.is_expired)
                                         : {
                                               label: 'Non envoyée',
                                               variant: 'outline',
@@ -359,12 +380,12 @@ export default function PropositionsList() {
                                     const compRespondDisabled = !compCanRespond || compProcessing;
                                     const refIsAnswered = refRecipient
                                         ? ['accepted', 'rejected', 'cancelled'].includes(
-                                              normalizeStatus(refRecipient?.status, refRecipient?.is_expired),
+                                              normalizeStatus(getRecipientDisplayStatus(refRecipient), refRecipient?.is_expired),
                                           )
                                         : false;
                                     const compIsAnswered = compRecipient
                                         ? ['accepted', 'rejected', 'cancelled'].includes(
-                                              normalizeStatus(compRecipient?.status, compRecipient?.is_expired),
+                                              normalizeStatus(getRecipientDisplayStatus(compRecipient), compRecipient?.is_expired),
                                           )
                                         : false;
 
@@ -567,11 +588,11 @@ export default function PropositionsList() {
                         <div className="text-muted-foreground text-xs">
                             Statut actuel:{' '}
                             {activeRecipient
-                                ? normalizeStatus(activeRecipient.status, activeRecipient.is_expired) === 'accepted'
+                                ? normalizeStatus(getRecipientDisplayStatus(activeRecipient), activeRecipient.is_expired) === 'accepted'
                                     ? 'Acceptée'
-                                    : normalizeStatus(activeRecipient.status, activeRecipient.is_expired) === 'rejected'
+                                    : normalizeStatus(getRecipientDisplayStatus(activeRecipient), activeRecipient.is_expired) === 'rejected'
                                       ? 'Refusée'
-                                      : normalizeStatus(activeRecipient.status, activeRecipient.is_expired) === 'expired'
+                                      : normalizeStatus(getRecipientDisplayStatus(activeRecipient), activeRecipient.is_expired) === 'expired'
                                         ? 'Expirée'
                                         : 'En attente'
                                 : '-'}

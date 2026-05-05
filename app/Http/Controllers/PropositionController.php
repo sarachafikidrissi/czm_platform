@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Models\UserActivity;
 use App\Services\UserActivityService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -210,6 +211,9 @@ class PropositionController extends Controller
                 if ($proposition->status === 'not_interested') {
                     return 'rejected';
                 }
+                if ($proposition->status === Proposition::STATUS_EXPIRED) {
+                    return 'expired';
+                }
                 if ($proposition->status === Proposition::STATUS_CANCELLED) {
                     return 'cancelled';
                 }
@@ -238,6 +242,9 @@ class PropositionController extends Controller
                 }
                 if ($proposition->status === 'not_interested') {
                     return 'rejected';
+                }
+                if ($proposition->status === Proposition::STATUS_EXPIRED) {
+                    return 'expired';
                 }
                 if ($proposition->status === Proposition::STATUS_CANCELLED) {
                     return 'cancelled';
@@ -497,25 +504,48 @@ class PropositionController extends Controller
             ], 422);
         }
 
-        if ($canRespondAsUser && $proposition->status !== 'pending') {
+        if ($canRespondAsUser && (
+            $proposition->status !== Proposition::STATUS_PENDING
+            || $proposition->responded_at !== null
+        )) {
             return response()->json([
                 'message' => 'Proposition already responded.',
             ], 422);
         }
 
-        if ($proposition->status === 'pending' && $proposition->created_at && $proposition->created_at->lt(now()->subDays(7))) {
-            $proposition->update(['status' => 'expired']);
-            UserActivityService::log(
-                (int) $proposition->recipient_user_id,
-                $me->id,
-                'proposition_expired',
-                'Proposition expirée (délai dépassé).',
-                [
-                    'proposition_id' => $proposition->id,
-                    'previous_status' => 'pending',
-                    'new_status' => 'expired',
-                ]
-            );
+        if ($proposition->status === Proposition::STATUS_PENDING && $proposition->created_at && $proposition->created_at->lt(now()->subDays(7))) {
+            DB::transaction(function () use ($proposition, $me) {
+                $locked = Proposition::query()->whereKey($proposition->id)->lockForUpdate()->first();
+                if (! $locked || $locked->status !== Proposition::STATUS_PENDING) {
+                    return;
+                }
+                if (! $locked->created_at || ! $locked->created_at->lt(now()->subDays(7))) {
+                    return;
+                }
+
+                $toExpire = $locked->pair_id
+                    ? Proposition::query()
+                        ->where('pair_id', $locked->pair_id)
+                        ->where('status', Proposition::STATUS_PENDING)
+                        ->lockForUpdate()
+                        ->get()
+                    : collect([$locked]);
+
+                foreach ($toExpire as $row) {
+                    $row->update(['status' => Proposition::STATUS_EXPIRED]);
+                    UserActivityService::log(
+                        (int) $row->recipient_user_id,
+                        $me->id,
+                        'proposition_expired',
+                        'Proposition expirée (délai dépassé).',
+                        [
+                            'proposition_id' => $row->id,
+                            'previous_status' => Proposition::STATUS_PENDING,
+                            'new_status' => Proposition::STATUS_EXPIRED,
+                        ]
+                    );
+                }
+            });
 
             return response()->json([
                 'message' => 'Proposition expired.',
@@ -534,36 +564,100 @@ class PropositionController extends Controller
             ], 422);
         }
 
-        $mappedStatus = $data['status'] === 'accepted' ? 'interested' : 'not_interested';
-        $previousStatus = $proposition->status;
+        $mappedUserResponse = $data['status'] === 'accepted' ? Proposition::STATUS_INTERESTED : Proposition::STATUS_NOT_INTERESTED;
 
-        $proposition->update([
-            'status' => $mappedStatus,
-            'response_message' => $responseMessage,
-            'user_response' => $mappedStatus,
-            'user_comment' => $responseMessage,
-            'responded_at' => now(),
-        ]);
+        $final = DB::transaction(function () use ($proposition, $mappedUserResponse, $responseMessage, $me, $data, $canRespondAsUser) {
+            $locked = Proposition::query()->whereKey($proposition->id)->lockForUpdate()->firstOrFail();
 
-        $activityType = $data['status'] === 'accepted' ? 'proposition_accepted' : 'proposition_refused';
-        $activityDescription = $data['status'] === 'accepted'
-            ? 'Proposition acceptée.'
-            : 'Proposition refusée.';
-        UserActivityService::log(
-            (int) $proposition->recipient_user_id,
-            $me->id,
-            $activityType,
-            $activityDescription,
-            [
-                'proposition_id' => $proposition->id,
-                'previous_status' => $previousStatus,
-                'new_status' => $mappedStatus,
-            ]
-        );
+            $pairRows = $locked->pair_id
+                ? Proposition::query()
+                    ->where('pair_id', $locked->pair_id)
+                    ->orderBy('id')
+                    ->lockForUpdate()
+                    ->get()
+                : collect([$locked]);
+
+            $target = $pairRows->firstWhere('id', $locked->id);
+            if ($target === null) {
+                abort(404);
+            }
+
+            // Final safety checks under lock to prevent stale races.
+            if ($pairRows->contains(fn (Proposition $row) => $row->status === Proposition::STATUS_CANCELLED)) {
+                throw new HttpResponseException(response()->json([
+                    'message' => 'Cette proposition a été annulée.',
+                ], 422));
+            }
+
+            $hasExpiredRow = $pairRows->contains(function (Proposition $row) {
+                return $row->status === Proposition::STATUS_EXPIRED
+                    || ($row->created_at && $row->created_at->lt(now()->subDays(7)));
+            });
+            if ($hasExpiredRow) {
+                foreach ($pairRows as $row) {
+                    if ($row->status !== Proposition::STATUS_PENDING) {
+                        continue;
+                    }
+                    $row->update(['status' => Proposition::STATUS_EXPIRED]);
+                }
+
+                throw new HttpResponseException(response()->json([
+                    'message' => 'Proposition expired.',
+                ], 422));
+            }
+
+            // Keep user behavior strict, while preserving matchmaker "mettre a jour la reponse" flow.
+            if ($canRespondAsUser) {
+                $allRowsPending = $pairRows->every(fn (Proposition $row) => $row->status === Proposition::STATUS_PENDING);
+                $targetUnanswered = $target->responded_at === null;
+                if (! $allRowsPending || ! $targetUnanswered) {
+                    throw new HttpResponseException(response()->json([
+                        'message' => 'Proposition already responded.',
+                    ], 422));
+                }
+            }
+
+            $previousStatus = $locked->status;
+
+            $target->update([
+                'user_response' => $mappedUserResponse,
+                'user_comment' => $responseMessage,
+                'response_message' => $responseMessage,
+                'responded_at' => now(),
+            ]);
+
+            $ids = $pairRows->pluck('id');
+            $fresh = Proposition::query()->whereIn('id', $ids)->orderBy('id')->get();
+            $newStatus = Proposition::computeSyncedPairStatus($fresh);
+
+            foreach ($fresh as $r) {
+                if ($r->status !== $newStatus) {
+                    $r->update(['status' => $newStatus]);
+                }
+            }
+
+            $activityType = $data['status'] === 'accepted' ? 'proposition_accepted' : 'proposition_refused';
+            $activityDescription = $data['status'] === 'accepted'
+                ? 'Proposition acceptée.'
+                : 'Proposition refusée.';
+            UserActivityService::log(
+                (int) $target->recipient_user_id,
+                $me->id,
+                $activityType,
+                $activityDescription,
+                [
+                    'proposition_id' => $target->id,
+                    'previous_status' => $previousStatus,
+                    'new_status' => $newStatus,
+                ]
+            );
+
+            return Proposition::query()->findOrFail($proposition->id);
+        });
 
         return response()->json([
             'message' => 'Response saved.',
-            'status' => $proposition->status,
+            'status' => $final->status,
         ]);
     }
 
