@@ -23,6 +23,9 @@ class Proposition extends Model
 
     public const STATUS_EXPIRED = 'expired';
 
+    /** Closed after an RDV was created for this pair; not active for blocking new propositions. */
+    public const STATUS_CLOSED = 'closed';
+
     protected $fillable = [
         'matchmaker_id',
         'pair_id',
@@ -179,7 +182,6 @@ class Proposition extends Model
                 'pending_response_proposition_id' => null,
             ];
         }
-
         $role = (int) $p->recipient_user_id === $userId ? 'receiver' : 'proposer';
         return [
             'exists' => true,
@@ -203,8 +205,15 @@ class Proposition extends Model
     public static function activeSnapshotForPair(int $referenceUserId, int $compatibleUserId, int $viewerUserId): array
     {
         $p = static::query()
-            ->where('reference_user_id', $referenceUserId)
-            ->where('compatible_user_id', $compatibleUserId)
+            ->where(function ($q) use ($referenceUserId, $compatibleUserId) {
+                $q->where(function ($forward) use ($referenceUserId, $compatibleUserId) {
+                    $forward->where('reference_user_id', $referenceUserId)
+                        ->where('compatible_user_id', $compatibleUserId);
+                })->orWhere(function ($reverse) use ($referenceUserId, $compatibleUserId) {
+                    $reverse->where('reference_user_id', $compatibleUserId)
+                        ->where('compatible_user_id', $referenceUserId);
+                });
+            })
             ->active()
             ->orderByDesc('id')
             ->first();
@@ -265,8 +274,15 @@ class Proposition extends Model
     {
         $p = static::query()
             ->where('status', self::STATUS_PENDING)
-            ->where('reference_user_id', $referenceUserId)
-            ->where('compatible_user_id', $compatibleUserId)
+            ->where(function ($q) use ($referenceUserId, $compatibleUserId) {
+                $q->where(function ($forward) use ($referenceUserId, $compatibleUserId) {
+                    $forward->where('reference_user_id', $referenceUserId)
+                        ->where('compatible_user_id', $compatibleUserId);
+                })->orWhere(function ($reverse) use ($referenceUserId, $compatibleUserId) {
+                    $reverse->where('reference_user_id', $compatibleUserId)
+                        ->where('compatible_user_id', $referenceUserId);
+                });
+            })
             ->where('recipient_user_id', $userId)
             ->orderByDesc('id')
             ->first();
@@ -284,11 +300,45 @@ class Proposition extends Model
     }
 
     /**
-     * Matchmakers may cancel any non-cancelled row (pending, answered, expired, etc.).
+     * Mark mutual-acceptance rows for this pair as closed when an RDV is created.
+     *
+     * @return int Number of rows updated
+     */
+    public static function closeAcceptedRowsForPairAfterRdv(self $source): int
+    {
+        $statuses = [self::STATUS_PENDING, self::STATUS_INTERESTED, self::STATUS_ACCEPTED];
+        $mmId = (int) $source->matchmaker_id;
+
+        if ($source->pair_id !== null && $source->pair_id !== '') {
+            return static::query()
+                ->where('pair_id', $source->pair_id)
+                ->where('matchmaker_id', $mmId)
+                ->whereIn('status', $statuses)
+                ->update(['status' => self::STATUS_CLOSED]);
+        }
+
+        $ref = (int) $source->reference_user_id;
+        $comp = (int) $source->compatible_user_id;
+
+        return static::query()
+            ->where('matchmaker_id', $mmId)
+            ->where(function ($q) use ($ref, $comp) {
+                $q->where(function ($x) use ($ref, $comp) {
+                    $x->where('reference_user_id', $ref)->where('compatible_user_id', $comp);
+                })->orWhere(function ($x) use ($ref, $comp) {
+                    $x->where('reference_user_id', $comp)->where('compatible_user_id', $ref);
+                });
+            })
+            ->whereIn('status', $statuses)
+            ->update(['status' => self::STATUS_CLOSED]);
+    }
+
+    /**
+     * Matchmakers may cancel any row except cancelled/expired/closed ones.
      */
     public function canBeCancelledByMatchmaker(): bool
     {
-        return $this->status !== self::STATUS_CANCELLED;
+        return ! in_array($this->status, [self::STATUS_CANCELLED, self::STATUS_EXPIRED, self::STATUS_CLOSED], true);
     }
 
     /**
@@ -316,8 +366,15 @@ class Proposition extends Model
     public static function pairMatchHasActiveProposition(int $referenceUserId, int $compatibleUserId): bool
     {
         return static::query()
-            ->where('reference_user_id', $referenceUserId)
-            ->where('compatible_user_id', $compatibleUserId)
+            ->where(function ($q) use ($referenceUserId, $compatibleUserId) {
+                $q->where(function ($forward) use ($referenceUserId, $compatibleUserId) {
+                    $forward->where('reference_user_id', $referenceUserId)
+                        ->where('compatible_user_id', $compatibleUserId);
+                })->orWhere(function ($reverse) use ($referenceUserId, $compatibleUserId) {
+                    $reverse->where('reference_user_id', $compatibleUserId)
+                        ->where('compatible_user_id', $referenceUserId);
+                });
+            })
             ->where(function ($q) use ($referenceUserId, $compatibleUserId) {
                 $q->where('recipient_user_id', $referenceUserId)
                     ->orWhere('recipient_user_id', $compatibleUserId);

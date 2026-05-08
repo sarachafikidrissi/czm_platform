@@ -2862,44 +2862,77 @@ class MatchmakerController extends Controller
             ->latest()
             ->get();
 
-        // Build pair-level maps for can_create_rdv computation
-        $pairStatusMap = [];
+        // Build pair-level maps for can_create_rdv computation (canonical key: min_id-max_id).
+        $pairAcceptedByMember = [];
         foreach ($rawPropositions as $p) {
-            $pairKey = $p->reference_user_id . '-' . $p->compatible_user_id;
-            if (! isset($pairStatusMap[$pairKey])) {
-                $pairStatusMap[$pairKey] = ['ref_accepted' => false, 'comp_accepted' => false];
+            if ((int) $p->matchmaker_id !== (int) $me->id) {
+                continue;
             }
-            if ((int) $p->recipient_user_id === (int) $p->reference_user_id && $p->status === 'interested') {
-                $pairStatusMap[$pairKey]['ref_accepted'] = true;
+            $ref = (int) $p->reference_user_id;
+            $comp = (int) $p->compatible_user_id;
+            if ($ref === $comp) {
+                continue;
             }
-            if ((int) $p->recipient_user_id === (int) $p->compatible_user_id && $p->status === 'interested') {
-                $pairStatusMap[$pairKey]['comp_accepted'] = true;
+            $pairKey = $ref < $comp ? "{$ref}-{$comp}" : "{$comp}-{$ref}";
+            if (! isset($pairAcceptedByMember[$pairKey])) {
+                $pairAcceptedByMember[$pairKey] = [];
+            }
+            if ($p->status === Proposition::STATUS_INTERESTED) {
+                $recipient = (int) $p->recipient_user_id;
+                if ($recipient === $ref || $recipient === $comp) {
+                    $pairAcceptedByMember[$pairKey][$recipient] = true;
+                }
             }
         }
-        $bothAcceptedPairKeys = array_keys(array_filter($pairStatusMap, fn ($v) => $v['ref_accepted'] && $v['comp_accepted']));
+        $bothAcceptedPairKeySet = [];
+        foreach ($pairAcceptedByMember as $key => $accepted) {
+            [$u1, $u2] = array_map('intval', explode('-', $key));
+            if (($accepted[$u1] ?? false) && ($accepted[$u2] ?? false)) {
+                $bothAcceptedPairKeySet[$key] = true;
+            }
+        }
 
-        // Batch-check which pairs already have an en_cours RDV
-        $existingRdvPairKeys = \App\Models\Rdv::query()
-            ->where('status', \App\Models\Rdv::STATUS_EN_COURS)
+        $canonicalRdvPairKey = static function (int $a, int $b): string {
+            return $a < $b ? "{$a}-{$b}" : "{$b}-{$a}";
+        };
+
+        // Batch-check which pairs already have blocking RDVs (en_cours/reussi) and successful RDVs.
+        $existingRdvPairKeySet = \App\Models\Rdv::query()
+            ->whereIn('status', [
+                \App\Models\Rdv::STATUS_EN_COURS,
+                \App\Models\Rdv::STATUS_REUSSI,
+            ])
             ->get(['reference_user_id', 'compatible_user_id'])
-            ->map(fn ($r) => $r->reference_user_id . '-' . $r->compatible_user_id)
+            ->mapWithKeys(fn ($r) => [
+                $canonicalRdvPairKey((int) $r->reference_user_id, (int) $r->compatible_user_id) => true,
+            ])
+            ->all();
+        $successfulRdvPairKeySet = \App\Models\Rdv::query()
+            ->where('status', \App\Models\Rdv::STATUS_REUSSI)
+            ->get(['reference_user_id', 'compatible_user_id'])
+            ->mapWithKeys(fn ($r) => [
+                $canonicalRdvPairKey((int) $r->reference_user_id, (int) $r->compatible_user_id) => true,
+            ])
             ->all();
 
         $propositions = $rawPropositions
-            ->map(function (Proposition $proposition) use ($me, $bothAcceptedPairKeys, $existingRdvPairKeys) {
+            ->map(function (Proposition $proposition) use ($me, $bothAcceptedPairKeySet, $existingRdvPairKeySet, $successfulRdvPairKeySet, $canonicalRdvPairKey) {
                 $isExpired = $proposition->status === 'expired'
                     || ($proposition->status === 'pending'
                         && $proposition->created_at
                         && $proposition->created_at->lt(now()->subDays(7)));
+                $displayStatus = $isExpired ? Proposition::STATUS_EXPIRED : $proposition->status;
 
                 $isActive = $proposition->isActive();
-                $canCancel = $proposition->canBeCancelledByMatchmaker() && $me->can('cancel', $proposition);
+                $canCancel = ! $isExpired && $proposition->canBeCancelledByMatchmaker() && $me->can('cancel', $proposition);
 
-                $pairKey = $proposition->reference_user_id . '-' . $proposition->compatible_user_id;
-                $bothSidesAccepted = in_array($pairKey, $bothAcceptedPairKeys, true);
-                $rdvExists = in_array($pairKey, $existingRdvPairKeys, true);
+                $pairKey = $canonicalRdvPairKey((int) $proposition->reference_user_id, (int) $proposition->compatible_user_id);
+                $bothSidesAccepted = isset($bothAcceptedPairKeySet[$pairKey]);
+                $rdvExists = isset($existingRdvPairKeySet[$pairKey]);
+                $hasSuccessfulRdv = isset($successfulRdvPairKeySet[$pairKey]);
                 $canCreateRdv = $bothSidesAccepted
                     && ! $rdvExists
+                    && ! $hasSuccessfulRdv
                     && (int) $proposition->matchmaker_id === (int) $me->id;
 
                 return [
@@ -2909,12 +2942,13 @@ class MatchmakerController extends Controller
                     'compatible_user_id' => $proposition->compatible_user_id,
                     'recipient_user_id' => $proposition->recipient_user_id,
                     'message' => $proposition->message,
-                    'status' => $proposition->status,
+                    'status' => $displayStatus,
                     'user_response' => $proposition->user_response,
                     'is_expired' => $isExpired,
                     'is_active' => $isActive,
                     'can_cancel' => $canCancel,
                     'can_create_rdv' => $canCreateRdv,
+                    'rdv_exists' => $rdvExists,
                     'cancelled_at' => $proposition->cancelled_at,
                     'response_message' => $proposition->response_message,
                     'user_comment' => $proposition->user_comment,
@@ -2922,6 +2956,7 @@ class MatchmakerController extends Controller
                     'created_at' => $proposition->created_at,
                     'can_update_response' => $proposition->recipientUser
                         && $proposition->status !== Proposition::STATUS_CANCELLED
+                        && $proposition->status !== Proposition::STATUS_CLOSED
                         && (int) $proposition->recipientUser->assigned_matchmaker_id === (int) $me->id,
                     'recipient_user' => $proposition->recipientUser ? [
                         'id' => $proposition->recipientUser->id,
@@ -3063,8 +3098,18 @@ class MatchmakerController extends Controller
         foreach ($prospectIds as $pid) {
             $recipientActiveMap[(int) $pid] = Proposition::hasActiveProposition((int) $pid);
         }
+        $recipientInProgressRdvMap = [];
+        foreach ($prospectIds as $pid) {
+            $recipientInProgressRdvMap[(int) $pid] = \App\Models\Rdv::query()
+                ->where('status', \App\Models\Rdv::STATUS_EN_COURS)
+                ->where(function ($q) use ($pid) {
+                    $q->where('reference_user_id', $pid)
+                        ->orWhere('compatible_user_id', $pid);
+                })
+                ->exists();
+        }
 
-        $formatted = $paginated->getCollection()->map(function ($prospect) use ($statusMap, $recipientActiveMap) {
+        $formatted = $paginated->getCollection()->map(function ($prospect) use ($statusMap, $recipientActiveMap, $recipientInProgressRdvMap) {
             return [
                 'id' => $prospect->id,
                 'name' => $prospect->name,
@@ -3077,6 +3122,7 @@ class MatchmakerController extends Controller
                 'profile' => $prospect->profile ? $prospect->profile->toArray() : null,
                 'proposition_status' => $statusMap[$prospect->id] ?? null,
                 'recipient_has_active_proposition' => $recipientActiveMap[$prospect->id] ?? false,
+                'recipient_has_in_progress_rdv' => $recipientInProgressRdvMap[$prospect->id] ?? false,
             ];
         })->values();
 

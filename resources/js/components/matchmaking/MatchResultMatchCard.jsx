@@ -55,6 +55,10 @@ export default function MatchResultMatchCard({
     const requestStatusForLabel = match.can_propose_from_request ? match.proposition_request_status : null;
     const pendingResponseId = match.pending_response_proposition?.id ?? null;
     const cancellableId = match.cancellable_proposition?.id ?? null;
+    const hasExistingRdv = Boolean(match.rdv_exists);
+    // Ignore parent fallback (e.g. proposition_id) when server says cancel is not allowed (closed RDV, etc.)
+    const activeCancelId =
+        match.can_cancel === false || hasExistingRdv ? null : (activePairCancelPropositionId ?? cancellableId);
     const [confirmActivePairCancel, setConfirmActivePairCancel] = useState(false);
 
     const requestDisabledForActiveCompatible = Boolean(match.proposition?.exists);
@@ -65,9 +69,11 @@ export default function MatchResultMatchCard({
 
     const refOrCompatHasActiveProposition =
         Boolean(match.user_a_has_active_proposition) || Boolean(match.compatible_user_has_active_proposition);
+    const canPropose = typeof match.can_propose === 'boolean' ? match.can_propose : !refOrCompatHasActiveProposition;
 
     const [rdvModalOpen, setRdvModalOpen] = useState(false);
     const [canCreateRdvLocal, setCanCreateRdvLocal] = useState(Boolean(match.can_create_rdv));
+    const [rdvExistsLocal, setRdvExistsLocal] = useState(hasExistingRdv);
     // Use the proposition_id from the active proposition pair for RDV creation
     const rdvPropositionId = match.proposition?.proposition_id ?? null;
 
@@ -167,12 +173,12 @@ export default function MatchResultMatchCard({
                                 Répondre à la proposition
                             </Button>
                         )}
-                        {activePairCancelPropositionId && onCancelProposition && (
+                        {activeCancelId && onCancelProposition && (
                             <Button
                                 type="button"
                                 variant="outline"
                                 className="w-full rounded-lg border-destructive/40 py-2.5 text-sm text-destructive hover:bg-destructive/10"
-                                disabled={cancellingPropositionId === activePairCancelPropositionId}
+                                disabled={cancellingPropositionId === activeCancelId}
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     if (!confirmActivePairCancel) {
@@ -180,10 +186,10 @@ export default function MatchResultMatchCard({
                                         return;
                                     }
                                     setConfirmActivePairCancel(false);
-                                    onCancelProposition(activePairCancelPropositionId, e);
+                                    onCancelProposition(activeCancelId, e);
                                 }}
                             >
-                                {cancellingPropositionId === activePairCancelPropositionId ? (
+                                {cancellingPropositionId === activeCancelId ? (
                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                 ) : null}
                                 {confirmActivePairCancel ? 'Confirmer l’annulation' : 'Annuler la proposition'}
@@ -201,6 +207,24 @@ export default function MatchResultMatchCard({
                             >
                                 Retour
                             </Button>
+                        )}
+                        {canCreateRdvLocal && rdvPropositionId && (
+                            <Button
+                                className="w-full rounded-lg border-emerald-200 bg-emerald-50 py-2.5 text-sm font-medium text-emerald-800 hover:bg-emerald-100"
+                                variant="outline"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setRdvModalOpen(true);
+                                }}
+                            >
+                                <CalendarPlus className="mr-2 h-4 w-4" />
+                                Créer un RDV
+                            </Button>
+                        )}
+                        {!canCreateRdvLocal && rdvExistsLocal && (
+                            <Badge variant="secondary" className="w-full rounded-lg py-2.5 text-sm">
+                                RDV créé
+                            </Badge>
                         )}
                         <Button
                             variant="outline"
@@ -266,40 +290,46 @@ export default function MatchResultMatchCard({
                 {match.isAssignedToMe && (
                     <Button
                         className={`w-full py-2.5 text-sm font-medium focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none ${
-                            match.proposition_status === 'pending' || refOrCompatHasActiveProposition
+                            match.proposition_status === 'pending' || !canPropose
                                 ? 'rounded-t-lg bg-amber-50 text-amber-700 hover:bg-amber-50'
                                 : 'rounded-t-lg text-white hover:opacity-90'
                         }`}
                         style={
-                            match.proposition_status === 'pending' || refOrCompatHasActiveProposition
+                            match.proposition_status === 'pending' || !canPropose
                                 ? undefined
                                 : { backgroundColor: MATCH_PRIMARY }
                         }
                         title={
-                            refOrCompatHasActiveProposition ? propositionToastFr.sendBlockedActive : undefined
+                            !canPropose
+                                ? refOrCompatHasActiveProposition
+                                    ? propositionToastFr.sendBlockedActive
+                                    : propositionToastFr.sendBlockedRdvInProgress
+                                : undefined
                         }
                         onClick={(event) => {
                             if (match.proposition_status === 'pending') {
                                 return;
                             }
-                            if (refOrCompatHasActiveProposition) {
+                            if (!canPropose) {
                                 return;
                             }
                             onOpenPropose(match, event);
                         }}
-                        disabled={match.proposition_status === 'pending' || refOrCompatHasActiveProposition}
+                        disabled={match.proposition_status === 'pending' || !canPropose}
                     >
                         {match.proposition_status === 'pending' ? (
                             <Loader2 className="mr-2 h-4 w-4 shrink-0 animate-spin text-amber-600" aria-hidden />
-                        ) : refOrCompatHasActiveProposition ? (
+                        ) : !canPropose ? (
                             <Info className="mr-2 h-4 w-4 shrink-0 text-amber-700" aria-hidden />
                         ) : (
                             <Heart className="mr-2 h-4 w-4" />
                         )}
                         {match.proposition_status === 'pending'
                             ? 'Proposition en cours...'
-                            : refOrCompatHasActiveProposition
-                              ? 'Proposition en cours (profil concerné)'
+                            : !canPropose
+                              ? refOrCompatHasActiveProposition
+                                  ? 'Proposition en cours (profil concerné)'
+                                  : 'Un RDV est en cours pour ce profil.'
                               : 'Proposer'}
                     </Button>
                 )}
@@ -329,7 +359,7 @@ export default function MatchResultMatchCard({
                     </DropdownMenu>
                 )}
 
-                {cancellableId && onCancelProposition && (
+                {!rdvExistsLocal && cancellableId && onCancelProposition && (
                     <Button
                         variant="outline"
                         className="w-full rounded-none border-t-0 border-destructive/40 py-2.5 text-sm text-destructive hover:bg-destructive/10"
@@ -359,6 +389,11 @@ export default function MatchResultMatchCard({
                         Créer un RDV
                     </Button>
                 )}
+                {!canCreateRdvLocal && rdvExistsLocal && (
+                    <Badge variant="secondary" className="w-full rounded-none border-t-0 py-2.5 text-sm">
+                        RDV créé
+                    </Badge>
+                )}
 
                 <Button
                     variant="outline"
@@ -381,6 +416,7 @@ export default function MatchResultMatchCard({
                     onClose={() => setRdvModalOpen(false)}
                     onSuccess={() => {
                         setCanCreateRdvLocal(false);
+                        setRdvExistsLocal(true);
                         setRdvModalOpen(false);
                     }}
                 />

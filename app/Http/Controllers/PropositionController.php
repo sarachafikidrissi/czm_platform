@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Proposition;
 use App\Models\PropositionRequest;
+use App\Models\Rdv;
 use App\Models\User;
 use App\Models\UserActivity;
 use App\Services\UserActivityService;
@@ -29,6 +30,8 @@ class PropositionController extends Controller
 
     /** @var string French UI message — cancel not allowed in current state */
     public const MESSAGE_CANCEL_INVALID_STATE = 'Cette proposition ne peut pas être annulée dans son état actuel.';
+    public const MESSAGE_CANCEL_EXPIRED = 'Cette proposition est expirée et ne peut pas être annulée.';
+    public const MESSAGE_ACTIVE_RDV_IN_PROGRESS = 'Un RDV est en cours pour ce profil. La proposition sera disponible après la clôture du RDV.';
 
     /**
      * Map a proposition for JSON / Inertia payloads (staff lists).
@@ -61,6 +64,37 @@ class PropositionController extends Controller
             'created_at' => $proposition->created_at,
             'pair_id' => $proposition->pair_id,
         ], $extra);
+    }
+
+    /**
+     * Normalize DB status for "latest cycle" gates in store() (re-propose after close/cancel/etc.).
+     */
+    protected function mapPropositionToLatestCycleStatus(Proposition $proposition): string
+    {
+        $isStalePending = $proposition->status === 'pending'
+            && $proposition->created_at
+            && $proposition->created_at->lt(now()->subDays(7));
+
+        if ($isStalePending) {
+            return 'expired';
+        }
+        if ($proposition->status === 'interested') {
+            return 'accepted';
+        }
+        if ($proposition->status === 'not_interested') {
+            return 'rejected';
+        }
+        if ($proposition->status === Proposition::STATUS_EXPIRED) {
+            return 'expired';
+        }
+        if ($proposition->status === Proposition::STATUS_CANCELLED) {
+            return 'cancelled';
+        }
+        if ($proposition->status === Proposition::STATUS_CLOSED) {
+            return 'closed';
+        }
+
+        return 'pending';
     }
 
     /**
@@ -149,6 +183,11 @@ class PropositionController extends Controller
 
         $referenceUser = User::select('id', 'assigned_matchmaker_id')->findOrFail($data['reference_user_id']);
         $compatibleUser = User::select('id', 'assigned_matchmaker_id')->findOrFail($data['compatible_user_id']);
+        if ($this->hasInProgressRdvForEitherProfile((int) $referenceUser->id, (int) $compatibleUser->id)) {
+            return response()->json([
+                'message' => self::MESSAGE_ACTIVE_RDV_IN_PROGRESS,
+            ], 422);
+        }
 
         if (Proposition::hasActiveProposition((int) $referenceUser->id)) {
             return response()->json([
@@ -197,29 +236,7 @@ class PropositionController extends Controller
             ->values();
 
         if ($latestByRecipient->count() >= 1) {
-            $latestStatuses = $latestByRecipient->map(function (Proposition $proposition) {
-                $isExpired = $proposition->status === 'pending'
-                    && $proposition->created_at
-                    && $proposition->created_at->lt(now()->subDays(7));
-
-                if ($isExpired) {
-                    return 'expired';
-                }
-                if ($proposition->status === 'interested') {
-                    return 'accepted';
-                }
-                if ($proposition->status === 'not_interested') {
-                    return 'rejected';
-                }
-                if ($proposition->status === Proposition::STATUS_EXPIRED) {
-                    return 'expired';
-                }
-                if ($proposition->status === Proposition::STATUS_CANCELLED) {
-                    return 'cancelled';
-                }
-
-                return 'pending';
-            });
+            $latestStatuses = $latestByRecipient->map(fn (Proposition $proposition) => $this->mapPropositionToLatestCycleStatus($proposition));
 
             if ($latestStatuses->contains('pending')) {
                 return response()->json([
@@ -229,29 +246,7 @@ class PropositionController extends Controller
         }
 
         if ($latestByRecipient->count() >= 2) {
-            $latestStatuses = $latestByRecipient->map(function (Proposition $proposition) {
-                $isExpired = $proposition->status === 'pending'
-                    && $proposition->created_at
-                    && $proposition->created_at->lt(now()->subDays(7));
-
-                if ($isExpired) {
-                    return 'expired';
-                }
-                if ($proposition->status === 'interested') {
-                    return 'accepted';
-                }
-                if ($proposition->status === 'not_interested') {
-                    return 'rejected';
-                }
-                if ($proposition->status === Proposition::STATUS_EXPIRED) {
-                    return 'expired';
-                }
-                if ($proposition->status === Proposition::STATUS_CANCELLED) {
-                    return 'cancelled';
-                }
-
-                return 'pending';
-            });
+            $latestStatuses = $latestByRecipient->map(fn (Proposition $proposition) => $this->mapPropositionToLatestCycleStatus($proposition));
 
             $allAccepted = $latestStatuses->every(fn ($status) => $status === 'accepted');
             if ($allAccepted) {
@@ -365,6 +360,11 @@ class PropositionController extends Controller
 
         $referenceUser = User::select('id', 'assigned_matchmaker_id')->findOrFail($data['reference_user_id']);
         $compatibleUser = User::select('id', 'assigned_matchmaker_id')->findOrFail($data['compatible_user_id']);
+        if ($this->hasInProgressRdvForEitherProfile((int) $referenceUser->id, (int) $compatibleUser->id)) {
+            return response()->json([
+                'message' => self::MESSAGE_ACTIVE_RDV_IN_PROGRESS,
+            ], 422);
+        }
 
         if (Proposition::hasActiveProposition((int) $referenceUser->id)) {
             return response()->json([
@@ -504,6 +504,12 @@ class PropositionController extends Controller
             ], 422);
         }
 
+        if ($proposition->status === Proposition::STATUS_CLOSED) {
+            return response()->json([
+                'message' => 'Cette proposition est clôturée suite à la création d\'un RDV.',
+            ], 422);
+        }
+
         if ($canRespondAsUser && (
             $proposition->status !== Proposition::STATUS_PENDING
             || $proposition->responded_at !== null
@@ -586,6 +592,12 @@ class PropositionController extends Controller
             if ($pairRows->contains(fn (Proposition $row) => $row->status === Proposition::STATUS_CANCELLED)) {
                 throw new HttpResponseException(response()->json([
                     'message' => 'Cette proposition a été annulée.',
+                ], 422));
+            }
+
+            if ($pairRows->contains(fn (Proposition $row) => $row->status === Proposition::STATUS_CLOSED)) {
+                throw new HttpResponseException(response()->json([
+                    'message' => 'Cette proposition est clôturée suite à la création d\'un RDV.',
                 ], 422));
             }
 
@@ -673,6 +685,16 @@ class PropositionController extends Controller
 
         $this->authorize('cancel', $proposition);
 
+        $isExpired = $proposition->status === Proposition::STATUS_EXPIRED
+            || ($proposition->status === Proposition::STATUS_PENDING
+                && $proposition->created_at
+                && $proposition->created_at->lt(now()->subDays(7)));
+        if ($isExpired) {
+            return response()->json([
+                'message' => self::MESSAGE_CANCEL_EXPIRED,
+            ], 422);
+        }
+
         if (! $proposition->canBeCancelledByMatchmaker()) {
             return response()->json([
                 'message' => self::MESSAGE_CANCEL_INVALID_STATE,
@@ -750,5 +772,18 @@ class PropositionController extends Controller
             'cancelled_proposition_ids' => $cancelledIds,
             'pair_was_cancelled' => $pairWasCancelled,
         ]);
+    }
+
+    private function hasInProgressRdvForEitherProfile(int $referenceUserId, int $compatibleUserId): bool
+    {
+        return Rdv::query()
+            ->where('status', Rdv::STATUS_EN_COURS)
+            ->where(function ($query) use ($referenceUserId, $compatibleUserId) {
+                $query->where('reference_user_id', $referenceUserId)
+                    ->orWhere('compatible_user_id', $referenceUserId)
+                    ->orWhere('reference_user_id', $compatibleUserId)
+                    ->orWhere('compatible_user_id', $compatibleUserId);
+            })
+            ->exists();
     }
 }

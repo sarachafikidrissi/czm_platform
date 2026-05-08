@@ -9,6 +9,7 @@ use App\Models\User;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class RdvController extends Controller
@@ -124,16 +125,21 @@ class RdvController extends Controller
 
         $defaultRegle = "Les deux profils s'engagent à respecter les règles de bienséance et de respect mutuel lors de ce rendez-vous.";
 
-        $rdv = Rdv::create([
-            'matchmaker_id' => $me->id,
-            'reference_user_id' => $proposition->reference_user_id,
-            'compatible_user_id' => $proposition->compatible_user_id,
-            'proposition_id' => $proposition->id,
-            'regle' => trim($data['regle'] ?? '') ?: $defaultRegle,
-            'message' => isset($data['message']) ? (trim($data['message']) ?: null) : null,
-            'share_phone' => (bool) ($data['share_phone'] ?? false),
-            'status' => Rdv::STATUS_EN_COURS,
-        ]);
+        $rdv = null;
+        DB::transaction(function () use ($me, $proposition, $data, $defaultRegle, &$rdv) {
+            $rdv = Rdv::create([
+                'matchmaker_id' => $me->id,
+                'reference_user_id' => $proposition->reference_user_id,
+                'compatible_user_id' => $proposition->compatible_user_id,
+                'proposition_id' => $proposition->id,
+                'regle' => trim($data['regle'] ?? '') ?: $defaultRegle,
+                'message' => isset($data['message']) ? (trim($data['message']) ?: null) : null,
+                'share_phone' => (bool) ($data['share_phone'] ?? false),
+                'status' => Rdv::STATUS_EN_COURS,
+            ]);
+
+            Proposition::closeAcceptedRowsForPairAfterRdv($proposition);
+        });
 
         return response()->json([
             'message' => 'RDV créé avec succès.',

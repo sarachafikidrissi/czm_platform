@@ -86,6 +86,44 @@ class RdvTest extends TestCase
             'compatible_user_id' => $comp->id,
             'status' => 'en_cours',
         ]);
+
+        $this->assertSame(Proposition::STATUS_CLOSED, $refProp->fresh()->status);
+        $compProp = Proposition::query()
+            ->where('reference_user_id', $ref->id)
+            ->where('compatible_user_id', $comp->id)
+            ->where('recipient_user_id', $comp->id)
+            ->first();
+        $this->assertNotNull($compProp);
+        $this->assertSame(Proposition::STATUS_CLOSED, $compProp->status);
+
+        $this->assertFalse(Proposition::hasActiveProposition($ref->id));
+        $this->assertFalse(Proposition::hasActiveProposition($comp->id));
+    }
+
+    public function test_new_proposition_store_allowed_after_rdv_echec_closes_pair(): void
+    {
+        $mm = $this->makeUserWithRole('matchmaker');
+        $ref = $this->makeUserWithRole('user', ['assigned_matchmaker_id' => $mm->id]);
+        $comp = $this->makeUserWithRole('user', ['assigned_matchmaker_id' => $mm->id]);
+
+        [$refProp] = $this->makeAcceptedPropositionPair($mm, $ref, $comp);
+
+        $this->actingAs($mm)->postJson(route('staff.rdv.store'), [
+            'proposition_id' => $refProp->id,
+            'share_phone' => false,
+        ])->assertStatus(201);
+
+        $rdv = Rdv::query()->first();
+        $this->assertNotNull($rdv);
+        $rdv->update(['status' => Rdv::STATUS_ECHEC]);
+
+        $this->actingAs($mm)->postJson(route('staff.propositions.store'), [
+            'reference_user_id' => $ref->id,
+            'compatible_user_id' => $comp->id,
+            'message' => 'Nouvelle proposition après RDV',
+            'send_to_reference' => true,
+            'send_to_compatible' => true,
+        ])->assertOk()->assertJsonPath('message', 'Proposition sent.');
     }
 
     public function test_create_rdv_blocked_when_only_one_side_accepted(): void

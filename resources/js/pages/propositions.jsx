@@ -165,11 +165,13 @@ export default function PropositionsPage() {
                                 ? 'expired'
                                 : status === 'cancelled'
                                   ? 'cancelled'
-                                  : status === 'interested' || status === 'accepted'
-                                    ? 'accepted'
-                                    : status === 'not_interested' || status === 'rejected'
-                                      ? 'rejected'
-                                      : 'pending';
+                                  : status === 'closed'
+                                    ? 'closed'
+                                    : status === 'interested' || status === 'accepted'
+                                      ? 'accepted'
+                                      : status === 'not_interested' || status === 'rejected'
+                                        ? 'rejected'
+                                        : 'pending';
                             const isPending = normalizedStatus === 'pending';
                             const isProcessing = processingIds[proposition.id];
 
@@ -185,7 +187,9 @@ export default function PropositionsPage() {
                                                     ? 'default'
                                                     : normalizedStatus === 'rejected'
                                                       ? 'destructive'
-                                                      : normalizedStatus === 'expired' || normalizedStatus === 'cancelled'
+                                                      : normalizedStatus === 'expired' ||
+                                                          normalizedStatus === 'cancelled' ||
+                                                          normalizedStatus === 'closed'
                                                         ? 'secondary'
                                                         : 'outline'
                                             }
@@ -198,7 +202,9 @@ export default function PropositionsPage() {
                                                     ? 'Expirée'
                                                     : normalizedStatus === 'cancelled'
                                                       ? 'Annulée'
-                                                      : 'En attente'}
+                                                      : normalizedStatus === 'closed'
+                                                        ? 'Clôturée (RDV)'
+                                                        : 'En attente'}
                                         </Badge>
                                     </CardHeader>
                                     <CardContent className="space-y-4">

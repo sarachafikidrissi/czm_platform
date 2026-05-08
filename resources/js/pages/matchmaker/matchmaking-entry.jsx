@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { LayoutGrid, Table2, Search, MapPin, Calendar, Heart, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { LayoutGrid, Table2, Search, MapPin, Calendar, Heart, ChevronLeft, ChevronRight, Loader2, Info } from 'lucide-react';
 import { getCommercialCodeDisplay } from '@/lib/heard-about';
 
 const MATCH_PRIMARY = '#8B2635';
@@ -193,8 +193,10 @@ export default function MatchmakingEntry({ prospects, search: initialSearch = ''
                                 const location = getLocation(prospect);
                                 const statusInfo = getStatusInfo(prospect.status);
                                 const genreBadgeClass = prospect.gender === 'female' ? 'bg-red-100 text-red-800 border-0' : 'bg-gray-100 text-gray-800 border-0';
+                                const hasInProgressRdv = Boolean(prospect.recipient_has_in_progress_rdv);
                                 const proposeDisabled =
                                     Boolean(prospect.recipient_has_active_proposition) ||
+                                    hasInProgressRdv ||
                                     prospect.proposition_status === 'pending' ||
                                     prospect.proposition_status === 'interested';
                                 return (
@@ -247,6 +249,8 @@ export default function MatchmakingEntry({ prospects, search: initialSearch = ''
                                                 title={
                                                     prospect.recipient_has_active_proposition
                                                         ? "Ce profil a déjà une proposition active. Annulez-la avant d'en envoyer une nouvelle."
+                                                        : hasInProgressRdv
+                                                          ? 'Un RDV est en cours pour ce profil.'
                                                         : undefined
                                                 }
                                                 className={`flex w-full items-center justify-center gap-2 rounded-b-xl py-2.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none ${
@@ -257,13 +261,19 @@ export default function MatchmakingEntry({ prospects, search: initialSearch = ''
                                                 style={proposeDisabled ? undefined : { backgroundColor: MATCH_PRIMARY }}
                                             >
                                                 {proposeDisabled ? (
-                                                    <Loader2 className="h-4 w-4 shrink-0  text-amber-600" aria-hidden />
+                                                    hasInProgressRdv ? (
+                                                        <Info className="h-4 w-4 shrink-0 text-amber-600" aria-hidden />
+                                                    ) : (
+                                                        <Loader2 className="h-4 w-4 shrink-0 text-amber-600" aria-hidden />
+                                                    )
                                                 ) : (
                                                     <Heart className="h-4 w-4" aria-hidden />
                                                 )}
                                                 {proposeDisabled
                                                     ? prospect.recipient_has_active_proposition
                                                         ? 'Proposition active sur ce profil'
+                                                        : hasInProgressRdv
+                                                          ? 'Un RDV est en cours pour ce profil.'
                                                         : 'Proposition en cours...'
                                                     : 'À proposer'}
                                             </button>
@@ -305,8 +315,10 @@ export default function MatchmakingEntry({ prospects, search: initialSearch = ''
                                             const location = getLocation(prospect);
                                             const statusInfo = getStatusInfo(prospect.status);
                                             const genreBadgeClass = prospect.gender === 'female' ? 'bg-red-100 text-red-800 border-0' : 'bg-gray-100 text-gray-800 border-0';
+                                            const hasInProgressRdv = Boolean(prospect.recipient_has_in_progress_rdv);
                                             const proposeDisabled =
                                                 Boolean(prospect.recipient_has_active_proposition) ||
+                                                hasInProgressRdv ||
                                                 prospect.proposition_status === 'pending' ||
                                                 prospect.proposition_status === 'interested';
                                             return (
@@ -358,15 +370,23 @@ export default function MatchmakingEntry({ prospects, search: initialSearch = ''
                                                             title={
                                                                 prospect.recipient_has_active_proposition
                                                                     ? "Ce profil a déjà une proposition active. Annulez-la avant d'en envoyer une nouvelle."
+                                                                    : hasInProgressRdv
+                                                                      ? 'Un RDV est en cours pour ce profil.'
                                                                     : undefined
                                                             }
                                                             className="inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 enabled:hover:bg-[#7a2230] disabled:cursor-not-allowed disabled:bg-amber-100 disabled:text-amber-800"
                                                             style={proposeDisabled ? undefined : { backgroundColor: MATCH_PRIMARY }}
                                                         >
-                                                            <Heart className="h-4 w-4" aria-hidden />
+                                                            {hasInProgressRdv ? (
+                                                                <Info className="h-4 w-4" aria-hidden />
+                                                            ) : (
+                                                                <Heart className="h-4 w-4" aria-hidden />
+                                                            )}
                                                             {proposeDisabled
                                                                 ? prospect.recipient_has_active_proposition
                                                                     ? 'Indisponible'
+                                                                    : hasInProgressRdv
+                                                                      ? 'Un RDV est en cours pour ce profil.'
                                                                     : 'En cours'
                                                                 : 'À proposer'}
                                                         </button>

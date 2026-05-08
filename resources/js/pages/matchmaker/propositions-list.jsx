@@ -12,6 +12,14 @@ import { Plus, CalendarPlus } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+function propositionSameUnorderedPair(p, refId, compatId) {
+    const a = Number(p.reference_user_id);
+    const b = Number(p.compatible_user_id);
+    const r = Number(refId);
+    const c = Number(compatId);
+    return (a === r && b === c) || (a === c && b === r);
+}
+
 export default function PropositionsList() {
     const { t } = useTranslation();
     const { showToast } = useToast();
@@ -31,6 +39,10 @@ export default function PropositionsList() {
     /** While a grouped cancel request is in flight (one button per row). */
     const [cancellingEntryKey, setCancellingEntryKey] = useState(null);
     const [rdvModalEntry, setRdvModalEntry] = useState(null);
+    const rdvInProgressBackendMessages = new Set([
+        propositionToastFr.sendBlockedRdvInProgress,
+        'Un RDV est en cours pour ce profil. La proposition sera disponible après la clôture du RDV.',
+    ]);
     const getProfilePicture = (user) => {
         if (user?.profile?.profile_picture_path) {
             return `/storage/${user.profile.profile_picture_path}`;
@@ -41,6 +53,8 @@ export default function PropositionsList() {
 
     const normalizeStatus = (status, isExpired) => {
         if (isExpired) return 'expired';
+        if (status === 'expired') return 'expired';
+        if (status === 'closed') return 'closed';
         if (status === 'cancelled') return 'cancelled';
         if (status === 'interested' || status === 'accepted') return 'accepted';
         if (status === 'not_interested' || status === 'rejected') return 'rejected';
@@ -49,6 +63,7 @@ export default function PropositionsList() {
 
     const getRecipientDisplayStatus = (recipient) => {
         if (!recipient) return null;
+        if (recipient.status === 'closed') return 'closed';
         const response = typeof recipient.user_response === 'string' ? recipient.user_response.trim() : recipient.user_response;
         return response ? response : recipient.status;
     };
@@ -66,6 +81,9 @@ export default function PropositionsList() {
         }
         if (normalized === 'cancelled') {
             return { label: 'Annulée', variant: 'secondary', className: 'bg-slate-100 text-slate-700 border border-slate-200' };
+        }
+        if (normalized === 'closed') {
+            return { label: 'Clôturée (RDV)', variant: 'secondary', className: 'bg-sky-50 text-sky-800 border border-sky-100' };
         }
         return { label: 'En attente', variant: 'outline', className: 'bg-slate-50 text-slate-600 border border-slate-200' };
     };
@@ -170,6 +188,9 @@ export default function PropositionsList() {
         if (normalizedStatuses.includes('rejected')) {
             return 'rejected';
         }
+        if (normalizedStatuses.length > 0 && normalizedStatuses.every((s) => s === 'closed')) {
+            return 'closed';
+        }
         if (normalizedStatuses.length === 2 && normalizedStatuses.every((s) => s === 'accepted')) {
             return 'accepted';
         }
@@ -218,6 +239,8 @@ export default function PropositionsList() {
             const backendMsg = error?.response?.data?.message;
             if (status === 403) {
                 showToast(propositionToastFr.cancelUnauthorized, undefined, 'error');
+            } else if (status === 422 && backendMsg === propositionToastFr.cancelExpired) {
+                showToast(propositionToastFr.cancelExpired, undefined, 'warning');
             } else if (status === 422 && backendMsg === propositionToastFr.cancelInvalidState) {
                 showToast(propositionToastFr.cancelInvalidState, undefined, 'warning');
             } else {
@@ -289,6 +312,9 @@ export default function PropositionsList() {
             if (status === 422 && backendMsg === propositionToastFr.sendBlockedActive) {
                 showToast(propositionToastFr.sendBlockedActive, undefined, 'warning');
                 setErrorByKey((prev) => ({ ...prev, [requestKey]: propositionToastFr.sendBlockedActive }));
+            } else if (status === 422 && rdvInProgressBackendMessages.has(backendMsg)) {
+                showToast(propositionToastFr.sendBlockedRdvInProgress, undefined, 'warning');
+                setErrorByKey((prev) => ({ ...prev, [requestKey]: propositionToastFr.sendBlockedRdvInProgress }));
             } else {
                 showToast(propositionToastFr.sendError, undefined, 'error');
                 setErrorByKey((prev) => ({ ...prev, [requestKey]: propositionToastFr.sendError }));
@@ -355,7 +381,11 @@ export default function PropositionsList() {
                                               variant: 'outline',
                                               className: 'bg-slate-50 text-slate-600 border border-slate-200',
                                           };
-                                    const aggregateMeta = getStatusMeta(getAggregateStatus(entry));
+                                    const aggregateStatus = getAggregateStatus(entry);
+                                    const aggregateMeta = getStatusMeta(aggregateStatus);
+                                    const rowIsExpired = aggregateStatus === 'expired';
+                                    const rowIsClosed = aggregateStatus === 'closed';
+                                    const rowActionsLocked = rowIsExpired || rowIsClosed;
                                     const refResponse = refRecipient?.response_message || refRecipient?.user_comment;
                                     const compResponse = compRecipient?.response_message || compRecipient?.user_comment;
                                     const showSendToOther = canSendToOther(entry);
@@ -364,11 +394,13 @@ export default function PropositionsList() {
                                         refRecipient &&
                                         !refRecipient?.is_expired &&
                                         refRecipient?.status !== 'cancelled' &&
+                                        refRecipient?.status !== 'closed' &&
                                         Boolean(refRecipient?.can_update_response);
                                     const compCanRespond =
                                         compRecipient &&
                                         !compRecipient?.is_expired &&
                                         compRecipient?.status !== 'cancelled' &&
+                                        compRecipient?.status !== 'closed' &&
                                         Boolean(compRecipient?.can_update_response);
                                     const refProcessing = refRecipient ? processingIds[refRecipient.id] : false;
                                     const compProcessing = compRecipient ? processingIds[compRecipient.id] : false;
@@ -379,12 +411,12 @@ export default function PropositionsList() {
                                     const refRespondDisabled = !refCanRespond || refProcessing;
                                     const compRespondDisabled = !compCanRespond || compProcessing;
                                     const refIsAnswered = refRecipient
-                                        ? ['accepted', 'rejected', 'cancelled'].includes(
+                                        ? ['accepted', 'rejected', 'cancelled', 'closed'].includes(
                                               normalizeStatus(getRecipientDisplayStatus(refRecipient), refRecipient?.is_expired),
                                           )
                                         : false;
                                     const compIsAnswered = compRecipient
-                                        ? ['accepted', 'rejected', 'cancelled'].includes(
+                                        ? ['accepted', 'rejected', 'cancelled', 'closed'].includes(
                                               normalizeStatus(getRecipientDisplayStatus(compRecipient), compRecipient?.is_expired),
                                           )
                                         : false;
@@ -394,6 +426,7 @@ export default function PropositionsList() {
 
                                     // can_create_rdv: true when any proposition in the group has the flag
                                     const canCreateRdv = Object.values(entry.recipients).some((p) => p?.can_create_rdv);
+                                    const rdvExists = Object.values(entry.recipients).some((p) => p?.rdv_exists);
                                     // Use the first recipient proposition_id that has can_create_rdv
                                     const rdvPropositionId = canCreateRdv
                                         ? (Object.values(entry.recipients).find((p) => p?.can_create_rdv)?.id ?? null)
@@ -471,7 +504,7 @@ export default function PropositionsList() {
                                                 </Badge>
                                             </div>
                                             <div className="flex flex-col w-full gap-2 justify-center lg:min-h-[4rem]">
-                                                {canShowGroupCancel ? (
+                                                {!rowActionsLocked && canShowGroupCancel ? (
                                                     <Button
                                                         type="button"
                                                         variant="outline"
@@ -489,10 +522,14 @@ export default function PropositionsList() {
                                                               ? 'Annuler'
                                                               : 'Annuler'}
                                                     </Button>
-                                                ) : (
+                                                ) : !rowActionsLocked ? (
                                                     <span className="text-muted-foreground text-xs">Proposition annulée</span>
+                                                ) : rowIsClosed ? (
+                                                    <span className="text-muted-foreground text-xs">Proposition clôturée (RDV créé)</span>
+                                                ) : (
+                                                    <span className="text-muted-foreground text-xs">Aucune action disponible</span>
                                                 )}
-                                                {canCreateRdv && rdvPropositionId && (
+                                                {!rowIsExpired && canCreateRdv && rdvPropositionId && (
                                                     <Button
                                                         type="button"
                                                         size="sm"
@@ -503,22 +540,29 @@ export default function PropositionsList() {
                                                         Créer un RDV
                                                     </Button>
                                                 )}
+                                                {!rowIsExpired && !canCreateRdv && rdvExists && (
+                                                    <Badge variant="secondary" className="h-9 w-full justify-center bg-slate-100 text-slate-700">
+                                                        RDV créé
+                                                    </Badge>
+                                                )}
                                             </div>
                                             <div className="grid gap-3 lg:grid-cols-2">
                                                 <div className="rounded-lg border border-slate-100 bg-slate-50/50 p-3">
                                                     <div className="text-[11px] font-semibold text-slate-500 uppercase">Rép. référence</div>
-                                                    <Button
-                                                        size="sm"
-                                                        className="mt-3 h-8 w-full bg-rose-800 text-white hover:bg-rose-900"
-                                                        disabled={refRespondDisabled}
-                                                        onClick={() => {
-                                                            setActiveRecipient(refRecipient || null);
-                                                            setActiveRecipientLabel('Référence');
-                                                            setIsRespondModalOpen(true);
-                                                        }}
-                                                    >
-                                                        {refIsAnswered ? 'Mettre à jour la réponse' : 'Répondre'}
-                                                    </Button>
+                                                    {!rowActionsLocked && (
+                                                        <Button
+                                                            size="sm"
+                                                            className="mt-3 h-8 w-full bg-rose-800 text-white hover:bg-rose-900"
+                                                            disabled={refRespondDisabled}
+                                                            onClick={() => {
+                                                                setActiveRecipient(refRecipient || null);
+                                                                setActiveRecipientLabel('Référence');
+                                                                setIsRespondModalOpen(true);
+                                                            }}
+                                                        >
+                                                            {refIsAnswered ? 'Mettre à jour la réponse' : 'Répondre'}
+                                                        </Button>
+                                                    )}
                                                     {refResponse && (
                                                         <div className="mt-2 text-xs text-slate-600">Dernière réponse: {refResponse}</div>
                                                     )}
@@ -526,24 +570,26 @@ export default function PropositionsList() {
                                                 </div>
                                                 <div className="rounded-lg border border-slate-100 bg-slate-50/50 p-3">
                                                     <div className="text-[11px] font-semibold text-slate-500 uppercase">Rép. compatible</div>
-                                                    <Button
-                                                        size="sm"
-                                                        className="mt-3 h-8 w-full bg-rose-800 text-white hover:bg-rose-900"
-                                                        disabled={compRespondDisabled}
-                                                        onClick={() => {
-                                                            setActiveRecipient(compRecipient || null);
-                                                            setActiveRecipientLabel('Compatible');
-                                                            setIsRespondModalOpen(true);
-                                                        }}
-                                                    >
-                                                        {compIsAnswered ? 'Mettre à jour la réponse' : 'Répondre'}
-                                                    </Button>
+                                                    {!rowActionsLocked && (
+                                                        <Button
+                                                            size="sm"
+                                                            className="mt-3 h-8 w-full bg-rose-800 text-white hover:bg-rose-900"
+                                                            disabled={compRespondDisabled}
+                                                            onClick={() => {
+                                                                setActiveRecipient(compRecipient || null);
+                                                                setActiveRecipientLabel('Compatible');
+                                                                setIsRespondModalOpen(true);
+                                                            }}
+                                                        >
+                                                            {compIsAnswered ? 'Mettre à jour la réponse' : 'Répondre'}
+                                                        </Button>
+                                                    )}
                                                     {compResponse && (
                                                         <div className="mt-2 text-xs text-slate-600">Dernière réponse: {compResponse}</div>
                                                     )}
                                                     {compSuccess && <div className="mt-2 text-xs text-emerald-700">{compSuccess}</div>}
                                                 </div>
-                                                {showSendToOther && (
+                                                {!rowActionsLocked && showSendToOther && (
                                                     <div className="lg:col-span-2">
                                                         <Button
                                                             size="sm"
@@ -688,10 +734,21 @@ export default function PropositionsList() {
                         setPropositions((prev) => {
                             const source = prev.find((p) => p.id === propId);
                             if (!source) return prev;
+                            // Mirror server-side `Proposition::closeAcceptedRowsForPairAfterRdv` + the
+                            // payload the controller returns on a fresh load for a closed row, so the
+                            // status badge, cancel button, and respond button all reflect "closed (RDV)"
+                            // without requiring a page refresh.
                             return prev.map((p) =>
-                                p.reference_user_id === source.reference_user_id &&
-                                p.compatible_user_id === source.compatible_user_id
-                                    ? { ...p, can_create_rdv: false }
+                                propositionSameUnorderedPair(p, source.reference_user_id, source.compatible_user_id)
+                                    ? {
+                                          ...p,
+                                          status: 'closed',
+                                          is_active: false,
+                                          can_cancel: false,
+                                          can_create_rdv: false,
+                                          can_update_response: false,
+                                          rdv_exists: true,
+                                      }
                                     : p,
                             );
                         });

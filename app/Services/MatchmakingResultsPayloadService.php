@@ -26,6 +26,18 @@ class MatchmakingResultsPayloadService
         foreach ($compatibleIds as $cid) {
             $compatibleRecipientActiveMap[(int) $cid] = Proposition::hasActiveProposition((int) $cid);
         }
+        $compatibleHasInProgressRdvMap = [];
+        foreach ($compatibleIds as $cid) {
+            $compatibleHasInProgressRdvMap[(int) $cid] = Rdv::query()
+                ->where('status', Rdv::STATUS_EN_COURS)
+                ->where(function ($q) use ($referenceUserId, $cid) {
+                    $q->where('reference_user_id', $referenceUserId)
+                        ->orWhere('compatible_user_id', $referenceUserId)
+                        ->orWhere('reference_user_id', $cid)
+                        ->orWhere('compatible_user_id', $cid);
+                })
+                ->exists();
+        }
 
         $statusMap = [];
         $requestMetaMap = [];
@@ -54,22 +66,40 @@ class MatchmakingResultsPayloadService
 
         $propositionStatusMap = [];
         if ($compatibleIds !== []) {
+            // Bidirectional lookup: rows may exist as either (ref=A, comp=B) or (ref=B, comp=A) for
+            // the same conceptual pair when the matchmaker started from the opposite profile's
+            // match-results page. Without this, the status map disagrees with `acceptedBothQuery`
+            // (which is bidirectional) and the UI loses the proposition status badge for reverse rows.
             $latestPropositions = Proposition::query()
                 ->where('matchmaker_id', $me->id)
-                ->where('reference_user_id', $referenceUserId)
-                ->whereIn('compatible_user_id', $compatibleIds)
+                ->where(function ($q) use ($referenceUserId, $compatibleIds) {
+                    $q->where(function ($forward) use ($referenceUserId, $compatibleIds) {
+                        $forward->where('reference_user_id', $referenceUserId)
+                            ->whereIn('compatible_user_id', $compatibleIds);
+                    })->orWhere(function ($reverse) use ($referenceUserId, $compatibleIds) {
+                        $reverse->where('compatible_user_id', $referenceUserId)
+                            ->whereIn('reference_user_id', $compatibleIds);
+                    });
+                })
                 ->orderByDesc('created_at')
-                ->get(['compatible_user_id', 'status', 'created_at']);
+                ->get(['reference_user_id', 'compatible_user_id', 'status', 'created_at']);
 
             foreach ($latestPropositions as $proposition) {
-                $compId = (int) $proposition->compatible_user_id;
-                if (! array_key_exists($compId, $propositionStatusMap)) {
+                $counterpartId = (int) $proposition->reference_user_id === $referenceUserId
+                    ? (int) $proposition->compatible_user_id
+                    : ((int) $proposition->compatible_user_id === $referenceUserId
+                        ? (int) $proposition->reference_user_id
+                        : null);
+                if ($counterpartId === null) {
+                    continue;
+                }
+                if (! array_key_exists($counterpartId, $propositionStatusMap)) {
                     $isExpired = $proposition->status === 'expired'
                         || ($proposition->status === 'pending'
                             && $proposition->created_at
                             && $proposition->created_at->lt(now()->subDays(7)));
 
-                    $propositionStatusMap[$compId] = $isExpired ? 'expired' : $proposition->status;
+                    $propositionStatusMap[$counterpartId] = $isExpired ? 'expired' : $proposition->status;
                 }
             }
         }
@@ -77,11 +107,21 @@ class MatchmakingResultsPayloadService
         /** @var array<int, array{cancellable_proposition: array{id: int}|null, pending_response_proposition: array{id: int}|null}> $pairActions */
         $pairActions = [];
         if ($compatibleIds !== []) {
+            // Bidirectional, mirroring the status map and `acceptedBothQuery`. We key the action map
+            // by the "counterpart" user id (the one in $compatibleIds), regardless of which column
+            // (reference_user_id or compatible_user_id) actually holds it on the row.
             $pairPropositions = Proposition::query()
                 ->where('matchmaker_id', $me->id)
-                ->where('reference_user_id', $referenceUserId)
-                ->whereIn('compatible_user_id', $compatibleIds)
-                ->where('status', '!=', Proposition::STATUS_CANCELLED)
+                ->where(function ($q) use ($referenceUserId, $compatibleIds) {
+                    $q->where(function ($forward) use ($referenceUserId, $compatibleIds) {
+                        $forward->where('reference_user_id', $referenceUserId)
+                            ->whereIn('compatible_user_id', $compatibleIds);
+                    })->orWhere(function ($reverse) use ($referenceUserId, $compatibleIds) {
+                        $reverse->where('compatible_user_id', $referenceUserId)
+                            ->whereIn('reference_user_id', $compatibleIds);
+                    });
+                })
+                ->whereNotIn('status', [Proposition::STATUS_CANCELLED, Proposition::STATUS_CLOSED])
                 ->orderByDesc('id')
                 ->with([
                     'recipientUser' => static fn ($q) => $q->select(['id', 'assigned_matchmaker_id']),
@@ -98,8 +138,12 @@ class MatchmakingResultsPayloadService
             }
 
             foreach ($pairPropositions as $prop) {
-                $cid = (int) $prop->compatible_user_id;
-                if (! isset($pairActions[$cid])) {
+                $counterpartId = (int) $prop->reference_user_id === $referenceUserId
+                    ? (int) $prop->compatible_user_id
+                    : ((int) $prop->compatible_user_id === $referenceUserId
+                        ? (int) $prop->reference_user_id
+                        : null);
+                if ($counterpartId === null || ! isset($pairActions[$counterpartId])) {
                     continue;
                 }
                 $mmId = (int) $me->id;
@@ -116,11 +160,11 @@ class MatchmakingResultsPayloadService
                     && $prop->responded_at === null
                     && $recipient
                     && (int) $recipient->assigned_matchmaker_id === $mmId
-                    && $pairActions[$cid]['pending_response_proposition'] === null) {
-                    $pairActions[$cid]['pending_response_proposition'] = ['id' => $prop->id];
+                    && $pairActions[$counterpartId]['pending_response_proposition'] === null) {
+                    $pairActions[$counterpartId]['pending_response_proposition'] = ['id' => $prop->id];
                 }
-                if ($prop->canBeCancelledByMatchmaker() && $pairActions[$cid]['cancellable_proposition'] === null) {
-                    $pairActions[$cid]['cancellable_proposition'] = ['id' => $prop->id];
+                if ($prop->canBeCancelledByMatchmaker() && $pairActions[$counterpartId]['cancellable_proposition'] === null) {
+                    $pairActions[$counterpartId]['cancellable_proposition'] = ['id' => $prop->id];
                 }
             }
         }
@@ -129,42 +173,97 @@ class MatchmakingResultsPayloadService
         $bothAcceptedCompatIds = [];
         if ($compatibleIds !== []) {
             $acceptedBothQuery = Proposition::query()
-                ->where('reference_user_id', $referenceUserId)
-                ->whereIn('compatible_user_id', $compatibleIds)
+                ->where('matchmaker_id', $me->id)
+                ->where(function ($q) use ($referenceUserId, $compatibleIds) {
+                    $q->where(function ($forward) use ($referenceUserId, $compatibleIds) {
+                        $forward->where('reference_user_id', $referenceUserId)
+                            ->whereIn('compatible_user_id', $compatibleIds);
+                    })->orWhere(function ($reverse) use ($referenceUserId, $compatibleIds) {
+                        $reverse->where('compatible_user_id', $referenceUserId)
+                            ->whereIn('reference_user_id', $compatibleIds);
+                    });
+                })
                 ->where('status', 'interested')
-                ->get(['compatible_user_id', 'recipient_user_id']);
+                ->get(['reference_user_id', 'compatible_user_id', 'recipient_user_id']);
 
-            $refAcceptedSet = $acceptedBothQuery
-                ->where('recipient_user_id', $referenceUserId)
-                ->pluck('compatible_user_id')
-                ->flip();
+            $refAcceptedSet = [];
+            $compAcceptedSet = [];
+            foreach ($acceptedBothQuery as $proposition) {
+                $counterpartId = null;
+                if ((int) $proposition->reference_user_id === $referenceUserId) {
+                    $counterpartId = (int) $proposition->compatible_user_id;
+                } elseif ((int) $proposition->compatible_user_id === $referenceUserId) {
+                    $counterpartId = (int) $proposition->reference_user_id;
+                }
 
-            $compAcceptedSet = $acceptedBothQuery
-                ->whereIn('recipient_user_id', $compatibleIds)
-                ->filter(fn ($p) => (int) $p->recipient_user_id === (int) $p->compatible_user_id)
-                ->pluck('compatible_user_id')
-                ->flip();
+                if ($counterpartId === null) {
+                    continue;
+                }
+
+                if ((int) $proposition->recipient_user_id === $referenceUserId) {
+                    $refAcceptedSet[$counterpartId] = true;
+                }
+                if ((int) $proposition->recipient_user_id === $counterpartId) {
+                    $compAcceptedSet[$counterpartId] = true;
+                }
+            }
 
             foreach ($compatibleIds as $cid) {
-                if ($refAcceptedSet->has($cid) && $compAcceptedSet->has($cid)) {
+                if (($refAcceptedSet[(int) $cid] ?? false) && ($compAcceptedSet[(int) $cid] ?? false)) {
                     $bothAcceptedCompatIds[$cid] = true;
                 }
             }
         }
 
         $rdvExistsCompatIds = [];
+        $successfulRdvCompatIds = [];
         if (! empty($bothAcceptedCompatIds)) {
             $existingRdvs = Rdv::query()
-                ->where('reference_user_id', $referenceUserId)
-                ->whereIn('compatible_user_id', array_keys($bothAcceptedCompatIds))
-                ->where('status', Rdv::STATUS_EN_COURS)
-                ->pluck('compatible_user_id')
-                ->flip()
-                ->toArray();
-            $rdvExistsCompatIds = $existingRdvs;
+                ->where(function ($q) use ($referenceUserId, $bothAcceptedCompatIds) {
+                    $q->where(function ($forward) use ($referenceUserId, $bothAcceptedCompatIds) {
+                        $forward->where('reference_user_id', $referenceUserId)
+                            ->whereIn('compatible_user_id', array_keys($bothAcceptedCompatIds));
+                    })->orWhere(function ($reverse) use ($referenceUserId, $bothAcceptedCompatIds) {
+                        $reverse->where('compatible_user_id', $referenceUserId)
+                            ->whereIn('reference_user_id', array_keys($bothAcceptedCompatIds));
+                    });
+                })
+                ->whereIn('status', [Rdv::STATUS_EN_COURS, Rdv::STATUS_REUSSI])
+                ->get(['reference_user_id', 'compatible_user_id']);
+            foreach ($existingRdvs as $rdv) {
+                $counterpartId = (int) $rdv->reference_user_id === $referenceUserId
+                    ? (int) $rdv->compatible_user_id
+                    : ((int) $rdv->compatible_user_id === $referenceUserId ? (int) $rdv->reference_user_id : null);
+                if ($counterpartId !== null) {
+                    $rdvExistsCompatIds[$counterpartId] = true;
+                }
+            }
+
+            $successfulRdvCompatIds = Rdv::query()
+                ->where(function ($q) use ($referenceUserId, $bothAcceptedCompatIds) {
+                    $q->where(function ($forward) use ($referenceUserId, $bothAcceptedCompatIds) {
+                        $forward->where('reference_user_id', $referenceUserId)
+                            ->whereIn('compatible_user_id', array_keys($bothAcceptedCompatIds));
+                    })->orWhere(function ($reverse) use ($referenceUserId, $bothAcceptedCompatIds) {
+                        $reverse->where('compatible_user_id', $referenceUserId)
+                            ->whereIn('reference_user_id', array_keys($bothAcceptedCompatIds));
+                    });
+                })
+                ->where('status', Rdv::STATUS_REUSSI)
+                ->get(['reference_user_id', 'compatible_user_id']);
+            $successfulRdvMap = [];
+            foreach ($successfulRdvCompatIds as $rdv) {
+                $counterpartId = (int) $rdv->reference_user_id === $referenceUserId
+                    ? (int) $rdv->compatible_user_id
+                    : ((int) $rdv->compatible_user_id === $referenceUserId ? (int) $rdv->reference_user_id : null);
+                if ($counterpartId !== null) {
+                    $successfulRdvMap[$counterpartId] = true;
+                }
+            }
+            $successfulRdvCompatIds = $successfulRdvMap;
         }
 
-        return array_map(function ($match) use ($me, $referenceUserId, $statusMap, $requestMetaMap, $propositionStatusMap, $userAHasActiveProposition, $compatibleRecipientActiveMap, $pairActions, $bothAcceptedCompatIds, $rdvExistsCompatIds) {
+        return array_map(function ($match) use ($me, $referenceUserId, $statusMap, $requestMetaMap, $propositionStatusMap, $userAHasActiveProposition, $compatibleRecipientActiveMap, $compatibleHasInProgressRdvMap, $pairActions, $bothAcceptedCompatIds, $rdvExistsCompatIds, $successfulRdvCompatIds) {
             $compatId = $match['user']->id;
             $requestMeta = $requestMetaMap[$compatId] ?? null;
             $canProposeFromRequest = ($requestMeta['status'] ?? null) === 'accepted';
@@ -175,7 +274,13 @@ class MatchmakingResultsPayloadService
 
             $bothSidesAccepted = isset($bothAcceptedCompatIds[$compatId]);
             $rdvExists = isset($rdvExistsCompatIds[$compatId]);
-            $canCreateRdv = $bothSidesAccepted && ! $rdvExists;
+            $hasSuccessfulRdv = isset($successfulRdvCompatIds[$compatId]);
+            $canCreateRdv = $bothSidesAccepted
+                && ! $rdvExists
+                && ! $hasSuccessfulRdv;
+            $canPropose = ! $userAHasActiveProposition
+                && ! ($compatibleRecipientActiveMap[$compatId] ?? false)
+                && ! ($compatibleHasInProgressRdvMap[$compatId] ?? false);
 
             return [
                 'user' => [
@@ -206,9 +311,11 @@ class MatchmakingResultsPayloadService
                 'cancellable_proposition' => $actions['cancellable_proposition'],
                 'pending_response_proposition' => $actions['pending_response_proposition'],
                 'can_cancel' => $actions['cancellable_proposition'] !== null,
+                'can_propose' => $canPropose,
                 'has_active_proposition' => Proposition::pairMatchHasActiveProposition((int) $referenceUserId, (int) $compatId),
                 'proposition' => Proposition::activeSnapshotForPair((int) $referenceUserId, (int) $compatId, (int) $compatId),
                 'can_create_rdv' => $canCreateRdv,
+                'rdv_exists' => $rdvExists,
             ];
         }, $matches);
     }

@@ -13,6 +13,7 @@ export const propositionToastFr = {
     cancelSuccessPaired:
         'Proposition annulée. La proposition jumelée a également été annulée automatiquement.',
     cancelInvalidState: 'Cette proposition ne peut pas être annulée dans son état actuel.',
+    cancelExpired: 'Cette proposition est expirée et ne peut pas être annulée.',
     cancelUnauthorized: 'Vous n’êtes pas autorisé à annuler cette proposition.',
     cancelError: 'Échec de l’annulation de la proposition. Veuillez réessayer.',
 
@@ -25,6 +26,7 @@ export const propositionToastFr = {
     memberAlreadyAnswered: 'Cette proposition a déjà reçu une réponse.',
     memberExpired: 'Cette proposition a expiré et ne peut plus recevoir de réponse.',
     memberGenericError: 'Une erreur est survenue. Veuillez réessayer.',
+    sendBlockedRdvInProgress: 'Un RDV est en cours pour ce profil. Veuillez attendre sa clôture.',
 } as const
 
 export const rdvToastFr = {
