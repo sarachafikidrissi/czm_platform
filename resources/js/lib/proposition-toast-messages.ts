@@ -21,6 +21,10 @@ export const propositionToastFr = {
     respondUpdateUnauthorized: 'Vous n’êtes pas autorisé à mettre à jour cette réponse.',
     respondUpdateError: 'Échec de la mise à jour de la réponse. Veuillez réessayer.',
 
+    /** Must match backend `PropositionRequestController::MESSAGE_ACCEPT_BLOCKED_RDV_IN_PROGRESS` */
+    acceptRequestBlockedRdvInProgress:
+        "Impossible d'accepter — un RDV est en cours pour le profil concerné.",
+
     memberAccept: 'Vous avez accepté cette proposition.',
     memberDecline: 'Vous avez refusé cette proposition.',
     memberAlreadyAnswered: 'Cette proposition a déjà reçu une réponse.',

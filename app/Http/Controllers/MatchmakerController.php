@@ -10,6 +10,7 @@ use App\Models\Bill;
 use App\Models\MatchmakerNote;
 use App\Models\MatrimonialPack;
 use App\Models\Proposition;
+use App\Models\Rdv;
 use App\Models\TransferRequest;
 use App\Models\User;
 use App\Models\UserPhoto;
@@ -3246,6 +3247,7 @@ class MatchmakerController extends Controller
                     'isAssignedToMe' => $result['userA']->assigned_matchmaker_id === $me->id,
                     'profile' => $result['userA']->profile ? $result['userA']->profile->toArray() : null,
                     'proposition' => Proposition::activeSnapshotForUser((int) $result['userA']->id),
+                    'rdv' => Rdv::activeOrSuccessfulSnapshotForUser((int) $result['userA']->id),
                 ],
                 'matches' => $formattedMatches,
                 'defaultFilters' => $result['defaultFilters'],

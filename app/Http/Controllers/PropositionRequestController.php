@@ -4,21 +4,26 @@ namespace App\Http\Controllers;
 
 use App\Models\Proposition;
 use App\Models\PropositionRequest;
+use App\Models\Rdv;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class PropositionRequestController extends Controller
 {
+    /** @var string Must stay in sync with `propositionToastFr.acceptRequestBlockedRdvInProgress` */
+    public const MESSAGE_ACCEPT_BLOCKED_RDV_IN_PROGRESS = 'Impossible d\'accepter — un RDV est en cours pour le profil concerné.';
+
     /**
      * Display sent/received proposition requests.
      */
     public function index(Request $request)
     {
         $me = Auth::user();
-        if (!$me || !$me->hasRole('matchmaker')) {
+        if (! $me || ! $me->hasRole('matchmaker')) {
             abort(403, 'Unauthorized.');
         }
 
@@ -31,11 +36,16 @@ class PropositionRequestController extends Controller
             ])
             ->orderBy('created_at', 'desc')
             ->get()
-            ->map(function (PropositionRequest $propRequest) {
+            ->map(function (PropositionRequest $propRequest) use ($me) {
+                $assignedProfileId = $this->assignedProfileUserIdForMatchmaker($propRequest, (int) $me->id);
+                $canAccept = $assignedProfileId === null
+                    || ! Rdv::hasInProgressRdvForUser($assignedProfileId);
+
                 return array_merge($propRequest->toArray(), [
                     'evaluation_access_level' => $propRequest->status === 'accepted' ? 'read' : 'none',
                     'reference_user_proposition' => Proposition::activeSnapshotForUser((int) $propRequest->reference_user_id),
                     'compatible_user_proposition' => Proposition::activeSnapshotForUser((int) $propRequest->compatible_user_id),
+                    'can_accept' => $canAccept,
                 ]);
             })
             ->values();
@@ -78,7 +88,7 @@ class PropositionRequestController extends Controller
     public function store(Request $request)
     {
         $me = Auth::user();
-        if (!$me || !$me->hasRole('matchmaker')) {
+        if (! $me || ! $me->hasRole('matchmaker')) {
             abort(403, 'Unauthorized.');
         }
 
@@ -101,7 +111,7 @@ class PropositionRequestController extends Controller
             abort(403, 'You can only request propositions for profiles assigned to you.');
         }
 
-        if (!$compatibleUser->assigned_matchmaker_id) {
+        if (! $compatibleUser->assigned_matchmaker_id) {
             return response()->json([
                 'message' => 'Le profil compatible n\'est pas assigné à un matchmaker.',
             ], 422);
@@ -157,7 +167,7 @@ class PropositionRequestController extends Controller
     public function respond(Request $request, PropositionRequest $propositionRequest)
     {
         $me = Auth::user();
-        if (!$me || !$me->hasRole('matchmaker')) {
+        if (! $me || ! $me->hasRole('matchmaker')) {
             abort(403, 'Unauthorized.');
         }
 
@@ -185,6 +195,15 @@ class PropositionRequestController extends Controller
             return redirect()->back()->with('error', 'Veuillez sélectionner qui organise le rendez-vous.');
         }
 
+        if ($data['status'] === 'accepted') {
+            $assignedProfileId = $this->assignedProfileUserIdForMatchmaker($propositionRequest, (int) $me->id);
+            if ($assignedProfileId !== null && Rdv::hasInProgressRdvForUser($assignedProfileId)) {
+                throw ValidationException::withMessages([
+                    'accept' => [self::MESSAGE_ACCEPT_BLOCKED_RDV_IN_PROGRESS],
+                ]);
+            }
+        }
+
         $propositionRequest->update([
             'status' => $data['status'],
             'rejection_reason' => $data['status'] === 'rejected' ? trim($data['rejection_reason']) : null,
@@ -196,5 +215,21 @@ class PropositionRequestController extends Controller
 
         return redirect()->back()->with('success', 'Réponse envoyée.');
     }
-}
 
+    /**
+     * The profile (reference or compatible) assigned to the given matchmaker on this request.
+     */
+    private function assignedProfileUserIdForMatchmaker(PropositionRequest $propositionRequest, int $matchmakerId): ?int
+    {
+        $referenceId = (int) $propositionRequest->reference_user_id;
+        $compatibleId = (int) $propositionRequest->compatible_user_id;
+
+        $user = User::query()
+            ->whereIn('id', [$referenceId, $compatibleId])
+            ->where('assigned_matchmaker_id', $matchmakerId)
+            ->orderBy('id')
+            ->first(['id']);
+
+        return $user ? (int) $user->id : null;
+    }
+}

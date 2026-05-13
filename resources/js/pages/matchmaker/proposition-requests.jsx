@@ -2,6 +2,8 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useMemo, useState } from 'react';
 import axios from 'axios';
 import AppLayout from '@/layouts/app-layout';
+import { useToast } from '@/hooks/use-toast';
+import { propositionToastFr } from '@/lib/proposition-toast-messages';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,9 +12,22 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { AlertTriangle, Eye, XCircle } from 'lucide-react';
 
+function firstValidationMessage(errors, key) {
+    const value = errors?.[key];
+    if (Array.isArray(value)) {
+        return value[0];
+    }
+    if (typeof value === 'string') {
+        return value;
+    }
+    return undefined;
+}
+
 export default function PropositionRequests() {
+    const { showToast } = useToast();
     const { receivedRequests = [], sentRequests = [] } = usePage().props;
     const urlParams = new URLSearchParams(window.location.search);
     const type = urlParams.get('type') || 'received';
@@ -70,7 +85,8 @@ export default function PropositionRequests() {
 
     const openRespondDialog = (request) => {
         setSelectedRequest(request);
-        setStatus('accepted');
+        const canAccept = request.can_accept !== false;
+        setStatus(canAccept ? 'accepted' : 'rejected');
         setRejectionReason('');
         setSharePhone(false);
         setOrganizer('');
@@ -87,6 +103,7 @@ export default function PropositionRequests() {
         if (!selectedRequest) return;
         if (status === 'rejected' && !rejectionReason.trim()) return;
         if (status === 'accepted' && !organizer) return;
+        if (status === 'accepted' && selectedRequest.can_accept === false) return;
 
         setIsSubmitting(true);
         router.post(`/staff/proposition-requests/${selectedRequest.id}/respond`, {
@@ -101,8 +118,12 @@ export default function PropositionRequests() {
                 setSelectedRequest(null);
                 setIsSubmitting(false);
             },
-            onError: () => {
+            onError: (errors) => {
                 setIsSubmitting(false);
+                const acceptMsg = firstValidationMessage(errors, 'accept');
+                if (acceptMsg === propositionToastFr.acceptRequestBlockedRdvInProgress) {
+                    showToast(propositionToastFr.acceptRequestBlockedRdvInProgress, undefined, 'warning');
+                }
             },
         });
     };
@@ -449,15 +470,39 @@ export default function PropositionRequests() {
                     <div className="space-y-4">
                         <div>
                             <Label>Décision</Label>
-                            <Select value={status} onValueChange={setStatus}>
-                                <SelectTrigger className="mt-2">
-                                    <SelectValue placeholder="Choisir" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="accepted">Accepter</SelectItem>
-                                    <SelectItem value="rejected">Rejeter</SelectItem>
-                                </SelectContent>
-                            </Select>
+                            <div className="mt-2 flex flex-wrap gap-2">
+                                {selectedRequest?.can_accept !== false ? (
+                                    <Button
+                                        type="button"
+                                        variant={status === 'accepted' ? 'default' : 'outline'}
+                                        onClick={() => setStatus('accepted')}
+                                    >
+                                        Accepter
+                                    </Button>
+                                ) : (
+                                    <TooltipProvider delayDuration={200}>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <span className="inline-flex">
+                                                    <Button type="button" variant="outline" disabled>
+                                                        Accepter
+                                                    </Button>
+                                                </span>
+                                            </TooltipTrigger>
+                                            <TooltipContent side="bottom" className="max-w-xs text-center">
+                                                Un RDV est en cours pour le profil concerné — acceptation impossible.
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                )}
+                                <Button
+                                    type="button"
+                                    variant={status === 'rejected' ? 'default' : 'outline'}
+                                    onClick={() => setStatus('rejected')}
+                                >
+                                    Rejeter
+                                </Button>
+                            </div>
                         </div>
 
                         {status === 'accepted' && (

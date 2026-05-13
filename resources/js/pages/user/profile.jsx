@@ -44,6 +44,7 @@ export default function UserProfile({
     evaluationAccessLevel = 'none',
     memberProposition = null,
     latestMemberProposition = null,
+    memberRdv = null,
 }) {
     const { t } = useTranslation();
     const { auth } = usePage().props;
@@ -234,8 +235,8 @@ export default function UserProfile({
     }, [matchmakingResults]);
 
     const proposeFlow = useMatchmakingProposeRequestFlow(matchmakingUserA, {
-        onAfterProposeSuccess: () => router.reload({ only: ['matchmakingResults', 'memberProposition', 'latestMemberProposition'] }),
-        onAfterRequestSuccess: () => router.reload({ only: ['matchmakingResults', 'memberProposition', 'latestMemberProposition'] }),
+        onAfterProposeSuccess: () => router.reload({ only: ['matchmakingResults', 'memberProposition', 'latestMemberProposition', 'memberRdv'] }),
+        onAfterRequestSuccess: () => router.reload({ only: ['matchmakingResults', 'memberProposition', 'latestMemberProposition', 'memberRdv'] }),
     });
 
     const [profileMmCancellingId, setProfileMmCancellingId] = useState(null);
@@ -249,7 +250,7 @@ export default function UserProfile({
                 const pairToast =
                     data?.pair_was_cancelled ? propositionToastFr.cancelSuccessPaired : propositionToastFr.cancelSuccess;
                 showToast(pairToast, undefined, 'success');
-                router.reload({ only: ['matchmakingResults', 'memberProposition', 'latestMemberProposition'] });
+                router.reload({ only: ['matchmakingResults', 'memberProposition', 'latestMemberProposition', 'memberRdv'] });
             } catch (error) {
                 const status = error?.response?.status;
                 const backendMsg = error?.response?.data?.message;
@@ -274,34 +275,48 @@ export default function UserProfile({
         staffMatchmakingRows[0] &&
         Object.prototype.hasOwnProperty.call(staffMatchmakingRows[0], 'isAssignedToMe');
 
-    const activePairCounterpartIdProfile = useMemo(() => {
-        if (!memberProposition?.exists || user?.id == null) {
+    const lockedPairCounterpartIdProfile = useMemo(() => {
+        if (user?.id == null) {
             return null;
         }
         const refId = Number(user.id);
-        const p = memberProposition;
-        const r = Number(p.reference_user_id);
-        const c = Number(p.compatible_user_id);
+        const pair = memberProposition?.exists ? memberProposition : memberRdv?.exists ? memberRdv : null;
+        if (!pair) {
+            return null;
+        }
+        const r = Number(pair.reference_user_id);
+        const c = Number(pair.compatible_user_id);
         return r === refId ? c : r;
-    }, [memberProposition, user?.id]);
+    }, [memberProposition, memberRdv, user?.id]);
 
     const staffMatchmakingDisplayRows = useMemo(() => {
         const rows = staffMatchmakingRows || [];
-        if (!memberProposition?.exists) {
+        const hasLockedPair = Boolean(memberProposition?.exists || memberRdv?.exists);
+        if (!hasLockedPair) {
             return rows;
         }
-        if (activePairCounterpartIdProfile == null) {
+        if (lockedPairCounterpartIdProfile == null) {
             return rows;
         }
-        return rows.filter((m) => Number(m.user?.id) === activePairCounterpartIdProfile);
-    }, [staffMatchmakingRows, memberProposition?.exists, activePairCounterpartIdProfile]);
+        return rows.filter((m) => Number(m.user?.id) === lockedPairCounterpartIdProfile);
+    }, [staffMatchmakingRows, memberProposition?.exists, memberRdv?.exists, lockedPairCounterpartIdProfile]);
 
     const showStaffActivePairMissingInList = Boolean(
-        memberProposition?.exists &&
+        (memberProposition?.exists || memberRdv?.exists) &&
             isEnrichedStaffMatchmaking &&
             (staffMatchmakingRows || []).length > 0 &&
             staffMatchmakingDisplayRows.length === 0,
     );
+
+    const staffLockedPairCounterpartName = useMemo(() => {
+        if (lockedPairCounterpartIdProfile == null) {
+            return null;
+        }
+        const rows = staffMatchmakingRows || [];
+        const row = rows.find((r) => Number(r.user?.id) === lockedPairCounterpartIdProfile);
+        const name = row?.user?.name?.trim();
+        return name || null;
+    }, [staffMatchmakingRows, lockedPairCounterpartIdProfile]);
 
     const [managePropositionModalOpen, setManagePropositionModalOpen] = useState(false);
     const [manageModalCancelConfirm, setManageModalCancelConfirm] = useState(false);
@@ -328,7 +343,7 @@ export default function UserProfile({
             showToast(pairToast, undefined, 'success');
             setManagePropositionModalOpen(false);
             setManageModalCancelConfirm(false);
-            router.reload({ only: ['matchmakingResults', 'memberProposition', 'latestMemberProposition'] });
+            router.reload({ only: ['matchmakingResults', 'memberProposition', 'latestMemberProposition', 'memberRdv'] });
         } catch (error) {
             const status = error?.response?.status;
             const backendMsg = error?.response?.data?.message;
@@ -1900,30 +1915,30 @@ export default function UserProfile({
                                                                     </Button>
                                                                 </div>
                                                             )}
-                                                            <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-gray-900">
-                                                                <Heart className="h-5 w-5 text-red-600" />
-                                                                Résultats de Matchmaking (
-                                                                {memberProposition?.exists
-                                                                    ? staffMatchmakingDisplayRows.length
-                                                                    : staffMatchmakingRows.length}{' '}
-                                                                profil
-                                                                {(memberProposition?.exists
-                                                                    ? staffMatchmakingDisplayRows.length
-                                                                    : staffMatchmakingRows.length) > 1
-                                                                    ? 's'
-                                                                    : ''}{' '}
-                                                                compatible
-                                                                {(memberProposition?.exists
-                                                                    ? staffMatchmakingDisplayRows.length
-                                                                    : staffMatchmakingRows.length) > 1
-                                                                    ? 's'
-                                                                    : ''}
-                                                                )
+                                                            <h3 className="mb-4 flex flex-wrap items-center gap-2 text-lg font-semibold text-gray-900">
+                                                                <Heart className="h-5 w-5 shrink-0 text-red-600" />
                                                                 {memberProposition?.exists ? (
-                                                                    <span className="text-sm font-normal text-gray-500">
-                                                                        — filtre proposition active
-                                                                    </span>
-                                                                ) : null}
+                                                                    <>
+                                                                        Le profil est en cours de proposition avec{' '}
+                                                                        <span className="text-gray-900">
+                                                                            {staffLockedPairCounterpartName ?? 'le partenaire'}
+                                                                        </span>
+                                                                    </>
+                                                                ) : memberRdv?.exists ? (
+                                                                    <>
+                                                                        Le profil est en cours de RDV avec{' '}
+                                                                        <span className="text-gray-900">
+                                                                            {staffLockedPairCounterpartName ?? 'le partenaire'}
+                                                                        </span>
+                                                                    </>
+                                                                ) : (
+                                                                    <>
+                                                                        Résultats de Matchmaking (
+                                                                        {staffMatchmakingRows.length} profil
+                                                                        {staffMatchmakingRows.length > 1 ? 's' : ''} compatible
+                                                                        {staffMatchmakingRows.length > 1 ? 's' : ''})
+                                                                    </>
+                                                                )}
                                                             </h3>
                                                             {memberProposition?.exists &&
                                                             (!staffMatchmakingRows || staffMatchmakingRows.length === 0) ? (
@@ -1937,7 +1952,7 @@ export default function UserProfile({
                                                                         variant="outline"
                                                                         onClick={() =>
                                                                             router.reload({
-                                                                                only: ['matchmakingResults', 'memberProposition', 'latestMemberProposition'],
+                                                                                only: ['matchmakingResults', 'memberProposition', 'latestMemberProposition', 'memberRdv'],
                                                                             })
                                                                         }
                                                                     >
@@ -1947,7 +1962,7 @@ export default function UserProfile({
                                                             ) : showStaffActivePairMissingInList ? (
                                                                 <div className="space-y-3 py-6 text-center">
                                                                     <p className="text-gray-600">
-                                                                        Le profil partenaire de la proposition en cours n’apparaît pas dans
+                                                                        Le profil partenaire de la proposition/RDV en cours n’apparaît pas dans
                                                                         cette liste. Ajustez les critères ou actualisez.
                                                                     </p>
                                                                     <Button
@@ -1955,7 +1970,7 @@ export default function UserProfile({
                                                                         variant="outline"
                                                                         onClick={() =>
                                                                             router.reload({
-                                                                                only: ['matchmakingResults', 'memberProposition', 'latestMemberProposition'],
+                                                                                only: ['matchmakingResults', 'memberProposition', 'latestMemberProposition', 'memberRdv'],
                                                                             })
                                                                         }
                                                                     >
@@ -1966,9 +1981,9 @@ export default function UserProfile({
                                                                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                                                                     {staffMatchmakingDisplayRows.map((match) => {
                                                                         const isActivePairCard =
-                                                                            Boolean(memberProposition?.exists) &&
+                                                                            Boolean(memberProposition?.exists || memberRdv?.exists) &&
                                                                             Number(match.user?.id) ===
-                                                                                activePairCounterpartIdProfile;
+                                                                                lockedPairCounterpartIdProfile;
                                                                         return (
                                                                             <MatchResultMatchCard
                                                                                 key={match.user.id}
@@ -3737,7 +3752,7 @@ export default function UserProfile({
                     open={profileRespondDialog.open}
                     onOpenChange={(open) => setProfileRespondDialog((prev) => ({ ...prev, open }))}
                     propositionId={profileRespondDialog.propositionId}
-                    onSuccess={() => router.reload({ only: ['matchmakingResults', 'memberProposition', 'latestMemberProposition'] })}
+                    onSuccess={() => router.reload({ only: ['matchmakingResults', 'memberProposition', 'latestMemberProposition', 'memberRdv'] })}
                 />
             ) : null}
         </AppLayout>

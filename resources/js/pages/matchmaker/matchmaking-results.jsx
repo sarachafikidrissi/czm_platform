@@ -58,30 +58,36 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
     const [hasOpenedProposeFromQuery, setHasOpenedProposeFromQuery] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
 
-    const activePairCounterpartId = useMemo(() => {
-        if (!userA?.proposition?.exists || userA?.id == null) {
+    const lockedPairCounterpartId = useMemo(() => {
+        if (userA?.id == null) {
             return null;
         }
+
         const refId = Number(userA.id);
-        const p = userA.proposition;
-        const r = Number(p.reference_user_id);
-        const c = Number(p.compatible_user_id);
+        const pair = userA?.proposition?.exists ? userA.proposition : userA?.rdv?.exists ? userA.rdv : null;
+        if (!pair) {
+            return null;
+        }
+
+        const r = Number(pair.reference_user_id);
+        const c = Number(pair.compatible_user_id);
         return r === refId ? c : r;
-    }, [userA?.proposition, userA?.id]);
+    }, [userA?.id, userA?.proposition, userA?.rdv]);
 
     const displayMatches = useMemo(() => {
         const list = matches || [];
-        if (!userA?.proposition?.exists) {
+        const hasLockedPair = Boolean(userA?.proposition?.exists || userA?.rdv?.exists);
+        if (!hasLockedPair) {
             return list;
         }
-        if (activePairCounterpartId == null) {
+        if (lockedPairCounterpartId == null) {
             return list;
         }
-        return list.filter((m) => Number(m.user?.id) === activePairCounterpartId);
-    }, [matches, userA?.proposition?.exists, activePairCounterpartId]);
+        return list.filter((m) => Number(m.user?.id) === lockedPairCounterpartId);
+    }, [matches, userA?.proposition?.exists, userA?.rdv?.exists, lockedPairCounterpartId]);
 
     const showActivePairMissingInList = Boolean(
-        userA?.proposition?.exists && (matches || []).length > 0 && displayMatches.length === 0,
+        (userA?.proposition?.exists || userA?.rdv?.exists) && (matches || []).length > 0 && displayMatches.length === 0,
     );
 
     const handleRefreshMatchmakingPage = useCallback(() => {
@@ -1611,9 +1617,11 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
                                 <p className="text-muted-foreground">
                                     {userA?.proposition?.exists
                                         ? 'Aucun profil compatible ne correspond aux filtres alors qu’une proposition est en cours pour ce membre. Actualisez ou ajustez les filtres.'
+                                        : userA?.rdv?.exists
+                                          ? 'Aucun profil compatible ne correspond aux filtres alors qu’un RDV est en cours/réussi pour ce membre. Actualisez ou ajustez les filtres.'
                                         : 'Aucun profil compatible trouvé avec les filtres actuels.'}
                                 </p>
-                                {userA?.proposition?.exists ? (
+                                {userA?.proposition?.exists || userA?.rdv?.exists ? (
                                     <Button type="button" variant="outline" onClick={handleRefreshMatchmakingPage}>
                                         Actualiser
                                     </Button>
@@ -1624,7 +1632,7 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
                         <Card className="overflow-hidden rounded-xl border border-border shadow-sm">
                             <CardContent className="py-16 text-center space-y-3">
                                 <p className="text-muted-foreground">
-                                    Une proposition est en cours, mais le profil partenaire n’apparaît pas dans les résultats
+                                    Une proposition ou un RDV est en cours/réussi, mais le profil partenaire n’apparaît pas dans les résultats
                                     filtrés. Ajustez les filtres ou actualisez la page.
                                 </p>
                                 <Button type="button" variant="outline" onClick={handleRefreshMatchmakingPage}>
@@ -1637,8 +1645,8 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
                         <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
                             {paginatedMatches.map((match) => {
                                 const isActivePairCard =
-                                    Boolean(userA?.proposition?.exists) &&
-                                    Number(match.user?.id) === activePairCounterpartId;
+                                    Boolean(userA?.proposition?.exists || userA?.rdv?.exists) &&
+                                    Number(match.user?.id) === lockedPairCounterpartId;
                                 return (
                                 <MatchResultMatchCard
                                     key={match.user.id}
