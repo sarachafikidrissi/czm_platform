@@ -22,12 +22,15 @@ class Rdv extends Model
         'proposition_id',
         'regle',
         'message',
+        'motif_de_recreation',
+        'is_recreation',
         'share_phone',
         'status',
     ];
 
     protected $casts = [
         'share_phone' => 'boolean',
+        'is_recreation' => 'boolean',
     ];
 
     public function matchmaker()
@@ -65,6 +68,38 @@ class Rdv extends Model
             ->where('compatible_user_id', $compatibleUserId)
             ->where('status', self::STATUS_EN_COURS)
             ->exists();
+    }
+
+    /**
+     * Whether the pair has at least one past RDV marked échec (either column order).
+     */
+    public static function pairHasFailedRdv(int $referenceUserId, int $compatibleUserId): bool
+    {
+        return static::query()
+            ->where('status', self::STATUS_ECHEC)
+            ->where(function ($q) use ($referenceUserId, $compatibleUserId) {
+                $q->where(function ($forward) use ($referenceUserId, $compatibleUserId) {
+                    $forward->where('reference_user_id', $referenceUserId)
+                        ->where('compatible_user_id', $compatibleUserId);
+                })->orWhere(function ($reverse) use ($referenceUserId, $compatibleUserId) {
+                    $reverse->where('reference_user_id', $compatibleUserId)
+                        ->where('compatible_user_id', $referenceUserId);
+                });
+            })
+            ->exists();
+    }
+
+    /**
+     * Re-creation pre-checks shared by controllers (no external pending/interested outside pair; no en_cours RDV for either user).
+     */
+    public static function pairRecreationGuardsPass(int $referenceUserId, int $compatibleUserId): bool
+    {
+        if (Proposition::pairRecreationBlockedByExternalPendingOrInterested($referenceUserId, $compatibleUserId)) {
+            return false;
+        }
+
+        return ! static::hasInProgressRdvForUser($referenceUserId)
+            && ! static::hasInProgressRdvForUser($compatibleUserId);
     }
 
     /**

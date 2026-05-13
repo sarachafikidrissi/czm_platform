@@ -127,6 +127,7 @@ class Proposition extends Model
         }
 
         $role = (int) $p->recipient_user_id === $userId ? 'receiver' : 'proposer';
+
         return [
             'exists' => true,
             'status' => $p->status,
@@ -183,6 +184,7 @@ class Proposition extends Model
             ];
         }
         $role = (int) $p->recipient_user_id === $userId ? 'receiver' : 'proposer';
+
         return [
             'exists' => true,
             'status' => $p->status,
@@ -381,6 +383,79 @@ class Proposition extends Model
             })
             ->active()
             ->exists();
+    }
+
+    /**
+     * RDV re-creation guard: either profile has a pending (non-expired) or interested proposition
+     * that is not solely between this reference/compatible pair (mutual rows on the same pair are ignored).
+     */
+    public static function pairRecreationBlockedByExternalPendingOrInterested(int $referenceUserId, int $compatibleUserId): bool
+    {
+        $cutoff = now()->subDays(7);
+
+        return static::query()
+            ->where(function ($statusQ) use ($cutoff) {
+                $statusQ->where('status', self::STATUS_INTERESTED)
+                    ->orWhere(function ($pend) use ($cutoff) {
+                        $pend->where('status', self::STATUS_PENDING)
+                            ->where(function ($t) use ($cutoff) {
+                                $t->whereNull('created_at')
+                                    ->orWhere('created_at', '>=', $cutoff);
+                            });
+                    });
+            })
+            ->where(function ($inv) use ($referenceUserId, $compatibleUserId) {
+                $inv->where(function ($m) use ($referenceUserId) {
+                    $m->where('reference_user_id', $referenceUserId)
+                        ->orWhere('compatible_user_id', $referenceUserId)
+                        ->orWhere('recipient_user_id', $referenceUserId);
+                })->orWhere(function ($m) use ($compatibleUserId) {
+                    $m->where('reference_user_id', $compatibleUserId)
+                        ->orWhere('compatible_user_id', $compatibleUserId)
+                        ->orWhere('recipient_user_id', $compatibleUserId);
+                });
+            })
+            ->where(function ($q) use ($referenceUserId, $compatibleUserId) {
+                $q->whereNot(function ($pair) use ($referenceUserId, $compatibleUserId) {
+                    $pair->where(function ($forward) use ($referenceUserId, $compatibleUserId) {
+                        $forward->where('reference_user_id', $referenceUserId)
+                            ->where('compatible_user_id', $compatibleUserId);
+                    })->orWhere(function ($reverse) use ($referenceUserId, $compatibleUserId) {
+                        $reverse->where('reference_user_id', $compatibleUserId)
+                            ->where('compatible_user_id', $referenceUserId);
+                    });
+                });
+            })
+            ->exists();
+    }
+
+    /**
+     * Both profiles have a closed proposition row for the same ordered pair (or reversed columns),
+     * for this matchmaker — typical state after an RDV was created then the row was closed.
+     */
+    public static function pairHasMutualClosedForMatchmaker(int $matchmakerId, int $userA, int $userB): bool
+    {
+        foreach ([[$userA, $userB], [$userB, $userA]] as [$ref, $comp]) {
+            $refClosed = static::query()
+                ->where('matchmaker_id', $matchmakerId)
+                ->where('reference_user_id', $ref)
+                ->where('compatible_user_id', $comp)
+                ->where('recipient_user_id', $ref)
+                ->where('status', self::STATUS_CLOSED)
+                ->exists();
+            $compClosed = static::query()
+                ->where('matchmaker_id', $matchmakerId)
+                ->where('reference_user_id', $ref)
+                ->where('compatible_user_id', $comp)
+                ->where('recipient_user_id', $comp)
+                ->where('status', self::STATUS_CLOSED)
+                ->exists();
+            if ($refClosed && $compClosed) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

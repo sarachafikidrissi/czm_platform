@@ -39,6 +39,8 @@ export default function PropositionsList() {
     /** While a grouped cancel request is in flight (one button per row). */
     const [cancellingEntryKey, setCancellingEntryKey] = useState(null);
     const [rdvModalEntry, setRdvModalEntry] = useState(null);
+    /** @type {Record<string, 'created' | 'recreated'>} */
+    const [rdvBadgeByEntryKey, setRdvBadgeByEntryKey] = useState({});
     const rdvInProgressBackendMessages = new Set([
         propositionToastFr.sendBlockedRdvInProgress,
         'Un RDV est en cours pour ce profil. La proposition sera disponible après la clôture du RDV.',
@@ -152,7 +154,30 @@ export default function PropositionsList() {
     const groupedPropositions = useMemo(() => {
         const map = new Map();
 
-        propositions.forEach((proposition) => {
+        // API returns rows `latest()` first; for each recipient slot keep the best row for RDV actions
+        // (prefer `can_create_rdv`, then newer created_at / higher id) so older `closed` rows do not win.
+        const prefersBetterRecipientRow = (prev, next) => {
+            if (!prev) return next;
+            const prevCan = Boolean(prev.can_create_rdv);
+            const nextCan = Boolean(next.can_create_rdv);
+            if (nextCan && !prevCan) return next;
+            if (prevCan && !nextCan) return prev;
+            const ta = new Date(prev.created_at).getTime();
+            const tb = new Date(next.created_at).getTime();
+            if (tb !== ta) return tb >= ta ? next : prev;
+            return (Number(next.id) || 0) >= (Number(prev.id) || 0) ? next : prev;
+        };
+
+        const sorted = [...propositions].sort((a, b) => {
+            const ta = new Date(a.created_at).getTime();
+            const tb = new Date(b.created_at).getTime();
+            if (ta !== tb) {
+                return ta - tb;
+            }
+            return (Number(a.id) || 0) - (Number(b.id) || 0);
+        });
+
+        sorted.forEach((proposition) => {
             const key = proposition.pair_id ? `pair-${proposition.pair_id}` : `single-${proposition.id}`;
             if (!map.has(key)) {
                 map.set(key, {
@@ -165,7 +190,8 @@ export default function PropositionsList() {
                 });
             }
             const entry = map.get(key);
-            entry.recipients[proposition.recipient_user_id] = proposition;
+            const rid = proposition.recipient_user_id;
+            entry.recipients[rid] = prefersBetterRecipientRow(entry.recipients[rid], proposition);
 
             if (new Date(proposition.created_at) < new Date(entry.created_at)) {
                 entry.created_at = proposition.created_at;
@@ -427,10 +453,21 @@ export default function PropositionsList() {
                                     // can_create_rdv: true when any proposition in the group has the flag
                                     const canCreateRdv = Object.values(entry.recipients).some((p) => p?.can_create_rdv);
                                     const rdvExists = Object.values(entry.recipients).some((p) => p?.rdv_exists);
-                                    // Use the first recipient proposition_id that has can_create_rdv
-                                    const rdvPropositionId = canCreateRdv
-                                        ? (Object.values(entry.recipients).find((p) => p?.can_create_rdv)?.id ?? null)
+                                    const rdvSourceProposition = canCreateRdv
+                                        ? Object.values(entry.recipients).find((p) => p?.can_create_rdv)
                                         : null;
+                                    const rdvPropositionId = rdvSourceProposition?.id ?? null;
+                                    const recreateFromFailedRaw = rdvSourceProposition?.recreate_from_failed_rdv_id;
+                                    const recreateFromFailedId =
+                                        recreateFromFailedRaw != null && recreateFromFailedRaw !== ''
+                                            ? Number(recreateFromFailedRaw)
+                                            : NaN;
+                                    const recreateFromFailedOk = Number.isFinite(recreateFromFailedId) && recreateFromFailedId > 0;
+                                    const rdvPropNum = rdvPropositionId != null ? Number(rdvPropositionId) : NaN;
+                                    const hasRdvCreateAction =
+                                        canCreateRdv &&
+                                        (recreateFromFailedOk || (Number.isFinite(rdvPropNum) && rdvPropNum > 0));
+                                    const isRdvRecreationContext = Boolean(rdvSourceProposition?.is_recreation_context);
 
                                     return (
                                         <div
@@ -529,20 +566,29 @@ export default function PropositionsList() {
                                                 ) : (
                                                     <span className="text-muted-foreground text-xs">Aucune action disponible</span>
                                                 )}
-                                                {!rowIsExpired && canCreateRdv && rdvPropositionId && (
+                                                {!rowIsExpired && hasRdvCreateAction && (
                                                     <Button
                                                         type="button"
                                                         size="sm"
                                                         className="h-9 w-full bg-emerald-700 text-white hover:bg-emerald-800"
-                                                        onClick={() => setRdvModalEntry({ key: entry.key, propositionId: rdvPropositionId })}
+                                                        onClick={() =>
+                                                            setRdvModalEntry({
+                                                                key: entry.key,
+                                                                referenceUserId: entry.reference_user?.id,
+                                                                compatibleUserId: entry.compatible_user?.id,
+                                                                propositionId: recreateFromFailedOk ? null : rdvPropositionId,
+                                                                fromFailedRdvId: recreateFromFailedOk ? recreateFromFailedId : null,
+                                                                isRecreationContext: isRdvRecreationContext,
+                                                            })
+                                                        }
                                                     >
                                                         <CalendarPlus className="mr-1.5 h-4 w-4" />
-                                                        Créer un RDV
+                                                        {isRdvRecreationContext ? 'Re-créer un RDV' : 'Créer un RDV'}
                                                     </Button>
                                                 )}
                                                 {!rowIsExpired && !canCreateRdv && rdvExists && (
                                                     <Badge variant="secondary" className="h-9 w-full justify-center bg-slate-100 text-slate-700">
-                                                        RDV créé
+                                                        {rdvBadgeByEntryKey[entry.key] === 'recreated' ? 'RDV re-créé' : 'RDV créé'}
                                                     </Badge>
                                                 )}
                                             </div>
@@ -728,24 +774,29 @@ export default function PropositionsList() {
                 <CreateRdvModal
                     open={Boolean(rdvModalEntry)}
                     propositionId={rdvModalEntry.propositionId}
+                    fromFailedRdvId={rdvModalEntry.fromFailedRdvId}
+                    isRecreationContext={Boolean(rdvModalEntry.isRecreationContext)}
                     onClose={() => setRdvModalEntry(null)}
-                    onSuccess={() => {
-                        const propId = rdvModalEntry.propositionId;
+                    onSuccess={({ wasRecreation } = {}) => {
+                        const refUid = rdvModalEntry.referenceUserId;
+                        const compatUid = rdvModalEntry.compatibleUserId;
+                        const entryKey = rdvModalEntry.key;
+                        setRdvBadgeByEntryKey((prev) => ({
+                            ...prev,
+                            [entryKey]: wasRecreation ? 'recreated' : 'created',
+                        }));
                         setPropositions((prev) => {
-                            const source = prev.find((p) => p.id === propId);
-                            if (!source) return prev;
-                            // Mirror server-side `Proposition::closeAcceptedRowsForPairAfterRdv` + the
-                            // payload the controller returns on a fresh load for a closed row, so the
-                            // status badge, cancel button, and respond button all reflect "closed (RDV)"
-                            // without requiring a page refresh.
+                            if (refUid == null || compatUid == null) return prev;
                             return prev.map((p) =>
-                                propositionSameUnorderedPair(p, source.reference_user_id, source.compatible_user_id)
+                                propositionSameUnorderedPair(p, refUid, compatUid)
                                     ? {
                                           ...p,
                                           status: 'closed',
                                           is_active: false,
                                           can_cancel: false,
                                           can_create_rdv: false,
+                                          is_recreation_context: false,
+                                          recreate_from_failed_rdv_id: null,
                                           can_update_response: false,
                                           rdv_exists: true,
                                       }

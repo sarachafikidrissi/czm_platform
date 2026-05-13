@@ -4,7 +4,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import MatchmakerFeedbackModal from '@/components/rdv/MatchmakerFeedbackModal';
-import { useState } from 'react';
+import CreateRdvModal from '@/components/rdv/CreateRdvModal';
+import { CalendarPlus } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 const STATUS_META = {
     en_cours: { label: 'En cours', className: 'bg-blue-50 text-blue-700 border border-blue-100' },
@@ -27,7 +29,12 @@ const getProfilePicture = (user) => {
 export default function RdvList() {
     const { rdvs = [], status_filter, pagination = {} } = usePage().props;
     const [feedbackModal, setFeedbackModal] = useState(null);
+    const [recreateModal, setRecreateModal] = useState(null);
     const [localRdvs, setLocalRdvs] = useState(rdvs);
+
+    useEffect(() => {
+        setLocalRdvs(rdvs);
+    }, [rdvs]);
 
     const activeTab = status_filter || 'en_cours';
 
@@ -82,7 +89,7 @@ export default function RdvList() {
                 ) : (
                     <Card className="border border-rose-100/60 shadow-sm">
                         <CardContent className="p-0">
-                            <div className="hidden grid-cols-[1fr_1fr_120px_80px_200px] gap-4 border-b bg-rose-50/60 px-5 py-3 text-xs font-semibold uppercase tracking-wide text-rose-900 lg:grid">
+                            <div className="hidden grid-cols-[1fr_1fr_120px_80px_220px] gap-4 border-b bg-rose-50/60 px-5 py-3 text-xs font-semibold uppercase tracking-wide text-rose-900 lg:grid">
                                 <div>Profils</div>
                                 <div>Message</div>
                                 <div>Statut</div>
@@ -94,11 +101,16 @@ export default function RdvList() {
                                     const statusMeta = STATUS_META[rdv.status] ?? STATUS_META.en_cours;
                                     const feedbackCount = rdv.feedbacks?.length ?? 0;
                                     const alreadySubmitted = !rdv.can_add_feedback;
+                                    const recreatePropId = Number(rdv.recreate_proposition_id);
+                                    const recreateFromFailedId = Number(rdv.recreate_from_failed_rdv_id);
+                                    const hasRecreateProp = Number.isFinite(recreatePropId) && recreatePropId > 0;
+                                    const hasRecreateFailed = Number.isFinite(recreateFromFailedId) && recreateFromFailedId > 0;
+                                    const canRecreate = Boolean(rdv.can_recreate_rdv) && (hasRecreateProp || hasRecreateFailed);
 
                                     return (
                                         <div
                                             key={rdv.id}
-                                            className="grid grid-cols-1 gap-3 px-5 py-4 lg:grid-cols-[1fr_1fr_120px_80px_200px]"
+                                            className="grid grid-cols-1 gap-3 px-5 py-4 lg:grid-cols-[1fr_1fr_120px_80px_220px]"
                                         >
                                             {/* Profiles */}
                                             <div className="space-y-2">
@@ -123,6 +135,7 @@ export default function RdvList() {
 
                                             {/* Message */}
                                             <div className="text-sm text-muted-foreground">
+                                                {/* TODO: display motif in RDV detail view (motif_de_recreation when is_recreation) */}
                                                 {rdv.message ? (
                                                     <span className="italic">"{rdv.message}"</span>
                                                 ) : (
@@ -149,6 +162,26 @@ export default function RdvList() {
                                                 >
                                                     {alreadySubmitted ? 'Feedback envoyé' : 'Ajouter un feedback'}
                                                 </Button>
+
+                                                {canRecreate && (
+                                                    <Button
+                                                        size="sm"
+                                                        type="button"
+                                                        className="h-8 border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
+                                                        variant="outline"
+                                                        onClick={() =>
+                                                            setRecreateModal({
+                                                                rdvId: rdv.id,
+                                                                propositionId:
+                                                                    hasRecreateFailed ? null : hasRecreateProp ? recreatePropId : null,
+                                                                fromFailedRdvId: hasRecreateFailed ? recreateFromFailedId : null,
+                                                            })
+                                                        }
+                                                    >
+                                                        <CalendarPlus className="mr-1.5 h-3.5 w-3.5" />
+                                                        Re-créer un RDV
+                                                    </Button>
+                                                )}
 
                                                 {rdv.status === 'en_cours' && (
                                                     <div className="flex gap-1.5">
@@ -216,6 +249,20 @@ export default function RdvList() {
                             )
                         );
                         setFeedbackModal(null);
+                    }}
+                />
+            )}
+
+            {recreateModal && (
+                <CreateRdvModal
+                    open={Boolean(recreateModal)}
+                    propositionId={recreateModal.propositionId}
+                    fromFailedRdvId={recreateModal.fromFailedRdvId}
+                    isRecreationContext
+                    onClose={() => setRecreateModal(null)}
+                    onSuccess={() => {
+                        setRecreateModal(null);
+                        router.reload({ only: ['rdvs', 'pagination', 'status_filter'] });
                     }}
                 />
             )}

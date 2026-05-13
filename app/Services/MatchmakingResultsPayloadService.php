@@ -170,7 +170,7 @@ class MatchmakingResultsPayloadService
         }
 
         // Batch-compute both-sides-accepted and RDV-exists for the reference user against each compatible
-        $bothAcceptedCompatIds = [];
+        $mutualInterestedCompatIds = [];
         if ($compatibleIds !== []) {
             $acceptedBothQuery = Proposition::query()
                 ->where('matchmaker_id', $me->id)
@@ -183,7 +183,7 @@ class MatchmakingResultsPayloadService
                             ->whereIn('reference_user_id', $compatibleIds);
                     });
                 })
-                ->where('status', 'interested')
+                ->whereIn('status', [Proposition::STATUS_INTERESTED, Proposition::STATUS_ACCEPTED])
                 ->get(['reference_user_id', 'compatible_user_id', 'recipient_user_id']);
 
             $refAcceptedSet = [];
@@ -210,8 +210,78 @@ class MatchmakingResultsPayloadService
 
             foreach ($compatibleIds as $cid) {
                 if (($refAcceptedSet[(int) $cid] ?? false) && ($compAcceptedSet[(int) $cid] ?? false)) {
-                    $bothAcceptedCompatIds[$cid] = true;
+                    $mutualInterestedCompatIds[$cid] = true;
                 }
+            }
+        }
+
+        $failedEchecCompatIds = [];
+        $recreationAllowedCompatIds = [];
+        if ($compatibleIds !== []) {
+            $failedRdvs = Rdv::query()
+                ->where(function ($q) use ($referenceUserId, $compatibleIds) {
+                    $q->where(function ($forward) use ($referenceUserId, $compatibleIds) {
+                        $forward->where('reference_user_id', $referenceUserId)
+                            ->whereIn('compatible_user_id', $compatibleIds);
+                    })->orWhere(function ($reverse) use ($referenceUserId, $compatibleIds) {
+                        $reverse->where('compatible_user_id', $referenceUserId)
+                            ->whereIn('reference_user_id', $compatibleIds);
+                    });
+                })
+                ->where('status', Rdv::STATUS_ECHEC)
+                ->get(['reference_user_id', 'compatible_user_id']);
+            foreach ($failedRdvs as $rdv) {
+                $counterpartId = (int) $rdv->reference_user_id === $referenceUserId
+                    ? (int) $rdv->compatible_user_id
+                    : ((int) $rdv->compatible_user_id === $referenceUserId ? (int) $rdv->reference_user_id : null);
+                if ($counterpartId !== null) {
+                    $failedEchecCompatIds[$counterpartId] = true;
+                }
+            }
+            foreach (array_keys($failedEchecCompatIds) as $cid) {
+                if (Proposition::pairRecreationBlockedByExternalPendingOrInterested((int) $referenceUserId, (int) $cid)) {
+                    continue;
+                }
+                if (Rdv::hasInProgressRdvForUser((int) $referenceUserId) || Rdv::hasInProgressRdvForUser((int) $cid)) {
+                    continue;
+                }
+                $recreationAllowedCompatIds[$cid] = true;
+            }
+        }
+
+        $closedOnlyRecreationCompatIds = [];
+        $bothAcceptedCompatIds = $mutualInterestedCompatIds;
+        foreach ($compatibleIds as $cid) {
+            if (isset($bothAcceptedCompatIds[$cid])) {
+                continue;
+            }
+            if (! isset($failedEchecCompatIds[$cid]) || ! isset($recreationAllowedCompatIds[$cid])) {
+                continue;
+            }
+            if (! Proposition::pairHasMutualClosedForMatchmaker((int) $me->id, (int) $referenceUserId, (int) $cid)) {
+                continue;
+            }
+            $bothAcceptedCompatIds[$cid] = true;
+            $closedOnlyRecreationCompatIds[$cid] = true;
+        }
+
+        $failedRdvIdForClosedRecreationCompat = [];
+        foreach (array_keys($closedOnlyRecreationCompatIds) as $cid) {
+            $rid = Rdv::query()
+                ->where('status', Rdv::STATUS_ECHEC)
+                ->where(function ($q) use ($referenceUserId, $cid) {
+                    $q->where(function ($forward) use ($referenceUserId, $cid) {
+                        $forward->where('reference_user_id', $referenceUserId)
+                            ->where('compatible_user_id', $cid);
+                    })->orWhere(function ($reverse) use ($referenceUserId, $cid) {
+                        $reverse->where('reference_user_id', $cid)
+                            ->where('compatible_user_id', $referenceUserId);
+                    });
+                })
+                ->orderByDesc('id')
+                ->value('id');
+            if ($rid !== null) {
+                $failedRdvIdForClosedRecreationCompat[(int) $cid] = (int) $rid;
             }
         }
 
@@ -263,7 +333,7 @@ class MatchmakingResultsPayloadService
             $successfulRdvCompatIds = $successfulRdvMap;
         }
 
-        return array_map(function ($match) use ($me, $referenceUserId, $statusMap, $requestMetaMap, $propositionStatusMap, $userAHasActiveProposition, $compatibleRecipientActiveMap, $compatibleHasInProgressRdvMap, $pairActions, $bothAcceptedCompatIds, $rdvExistsCompatIds, $successfulRdvCompatIds) {
+        return array_map(function ($match) use ($me, $referenceUserId, $statusMap, $requestMetaMap, $propositionStatusMap, $userAHasActiveProposition, $compatibleRecipientActiveMap, $compatibleHasInProgressRdvMap, $pairActions, $mutualInterestedCompatIds, $closedOnlyRecreationCompatIds, $failedRdvIdForClosedRecreationCompat, $bothAcceptedCompatIds, $rdvExistsCompatIds, $successfulRdvCompatIds, $failedEchecCompatIds, $recreationAllowedCompatIds) {
             $compatId = $match['user']->id;
             $requestMeta = $requestMetaMap[$compatId] ?? null;
             $canProposeFromRequest = ($requestMeta['status'] ?? null) === 'accepted';
@@ -272,12 +342,18 @@ class MatchmakingResultsPayloadService
                 'pending_response_proposition' => null,
             ];
 
-            $bothSidesAccepted = isset($bothAcceptedCompatIds[$compatId]);
+            $hasPastEchec = isset($failedEchecCompatIds[$compatId]);
+            $recreationAllowed = isset($recreationAllowedCompatIds[$compatId]);
+            $mutualInterested = isset($mutualInterestedCompatIds[$compatId]);
+            $closedRecreation = isset($closedOnlyRecreationCompatIds[$compatId]);
+            $bothSidesAccepted = ($mutualInterested && (! $hasPastEchec || $recreationAllowed))
+                || $closedRecreation;
             $rdvExists = isset($rdvExistsCompatIds[$compatId]);
             $hasSuccessfulRdv = isset($successfulRdvCompatIds[$compatId]);
             $canCreateRdv = $bothSidesAccepted
                 && ! $rdvExists
                 && ! $hasSuccessfulRdv;
+            $isRecreationContext = $canCreateRdv && $hasPastEchec;
             $canPropose = ! $userAHasActiveProposition
                 && ! ($compatibleRecipientActiveMap[$compatId] ?? false)
                 && ! ($compatibleHasInProgressRdvMap[$compatId] ?? false);
@@ -315,6 +391,8 @@ class MatchmakingResultsPayloadService
                 'has_active_proposition' => Proposition::pairMatchHasActiveProposition((int) $referenceUserId, (int) $compatId),
                 'proposition' => Proposition::activeSnapshotForPair((int) $referenceUserId, (int) $compatId, (int) $compatId),
                 'can_create_rdv' => $canCreateRdv,
+                'is_recreation_context' => $isRecreationContext,
+                'recreate_from_failed_rdv_id' => $failedRdvIdForClosedRecreationCompat[$compatId] ?? null,
                 'rdv_exists' => $rdvExists,
             ];
         }, $matches);

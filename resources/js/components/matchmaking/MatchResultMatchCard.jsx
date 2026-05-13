@@ -74,8 +74,16 @@ export default function MatchResultMatchCard({
     const [rdvModalOpen, setRdvModalOpen] = useState(false);
     const [canCreateRdvLocal, setCanCreateRdvLocal] = useState(Boolean(match.can_create_rdv));
     const [rdvExistsLocal, setRdvExistsLocal] = useState(hasExistingRdv);
-    // Use the proposition_id from the active proposition pair for RDV creation
-    const rdvPropositionId = match.proposition?.proposition_id ?? null;
+    /** After submit: distinguish success badge copy ('recreated' | 'created'); null = default "RDV créé" */
+    const [rdvSuccessBadgeKind, setRdvSuccessBadgeKind] = useState(null);
+    const fromFailedRaw = match.recreate_from_failed_rdv_id;
+    const fromFailedRdvId =
+        fromFailedRaw != null && fromFailedRaw !== '' ? Number(fromFailedRaw) : NaN;
+    const fromFailedOk = Number.isFinite(fromFailedRdvId) && fromFailedRdvId > 0;
+    const rdvPropRaw = match.proposition?.proposition_id;
+    const rdvPropNum = rdvPropRaw != null && rdvPropRaw !== '' ? Number(rdvPropRaw) : NaN;
+    const rdvPropositionId = Number.isFinite(rdvPropNum) && rdvPropNum > 0 ? rdvPropNum : null;
+    const hasRdvModalTarget = fromFailedOk || rdvPropositionId != null;
 
     return (
         <Card
@@ -208,7 +216,7 @@ export default function MatchResultMatchCard({
                                 Retour
                             </Button>
                         )}
-                        {canCreateRdvLocal && rdvPropositionId && (
+                        {canCreateRdvLocal && hasRdvModalTarget && (
                             <Button
                                 className="w-full rounded-lg border-emerald-200 bg-emerald-50 py-2.5 text-sm font-medium text-emerald-800 hover:bg-emerald-100"
                                 variant="outline"
@@ -218,12 +226,12 @@ export default function MatchResultMatchCard({
                                 }}
                             >
                                 <CalendarPlus className="mr-2 h-4 w-4" />
-                                Créer un RDV
+                                {match.is_recreation_context ? 'Re-créer un RDV' : 'Créer un RDV'}
                             </Button>
                         )}
                         {!canCreateRdvLocal && rdvExistsLocal && (
                             <Badge variant="secondary" className="w-full rounded-lg py-2.5 text-sm">
-                                RDV créé
+                                {rdvSuccessBadgeKind === 'recreated' ? 'RDV re-créé' : 'RDV créé'}
                             </Badge>
                         )}
                         <Button
@@ -376,7 +384,7 @@ export default function MatchResultMatchCard({
                     </Button>
                 )}
 
-                {canCreateRdvLocal && rdvPropositionId && (
+                {canCreateRdvLocal && hasRdvModalTarget && (
                     <Button
                         className="w-full rounded-none border-t-0 border-emerald-200 bg-emerald-50 py-2.5 text-sm font-medium text-emerald-800 hover:bg-emerald-100"
                         variant="outline"
@@ -386,12 +394,12 @@ export default function MatchResultMatchCard({
                         }}
                     >
                         <CalendarPlus className="mr-2 h-4 w-4" />
-                        Créer un RDV
+                        {match.is_recreation_context ? 'Re-créer un RDV' : 'Créer un RDV'}
                     </Button>
                 )}
                 {!canCreateRdvLocal && rdvExistsLocal && (
                     <Badge variant="secondary" className="w-full rounded-none border-t-0 py-2.5 text-sm">
-                        RDV créé
+                        {rdvSuccessBadgeKind === 'recreated' ? 'RDV re-créé' : 'RDV créé'}
                     </Badge>
                 )}
 
@@ -409,14 +417,17 @@ export default function MatchResultMatchCard({
                     </>
                 )}
 
-            {canCreateRdvLocal && rdvPropositionId && (
+            {canCreateRdvLocal && hasRdvModalTarget && (
                 <CreateRdvModal
                     open={rdvModalOpen}
-                    propositionId={rdvPropositionId}
+                    propositionId={fromFailedOk ? null : rdvPropositionId}
+                    fromFailedRdvId={fromFailedOk ? fromFailedRdvId : null}
+                    isRecreationContext={Boolean(match.is_recreation_context)}
                     onClose={() => setRdvModalOpen(false)}
-                    onSuccess={() => {
+                    onSuccess={({ wasRecreation } = {}) => {
                         setCanCreateRdvLocal(false);
                         setRdvExistsLocal(true);
+                        setRdvSuccessBadgeKind(wasRecreation ? 'recreated' : 'created');
                         setRdvModalOpen(false);
                     }}
                 />

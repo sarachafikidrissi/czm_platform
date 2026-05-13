@@ -2878,7 +2878,7 @@ class MatchmakerController extends Controller
             if (! isset($pairAcceptedByMember[$pairKey])) {
                 $pairAcceptedByMember[$pairKey] = [];
             }
-            if ($p->status === Proposition::STATUS_INTERESTED) {
+            if ($p->status === Proposition::STATUS_INTERESTED || $p->status === Proposition::STATUS_ACCEPTED) {
                 $recipient = (int) $p->recipient_user_id;
                 if ($recipient === $ref || $recipient === $comp) {
                     $pairAcceptedByMember[$pairKey][$recipient] = true;
@@ -2916,8 +2916,74 @@ class MatchmakerController extends Controller
             ])
             ->all();
 
+        $failedEchecPairKeySet = \App\Models\Rdv::query()
+            ->where('status', \App\Models\Rdv::STATUS_ECHEC)
+            ->get(['reference_user_id', 'compatible_user_id'])
+            ->mapWithKeys(fn ($r) => [
+                $canonicalRdvPairKey((int) $r->reference_user_id, (int) $r->compatible_user_id) => true,
+            ])
+            ->all();
+
+        $recreationAllowedByPairKey = [];
+        foreach (array_keys($failedEchecPairKeySet) as $pairKey) {
+            [$u1, $u2] = array_map('intval', explode('-', $pairKey));
+            if (! \App\Models\Rdv::pairRecreationGuardsPass($u1, $u2)) {
+                continue;
+            }
+            $recreationAllowedByPairKey[$pairKey] = true;
+        }
+
+        $latestFailedRdvIdByPairKey = [];
+        foreach (array_keys($failedEchecPairKeySet) as $pairKey) {
+            [$u1, $u2] = array_map('intval', explode('-', $pairKey));
+            $rid = \App\Models\Rdv::query()
+                ->where('status', \App\Models\Rdv::STATUS_ECHEC)
+                ->where(function ($q) use ($u1, $u2) {
+                    $q->where(function ($forward) use ($u1, $u2) {
+                        $forward->where('reference_user_id', $u1)->where('compatible_user_id', $u2);
+                    })->orWhere(function ($reverse) use ($u1, $u2) {
+                        $reverse->where('reference_user_id', $u2)->where('compatible_user_id', $u1);
+                    });
+                })
+                ->orderByDesc('id')
+                ->value('id');
+            if ($rid !== null) {
+                $latestFailedRdvIdByPairKey[$pairKey] = (int) $rid;
+            }
+        }
+
+        $pairClosedByMember = [];
+        foreach ($rawPropositions as $p) {
+            if ((int) $p->matchmaker_id !== (int) $me->id) {
+                continue;
+            }
+            if ($p->status !== Proposition::STATUS_CLOSED) {
+                continue;
+            }
+            $ref = (int) $p->reference_user_id;
+            $comp = (int) $p->compatible_user_id;
+            if ($ref === $comp) {
+                continue;
+            }
+            $pairKey = $ref < $comp ? "{$ref}-{$comp}" : "{$comp}-{$ref}";
+            if (! isset($pairClosedByMember[$pairKey])) {
+                $pairClosedByMember[$pairKey] = [];
+            }
+            $recipient = (int) $p->recipient_user_id;
+            if ($recipient === $ref || $recipient === $comp) {
+                $pairClosedByMember[$pairKey][$recipient] = true;
+            }
+        }
+        $bothClosedPairKeySet = [];
+        foreach ($pairClosedByMember as $key => $closed) {
+            [$u1, $u2] = array_map('intval', explode('-', $key));
+            if (($closed[$u1] ?? false) && ($closed[$u2] ?? false)) {
+                $bothClosedPairKeySet[$key] = true;
+            }
+        }
+
         $propositions = $rawPropositions
-            ->map(function (Proposition $proposition) use ($me, $bothAcceptedPairKeySet, $existingRdvPairKeySet, $successfulRdvPairKeySet, $canonicalRdvPairKey) {
+            ->map(function (Proposition $proposition) use ($me, $bothAcceptedPairKeySet, $bothClosedPairKeySet, $existingRdvPairKeySet, $successfulRdvPairKeySet, $failedEchecPairKeySet, $recreationAllowedByPairKey, $canonicalRdvPairKey, $latestFailedRdvIdByPairKey) {
                 $isExpired = $proposition->status === 'expired'
                     || ($proposition->status === 'pending'
                         && $proposition->created_at
@@ -2928,13 +2994,19 @@ class MatchmakerController extends Controller
                 $canCancel = ! $isExpired && $proposition->canBeCancelledByMatchmaker() && $me->can('cancel', $proposition);
 
                 $pairKey = $canonicalRdvPairKey((int) $proposition->reference_user_id, (int) $proposition->compatible_user_id);
-                $bothSidesAccepted = isset($bothAcceptedPairKeySet[$pairKey]);
+                $hasPastEchec = isset($failedEchecPairKeySet[$pairKey]);
+                $recreationAllowed = isset($recreationAllowedByPairKey[$pairKey]);
+                $mutualInterested = isset($bothAcceptedPairKeySet[$pairKey]);
+                $mutualClosedReady = isset($bothClosedPairKeySet[$pairKey]) && $hasPastEchec && $recreationAllowed;
+                $bothSidesAccepted = ($mutualInterested && (! $hasPastEchec || $recreationAllowed))
+                    || $mutualClosedReady;
                 $rdvExists = isset($existingRdvPairKeySet[$pairKey]);
                 $hasSuccessfulRdv = isset($successfulRdvPairKeySet[$pairKey]);
                 $canCreateRdv = $bothSidesAccepted
                     && ! $rdvExists
                     && ! $hasSuccessfulRdv
                     && (int) $proposition->matchmaker_id === (int) $me->id;
+                $isRecreationContext = $canCreateRdv && $hasPastEchec;
 
                 return [
                     'id' => $proposition->id,
@@ -2949,6 +3021,8 @@ class MatchmakerController extends Controller
                     'is_active' => $isActive,
                     'can_cancel' => $canCancel,
                     'can_create_rdv' => $canCreateRdv,
+                    'is_recreation_context' => $isRecreationContext,
+                    'recreate_from_failed_rdv_id' => $isRecreationContext ? ($latestFailedRdvIdByPairKey[$pairKey] ?? null) : null,
                     'rdv_exists' => $rdvExists,
                     'cancelled_at' => $proposition->cancelled_at,
                     'response_message' => $proposition->response_message,

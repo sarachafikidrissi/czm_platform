@@ -35,6 +35,16 @@ export const propositionToastFr = {
 
 export const rdvToastFr = {
     createSuccess: 'RDV créé avec succès. Les deux profils ont été notifiés.',
+    /** Must match backend `RdvController::MESSAGE_RECREATE_SUCCESS` */
+    recreateSuccess: 'RDV re-créé avec succès. Les deux profils ont été notifiés.',
+    /** Must match backend `RdvController::MESSAGE_RECREATE_BLOCKED_ACTIVE_PROPOSITION` */
+    recreateBlockedActiveProposition: 'Re-création impossible — un profil a une proposition en cours.',
+    /** Must match backend `RdvController::MESSAGE_RECREATE_BLOCKED_RDV_EN_COURS` */
+    recreateBlockedRdvEnCours: 'Re-création impossible — un RDV est déjà en cours pour un de ces profils.',
+    /** Must match backend `RdvController::MESSAGE_RECREATE_BLOCKED_NO_ECHEC` */
+    recreateBlockedNoEchec: 'Aucun RDV échoué trouvé entre ces deux profils.',
+    /** Must match backend `RdvController::MESSAGE_RECREATE_BLOCKED_MOTIF` */
+    recreateBlockedMotifRequired: 'Le motif de re-création est obligatoire.',
     createBlockedAlreadyExists: 'Un RDV existe déjà pour cette proposition.',
     createBlockedNotBothAccepted: 'Les deux profils doivent avoir accepté la proposition.',
     createError: 'Erreur lors de la création du RDV. Veuillez réessayer.',

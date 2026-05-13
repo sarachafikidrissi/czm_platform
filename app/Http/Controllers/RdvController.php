@@ -16,6 +16,17 @@ class RdvController extends Controller
 {
     use AuthorizesRequests;
 
+    /** @see resources/js/lib/proposition-toast-messages.ts rdvToastFr */
+    public const MESSAGE_RECREATE_SUCCESS = 'RDV re-créé avec succès. Les deux profils ont été notifiés.';
+
+    public const MESSAGE_RECREATE_BLOCKED_ACTIVE_PROPOSITION = 'Re-création impossible — un profil a une proposition en cours.';
+
+    public const MESSAGE_RECREATE_BLOCKED_RDV_EN_COURS = 'Re-création impossible — un RDV est déjà en cours pour un de ces profils.';
+
+    public const MESSAGE_RECREATE_BLOCKED_NO_ECHEC = 'Aucun RDV échoué trouvé entre ces deux profils.';
+
+    public const MESSAGE_RECREATE_BLOCKED_MOTIF = 'Le motif de re-création est obligatoire.';
+
     protected function mapRdv(Rdv $rdv, User $me): array
     {
         $feedbacks = $rdv->feedbacks ?? collect();
@@ -99,25 +110,71 @@ class RdvController extends Controller
         }
 
         $data = $request->validate([
-            'proposition_id' => ['required', 'integer', 'exists:propositions,id'],
+            'proposition_id' => ['nullable', 'required_without:from_failed_rdv_id', 'integer', 'exists:propositions,id'],
+            'from_failed_rdv_id' => ['nullable', 'required_without:proposition_id', 'integer', 'exists:rdvs,id'],
             'regle' => ['nullable', 'string', 'max:2000'],
             'message' => ['nullable', 'string', 'max:2000'],
             'share_phone' => ['nullable', 'boolean'],
+            'motif_de_recreation' => ['nullable', 'string', 'max:5000'],
         ]);
 
-        $proposition = Proposition::findOrFail($data['proposition_id']);
+        $fromFailedId = isset($data['from_failed_rdv_id']) ? (int) $data['from_failed_rdv_id'] : null;
+        $propositionId = isset($data['proposition_id']) ? (int) $data['proposition_id'] : null;
+
+        if ($fromFailedId !== null && $propositionId !== null) {
+            return response()->json([
+                'message' => 'Envoyez uniquement une proposition ou un RDV échoué, pas les deux.',
+            ], 422);
+        }
+
+        $motifTrimmed = trim((string) ($data['motif_de_recreation'] ?? ''));
+
+        if ($fromFailedId !== null) {
+            return $this->storeRdvFromFailedRow($me, $data, $fromFailedId, $motifTrimmed);
+        }
+
+        $proposition = Proposition::findOrFail($propositionId);
 
         if ((int) $proposition->matchmaker_id !== (int) $me->id) {
             abort(403, 'Vous n\'êtes pas autorisé à créer un RDV pour cette proposition.');
         }
 
-        if (! $this->bothSidesAccepted($proposition)) {
+        $ref = (int) $proposition->reference_user_id;
+        $comp = (int) $proposition->compatible_user_id;
+        $pairHasFailed = Rdv::pairHasFailedRdv($ref, $comp);
+
+        $qualifiesMutual = $this->bothSidesAccepted($proposition)
+            || ($pairHasFailed && Proposition::pairHasMutualClosedForMatchmaker((int) $me->id, $ref, $comp));
+
+        if (! $qualifiesMutual) {
             return response()->json([
                 'message' => 'Les deux profils doivent avoir accepté la proposition.',
             ], 422);
         }
 
-        if (Rdv::existsForPair((int) $proposition->reference_user_id, (int) $proposition->compatible_user_id)) {
+        if ($pairHasFailed) {
+            if (Proposition::pairRecreationBlockedByExternalPendingOrInterested($ref, $comp)) {
+                return response()->json([
+                    'message' => self::MESSAGE_RECREATE_BLOCKED_ACTIVE_PROPOSITION,
+                ], 422);
+            }
+            if (Rdv::hasInProgressRdvForUser($ref) || Rdv::hasInProgressRdvForUser($comp)) {
+                return response()->json([
+                    'message' => self::MESSAGE_RECREATE_BLOCKED_RDV_EN_COURS,
+                ], 422);
+            }
+            if ($motifTrimmed === '') {
+                return response()->json([
+                    'message' => self::MESSAGE_RECREATE_BLOCKED_MOTIF,
+                ], 422);
+            }
+        } elseif ($motifTrimmed !== '') {
+            return response()->json([
+                'message' => self::MESSAGE_RECREATE_BLOCKED_NO_ECHEC,
+            ], 422);
+        }
+
+        if (Rdv::existsForPair($ref, $comp)) {
             return response()->json([
                 'message' => 'Un RDV existe déjà pour cette proposition.',
             ], 422);
@@ -126,7 +183,7 @@ class RdvController extends Controller
         $defaultRegle = "Les deux profils s'engagent à respecter les règles de bienséance et de respect mutuel lors de ce rendez-vous.";
 
         $rdv = null;
-        DB::transaction(function () use ($me, $proposition, $data, $defaultRegle, &$rdv) {
+        DB::transaction(function () use ($me, $proposition, $data, $defaultRegle, $pairHasFailed, $motifTrimmed, &$rdv) {
             $rdv = Rdv::create([
                 'matchmaker_id' => $me->id,
                 'reference_user_id' => $proposition->reference_user_id,
@@ -134,6 +191,8 @@ class RdvController extends Controller
                 'proposition_id' => $proposition->id,
                 'regle' => trim($data['regle'] ?? '') ?: $defaultRegle,
                 'message' => isset($data['message']) ? (trim($data['message']) ?: null) : null,
+                'motif_de_recreation' => $pairHasFailed ? $motifTrimmed : null,
+                'is_recreation' => $pairHasFailed,
                 'share_phone' => (bool) ($data['share_phone'] ?? false),
                 'status' => Rdv::STATUS_EN_COURS,
             ]);
@@ -141,8 +200,125 @@ class RdvController extends Controller
             Proposition::closeAcceptedRowsForPairAfterRdv($proposition);
         });
 
+        $successMessage = $pairHasFailed
+            ? self::MESSAGE_RECREATE_SUCCESS
+            : 'RDV créé avec succès.';
+
         return response()->json([
-            'message' => 'RDV créé avec succès.',
+            'message' => $successMessage,
+            'rdv' => ['id' => $rdv->id, 'status' => $rdv->status],
+        ], 201);
+    }
+
+    /**
+     * Re-create from staff "RDV échecs" row when propositions are still closed (no open interested rows).
+     */
+    private function storeRdvFromFailedRow(User $me, array $data, int $fromFailedId, string $motifTrimmed)
+    {
+        $failedRdv = Rdv::query()
+            ->where('matchmaker_id', $me->id)
+            ->whereKey($fromFailedId)
+            ->first();
+
+        if ($failedRdv === null || $failedRdv->status !== Rdv::STATUS_ECHEC) {
+            return response()->json([
+                'message' => 'RDV introuvable ou non marqué comme échec.',
+            ], 422);
+        }
+
+        $ref = (int) $failedRdv->reference_user_id;
+        $comp = (int) $failedRdv->compatible_user_id;
+
+        if (! Rdv::pairHasFailedRdv($ref, $comp)) {
+            return response()->json([
+                'message' => self::MESSAGE_RECREATE_BLOCKED_NO_ECHEC,
+            ], 422);
+        }
+
+        if (Proposition::pairRecreationBlockedByExternalPendingOrInterested($ref, $comp)) {
+            return response()->json([
+                'message' => self::MESSAGE_RECREATE_BLOCKED_ACTIVE_PROPOSITION,
+            ], 422);
+        }
+
+        if (Rdv::hasInProgressRdvForUser($ref) || Rdv::hasInProgressRdvForUser($comp)) {
+            return response()->json([
+                'message' => self::MESSAGE_RECREATE_BLOCKED_RDV_EN_COURS,
+            ], 422);
+        }
+
+        if ($motifTrimmed === '') {
+            return response()->json([
+                'message' => self::MESSAGE_RECREATE_BLOCKED_MOTIF,
+            ], 422);
+        }
+
+        if (Rdv::query()
+            ->where('status', Rdv::STATUS_REUSSI)
+            ->where(function ($q) use ($ref, $comp) {
+                $q->where(function ($forward) use ($ref, $comp) {
+                    $forward->where('reference_user_id', $ref)->where('compatible_user_id', $comp);
+                })->orWhere(function ($reverse) use ($ref, $comp) {
+                    $reverse->where('reference_user_id', $comp)->where('compatible_user_id', $ref);
+                });
+            })
+            ->exists()) {
+            return response()->json([
+                'message' => 'Re-création impossible — un RDV réussi existe déjà pour cette paire.',
+            ], 422);
+        }
+
+        if (Rdv::query()
+            ->whereIn('status', [Rdv::STATUS_EN_COURS, Rdv::STATUS_REUSSI])
+            ->where(function ($q) use ($ref, $comp) {
+                $q->where(function ($forward) use ($ref, $comp) {
+                    $forward->where('reference_user_id', $ref)->where('compatible_user_id', $comp);
+                })->orWhere(function ($reverse) use ($ref, $comp) {
+                    $reverse->where('reference_user_id', $comp)->where('compatible_user_id', $ref);
+                });
+            })
+            ->exists()) {
+            return response()->json([
+                'message' => 'Un RDV existe déjà pour cette proposition.',
+            ], 422);
+        }
+
+        $propositionForClose = Proposition::query()
+            ->where('matchmaker_id', $me->id)
+            ->where(function ($q) use ($ref, $comp) {
+                $q->where(function ($forward) use ($ref, $comp) {
+                    $forward->where('reference_user_id', $ref)->where('compatible_user_id', $comp);
+                })->orWhere(function ($reverse) use ($ref, $comp) {
+                    $reverse->where('reference_user_id', $comp)->where('compatible_user_id', $ref);
+                });
+            })
+            ->orderByDesc('id')
+            ->first();
+
+        $defaultRegle = "Les deux profils s'engagent à respecter les règles de bienséance et de respect mutuel lors de ce rendez-vous.";
+
+        $rdv = null;
+        DB::transaction(function () use ($me, $data, $defaultRegle, $motifTrimmed, $ref, $comp, $propositionForClose, &$rdv) {
+            $rdv = Rdv::create([
+                'matchmaker_id' => $me->id,
+                'reference_user_id' => $ref,
+                'compatible_user_id' => $comp,
+                'proposition_id' => $propositionForClose?->id,
+                'regle' => trim($data['regle'] ?? '') ?: $defaultRegle,
+                'message' => isset($data['message']) ? (trim($data['message']) ?: null) : null,
+                'motif_de_recreation' => $motifTrimmed,
+                'is_recreation' => true,
+                'share_phone' => (bool) ($data['share_phone'] ?? false),
+                'status' => Rdv::STATUS_EN_COURS,
+            ]);
+
+            if ($propositionForClose !== null) {
+                Proposition::closeAcceptedRowsForPairAfterRdv($propositionForClose);
+            }
+        });
+
+        return response()->json([
+            'message' => self::MESSAGE_RECREATE_SUCCESS,
             'rdv' => ['id' => $rdv->id, 'status' => $rdv->status],
         ], 201);
     }
@@ -214,7 +390,13 @@ class RdvController extends Controller
             ->latest()
             ->paginate(10);
 
-        $mapped = $rdvs->getCollection()->map(fn (Rdv $rdv) => $this->mapRdv($rdv, $me))->values();
+        $mapped = $rdvs->getCollection()
+            ->map(function (Rdv $rdv) use ($me) {
+                $row = $this->mapRdv($rdv, $me);
+
+                return array_merge($row, $this->matchmakerRowRecreationMeta($me, $rdv));
+            })
+            ->values();
 
         return Inertia::render('matchmaker/rdv-list', [
             'rdvs' => $mapped,
@@ -395,20 +577,99 @@ class RdvController extends Controller
         ]);
     }
 
+    /**
+     * Staff RDV list: whether this échec row can start a re-create flow (same rules as proposition list).
+     *
+     * @return array{can_recreate_rdv: bool, recreate_proposition_id: int|null, recreate_from_failed_rdv_id: int|null, is_recreation_context: bool}
+     */
+    private function matchmakerRowRecreationMeta(User $me, Rdv $rdv): array
+    {
+        $empty = [
+            'can_recreate_rdv' => false,
+            'recreate_proposition_id' => null,
+            'recreate_from_failed_rdv_id' => null,
+            'is_recreation_context' => false,
+        ];
+
+        if ($rdv->status !== Rdv::STATUS_ECHEC) {
+            return $empty;
+        }
+
+        $ref = (int) $rdv->reference_user_id;
+        $comp = (int) $rdv->compatible_user_id;
+
+        if (! Rdv::pairHasFailedRdv($ref, $comp)) {
+            return $empty;
+        }
+
+        $hasSuccessfulRdv = Rdv::query()
+            ->where('status', Rdv::STATUS_REUSSI)
+            ->where(function ($q) use ($ref, $comp) {
+                $q->where(function ($forward) use ($ref, $comp) {
+                    $forward->where('reference_user_id', $ref)->where('compatible_user_id', $comp);
+                })->orWhere(function ($reverse) use ($ref, $comp) {
+                    $reverse->where('reference_user_id', $comp)->where('compatible_user_id', $ref);
+                });
+            })
+            ->exists();
+
+        $blockingPairRdv = Rdv::query()
+            ->whereIn('status', [Rdv::STATUS_EN_COURS, Rdv::STATUS_REUSSI])
+            ->where(function ($q) use ($ref, $comp) {
+                $q->where(function ($forward) use ($ref, $comp) {
+                    $forward->where('reference_user_id', $ref)->where('compatible_user_id', $comp);
+                })->orWhere(function ($reverse) use ($ref, $comp) {
+                    $reverse->where('reference_user_id', $comp)->where('compatible_user_id', $ref);
+                });
+            })
+            ->exists();
+
+        if ($hasSuccessfulRdv || $blockingPairRdv) {
+            return $empty;
+        }
+
+        if (Proposition::pairRecreationBlockedByExternalPendingOrInterested($ref, $comp)) {
+            return $empty;
+        }
+
+        if (Rdv::hasInProgressRdvForUser($ref) || Rdv::hasInProgressRdvForUser($comp)) {
+            return $empty;
+        }
+
+        $latestPropId = Proposition::query()
+            ->where('matchmaker_id', $me->id)
+            ->where(function ($q) use ($ref, $comp) {
+                $q->where(function ($forward) use ($ref, $comp) {
+                    $forward->where('reference_user_id', $ref)->where('compatible_user_id', $comp);
+                })->orWhere(function ($reverse) use ($ref, $comp) {
+                    $reverse->where('reference_user_id', $comp)->where('compatible_user_id', $ref);
+                });
+            })
+            ->orderByDesc('id')
+            ->value('id');
+
+        return [
+            'can_recreate_rdv' => true,
+            'recreate_proposition_id' => $latestPropId !== null ? (int) $latestPropId : null,
+            'recreate_from_failed_rdv_id' => (int) $rdv->id,
+            'is_recreation_context' => true,
+        ];
+    }
+
     private function bothSidesAccepted(Proposition $proposition): bool
     {
         $refAccepted = Proposition::query()
             ->where('reference_user_id', $proposition->reference_user_id)
             ->where('compatible_user_id', $proposition->compatible_user_id)
             ->where('recipient_user_id', $proposition->reference_user_id)
-            ->where('status', 'interested')
+            ->whereIn('status', [Proposition::STATUS_INTERESTED, Proposition::STATUS_ACCEPTED])
             ->exists();
 
         $compAccepted = Proposition::query()
             ->where('reference_user_id', $proposition->reference_user_id)
             ->where('compatible_user_id', $proposition->compatible_user_id)
             ->where('recipient_user_id', $proposition->compatible_user_id)
-            ->where('status', 'interested')
+            ->whereIn('status', [Proposition::STATUS_INTERESTED, Proposition::STATUS_ACCEPTED])
             ->exists();
 
         return $refAccepted && $compAccepted;

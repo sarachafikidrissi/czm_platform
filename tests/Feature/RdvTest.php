@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\RdvController;
 use App\Models\Proposition;
 use App\Models\Rdv;
 use App\Models\RdvFeedback;
@@ -455,5 +456,183 @@ class RdvTest extends TestCase
         $propositionsList = $props['propositions'] ?? [];
         $hasCanCreateTrue = collect($propositionsList)->contains('can_create_rdv', true);
         $this->assertFalse($hasCanCreateTrue);
+    }
+
+    public function test_recreate_rdv_succeeds_with_motif_after_echec(): void
+    {
+        $mm = $this->makeUserWithRole('matchmaker');
+        $ref = $this->makeUserWithRole('user', ['assigned_matchmaker_id' => $mm->id]);
+        $comp = $this->makeUserWithRole('user', ['assigned_matchmaker_id' => $mm->id]);
+
+        [$refProp1] = $this->makeAcceptedPropositionPair($mm, $ref, $comp);
+        $this->actingAs($mm)->postJson(route('staff.rdv.store'), [
+            'proposition_id' => $refProp1->id,
+            'share_phone' => false,
+        ])->assertStatus(201);
+
+        $firstRdv = Rdv::query()->first();
+        $this->assertNotNull($firstRdv);
+        $firstRdv->update(['status' => Rdv::STATUS_ECHEC]);
+
+        [$refProp2] = $this->makeAcceptedPropositionPair($mm, $ref, $comp);
+
+        $response = $this->actingAs($mm)->postJson(route('staff.rdv.store'), [
+            'proposition_id' => $refProp2->id,
+            'share_phone' => false,
+            'motif_de_recreation' => '  Les parties souhaitent réessayer.  ',
+        ]);
+
+        $response->assertStatus(201)
+            ->assertJsonPath('message', RdvController::MESSAGE_RECREATE_SUCCESS);
+
+        $this->assertDatabaseHas('rdvs', [
+            'reference_user_id' => $ref->id,
+            'compatible_user_id' => $comp->id,
+            'status' => Rdv::STATUS_EN_COURS,
+            'is_recreation' => true,
+        ]);
+    }
+
+    public function test_recreate_rdv_blocked_without_motif_after_echec(): void
+    {
+        $mm = $this->makeUserWithRole('matchmaker');
+        $ref = $this->makeUserWithRole('user', ['assigned_matchmaker_id' => $mm->id]);
+        $comp = $this->makeUserWithRole('user', ['assigned_matchmaker_id' => $mm->id]);
+
+        [$refProp1] = $this->makeAcceptedPropositionPair($mm, $ref, $comp);
+        $this->actingAs($mm)->postJson(route('staff.rdv.store'), [
+            'proposition_id' => $refProp1->id,
+            'share_phone' => false,
+        ])->assertStatus(201);
+
+        Rdv::query()->first()?->update(['status' => Rdv::STATUS_ECHEC]);
+
+        [$refProp2] = $this->makeAcceptedPropositionPair($mm, $ref, $comp);
+
+        $this->actingAs($mm)->postJson(route('staff.rdv.store'), [
+            'proposition_id' => $refProp2->id,
+            'share_phone' => false,
+        ])->assertStatus(422)->assertJson([
+            'message' => RdvController::MESSAGE_RECREATE_BLOCKED_MOTIF,
+        ]);
+    }
+
+    public function test_create_rdv_rejects_motif_when_no_prior_echec(): void
+    {
+        $mm = $this->makeUserWithRole('matchmaker');
+        $ref = $this->makeUserWithRole('user', ['assigned_matchmaker_id' => $mm->id]);
+        $comp = $this->makeUserWithRole('user', ['assigned_matchmaker_id' => $mm->id]);
+
+        [$refProp] = $this->makeAcceptedPropositionPair($mm, $ref, $comp);
+
+        $this->actingAs($mm)->postJson(route('staff.rdv.store'), [
+            'proposition_id' => $refProp->id,
+            'share_phone' => false,
+            'motif_de_recreation' => 'Motif inattendu',
+        ])->assertStatus(422)->assertJson([
+            'message' => RdvController::MESSAGE_RECREATE_BLOCKED_NO_ECHEC,
+        ]);
+    }
+
+    public function test_recreate_rdv_blocked_when_external_pending_proposition(): void
+    {
+        $mm = $this->makeUserWithRole('matchmaker');
+        $ref = $this->makeUserWithRole('user', ['assigned_matchmaker_id' => $mm->id]);
+        $comp = $this->makeUserWithRole('user', ['assigned_matchmaker_id' => $mm->id]);
+        $other = $this->makeUserWithRole('user', ['assigned_matchmaker_id' => $mm->id]);
+
+        Rdv::create([
+            'matchmaker_id' => $mm->id,
+            'reference_user_id' => $ref->id,
+            'compatible_user_id' => $comp->id,
+            'proposition_id' => null,
+            'regle' => 'r',
+            'share_phone' => false,
+            'status' => Rdv::STATUS_ECHEC,
+        ]);
+
+        Proposition::create([
+            'matchmaker_id' => $mm->id,
+            'user_a_id' => $ref->id,
+            'user_b_id' => $other->id,
+            'reference_user_id' => $ref->id,
+            'compatible_user_id' => $other->id,
+            'recipient_user_id' => $ref->id,
+            'message' => 'Autre proposition',
+            'status' => Proposition::STATUS_PENDING,
+        ]);
+
+        [$refProp] = $this->makeAcceptedPropositionPair($mm, $ref, $comp);
+
+        $this->actingAs($mm)->postJson(route('staff.rdv.store'), [
+            'proposition_id' => $refProp->id,
+            'share_phone' => false,
+            'motif_de_recreation' => 'Réessai',
+        ])->assertStatus(422)->assertJson([
+            'message' => RdvController::MESSAGE_RECREATE_BLOCKED_ACTIVE_PROPOSITION,
+        ]);
+    }
+
+    public function test_propositions_list_marks_recreation_context_when_only_echec_rdv(): void
+    {
+        $mm = $this->makeUserWithRole('matchmaker');
+        $ref = $this->makeUserWithRole('user', ['assigned_matchmaker_id' => $mm->id]);
+        $comp = $this->makeUserWithRole('user', ['assigned_matchmaker_id' => $mm->id]);
+
+        Rdv::create([
+            'matchmaker_id' => $mm->id,
+            'reference_user_id' => $ref->id,
+            'compatible_user_id' => $comp->id,
+            'proposition_id' => null,
+            'regle' => 'r',
+            'share_phone' => false,
+            'status' => Rdv::STATUS_ECHEC,
+        ]);
+
+        $this->makeAcceptedPropositionPair($mm, $ref, $comp);
+
+        $response = $this->actingAs($mm)->get(route('staff.matchmaker.propositions'));
+        $response->assertStatus(200);
+        $props = $response->viewData('page')['props'] ?? [];
+        $propositionsList = $props['propositions'] ?? [];
+
+        $row = collect($propositionsList)->first(fn ($p) => (bool) ($p['can_create_rdv'] ?? false));
+        $this->assertNotNull($row);
+        $this->assertTrue($row['is_recreation_context']);
+    }
+
+    public function test_matchmaker_echec_rdv_list_exposes_recreate_action_when_pair_ready(): void
+    {
+        $mm = $this->makeUserWithRole('matchmaker');
+        $ref = $this->makeUserWithRole('user', ['assigned_matchmaker_id' => $mm->id]);
+        $comp = $this->makeUserWithRole('user', ['assigned_matchmaker_id' => $mm->id]);
+
+        Rdv::create([
+            'matchmaker_id' => $mm->id,
+            'reference_user_id' => $ref->id,
+            'compatible_user_id' => $comp->id,
+            'proposition_id' => null,
+            'regle' => 'r',
+            'message' => null,
+            'share_phone' => false,
+            'status' => Rdv::STATUS_ECHEC,
+        ]);
+
+        $this->makeAcceptedPropositionPair($mm, $ref, $comp);
+
+        $response = $this->actingAs($mm)->get(route('staff.rdv.matchmaker.list', ['status' => 'echec']));
+        $response->assertStatus(200);
+        $props = $response->viewData('page')['props'] ?? [];
+        $rows = $props['rdvs'] ?? [];
+        $this->assertNotEmpty($rows);
+        $echecRow = collect($rows)->firstWhere('status', Rdv::STATUS_ECHEC);
+        $this->assertNotNull($echecRow);
+        $this->assertTrue($echecRow['can_recreate_rdv'] ?? false);
+        $this->assertTrue(
+            ($echecRow['recreate_proposition_id'] ?? null) !== null
+                || ($echecRow['recreate_from_failed_rdv_id'] ?? null) !== null
+        );
+        $this->assertNotNull($echecRow['recreate_from_failed_rdv_id'] ?? null);
+        $this->assertTrue($echecRow['is_recreation_context'] ?? false);
     }
 }
