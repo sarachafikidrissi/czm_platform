@@ -12,8 +12,15 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Update default tax_rate to 20.00
-        DB::statement("ALTER TABLE bills MODIFY COLUMN tax_rate DECIMAL(5,2) DEFAULT 20.00");
+        // MySQL-only MODIFY COLUMN syntax is replaced with the portable Schema builder
+        // so this migration can run under both MySQL (production) and SQLite (test suite).
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement('ALTER TABLE bills MODIFY COLUMN tax_rate DECIMAL(5,2) DEFAULT 20.00');
+        } else {
+            Schema::table('bills', function (Blueprint $table) {
+                $table->decimal('tax_rate', 5, 2)->default(20.00)->change();
+            });
+        }
     }
 
     /**
@@ -21,7 +28,12 @@ return new class extends Migration
      */
     public function down(): void
     {
-        // Revert to 15.00
-        DB::statement("ALTER TABLE bills MODIFY COLUMN tax_rate DECIMAL(5,2) DEFAULT 15.00");
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement('ALTER TABLE bills MODIFY COLUMN tax_rate DECIMAL(5,2) DEFAULT 15.00');
+        } else {
+            Schema::table('bills', function (Blueprint $table) {
+                $table->decimal('tax_rate', 5, 2)->default(15.00)->change();
+            });
+        }
     }
 };

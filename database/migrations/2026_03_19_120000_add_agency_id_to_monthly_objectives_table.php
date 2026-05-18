@@ -15,7 +15,7 @@ return new class extends Migration
     public function up(): void
     {
         try {
-            DB::statement('ALTER TABLE monthly_objectives DROP INDEX monthly_objectives_user_role_month_year_unique');
+            Schema::table('monthly_objectives', fn (Blueprint $t) => $t->dropUnique('monthly_objectives_user_role_month_year_unique'));
         } catch (\Exception $e) {
             // Index name may differ
         }
@@ -30,12 +30,9 @@ return new class extends Migration
             }
         });
 
-        try {
-            DB::statement('ALTER TABLE monthly_objectives ADD UNIQUE KEY monthly_objectives_scope_unique (user_id, role_type, agency_id, month, year)');
-        } catch (\Exception $e) {
-            // If duplicate data exists, migration may fail — clean data first
-            throw $e;
-        }
+        Schema::table('monthly_objectives', function (Blueprint $table) {
+            $table->unique(['user_id', 'role_type', 'agency_id', 'month', 'year'], 'monthly_objectives_scope_unique');
+        });
     }
 
     /**
@@ -44,7 +41,7 @@ return new class extends Migration
     public function down(): void
     {
         try {
-            DB::statement('ALTER TABLE monthly_objectives DROP INDEX monthly_objectives_scope_unique');
+            Schema::table('monthly_objectives', fn (Blueprint $t) => $t->dropUnique('monthly_objectives_scope_unique'));
         } catch (\Exception $e) {
         }
 
@@ -55,6 +52,8 @@ return new class extends Migration
             }
         });
 
-        DB::statement('ALTER TABLE monthly_objectives ADD UNIQUE KEY monthly_objectives_user_role_month_year_unique (user_id, role_type, month, year)');
+        Schema::table('monthly_objectives', function (Blueprint $table) {
+            $table->unique(['user_id', 'role_type', 'month', 'year'], 'monthly_objectives_user_role_month_year_unique');
+        });
     }
 };

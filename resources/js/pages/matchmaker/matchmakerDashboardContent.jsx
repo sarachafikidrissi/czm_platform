@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
-import { router, usePage, Link } from '@inertiajs/react';
+import { usePage, Link } from '@inertiajs/react';
+import axios from 'axios';
 import { useTranslation } from 'react-i18next';
+import KpiStatsGrid from '@/components/stats/KpiStatsGrid';
+import MonthSelector from '@/components/stats/MonthSelector';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -54,6 +57,7 @@ const COLORS = {
 function MatchMakerDashboardContent({ expiringClients = [] }) {
     const { t } = useTranslation();
     const { props } = usePage();
+    const kpiStats = props.kpiStats;
     const [statistics, setStatistics] = useState([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('overview');
@@ -70,23 +74,20 @@ function MatchMakerDashboardContent({ expiringClients = [] }) {
 
     const fetchStatistics = () => {
         setLoading(true);
-        const params = {
-            time_range: timeRange,
-            month,
-            year,
-        };
-
-        router.get('/admin/matchmaker-statistics', params, {
-            preserveState: true,
-            preserveScroll: true,
-            onSuccess: (page) => {
-                setStatistics(page.props.statistics || []);
+        axios
+            .get('/admin/matchmaker-statistics', {
+                params: { time_range: timeRange, month, year },
+                headers: { 'X-Inertia': 'true' },
+            })
+            .then((response) => {
+                setStatistics(response.data?.props?.statistics || []);
+            })
+            .catch(() => {
+                // silently fail — statistics block will remain empty
+            })
+            .finally(() => {
                 setLoading(false);
-            },
-            onError: () => {
-                setLoading(false);
-            },
-        });
+            });
     };
 
     // Generate months and years for select
@@ -126,6 +127,24 @@ function MatchMakerDashboardContent({ expiringClients = [] }) {
     if (loading) {
         return (
             <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
+
+                {/* ── KPI Stats Section ─────────────────────────────────────── */}
+                {kpiStats && (
+                    <div className="mb-8">
+                        <div className="flex items-center justify-between mb-4">
+                            <h2 className="text-lg font-semibold text-foreground">Mes KPIs</h2>
+                            <MonthSelector month={kpiStats.month} year={kpiStats.year} />
+                        </div>
+                        <KpiStatsGrid
+                            cards={kpiStats.cards}
+                            loading={false}
+                            error={kpiStats.error}
+                            month={kpiStats.month}
+                            year={kpiStats.year}
+                        />
+                    </div>
+                )}
+
                 {/* Header Skeleton */}
                 <div className="flex flex-col gap-3">
                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
@@ -188,6 +207,24 @@ function MatchMakerDashboardContent({ expiringClients = [] }) {
     if (!stat) {
         return (
             <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
+
+                {/* ── KPI Stats Section ─────────────────────────────────────── */}
+                {kpiStats && (
+                    <div className="mb-8">
+                        <div className="flex items-center justify-between mb-4">
+                            <h2 className="text-lg font-semibold text-foreground">Mes KPIs</h2>
+                            <MonthSelector month={kpiStats.month} year={kpiStats.year} />
+                        </div>
+                        <KpiStatsGrid
+                            cards={kpiStats.cards}
+                            loading={false}
+                            error={kpiStats.error}
+                            month={kpiStats.month}
+                            year={kpiStats.year}
+                        />
+                    </div>
+                )}
+
                 <div className="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border p-6">
                     <div className="text-lg font-semibold">{t('navigation.matchmakerStatistics')}</div>
                     <div className="mt-2 text-sm text-neutral-700 dark:text-neutral-200">
@@ -200,6 +237,26 @@ function MatchMakerDashboardContent({ expiringClients = [] }) {
 
     return (
         <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
+
+            {/* ── KPI Stats Section ─────────────────────────────────────── */}
+            {kpiStats && (
+                <div className="mb-8">
+                    <div className="flex items-center justify-between mb-4">
+                        <div>
+                            <h2 className="text-lg font-semibold text-foreground">Mes KPIs</h2>
+                        </div>
+                        <MonthSelector month={kpiStats.month} year={kpiStats.year} />
+                    </div>
+                    <KpiStatsGrid
+                        cards={kpiStats.cards}
+                        loading={false}
+                        error={kpiStats.error}
+                        month={kpiStats.month}
+                        year={kpiStats.year}
+                    />
+                </div>
+            )}
+
             {/* Header */}
             <div className="flex flex-col gap-3">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">

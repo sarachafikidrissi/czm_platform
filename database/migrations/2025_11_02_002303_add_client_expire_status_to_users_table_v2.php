@@ -12,14 +12,15 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // First, modify enum to temporarily include both old and new values
-        DB::statement("ALTER TABLE users MODIFY COLUMN status ENUM('prospect', 'member', 'client', 'Client expiré', 'client_expire') DEFAULT 'prospect'");
-        
-        // Then, convert any existing 'Client expiré' to 'client_expire' using raw SQL
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement("ALTER TABLE users MODIFY COLUMN status ENUM('prospect', 'member', 'client', 'Client expiré', 'client_expire') DEFAULT 'prospect'");
+        }
+
         DB::statement("UPDATE users SET status = 'client_expire' WHERE status = 'Client expiré'");
-        
-        // Finally, modify enum to only include 'client_expire' (remove 'Client expiré')
-        DB::statement("ALTER TABLE users MODIFY COLUMN status ENUM('prospect', 'member', 'client', 'client_expire') DEFAULT 'prospect'");
+
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement("ALTER TABLE users MODIFY COLUMN status ENUM('prospect', 'member', 'client', 'client_expire') DEFAULT 'prospect'");
+        }
     }
 
     /**
@@ -54,7 +55,8 @@ return new class extends Migration
             }
         }
         
-        // Then, revert to enum without client_expire and matched
-        DB::statement("ALTER TABLE users MODIFY COLUMN status ENUM('prospect', 'member', 'client') DEFAULT 'prospect'");
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement("ALTER TABLE users MODIFY COLUMN status ENUM('prospect', 'member', 'client') DEFAULT 'prospect'");
+        }
     }
 };

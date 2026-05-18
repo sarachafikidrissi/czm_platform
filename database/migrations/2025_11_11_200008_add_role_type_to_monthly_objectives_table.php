@@ -38,12 +38,16 @@ return new class extends Migration
         // Add new unique constraint (drop old one if exists)
         if (Schema::hasColumn('monthly_objectives', 'role_type')) {
             try {
-                DB::statement('ALTER TABLE monthly_objectives DROP INDEX monthly_objectives_role_type_month_year_unique');
+                Schema::table('monthly_objectives', function (Blueprint $table) {
+                    $table->dropUnique('monthly_objectives_role_type_month_year_unique');
+                });
             } catch (\Exception $e) {
-                // Index doesn't exist, that's fine
+                // Index doesn't exist yet, that's fine
             }
-            
-            DB::statement('ALTER TABLE monthly_objectives ADD UNIQUE KEY monthly_objectives_role_type_month_year_unique (role_type, month, year)');
+
+            Schema::table('monthly_objectives', function (Blueprint $table) {
+                $table->unique(['role_type', 'month', 'year'], 'monthly_objectives_role_type_month_year_unique');
+            });
         }
     }
 

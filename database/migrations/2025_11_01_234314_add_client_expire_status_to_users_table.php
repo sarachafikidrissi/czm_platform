@@ -12,8 +12,10 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Modify enum to include 'Client expiré'
-        DB::statement("ALTER TABLE users MODIFY COLUMN status ENUM('prospect', 'member', 'client', 'Client expiré') DEFAULT 'prospect'");
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement("ALTER TABLE users MODIFY COLUMN status ENUM('prospect', 'member', 'client', 'Client expiré') DEFAULT 'prospect'");
+        }
+        // SQLite uses a TEXT column and accepts any string value — no ENUM change needed.
     }
 
     /**
@@ -21,7 +23,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        // Revert to original enum values
-        DB::statement("ALTER TABLE users MODIFY COLUMN status ENUM('prospect', 'member', 'client') DEFAULT 'prospect'");
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement("ALTER TABLE users MODIFY COLUMN status ENUM('prospect', 'member', 'client') DEFAULT 'prospect'");
+        }
     }
 };

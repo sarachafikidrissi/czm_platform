@@ -7,6 +7,7 @@ use App\Models\MatrimonialPack;
 use App\Models\Profile;
 use App\Models\Post;
 use App\Models\User;
+use App\Services\StatsService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -16,10 +17,14 @@ use Inertia\Response;
 
 class DashboardController extends Controller
 {
+    public function __construct(private StatsService $statsService) {}
+
     /**
-     * Display the dashboard based on user role
+     * Display the dashboard based on user role.
+     * Accepts optional query params: month, year, agency_id, matchmaker_id (admin),
+     * agency_matchmaker_id (manager agency section).
      */
-    public function index(): Response
+    public function index(Request $request): Response
     {
         $user = Auth::user();
         $role = $this->getUserRole($user);
@@ -35,23 +40,30 @@ class DashboardController extends Controller
         $unpaidBill = null;
         $expiredSubscription = null;
         $recentPosts = null;
+        $kpiStats = null;
+
+        // Validate and parse month/year query params (default to current month)
+        [$month, $year] = $this->resolveDashboardMonthYear($request);
 
         // Admin dashboard data
         if ($role === 'admin') {
             $agencies = Agency::all();
             $stats = $this->getAdminStats();
+            $kpiStats = $this->buildAdminKpiStats($request, $user, $month, $year, $agencies);
         }
         
         // Manager dashboard data
         if ($role === 'manager' && $user && $user->agency_id) {
             $stats = $this->getManagerStats($user);
             $posts = $this->getManagerPosts($user);
+            $kpiStats = $this->buildManagerKpiStats($request, $user, $month, $year);
         }
         
         // Matchmaker dashboard data
         $expiringClients = null;
         if ($role === 'matchmaker' && $user) {
             $expiringClients = $this->getExpiringClientsForMatchmaker($user);
+            $kpiStats = $this->buildMatchmakerKpiStats($user, $month, $year);
         }
         
         // User dashboard data
@@ -81,6 +93,7 @@ class DashboardController extends Controller
             'role' => $role,
             'agencies' => $agencies,
             'stats' => $stats,
+            'kpiStats' => $kpiStats,
             'profile' => $profile,
             'matrimonialPackName' => $matrimonialPackName,
             'subscriptionReminder' => $subscriptionReminder,
@@ -344,6 +357,128 @@ class DashboardController extends Controller
         
         return $expiringClients;
     }
+
+    /**
+     * Parse and normalize dashboard month/year query params.
+     *
+     * @return array{0: int, 1: int} [month, year]
+     */
+    private function resolveDashboardMonthYear(Request $request): array
+    {
+        $now = Carbon::now();
+        $month = (int) $request->input('month', $now->month);
+        $year  = (int) $request->input('year', $now->year);
+
+        $month = max(1, min(12, $month));
+
+        if ($year < 1) {
+            $year = $now->year;
+        }
+
+        // Block future months
+        if ($year > $now->year || ($year === $now->year && $month > $now->month)) {
+            $month = $now->month;
+            $year  = $now->year;
+        }
+
+        return [$month, $year];
+    }
+
+    // -------------------------------------------------------------------------
+    // KPI Stats builders
+    // -------------------------------------------------------------------------
+
+    private function buildMatchmakerKpiStats(User $user, int $month, int $year): array
+    {
+        try {
+            $cards = $this->statsService->getDashboardStats($user, $month, $year, 'personal');
+            return [
+                'month'  => $month,
+                'year'   => $year,
+                'scope'  => 'personal',
+                'cards'  => $cards,
+                'error'  => null,
+            ];
+        } catch (\Throwable $e) {
+            return ['month' => $month, 'year' => $year, 'scope' => 'personal', 'cards' => null, 'error' => true];
+        }
+    }
+
+    private function buildManagerKpiStats(Request $request, User $user, int $month, int $year): array
+    {
+        $agencyMatchmakerId = $request->input('agency_matchmaker_id') ? (int) $request->input('agency_matchmaker_id') : null;
+
+        try {
+            $personal = $this->statsService->getDashboardStats($user, $month, $year, 'personal');
+            $agency   = $this->statsService->getDashboardStats($user, $month, $year, 'agency', null, $agencyMatchmakerId);
+
+            // Build matchmaker list for agency dropdown
+            $matchmakers = StatsService::getMatchmakerList($user->agency_id);
+
+            return [
+                'month'      => $month,
+                'year'       => $year,
+                'personal'   => ['scope' => 'personal', 'cards' => $personal, 'error' => null],
+                'agency'     => ['scope' => 'agency', 'cards' => $agency, 'error' => null, 'activeMatchmakerId' => $agencyMatchmakerId],
+                'matchmakers'=> $matchmakers,
+                'agencyName' => Agency::find($user->agency_id)?->name,
+            ];
+        } catch (\Throwable $e) {
+            return [
+                'month' => $month, 'year' => $year,
+                'personal' => ['scope' => 'personal', 'cards' => null, 'error' => true],
+                'agency'   => ['scope' => 'agency', 'cards' => null, 'error' => true, 'activeMatchmakerId' => null],
+                'matchmakers' => [],
+                'agencyName' => Agency::find($user->agency_id)?->name,
+            ];
+        }
+    }
+
+    private function buildAdminKpiStats(Request $request, User $user, int $month, int $year, $agencies): array
+    {
+        $agencyId      = $request->input('agency_id') ? (int) $request->input('agency_id') : null;
+        $matchmakerId  = $request->input('matchmaker_id') ? (int) $request->input('matchmaker_id') : null;
+
+        // Cascade validation: matchmaker must belong to agency if both are set
+        if ($agencyId && $matchmakerId) {
+            $mm = User::find($matchmakerId);
+            if ($mm && (int) $mm->agency_id !== $agencyId) {
+                return [
+                    'month' => $month, 'year' => $year, 'scope' => 'platform',
+                    'cards' => null,
+                    'error' => 'mismatch',
+                    'agencyId' => $agencyId, 'matchmakerId' => $matchmakerId,
+                    'matchmakers' => StatsService::getMatchmakerList($agencyId),
+                    'agencies' => $agencies->map(fn($a) => ['id' => $a->id, 'name' => $a->name])->values(),
+                ];
+            }
+        }
+
+        try {
+            $cards = $this->statsService->getDashboardStats($user, $month, $year, 'platform', $agencyId, $matchmakerId);
+
+            return [
+                'month'          => $month,
+                'year'           => $year,
+                'scope'          => 'platform',
+                'cards'          => $cards,
+                'error'          => null,
+                'agencyId'       => $agencyId,
+                'matchmakerId'   => $matchmakerId,
+                'matchmakers'    => StatsService::getMatchmakerList($agencyId),
+                'agencies'       => $agencies->map(fn($a) => ['id' => $a->id, 'name' => $a->name])->values(),
+            ];
+        } catch (\Throwable $e) {
+            return [
+                'month' => $month, 'year' => $year, 'scope' => 'platform',
+                'cards' => null, 'error' => true,
+                'agencyId' => $agencyId, 'matchmakerId' => $matchmakerId,
+                'matchmakers' => [], 'agencies' => [],
+            ];
+        }
+    }
+
+    // -------------------------------------------------------------------------
 
     /**
      * Get recent posts from matchmakers and managers

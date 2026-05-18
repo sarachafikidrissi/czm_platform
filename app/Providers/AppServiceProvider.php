@@ -5,6 +5,8 @@ namespace App\Providers;
 use App\Models\Proposition;
 use App\Models\Rdv;
 use App\Models\RdvFeedback;
+use App\Models\User;
+use App\Observers\StatsObserver;
 use App\Policies\PropositionPolicy;
 use App\Policies\RdvPolicy;
 use App\Policies\UserActivityPolicy;
@@ -31,6 +33,10 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Proposition::class, PropositionPolicy::class);
         Gate::policy(Rdv::class, RdvPolicy::class);
         Gate::policy(RdvFeedback::class, RdvPolicy::class);
+
+        User::observe(StatsObserver::class);
+        Proposition::observe(StatsObserver::class);
+        Rdv::observe(StatsObserver::class);
 
         Gate::define('viewUserActivities', [UserActivityPolicy::class, 'viewAny']);
 

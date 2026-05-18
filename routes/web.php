@@ -98,7 +98,12 @@ Route::middleware(['auth'])->group(function () {
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {
-    Route::get('dashboard', function () {
+    Route::get('dashboard', [\App\Http\Controllers\DashboardController::class, 'index'])->name('dashboard');
+
+    // *** LEGACY CLOSURE REMOVED — logic lives in DashboardController ***
+    // Keep the block below only as a reference guard — it is unreachable.
+    if (false) {
+        Route::get('dashboard_legacy_noop', function () {
         $user = \Illuminate\Support\Facades\Auth::user();
         $role = null;
         if ($user) {
@@ -333,7 +338,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
             'posts' => $posts,
             'recentPosts' => $recentPosts ?? null,
         ]);
-    })->name('dashboard');
+        })->name('dashboard_legacy_noop');
+    } // end if(false)
 
     // Admin routes
     Route::middleware(['role:admin'])->prefix('admin')->name('admin.')->group(function () {

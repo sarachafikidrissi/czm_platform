@@ -1,4 +1,4 @@
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,15 +9,63 @@ import CreateServiceButton from '@/components/admin/create-service-button';
 import CreateSecteurButton from '@/components/admin/create-secteur-button';
 import CreateMatrimonialPackButton from '@/components/admin/create-matrimonial-pack-button';
 import { Skeleton } from '@/components/ui/skeleton';
+import KpiStatsGrid from '@/components/stats/KpiStatsGrid';
+import MonthSelector from '@/components/stats/MonthSelector';
+import KpiFilterBar from '@/components/stats/KpiFilterBar';
 
 function AdminDashboardContent({ agencies = [], stats = { totalUsers: 0, pending: 0, approvedManagers: 0, approvedMatchmakers: 0 } }) {
     const { t } = useTranslation();
     const isLoading = stats === null || stats === undefined;
+    const { props } = usePage();
+    const kpiStats = props.kpiStats;
+
+    const month        = kpiStats?.month ?? new Date().getMonth() + 1;
+    const year         = kpiStats?.year  ?? new Date().getFullYear();
+    const kpiAgencies  = kpiStats?.agencies  ?? [];
+    const matchmakers  = kpiStats?.matchmakers ?? [];
+    const agencyId     = kpiStats?.agencyId ?? null;
+    const matchmakerId = kpiStats?.matchmakerId ?? null;
+
     return (
         <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
             <div className="flex items-center justify-between">
                 <h1 className="text-2xl font-bold">{t('admin.dashboard.title')}</h1>
             </div>
+
+            {/* ── Vue Plateforme KPI Section ────────────────────────────── */}
+            {kpiStats && (
+                <div className="mb-8">
+                    <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
+                        <h2 className="text-lg font-semibold text-foreground">Vue plateforme</h2>
+                        <MonthSelector
+                            month={month}
+                            year={year}
+                            extraParams={{ agency_id: agencyId, matchmaker_id: matchmakerId }}
+                        />
+                    </div>
+
+                    {/* Cascade filter bar */}
+                    <div className="mb-4">
+                        <KpiFilterBar
+                            agencies={kpiAgencies}
+                            matchmakers={matchmakers}
+                            agencyId={agencyId}
+                            matchmakerId={matchmakerId}
+                            month={month}
+                            year={year}
+                        />
+                    </div>
+
+                    <KpiStatsGrid
+                        cards={kpiStats.cards}
+                        loading={false}
+                        error={kpiStats.error}
+                        month={month}
+                        year={year}
+                        extraParams={{ agency_id: agencyId, matchmaker_id: matchmakerId }}
+                    />
+                </div>
+            )}
 
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
                 <Card>

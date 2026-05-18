@@ -12,22 +12,17 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Drop the old unique constraint
-        try {
-            DB::statement('ALTER TABLE monthly_objectives DROP INDEX monthly_objectives_role_type_month_year_unique');
-        } catch (\Exception $e) {
-            // Index doesn't exist, that's fine
+        foreach (['monthly_objectives_role_type_month_year_unique', 'monthly_objectives_user_role_month_year_unique'] as $idx) {
+            try {
+                Schema::table('monthly_objectives', fn (Blueprint $t) => $t->dropUnique($idx));
+            } catch (\Exception $e) {
+                // Index didn't exist
+            }
         }
-        
-        // Add new unique constraint: user_id + role_type + month + year
-        // This allows each user to have one objective per role type per month/year
-        try {
-            DB::statement('ALTER TABLE monthly_objectives DROP INDEX monthly_objectives_user_role_month_year_unique');
-        } catch (\Exception $e) {
-            // Index doesn't exist, that's fine
-        }
-        
-        DB::statement('ALTER TABLE monthly_objectives ADD UNIQUE KEY monthly_objectives_user_role_month_year_unique (user_id, role_type, month, year)');
+
+        Schema::table('monthly_objectives', function (Blueprint $table) {
+            $table->unique(['user_id', 'role_type', 'month', 'year'], 'monthly_objectives_user_role_month_year_unique');
+        });
     }
 
     /**
@@ -35,14 +30,13 @@ return new class extends Migration
      */
     public function down(): void
     {
-        // Drop the new unique constraint
         try {
-            DB::statement('ALTER TABLE monthly_objectives DROP INDEX monthly_objectives_user_role_month_year_unique');
+            Schema::table('monthly_objectives', fn (Blueprint $t) => $t->dropUnique('monthly_objectives_user_role_month_year_unique'));
         } catch (\Exception $e) {
-            // Index doesn't exist, that's fine
         }
-        
-        // Restore old unique constraint
-        DB::statement('ALTER TABLE monthly_objectives ADD UNIQUE KEY monthly_objectives_role_type_month_year_unique (role_type, month, year)');
+
+        Schema::table('monthly_objectives', function (Blueprint $table) {
+            $table->unique(['role_type', 'month', 'year'], 'monthly_objectives_role_type_month_year_unique');
+        });
     }
 };
