@@ -50,6 +50,19 @@ export function Toast({
   const [timeRemaining, setTimeRemaining] = React.useState(duration)
   const [isPaused, setIsPaused] = React.useState(false)
   const intervalRef = React.useRef<NodeJS.Timeout | null>(null)
+  const onCloseRef = React.useRef(onClose)
+  const previousIsOpenRef = React.useRef(isOpen)
+
+  React.useLayoutEffect(() => {
+    onCloseRef.current = onClose
+  }, [onClose])
+
+  React.useEffect(() => {
+    if (previousIsOpenRef.current && !isOpen) {
+      onCloseRef.current?.()
+    }
+    previousIsOpenRef.current = isOpen
+  }, [isOpen])
 
   React.useEffect(() => {
     if (!isOpen || isPaused) return
@@ -58,7 +71,6 @@ export function Toast({
       setTimeRemaining((prev) => {
         if (prev <= 100) {
           setIsOpen(false)
-          onClose?.()
           return 0
         }
         return prev - 100
@@ -70,7 +82,7 @@ export function Toast({
         clearInterval(intervalRef.current)
       }
     }
-  }, [isOpen, isPaused, onClose])
+  }, [isOpen, isPaused])
 
   const handleMouseEnter = () => {
     setIsPaused(true)
@@ -90,7 +102,6 @@ export function Toast({
 
   const handleClose = () => {
     setIsOpen(false)
-    onClose?.()
   }
 
   const progressPercentage = (timeRemaining / duration) * 100

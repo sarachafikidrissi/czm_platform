@@ -228,7 +228,7 @@ class ObjectiveCommissionCalculator
         $personalRealized = ObjectiveMetricsService::calculateRealizedForManager($managerId, $month, $year);
         $personalProgress = self::calculateProgress($personalObjective, $personalRealized);
 
-        $agencyObjective = ObjectiveMetricsService::resolveObjectiveForAgency($agencyId, $month, $year);
+        $agencyObjective = ObjectiveMetricsService::sumObjectivesForAgency($agencyId, $month, $year);
         $agencyRealized = ObjectiveMetricsService::calculateRealizedForAgencyById($agencyId, $month, $year);
         $agencyProgress = self::calculateProgress($agencyObjective, $agencyRealized);
 
@@ -241,7 +241,7 @@ class ObjectiveCommissionCalculator
         foreach ($matchmakerIds as $mmId) {
             $mmId = (int) $mmId;
             $r = ObjectiveMetricsService::calculateRealizedForMatchmaker($mmId, $month, $year);
-            $o = ObjectiveMetricsService::resolveObjectiveForView('matchmaker', $month, $year, $mmId);
+            $o = ObjectiveMetricsService::resolveObjectiveForUser($mmId, $month, $year);
             $p = self::calculateProgress($o, $r);
             $slices[$mmId] = ['realized' => $r, 'progress' => $p];
         }

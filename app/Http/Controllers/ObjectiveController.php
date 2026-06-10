@@ -113,19 +113,20 @@ class ObjectiveController extends Controller
             abort(403, 'Unauthorized access.');
         }
 
-        // Resolve objective: agency row, per-user row, or role default (user_id null)
+        // Resolve objective: per-user row or aggregated sum; null means none set for this scope
         if ($scopeType === 'agency') {
             $agencyIdForObjective = $roleName === 'admin' ? $targetAgencyId : $me->agency_id;
             $objective = $agencyIdForObjective
-                ? ObjectiveMetricsService::resolveObjectiveForAgency((int) $agencyIdForObjective, $month, $year)
+                ? ObjectiveMetricsService::sumObjectivesForAgency((int) $agencyIdForObjective, $month, $year)
                 : null;
+        } elseif ($scopeType === 'all') {
+            $objective = ObjectiveMetricsService::sumObjectivesForPlatform($month, $year);
+        } elseif ($scopeType === 'manager_individual' && $targetUserId) {
+            $objective = ObjectiveMetricsService::resolveManagerPersonalObjective($targetUserId, $month, $year);
+        } elseif ($targetUserId && in_array($scopeType, ['matchmaker_individual', 'self'], true)) {
+            $objective = ObjectiveMetricsService::resolveObjectiveForUser($targetUserId, $month, $year);
         } else {
-            $objective = ObjectiveMetricsService::resolveObjectiveForView(
-                $targetRoleType,
-                $month,
-                $year,
-                $this->objectiveUserIdForView($roleName, $scopeType, $targetUserId)
-            );
+            $objective = null;
         }
 
         // Calculate realized values based on selected scope
@@ -188,7 +189,11 @@ class ObjectiveController extends Controller
             $agencies = Agency::orderBy('name')->get(['id', 'name']);
         }
 
-        $staffForObjectives = [];
+        $agencyNames = Agency::pluck('name', 'id');
+        $defaultMonth = now()->month;
+        $defaultYear = now()->year;
+
+        $staffForObjectives = collect();
         if ($roleName === 'admin') {
             $staffForObjectives = User::where('approval_status', 'approved')
                 ->whereHas('roles', function ($q) {
@@ -199,34 +204,67 @@ class ObjectiveController extends Controller
                 ->get(['id', 'name', 'email', 'agency_id']);
         }
 
-        $selectedFilterUserId = in_array($scopeType, ['matchmaker_individual', 'manager_individual']) ? $targetUserId : null;
+        $existingObjectives = MonthlyObjective::where('month', $month)
+            ->where('year', $year)
+            ->whereNotNull('user_id')
+            ->get()
+            ->mapWithKeys(fn (MonthlyObjective $o) => [
+                (string) $o->user_id => [
+                    'id' => $o->id,
+                    'target_ventes' => (float) $o->target_ventes,
+                    'target_membres' => (int) $o->target_membres,
+                    'target_rdv' => (int) $o->target_rdv,
+                    'target_match' => (int) $o->target_match,
+                ],
+            ])
+            ->all();
+
+        $payableObjectiveId = ($objective instanceof MonthlyObjective && $objective->id)
+            ? $objective->id
+            : null;
 
         return Inertia::render('objectives/index', [
-            'objective' => $objective,
-            'realized' => $realized,
-            'progress' => $progress,
-            'commission' => $commission,
-            'month' => $month,
-            'year' => $year,
-            'userId' => $selectedFilterUserId,
-            'agencyId' => $targetAgencyId,
-            'roleType' => $targetRoleType,
-            'scopeType' => $scopeType,
-            'users' => $users,
-            'agencies' => $agencies,
-            'staffForObjectives' => $staffForObjectives,
-            'canEdit' => $roleName === 'admin',
-            'currentUser' => [
-                'id' => $me->id,
-                'name' => $me->name,
-                'role' => $roleName,
-                'agency_id' => $me->agency_id ? (int) $me->agency_id : null,
+            'role' => $this->handoffRole($roleName),
+            'locale' => app()->getLocale() === 'ar' ? 'ar' : (app()->getLocale() === 'en' ? 'en' : 'fr'),
+            'period' => [
+                'month' => $this->frenchMonthName($month),
+                'year' => $year,
+                'label' => $this->frenchMonthName($month).' '.$year,
+                'scope' => $this->buildPeriodScope($roleName, $scopeType, $userId, $targetAgencyId, $users, $agencies, $me),
             ],
+            'filters' => [
+                'agency' => $agencyId ? (string) $agencyId : '',
+                'user' => $userId ? (string) $userId : '',
+                'month' => (string) $month,
+                'year' => (string) $year,
+            ],
+            'filterDefaults' => [
+                'agency' => '',
+                'user' => '',
+                'month' => (string) $defaultMonth,
+                'year' => (string) $defaultYear,
+            ],
+            'filterOptions' => $this->buildFilterOptions($roleName, $users, $agencies, $year),
+            'objective' => $objective,
+            'kpis' => $objective !== null
+                ? $this->buildKpis($objective, $realized, $commission, $scopeType)
+                : [],
+            'commission' => $this->buildHandoffCommission($commission, $objective, $scopeType),
+            'staff' => $staffForObjectives->map(fn (User $u) => [
+                'id' => $u->id,
+                'name' => $u->name,
+                'role' => $u->hasRole('manager') ? 'Manager' : 'Conseiller',
+                'agency' => $agencyNames[$u->agency_id] ?? '—',
+            ])->values()->all(),
+            'existingObjectives' => $existingObjectives,
+            'payableObjectiveId' => $payableObjectiveId,
+            'scopeType' => $scopeType,
         ]);
     }
 
     /**
-     * Store or update objective (Admin only)
+     * Store objectives for one or more staff members (Admin only).
+     * Each selected user gets their own per-user row (user_id always set).
      */
     public function store(Request $request)
     {
@@ -243,56 +281,18 @@ class ObjectiveController extends Controller
             abort(403, 'Only admins can set objectives.');
         }
 
-        $objectiveScope = $request->input('objective_scope', 'staff');
-
-        if ($objectiveScope === 'agency') {
-            $validated = $request->validate([
-                'objective_scope' => 'required|in:agency',
-                'agency_id' => 'required|exists:agencies,id',
-                'month' => 'required|integer|min:1|max:12',
-                'year' => 'required|integer|min:2020|max:2100',
-                'target_ventes' => 'required|numeric|min:0',
-                'target_membres' => 'required|integer|min:0',
-                'target_rdv' => 'required|integer|min:0',
-                'target_match' => 'required|integer|min:0',
-            ]);
-
-            $targets = [
-                'target_ventes' => $validated['target_ventes'],
-                'target_membres' => $validated['target_membres'],
-                'target_rdv' => $validated['target_rdv'],
-                'target_match' => $validated['target_match'],
-            ];
-
-            MonthlyObjective::updateOrCreate(
-                [
-                    'agency_id' => (int) $validated['agency_id'],
-                    'role_type' => MonthlyObjective::ROLE_TYPE_AGENCY,
-                    'user_id' => null,
-                    'month' => $validated['month'],
-                    'year' => $validated['year'],
-                ],
-                $targets
-            );
-
-            return redirect()->back()->with('success', 'Objective saved successfully.');
-        }
-
         $validated = $request->validate([
-            'objective_scope' => 'nullable|in:staff',
-            'role_type' => 'required|in:matchmaker,manager',
             'month' => 'required|integer|min:1|max:12',
             'year' => 'required|integer|min:2020|max:2100',
             'target_ventes' => 'required|numeric|min:0',
             'target_membres' => 'required|integer|min:0',
             'target_rdv' => 'required|integer|min:0',
             'target_match' => 'required|integer|min:0',
-            'user_ids' => 'nullable|array',
+            'user_ids' => 'required|array|min:1',
             'user_ids.*' => 'integer|exists:users,id',
-            'agency_id' => 'nullable|exists:agencies,id',
         ]);
 
-        $userIds = array_values(array_unique(array_filter($validated['user_ids'] ?? [])));
+        $userIds = array_values(array_unique($validated['user_ids']));
 
         $targets = [
             'target_ventes' => $validated['target_ventes'],
@@ -301,39 +301,56 @@ class ObjectiveController extends Controller
             'target_match' => $validated['target_match'],
         ];
 
-        if (empty($userIds)) {
-            // Role-based default (applies to all users of this role without a per-user row)
+        foreach ($userIds as $uid) {
+            $roleType = $this->resolveStaffRoleType((int) $uid);
+
             MonthlyObjective::updateOrCreate(
                 [
-                    'role_type' => $validated['role_type'],
-                    'user_id' => null,
+                    'role_type' => $roleType,
+                    'user_id' => (int) $uid,
                     'agency_id' => null,
                     'month' => $validated['month'],
                     'year' => $validated['year'],
                 ],
-                $targets
+                array_merge($targets, ['updated_by' => $me->id])
             );
-        } else {
-            foreach ($userIds as $uid) {
-                $this->assertStaffMatchesObjective(
-                    (int) $uid,
-                    $validated['role_type'],
-                    isset($validated['agency_id']) ? (int) $validated['agency_id'] : null
-                );
-                MonthlyObjective::updateOrCreate(
-                    [
-                        'role_type' => $validated['role_type'],
-                        'user_id' => (int) $uid,
-                        'agency_id' => null,
-                        'month' => $validated['month'],
-                        'year' => $validated['year'],
-                    ],
-                    $targets
-                );
-            }
         }
 
         return redirect()->back()->with('success', 'Objective saved successfully.');
+    }
+
+    /**
+     * Update an existing objective (Admin only).
+     */
+    public function update(Request $request, MonthlyObjective $objective)
+    {
+        $me = Auth::user();
+        $roleName = null;
+        if ($me) {
+            $roleName = DB::table('model_has_roles')
+                ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+                ->where('model_has_roles.model_id', $me->id)
+                ->value('roles.name');
+        }
+
+        if ($roleName !== 'admin') {
+            abort(403, 'Only admins can update objectives.');
+        }
+
+        if ($objective->user_id === null) {
+            abort(404, 'Objective not found.');
+        }
+
+        $validated = $request->validate([
+            'target_ventes' => 'required|numeric|min:0',
+            'target_membres' => 'required|integer|min:0',
+            'target_rdv' => 'required|integer|min:0',
+            'target_match' => 'required|integer|min:0',
+        ]);
+
+        $objective->update(array_merge($validated, ['updated_by' => $me->id]));
+
+        return redirect()->back()->with('success', 'Objective updated successfully.');
     }
 
     /**
@@ -724,21 +741,6 @@ class ObjectiveController extends Controller
     }
 
     /**
-     * User id to use when resolving a per-user objective row (vs role default).
-     */
-    private function objectiveUserIdForView(string $roleName, string $scopeType, ?int $targetUserId): ?int
-    {
-        if (in_array($scopeType, ['matchmaker_individual', 'manager_individual'], true)) {
-            return $targetUserId;
-        }
-        if ($scopeType === 'self' && $roleName === 'matchmaker') {
-            return $targetUserId;
-        }
-
-        return null;
-    }
-
-    /**
      * @param  \App\Models\User  $me
      */
     private function buildCommissionPayload(
@@ -780,25 +782,191 @@ class ObjectiveController extends Controller
     }
 
     /**
-     * Ensure selected staff matches role type and optional agency filter.
+     * Resolve a staff member's role type for objective storage.
+     * Throws validation error if the user is not approved matchmaker or manager staff.
      */
-    private function assertStaffMatchesObjective(int $userId, string $roleType, ?int $agencyId): void
+    private function resolveStaffRoleType(int $userId): string
     {
         $user = User::findOrFail($userId);
+
+        if ($user->approval_status !== 'approved') {
+            throw ValidationException::withMessages([
+                'user_ids' => 'Each selected user must be approved staff.',
+            ]);
+        }
+
         $userRole = DB::table('model_has_roles')
             ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
             ->where('model_has_roles.model_id', $userId)
             ->whereIn('roles.name', ['matchmaker', 'manager'])
             ->value('roles.name');
-        if ($userRole !== $roleType) {
+
+        if (! $userRole) {
             throw ValidationException::withMessages([
-                'user_ids' => 'Each selected user must match the chosen role type.',
+                'user_ids' => 'Each selected user must be a matchmaker or manager.',
             ]);
         }
-        if ($agencyId !== null && (int) $user->agency_id !== $agencyId) {
-            throw ValidationException::withMessages([
-                'user_ids' => 'Each selected user must belong to the selected agency.',
-            ]);
+
+        return $userRole;
+    }
+
+    private function handoffRole(?string $roleName): string
+    {
+        return match ($roleName) {
+            'admin' => 'admin',
+            'manager' => 'manager',
+            'matchmaker' => 'conseiller',
+            default => 'conseiller',
+        };
+    }
+
+    private function frenchMonthName(int $month): string
+    {
+        return Carbon::create(null, $month, 1)->locale('fr')->translatedFormat('F');
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, User>|\Illuminate\Database\Eloquent\Collection<int, User>  $users
+     * @param  \Illuminate\Support\Collection<int, Agency>|\Illuminate\Database\Eloquent\Collection<int, Agency>  $agencies
+     */
+    private function buildPeriodScope(
+        string $roleName,
+        string $scopeType,
+        ?int $userId,
+        ?int $targetAgencyId,
+        $users,
+        $agencies,
+        User $me
+    ): string {
+        $users = collect($users);
+        $agencies = collect($agencies);
+
+        if ($userId) {
+            $user = $users->firstWhere('id', $userId) ?? User::with('roles')->find($userId);
+            if ($user) {
+                $roleLabel = $user->hasRole('manager') ? 'Manager' : 'Conseiller';
+
+                return $user->name.' · '.$roleLabel;
+            }
         }
+
+        if ($targetAgencyId) {
+            $agency = $agencies->firstWhere('id', $targetAgencyId) ?? Agency::find($targetAgencyId);
+
+            return $agency ? $agency->name : 'Agence';
+        }
+
+        if ($scopeType === 'all') {
+            return 'Tous les conseillers · Toutes les agences';
+        }
+
+        if ($scopeType === 'self' && $roleName === 'matchmaker') {
+            return $me->name.' · Conseiller';
+        }
+
+        if ($scopeType === 'agency' && $roleName === 'manager' && $me->agency_id) {
+            $agency = Agency::find($me->agency_id);
+
+            return ($agency?->name ?? 'Agence').' · Agrégé';
+        }
+
+        return 'Vue performance';
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, User>|\Illuminate\Database\Eloquent\Collection<int, User>  $users
+     * @param  \Illuminate\Support\Collection<int, Agency>|\Illuminate\Database\Eloquent\Collection<int, Agency>  $agencies
+     */
+    private function buildFilterOptions(string $roleName, $users, $agencies, int $currentYear): array
+    {
+        $months = collect(range(1, 12))->map(fn (int $m) => [
+            'value' => (string) $m,
+            'label' => $this->frenchMonthName($m),
+        ])->values()->all();
+
+        $years = collect(range($currentYear - 2, $currentYear + 1))->map(fn (int $y) => [
+            'value' => (string) $y,
+            'label' => (string) $y,
+        ])->values()->all();
+
+        $agencyOptions = [['value' => '', 'label' => 'Toutes les agences']];
+        foreach ($agencies as $agency) {
+            $agencyOptions[] = ['value' => (string) $agency->id, 'label' => $agency->name];
+        }
+
+        $userOptions = [['value' => '', 'label' => 'Tous les utilisateurs']];
+        foreach ($users as $user) {
+            $userOptions[] = ['value' => (string) $user->id, 'label' => $user->name];
+        }
+
+        return [
+            'agencies' => $roleName === 'admin' ? $agencyOptions : [],
+            'users' => in_array($roleName, ['admin', 'manager'], true) ? $userOptions : [],
+            'months' => $months,
+            'years' => $years,
+        ];
+    }
+
+    /**
+     * @param  array<string, float|int>  $realized
+     */
+    private function buildKpis(object $objective, array $realized, array $commission, string $scopeType): array
+    {
+        $definitions = [
+            ['key' => 'ventes', 'label' => 'Ventes', 'active' => true, 'target' => 'target_ventes', 'unit' => 'MAD'],
+            ['key' => 'membres', 'label' => 'Membres', 'active' => true, 'target' => 'target_membres', 'unit' => ''],
+            ['key' => 'rdv', 'label' => 'RDV', 'active' => false, 'target' => 'target_rdv', 'unit' => ''],
+            ['key' => 'match', 'label' => 'Match', 'active' => false, 'target' => 'target_match', 'unit' => ''],
+        ];
+
+        return collect($definitions)->map(function (array $def) use ($objective, $realized, $commission, $scopeType) {
+            return [
+                'key' => $def['key'],
+                'label' => $def['label'],
+                'active' => $def['active'],
+                'objectif' => (float) $objective->{$def['target']},
+                'realise' => (float) ($realized[$def['key']] ?? 0),
+                'unit' => $def['unit'],
+                'commission' => $this->kpiCommissionStatus($def['key'], $commission, $objective, $scopeType),
+            ];
+        })->values()->all();
+    }
+
+    private function kpiCommissionStatus(string $key, array $commission, object $objective, string $scopeType): string
+    {
+        if (in_array($scopeType, ['agency', 'all'], true)) {
+            return 'aggregate';
+        }
+
+        if (isset($objective->commission_paid) && $objective->commission_paid && $key === 'ventes') {
+            return 'paid';
+        }
+
+        return ($commission[$key]['eligible'] ?? false) ? 'eligible' : 'noteligible';
+    }
+
+    private function buildHandoffCommission(array $commission, ?object $objective, string $scopeType): array
+    {
+        if (in_array($scopeType, ['agency', 'all'], true)) {
+            return ['status' => 'aggregate', 'eligibleTotal' => 0, 'paidTotal' => 0];
+        }
+
+        if ($objective && isset($objective->commission_paid) && $objective->commission_paid) {
+            return [
+                'status' => 'paid',
+                'eligibleTotal' => 0,
+                'paidTotal' => (float) ($commission['summary']['total_amount'] ?? 0),
+            ];
+        }
+
+        if ($commission['summary']['eligible'] ?? false) {
+            return [
+                'status' => 'eligible',
+                'eligibleTotal' => (float) ($commission['summary']['total_amount'] ?? 0),
+                'paidTotal' => 0,
+            ];
+        }
+
+        return ['status' => 'none', 'eligibleTotal' => 0, 'paidTotal' => 0];
     }
 }

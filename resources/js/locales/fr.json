@@ -746,6 +746,7 @@
                 "managersAll": "Managers (Tous)",
                 "sharedObjective": "Cet objectif sera partagé par tous les {{roleType}}. Chaque {{roleTypeSingular}} verra ses propres résultats individuels.",
                 "scopeRoleDefault": "Ne cochez aucun membre pour définir l'objectif par défaut pour ce rôle (mois/année). Les personnes sans objectif personnel utilisent celui-ci.",
+                "scopeAgencyDefault": "Ne cochez aucun membre pour définir l'objectif partagé de l'agence sélectionnée uniquement (pas les autres agences).",
                 "scopeUsersHint": "Appliquer ces cibles à {{count}} membre(s) du personnel sélectionné(s).",
                 "leaveEmptyForRole": "Optionnel : filtrez par agence, puis sélectionnez un ou plusieurs membres pour des cibles individuelles.",
                 "selectStaffOptional": "Personnel (optionnel)",
@@ -776,7 +777,8 @@
             },
             "confirmMarkPaid": "Marquer la commission comme payée pour cet objectif ?",
             "perUserObjective": "Objectif personnel",
-            "agencyObjectiveBadge": "Objectif d'agence"
+            "agencyObjectiveBadge": "Objectif d'agence",
+            "aggregatedObjectiveBadge": "Objectif agrégé (conseillers + managers)"
         },
         "agencies": {
             "title": "Gérer les Agences",

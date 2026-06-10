@@ -52,8 +52,12 @@ return new class extends Migration
             }
         });
 
-        Schema::table('monthly_objectives', function (Blueprint $table) {
-            $table->unique(['user_id', 'role_type', 'month', 'year'], 'monthly_objectives_user_role_month_year_unique');
-        });
+        try {
+            Schema::table('monthly_objectives', function (Blueprint $table) {
+                $table->unique(['user_id', 'role_type', 'month', 'year'], 'monthly_objectives_user_role_month_year_unique');
+            });
+        } catch (\Exception $e) {
+            // Unique may already exist after a partial rollback
+        }
     }
 };

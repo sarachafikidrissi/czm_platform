@@ -287,8 +287,6 @@ class PropositionController extends Controller
             $proposition = Proposition::create([
                 'matchmaker_id' => $me->id,
                 'pair_id' => $pairId,
-                'user_a_id' => $referenceUser->id,
-                'user_b_id' => $compatibleUser->id,
                 'reference_user_id' => $referenceUser->id,
                 'compatible_user_id' => $compatibleUser->id,
                 'recipient_user_id' => $recipientId,
@@ -440,8 +438,6 @@ class PropositionController extends Controller
         $proposition = Proposition::create([
             'matchmaker_id' => $me->id,
             'pair_id' => $pairId,
-            'user_a_id' => $referenceUser->id,
-            'user_b_id' => $compatibleUser->id,
             'reference_user_id' => $referenceUser->id,
             'compatible_user_id' => $compatibleUser->id,
             'recipient_user_id' => $recipientId,

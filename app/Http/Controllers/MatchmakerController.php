@@ -13,6 +13,7 @@ use App\Models\Proposition;
 use App\Models\Rdv;
 use App\Models\TransferRequest;
 use App\Models\User;
+use App\Models\UserAssignment;
 use App\Models\UserPhoto;
 use App\Services\MatchmakingResultsPayloadService;
 use App\Services\MatchmakingService;
@@ -20,6 +21,7 @@ use App\Services\UserActivityService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
@@ -367,16 +369,23 @@ class MatchmakerController extends Controller
             }
         }
 
-        $prospect->update([
-            'assigned_matchmaker_id' => $assignedId,
-            'approval_status' => 'approved',
-            'status' => 'member',
-            'approved_by' => Auth::id(),
-            'approved_at' => now(),
-            'validated_by_manager_id' => $validatedByManagerId,
-            'matchmaker_assignment_history' => $history,
-            // Note: agency_id is preserved to maintain original agency tracking
-        ]);
+        DB::transaction(function () use ($prospect, $assignedId, $oldAssignedId, $validatedByManagerId, $history) {
+            $prospect->update([
+                'assigned_matchmaker_id' => $assignedId,
+                'approval_status' => 'approved',
+                'status' => 'member',
+                'approved_by' => Auth::id(),
+                'approved_at' => now(),
+                'validated_by_manager_id' => $validatedByManagerId,
+                'matchmaker_assignment_history' => $history,
+                // Note: agency_id is preserved to maintain original agency tracking
+            ]);
+
+            // Only record a new assignment row if the matchmaker is actually changing
+            if ($assignedId && (int) $assignedId !== (int) $oldAssignedId) {
+                UserAssignment::recordAssignment($prospect->id, $assignedId, Auth::id(), 'initial');
+            }
+        });
 
         // Save notes to MatchmakerNote table if provided
         if ($request->filled('notes') && trim($request->notes) !== '') {
@@ -1940,24 +1949,39 @@ class MatchmakerController extends Controller
             $agencyId = $me->agency_id;
         }
 
-        $user = User::create([
-            'name' => $request->name,
-            'username' => $username,
-            'email' => $request->email,
-            'phone' => $request->phone,
-            'gender' => $request->gender,
-            'country' => $request->country,
-            'city' => $request->city,
-            'password' => Hash::make($password),
-            'status' => 'prospect',
-            'agency_id' => $agencyId,
-            'assigned_matchmaker_id' => $assignedMatchmakerId,
-        ]);
-        $user->password_reveal = Crypt::encryptString($password);
-        $user->save();
+        $user = DB::transaction(function () use (
+            $request,
+            $username,
+            $password,
+            $agencyId,
+            $assignedMatchmakerId,
+            $me
+        ) {
+            $user = User::create([
+                'name' => $request->name,
+                'username' => $username,
+                'email' => $request->email,
+                'phone' => $request->phone,
+                'gender' => $request->gender,
+                'country' => $request->country,
+                'city' => $request->city,
+                'password' => Hash::make($password),
+                'status' => 'prospect',
+                'agency_id' => $agencyId,
+                'assigned_matchmaker_id' => $assignedMatchmakerId,
+            ]);
+            $user->password_reveal = Crypt::encryptString($password);
+            $user->save();
 
-        $user->assignRole('user');
-        $user->profile()->create([]);
+            $user->assignRole('user');
+            $user->profile()->create([]);
+
+            if ($assignedMatchmakerId) {
+                UserAssignment::recordAssignment($user->id, $assignedMatchmakerId, $me->id, 'initial');
+            }
+
+            return $user;
+        });
 
         Activity::record('prospect.added', $me->id, $user->fresh(), [
             'prospect_name' => $user->name,
@@ -2754,16 +2778,20 @@ class MatchmakerController extends Controller
             ];
         }
 
-        // Update user's assigned matchmaker and history
-        $user->update([
-            'assigned_matchmaker_id' => $me->id,
-            'matchmaker_assignment_history' => $history,
-        ]);
+        DB::transaction(function () use ($user, $me, $history, $transferRequest) {
+            // Update user's assigned matchmaker and history
+            $user->update([
+                'assigned_matchmaker_id' => $me->id,
+                'matchmaker_assignment_history' => $history,
+            ]);
 
-        // Update transfer request status
-        $transferRequest->update([
-            'status' => 'accepted',
-        ]);
+            UserAssignment::recordAssignment($user->id, $me->id, $me->id, 'transfer');
+
+            // Update transfer request status
+            $transferRequest->update([
+                'status' => 'accepted',
+            ]);
+        });
 
         return redirect()->back()->with('success', 'Transfer request accepted. User has been assigned to you.');
     }

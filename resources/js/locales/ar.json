@@ -743,6 +743,7 @@
                 "managersAll": "المديرون (الكل)",
                 "sharedObjective": "سيتم مشاركة هذا الهدف من قبل جميع {{roleType}}. سيرى كل {{roleTypeSingular}} نتائجه الفردية الخاصة.",
                 "scopeRoleDefault": "اترك كل الموظفين غير محددين لتعيين الهدف الافتراضي لهذا الدور (شهر/سنة). من ليس له هدف شخصي يستخدم هذا.",
+                "scopeAgencyDefault": "اترك كل الموظفين غير محددين لتعيين الهدف الافتراضي للوكالة المحددة فقط (وليس الوكالات الأخرى).",
                 "scopeUsersHint": "تطبيق هذه الأهداف على {{count}} موظف(ين) محدد(ين).",
                 "leaveEmptyForRole": "اختياري: رشّح حسب الوكالة ثم اختر موظفاً أو أكثر لأهداف فردية.",
                 "selectStaffOptional": "الموظفون (اختياري)",
@@ -773,7 +774,8 @@
             },
             "confirmMarkPaid": "تعيين العمولة كمدفوعة لهذا الهدف؟",
             "perUserObjective": "هدف شخصي",
-            "agencyObjectiveBadge": "هدف الوكالة"
+            "agencyObjectiveBadge": "هدف الوكالة",
+            "aggregatedObjectiveBadge": "الهدف الإجمالي (المستشارون + المديرون)"
         },
         "agencies": {
             "title": "إدارة الوكالات",

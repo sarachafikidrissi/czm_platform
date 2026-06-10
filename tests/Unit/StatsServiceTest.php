@@ -7,6 +7,7 @@ use App\Models\MonthlyObjective;
 use App\Models\Proposition;
 use App\Models\Rdv;
 use App\Models\User;
+use App\Models\UserAssignment;
 use App\Services\StatsService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -190,23 +191,112 @@ class StatsServiceTest extends TestCase
     }
 
     // -------------------------------------------------------------------------
-    // Transfer attribution — current owner gets credit
+    // Transfer attribution — reassign updates new_this_month and total_active
     // -------------------------------------------------------------------------
 
     /** @test */
-    public function transferred_prospect_counted_for_current_assigned_matchmaker(): void
+    public function transferred_prospect_total_active_credits_new_matchmaker(): void
     {
-        $otherMm = User::factory()->create(['approval_status' => 'approved']);
-        $otherMm->assignRole('matchmaker');
+        $mmB = User::factory()->create(['approval_status' => 'approved']);
+        $mmB->assignRole('matchmaker');
 
-        // Prospect originally created by otherMm but currently assigned to $this->matchmaker
-        $this->makeProspect($this->matchmaker->id); // current assignee
+        // Prospect currently assigned to $this->matchmaker (MM-A)
+        $this->makeProspect($this->matchmaker->id);
 
-        $statsThisMm = $this->service->compute($this->matchmaker, now()->month, now()->year, 'personal', null, null);
-        $statsOtherMm = $this->service->compute($otherMm, now()->month, now()->year, 'personal', null, null);
+        $statsA = $this->service->compute($this->matchmaker, now()->month, now()->year, 'personal', null, null);
+        $statsB = $this->service->compute($mmB, now()->month, now()->year, 'personal', null, null);
 
-        $this->assertEquals(1, $statsThisMm['prospects']['total_active']);
-        $this->assertEquals(0, $statsOtherMm['prospects']['total_active']);
+        // MM-A holds the prospect today
+        $this->assertEquals(1, $statsA['prospects']['total_active']);
+        $this->assertEquals(0, $statsB['prospects']['total_active']);
+    }
+
+    /** @test */
+    public function reassigned_prospect_decreases_original_matchmaker_new_this_month(): void
+    {
+        $mmB = User::factory()->create(['approval_status' => 'approved']);
+        $mmB->assignRole('matchmaker');
+
+        $prospect = $this->makeProspect($this->matchmaker->id);
+
+        $statsA_before = $this->service->compute($this->matchmaker, now()->month, now()->year, 'personal', null, null);
+        $this->assertEquals(1, $statsA_before['prospects']['new_this_month']);
+        $this->assertEquals(1, $statsA_before['prospects']['total_active']);
+
+        // Mid-month reassign: close MM-A row, open MM-B row (mirrors recordAssignment)
+        UserAssignment::where('user_id', $prospect->id)->whereNull('unassigned_at')
+            ->update(['unassigned_at' => now()]);
+        UserAssignment::create([
+            'user_id'       => $prospect->id,
+            'matchmaker_id' => $mmB->id,
+            'assigned_by'   => null,
+            'assigned_at'   => now(),
+            'unassigned_at' => null,
+            'reason'        => 'reassign',
+        ]);
+        $prospect->update(['assigned_matchmaker_id' => $mmB->id]);
+
+        $statsA_after = $this->service->compute($this->matchmaker, now()->month, now()->year, 'personal', null, null);
+        $statsB_after = $this->service->compute($mmB, now()->month, now()->year, 'personal', null, null);
+
+        $this->assertEquals(0, $statsA_after['prospects']['new_this_month'], 'MM-A lost monthly new credit after reassign');
+        $this->assertEquals(0, $statsA_after['prospects']['total_active']);
+        $this->assertEquals(1, $statsB_after['prospects']['new_this_month'], 'MM-B gains monthly new credit');
+        $this->assertEquals(1, $statsB_after['prospects']['total_active']);
+    }
+
+    // -------------------------------------------------------------------------
+    // Members — status restricted to 'member' only
+    // -------------------------------------------------------------------------
+
+    /** @test */
+    public function member_stats_exclude_client_and_client_expire(): void
+    {
+        Role::findOrCreate('user', 'web');
+        $base = ['assigned_matchmaker_id' => $this->matchmaker->id, 'approved_at' => now()];
+
+        $memberUser = User::factory()->create($base + ['status' => 'member']);
+        $memberUser->assignRole('user');
+
+        $clientUser = User::factory()->create($base + ['status' => 'client']);
+        $clientUser->assignRole('user');
+
+        $expiredUser = User::factory()->create($base + ['status' => 'client_expire']);
+        $expiredUser->assignRole('user');
+
+        $stats = $this->service->compute($this->matchmaker, now()->month, now()->year, 'personal', null, null);
+
+        // Only the 'member' user counts; client and client_expire are excluded
+        $this->assertEquals(1, $stats['membres']['new_this_month']);
+        $this->assertEquals(1, $stats['membres']['total_active']);
+    }
+
+    // -------------------------------------------------------------------------
+    // RDVs — total_active excludes terminal statuses
+    // -------------------------------------------------------------------------
+
+    /** @test */
+    public function rdv_total_active_excludes_reussi_and_echec(): void
+    {
+        $u = User::factory()->create();
+
+        $rdvBase = [
+            'matchmaker_id'      => $this->matchmaker->id,
+            'reference_user_id'  => $u->id,
+            'compatible_user_id' => $u->id,
+            'regle'              => 'test',
+        ];
+
+        Rdv::create($rdvBase + ['status' => Rdv::STATUS_EN_COURS]);
+        Rdv::create($rdvBase + ['status' => Rdv::STATUS_REUSSI]);
+        Rdv::create($rdvBase + ['status' => Rdv::STATUS_ECHEC]);
+
+        $stats = $this->service->compute($this->matchmaker, now()->month, now()->year, 'personal', null, null);
+
+        // Only the en_cours RDV is active; reussi and echec are terminal
+        $this->assertEquals(1, $stats['rdvs']['total_active']);
+        // All 3 were created this month
+        $this->assertEquals(3, $stats['rdvs']['new_this_month']);
     }
 
     // -------------------------------------------------------------------------
@@ -361,15 +451,29 @@ class StatsServiceTest extends TestCase
     // Helpers
     // -------------------------------------------------------------------------
 
+    /**
+     * Create a prospect user and the matching user_assignments row.
+     * The assignment timestamp is Carbon::now() at call time (can be controlled with Carbon::setTestNow).
+     */
     private function makeProspect(int $matchmakerId): User
     {
         Role::findOrCreate('user', 'web');
         $prospect = User::factory()->create([
-            'status' => 'prospect',
+            'status'                 => 'prospect',
             'assigned_matchmaker_id' => $matchmakerId,
-            'agency_id' => $this->agency->id,
+            'agency_id'              => $this->agency->id,
         ]);
         $prospect->assignRole('user');
+
+        UserAssignment::create([
+            'user_id'       => $prospect->id,
+            'matchmaker_id' => $matchmakerId,
+            'assigned_by'   => null,
+            'assigned_at'   => Carbon::now(),
+            'unassigned_at' => null,
+            'reason'        => 'initial',
+        ]);
+
         return $prospect;
     }
 }

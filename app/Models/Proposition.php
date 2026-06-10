@@ -29,8 +29,6 @@ class Proposition extends Model
     protected $fillable = [
         'matchmaker_id',
         'pair_id',
-        'user_a_id',
-        'user_b_id',
         'reference_user_id',
         'compatible_user_id',
         'recipient_user_id',

@@ -733,7 +733,7 @@ class PostController extends Controller
             // Objectives (same resolution as /objectives): per-user row, then role default
             $month = now()->month;
             $year = now()->year;
-            $objective = ObjectiveMetricsService::resolveObjectiveForView('matchmaker', $month, $year, (int) $user->id);
+            $objective = ObjectiveMetricsService::resolveObjectiveForUser((int) $user->id, $month, $year);
             $realized = ObjectiveMetricsService::calculateRealizedForMatchmaker((int) $user->id, $month, $year);
             $progress = ObjectiveCommissionCalculator::calculateProgress($objective, $realized);
 
@@ -832,11 +832,11 @@ class PostController extends Controller
                 ->where('agency_id', $user->agency_id)
                 ->whereNull('approved_at');
 
-            // Objectives: agency row via resolveObjectiveForAgency; manager personal via resolveManagerPersonalObjective
+            // Objectives: agency sum of producer targets (matchmakers + manager); personal via resolveManagerPersonalObjective
             $month = now()->month;
             $year = now()->year;
 
-            $agencyObjective = ObjectiveMetricsService::resolveObjectiveForAgency((int) $user->agency_id, $month, $year);
+            $agencyObjective = ObjectiveMetricsService::sumObjectivesForAgency((int) $user->agency_id, $month, $year);
             $agencyRealized = ObjectiveMetricsService::calculateRealizedForAgencyById((int) $user->agency_id, $month, $year);
             $agencyProgress = ObjectiveCommissionCalculator::calculateProgress($agencyObjective, $agencyRealized);
 
@@ -1032,7 +1032,7 @@ class PostController extends Controller
      */
     private function agencyObjectiveCompletionPercent(int $agencyId, int $month, int $year): float
     {
-        $objective = ObjectiveMetricsService::resolveObjectiveForAgency($agencyId, $month, $year);
+        $objective = ObjectiveMetricsService::sumObjectivesForAgency($agencyId, $month, $year);
         $realized = ObjectiveMetricsService::calculateRealizedForAgencyById($agencyId, $month, $year);
         $progress = ObjectiveCommissionCalculator::calculateProgress($objective, $realized);
 

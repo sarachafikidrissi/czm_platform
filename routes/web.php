@@ -472,6 +472,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::redirect('/objective', '/objectives');
         Route::get('/objectives', [\App\Http\Controllers\ObjectiveController::class, 'index'])->name('objectives.index');
         Route::post('/objectives', [\App\Http\Controllers\ObjectiveController::class, 'store'])->name('objectives.store');
+        Route::put('/objectives/{objective}', [\App\Http\Controllers\ObjectiveController::class, 'update'])->name('objectives.update');
         Route::get('/objectives/details', [\App\Http\Controllers\ObjectiveController::class, 'getDetails'])->name('objectives.details');
         Route::post('/objectives/{objective}/mark-commission-paid', [\App\Http\Controllers\ObjectiveController::class, 'markCommissionPaid'])->name('objectives.mark-commission-paid');
     });

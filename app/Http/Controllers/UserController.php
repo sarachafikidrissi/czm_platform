@@ -7,6 +7,7 @@ use App\Models\Proposition;
 use App\Models\PropositionRequest;
 use App\Models\Rdv;
 use App\Models\User;
+use App\Models\UserAssignment;
 use App\Services\MatchmakingResultsPayloadService;
 use App\Services\MatchmakingService;
 use Illuminate\Http\Request;
@@ -138,9 +139,13 @@ class UserController extends Controller
             ->where('approval_status', 'approved')
             ->findOrFail($id);
 
-        $user->update([
-            'assigned_matchmaker_id' => $matchmaker->id,
-        ]);
+        DB::transaction(function () use ($user, $matchmaker) {
+            $user->update([
+                'assigned_matchmaker_id' => $matchmaker->id,
+            ]);
+
+            UserAssignment::recordAssignment($user->id, $matchmaker->id, null, 'self_selected');
+        });
 
         return redirect()->back()->with('success', 'Matchmaker selected successfully.');
     }

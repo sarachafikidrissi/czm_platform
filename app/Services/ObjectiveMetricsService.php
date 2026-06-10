@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Bill;
 use App\Models\MonthlyObjective;
+use App\Models\Rdv;
 use App\Models\User;
 use Carbon\Carbon;
 
@@ -26,16 +27,25 @@ class ObjectiveMetricsService
             ->sum('total_amount');
 
         $membres = User::role('user')
-            ->whereIn('status', ['member', 'client', 'client_expire'])
             ->where('assigned_matchmaker_id', $matchmakerId)
+            ->whereNotNull('approved_at')
             ->whereBetween('approved_at', [$startDate, $endDate])
+            ->count();
+
+        $rdv = Rdv::where('matchmaker_id', $matchmakerId)
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->count();
+
+        $match = Rdv::where('matchmaker_id', $matchmakerId)
+            ->where('status', Rdv::STATUS_REUSSI)
+            ->whereBetween('updated_at', [$startDate, $endDate])
             ->count();
 
         return [
             'ventes' => (float) $ventes,
             'membres' => (int) $membres,
-            'rdv' => 0,
-            'match' => 0,
+            'rdv' => (int) $rdv,
+            'match' => (int) $match,
         ];
     }
 
@@ -84,19 +94,28 @@ class ObjectiveMetricsService
             ->pluck('id');
 
         $membres = User::role('user')
-            ->whereIn('status', ['member', 'client', 'client_expire'])
             ->where(function ($query) use ($matchmakerIds, $managerIds) {
                 $query->whereIn('assigned_matchmaker_id', $matchmakerIds)
                     ->orWhereIn('validated_by_manager_id', $managerIds);
             })
+            ->whereNotNull('approved_at')
             ->whereBetween('approved_at', [$startDate, $endDate])
+            ->count();
+
+        $rdv = Rdv::whereIn('matchmaker_id', $staffIdsForBills)
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->count();
+
+        $match = Rdv::whereIn('matchmaker_id', $staffIdsForBills)
+            ->where('status', Rdv::STATUS_REUSSI)
+            ->whereBetween('updated_at', [$startDate, $endDate])
             ->count();
 
         return [
             'ventes' => (float) $ventes,
             'membres' => (int) $membres,
-            'rdv' => 0,
-            'match' => 0,
+            'rdv' => (int) $rdv,
+            'match' => (int) $match,
         ];
     }
 
@@ -114,16 +133,25 @@ class ObjectiveMetricsService
             ->sum('total_amount');
 
         $membres = User::role('user')
-            ->whereIn('status', ['member', 'client', 'client_expire'])
             ->where('validated_by_manager_id', $managerId)
+            ->whereNotNull('approved_at')
             ->whereBetween('approved_at', [$startDate, $endDate])
+            ->count();
+
+        $rdv = Rdv::where('matchmaker_id', $managerId)
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->count();
+
+        $match = Rdv::where('matchmaker_id', $managerId)
+            ->where('status', Rdv::STATUS_REUSSI)
+            ->whereBetween('updated_at', [$startDate, $endDate])
             ->count();
 
         return [
             'ventes' => (float) $ventes,
             'membres' => (int) $membres,
-            'rdv' => 0,
-            'match' => 0,
+            'rdv' => (int) $rdv,
+            'match' => (int) $match,
         ];
     }
 
@@ -158,19 +186,28 @@ class ObjectiveMetricsService
             ->pluck('id');
 
         $membres = User::role('user')
-            ->whereIn('status', ['member', 'client', 'client_expire'])
             ->where(function ($query) use ($matchmakerIds, $managerIds) {
                 $query->whereIn('assigned_matchmaker_id', $matchmakerIds)
                     ->orWhereIn('validated_by_manager_id', $managerIds);
             })
+            ->whereNotNull('approved_at')
             ->whereBetween('approved_at', [$startDate, $endDate])
+            ->count();
+
+        $rdv = Rdv::whereIn('matchmaker_id', $staffIdsForBills)
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->count();
+
+        $match = Rdv::whereIn('matchmaker_id', $staffIdsForBills)
+            ->where('status', Rdv::STATUS_REUSSI)
+            ->whereBetween('updated_at', [$startDate, $endDate])
             ->count();
 
         return [
             'ventes' => (float) $ventes,
             'membres' => (int) $membres,
-            'rdv' => 0,
-            'match' => 0,
+            'rdv' => (int) $rdv,
+            'match' => (int) $match,
         ];
     }
 
@@ -179,6 +216,8 @@ class ObjectiveMetricsService
      */
     public static function calculateRealizedForAllMatchmakers(int $month, int $year): array
     {
+        // Deferred: awaiting client confirmation on whether manager ventes should be included
+        // in platform-wide realized total (platform objectives already include managers).
         $startDate = Carbon::create($year, $month, 1)->startOfMonth();
         $endDate = Carbon::create($year, $month, 1)->endOfMonth();
 
@@ -192,82 +231,155 @@ class ObjectiveMetricsService
             ->sum('total_amount');
 
         $membres = User::role('user')
-            ->whereIn('status', ['member', 'client', 'client_expire'])
             ->whereIn('assigned_matchmaker_id', $matchmakerIds)
+            ->whereNotNull('approved_at')
             ->whereBetween('approved_at', [$startDate, $endDate])
+            ->count();
+
+        $rdv = Rdv::whereIn('matchmaker_id', $matchmakerIds)
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->count();
+
+        $match = Rdv::whereIn('matchmaker_id', $matchmakerIds)
+            ->where('status', Rdv::STATUS_REUSSI)
+            ->whereBetween('updated_at', [$startDate, $endDate])
             ->count();
 
         return [
             'ventes' => (float) $ventes,
             'membres' => (int) $membres,
-            'rdv' => 0,
-            'match' => 0,
+            'rdv' => (int) $rdv,
+            'match' => (int) $match,
         ];
     }
 
-    public static function resolveObjectiveForAgency(int $agencyId, int $month, int $year): ?MonthlyObjective
+    /**
+     * Resolve a single staff member's per-user objective, or null if not set.
+     */
+    public static function resolveObjectiveForUser(int $userId, int $month, int $year): ?MonthlyObjective
     {
-        $agencyObjective = MonthlyObjective::where('agency_id', $agencyId)
-            ->where('role_type', MonthlyObjective::ROLE_TYPE_AGENCY)
-            ->where('month', $month)
-            ->where('year', $year)
-            ->first();
-
-        if ($agencyObjective) {
-            return $agencyObjective;
-        }
-
-        return MonthlyObjective::whereNull('agency_id')
-            ->where('role_type', 'manager')
-            ->whereNull('user_id')
+        return MonthlyObjective::where('user_id', $userId)
             ->where('month', $month)
             ->where('year', $year)
             ->first();
     }
 
-    public static function resolveObjectiveForView(?string $roleType, int $month, int $year, ?int $userId): ?MonthlyObjective
+    /**
+     * Bottom-up agency display objective: sum of each producer's resolved targets
+     * (approved matchmakers + managers in the agency, same staff set as agency realized).
+     */
+    public static function sumObjectivesForAgency(int $agencyId, int $month, int $year): ?object
     {
-        if (empty($roleType)) {
-            return null;
-        }
-        if ($userId !== null) {
-            $perUser = MonthlyObjective::where('role_type', $roleType)
-                ->where('user_id', $userId)
-                ->whereNull('agency_id')
-                ->where('month', $month)
-                ->where('year', $year)
-                ->first();
-            if ($perUser) {
-                return $perUser;
-            }
-        }
+        $staffIds = self::fetchAgencyProducerStaffIds($agencyId);
 
-        return MonthlyObjective::where('role_type', $roleType)
-            ->whereNull('user_id')
-            ->whereNull('agency_id')
-            ->where('month', $month)
-            ->where('year', $year)
-            ->first();
+        return self::sumObjectivesForStaffIds($staffIds, $agencyId, $month, $year);
+    }
+
+    /**
+     * Platform-wide display objective: sum of all producers' resolved targets
+     * (approved matchmakers + managers, aligned with platform production scope).
+     */
+    public static function sumObjectivesForPlatform(int $month, int $year): ?object
+    {
+        $staffIds = self::fetchPlatformProducerStaffIds();
+
+        return self::sumObjectivesForStaffIds($staffIds, null, $month, $year);
     }
 
     public static function resolveManagerPersonalObjective(int $managerId, int $month, int $year): ?MonthlyObjective
     {
-        $perUser = MonthlyObjective::where('role_type', 'manager')
-            ->where('user_id', $managerId)
-            ->whereNull('agency_id')
-            ->where('month', $month)
-            ->where('year', $year)
-            ->first();
+        return self::resolveObjectiveForUser($managerId, $month, $year);
+    }
 
-        if ($perUser) {
-            return $perUser;
+    /**
+     * Approved matchmakers and managers in an agency (same producer set as agency realized).
+     *
+     * @return \Illuminate\Support\Collection<int, int>
+     */
+    private static function fetchAgencyProducerStaffIds(int $agencyId)
+    {
+        return User::where('agency_id', $agencyId)
+            ->where('approval_status', 'approved')
+            ->whereHas('roles', function ($q) {
+                $q->whereIn('name', ['matchmaker', 'manager']);
+            })
+            ->pluck('id');
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<int, int>
+     */
+    private static function fetchPlatformProducerStaffIds()
+    {
+        return User::where('approval_status', 'approved')
+            ->whereHas('roles', function ($q) {
+                $q->whereIn('name', ['matchmaker', 'manager']);
+            })
+            ->pluck('id');
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, int>|array<int, int>  $staffIds
+     */
+    private static function sumObjectivesForStaffIds($staffIds, ?int $agencyId, int $month, int $year): ?object
+    {
+        $sumVentes = 0.0;
+        $sumMembres = 0;
+        $sumRdv = 0;
+        $sumMatch = 0;
+        $anyResolved = false;
+
+        foreach ($staffIds as $staffId) {
+            $resolved = self::resolveObjectiveForUser((int) $staffId, $month, $year);
+            if (! $resolved) {
+                continue;
+            }
+
+            $anyResolved = true;
+            $sumVentes += (float) $resolved->target_ventes;
+            $sumMembres += (int) $resolved->target_membres;
+            $sumRdv += (int) $resolved->target_rdv;
+            $sumMatch += (int) $resolved->target_match;
         }
 
-        return MonthlyObjective::where('role_type', 'manager')
-            ->whereNull('user_id')
-            ->whereNull('agency_id')
-            ->where('month', $month)
-            ->where('year', $year)
-            ->first();
+        if (! $anyResolved) {
+            return null;
+        }
+
+        return self::buildSyntheticObjective(
+            $sumVentes,
+            $sumMembres,
+            $sumRdv,
+            $sumMatch,
+            $month,
+            $year,
+            $agencyId
+        );
+    }
+
+    private static function buildSyntheticObjective(
+        float $targetVentes,
+        int $targetMembres,
+        int $targetRdv,
+        int $targetMatch,
+        int $month,
+        int $year,
+        ?int $agencyId
+    ): object {
+        return (object) [
+            'id' => null,
+            'user_id' => null,
+            'agency_id' => $agencyId,
+            'role_type' => 'aggregated',
+            'month' => $month,
+            'year' => $year,
+            'target_ventes' => $targetVentes,
+            'target_membres' => $targetMembres,
+            'target_rdv' => $targetRdv,
+            'target_match' => $targetMatch,
+            'commission_paid' => false,
+            'commission_paid_at' => null,
+            'commission_paid_by' => null,
+        ];
     }
 }

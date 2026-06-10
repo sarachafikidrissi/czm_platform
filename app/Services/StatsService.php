@@ -3,10 +3,10 @@
 namespace App\Services;
 
 use App\Models\Agency;
-use App\Models\MonthlyObjective;
 use App\Models\Proposition;
 use App\Models\Rdv;
 use App\Models\User;
+use App\Models\UserAssignment;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
@@ -28,10 +28,11 @@ use Illuminate\Support\Facades\Cache;
  *    A tooltip in the UI reads: "RDV marqué réussi — les deux personnes se sont rencontrées avec succès."
  *
  * 3. TRANSFER ATTRIBUTION
- *    Stats credit the CURRENT assigned matchmaker (whoever holds assigned_matchmaker_id
- *    at the time the query runs). If a prospect is transferred mid-month, the receiving
- *    matchmaker gets credit from transfer date onward for live counts; historical
- *    new_this_month counts follow created_at which reflects the original assignment.
+ *    Prospects "new_this_month" counts open assignments (unassigned_at IS NULL) whose
+ *    assigned_at falls in the selected month. If a prospect is reassigned mid-month, the
+ *    old matchmaker's monthly new count decreases and the new matchmaker is credited
+ *    from the transfer date (new open row). "total_active" reflects current
+ *    assigned_matchmaker_id (live workload today).
  *    A UI tooltip reads: "Les statistiques reflètent le conseiller actuellement assigné."
  *
  * PER-METRIC SHAPE (returned by each getter):
@@ -118,35 +119,40 @@ class StatsService
 
     private function prospectStats(array $mmIds, Carbon $start, Carbon $end, Carbon $prevStart, Carbon $prevEnd, array $targets): array
     {
-        $base = User::role('user')->whereIn('assigned_matchmaker_id', $mmIds);
+        // new_this_month: open assignments that started in the selected month (reassign
+        // closes the old row so the previous matchmaker's monthly new count decreases).
+        $new = UserAssignment::whereIn('matchmaker_id', $mmIds)
+            ->whereNull('unassigned_at')
+            ->whereBetween('assigned_at', [$start, $end])
+            ->whereHas('user', fn ($q) => $q->role('user')->where('status', 'prospect'))
+            ->distinct('user_id')
+            ->count('user_id');
 
-        $new = (clone $base)->where('status', 'prospect')
-            ->whereBetween('created_at', [$start, $end])
+        $prevNew = UserAssignment::whereIn('matchmaker_id', $mmIds)
+            ->whereNull('unassigned_at')
+            ->whereBetween('assigned_at', [$prevStart, $prevEnd])
+            ->whereHas('user', fn ($q) => $q->role('user')->where('status', 'prospect'))
+            ->distinct('user_id')
+            ->count('user_id');
+
+        // total_active: live workload — current assignee from users table
+        $total = User::role('user')
+            ->whereIn('assigned_matchmaker_id', $mmIds)
+            ->where('status', 'prospect')
             ->count();
-
-        $prevNew = (clone $base)->where('status', 'prospect')
-            ->whereBetween('created_at', [$prevStart, $prevEnd])
-            ->count();
-
-        $total = (clone $base)->where('status', 'prospect')->count();
 
         return $this->metric($new, $total, $new - $prevNew, $targets['prospects'] ?? null);
     }
 
     private function memberStats(array $mmIds, Carbon $start, Carbon $end, Carbon $prevStart, Carbon $prevEnd, array $targets): array
     {
-        $memberStatuses = ['member', 'client', 'client_expire'];
-        $base = User::role('user')->whereIn('assigned_matchmaker_id', $mmIds);
+        $base = User::role('user')->whereIn('assigned_matchmaker_id', $mmIds)->where('status', 'member');
 
-        $new = (clone $base)->whereIn('status', $memberStatuses)
-            ->whereBetween('approved_at', [$start, $end])
-            ->count();
+        $new = (clone $base)->whereBetween('approved_at', [$start, $end])->count();
 
-        $prevNew = (clone $base)->whereIn('status', $memberStatuses)
-            ->whereBetween('approved_at', [$prevStart, $prevEnd])
-            ->count();
+        $prevNew = (clone $base)->whereBetween('approved_at', [$prevStart, $prevEnd])->count();
 
-        $total = (clone $base)->whereIn('status', $memberStatuses)->count();
+        $total = (clone $base)->count();
 
         return $this->metric($new, $total, $new - $prevNew, $targets['membres'] ?? null);
     }
@@ -199,8 +205,8 @@ class StatsService
 
         $prevNew = (clone $base)->whereBetween('created_at', [$prevStart, $prevEnd])->count();
 
-        // "Active" in month = same as new (scheduled this month)
-        $total = $new;
+        // "Active" = all RDVs not in a terminal status (reussi or echec)
+        $total = (clone $base)->whereNotIn('status', [Rdv::STATUS_REUSSI, Rdv::STATUS_ECHEC])->count();
 
         return $this->metric($new, $total, $new - $prevNew, $targets['rdv'] ?? null);
     }
@@ -291,33 +297,21 @@ class StatsService
         $objective = null;
 
         if ($viewer->hasRole('admin')) {
-            // Admin with matchmaker filter: load that matchmaker's objective
             if ($matchmakerId) {
-                $objective = MonthlyObjective::where('user_id', $matchmakerId)
-                    ->where('month', $month)->where('year', $year)
-                    ->whereNull('agency_id')
-                    ->first();
+                $objective = ObjectiveMetricsService::resolveObjectiveForUser($matchmakerId, $month, $year);
             } elseif ($agencyId) {
-                $objective = MonthlyObjective::where('agency_id', $agencyId)
-                    ->where('role_type', MonthlyObjective::ROLE_TYPE_AGENCY)
-                    ->where('month', $month)->where('year', $year)
-                    ->first();
+                $objective = ObjectiveMetricsService::sumObjectivesForAgency($agencyId, $month, $year);
             }
-            // Platform-wide: no single objective, return nulls
+            // Platform-wide (no agency/matchmaker filter): no aggregate target
         } elseif ($scope === 'agency' && $viewer->hasRole('manager')) {
-            $objective = MonthlyObjective::where('agency_id', $viewer->agency_id)
-                ->where('role_type', MonthlyObjective::ROLE_TYPE_AGENCY)
-                ->where('month', $month)->where('year', $year)
-                ->first();
+            if ($viewer->agency_id) {
+                $objective = ObjectiveMetricsService::sumObjectivesForAgency((int) $viewer->agency_id, $month, $year);
+            }
         } else {
-            // Personal scope
-            $objective = MonthlyObjective::where('user_id', $viewer->id)
-                ->whereNull('agency_id')
-                ->where('month', $month)->where('year', $year)
-                ->first();
+            $objective = ObjectiveMetricsService::resolveObjectiveForUser($viewer->id, $month, $year);
         }
 
-        if (!$objective) {
+        if (! $objective) {
             return [];
         }
 
@@ -365,9 +359,10 @@ class StatsService
      * Invalidate all cached stats affected by a change to this matchmaker's data.
      * Called from model observers when users, propositions, or rdvs change.
      */
-    public static function invalidateForMatchmaker(int $matchmakerId): void
+    public static function invalidateForMatchmaker(int $matchmakerId, ?int $explicitAgencyId = null): void
     {
-        $agencyId = User::whereKey($matchmakerId)->value('agency_id');
+        $agencyId = $explicitAgencyId
+            ?? User::whereKey($matchmakerId)->value('agency_id');
 
         $now = Carbon::now();
         for ($offset = 0; $offset <= 2; $offset++) {

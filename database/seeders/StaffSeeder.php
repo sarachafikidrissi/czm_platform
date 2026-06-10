@@ -19,7 +19,7 @@ class StaffSeeder extends Seeder
             [
                 'name' => 'System Administrator',
                 'email' => 'admin@matrimony.com',
-                'password' => Hash::make('admin123'),
+                'password' => Hash::make('admin@matrimony.com'),
                 'phone' => '+212600000001',
                 'gender' => 'male',
                 'country' => 'Morocco',
@@ -37,7 +37,7 @@ class StaffSeeder extends Seeder
             [
                 'email' => 'manager@matrimony.com',
                 'name' => 'Site Manager',
-                'password' => Hash::make('manager123'),
+                'password' => Hash::make('manager@matrimony.com'),
                 'phone' => '+212600000002',
                 'gender' => 'female',
                 'country' => 'Morocco',
@@ -51,22 +51,38 @@ class StaffSeeder extends Seeder
         $manager->assignRole('manager');
 
         // Create Matchmaker User
-        $matchmaker = User::create(
+        $matchmakera = User::create(
             [
-                'email' => 'matchmaker@matrimony.com',
-                'name' => 'Professional Matchmaker',
-                'password' => Hash::make('matchmaker123'),
+                'email' => 'matchmakera@matrimony.com',
+                'name' => 'Matchmaker A',
+                'password' => Hash::make('matchmakera@matrimony.com'),
                 'phone' => '+212600000003',
                 'gender' => 'female',
                 'country' => 'Morocco',
                 'city' => 'Marrakech',
-                'username' => 'matchmaker',
+                'username' => 'matchmaker A',
                 'condition' => true,
                 'email_verified_at' => now(),
                 'approval_status' => 'approved',
             ]
         );
-        $matchmaker->assignRole('matchmaker');
+        $matchmakera->assignRole('matchmaker');
+        $matchmakerb = User::create(
+            [
+                'email' => 'matchmakerb@matrimony.com',
+                'name' => 'Matchmaker B',
+                'password' => Hash::make('matchmakerb@matrimony.com'),
+                'phone' => '+212600000004',
+                'gender' => 'female',
+                'country' => 'Morocco',
+                'city' => 'Marrakech',
+                'username' => 'matchmaker B',
+                'condition' => true,
+                'email_verified_at' => now(),
+                'approval_status' => 'approved',
+            ]
+        );
+        $matchmakerb->assignRole('matchmaker');
 
     }
 }

@@ -7,9 +7,12 @@ use App\Models\Agency;
 use App\Models\MatrimonialPack;
 use App\Models\AppointmentRequest;
 use App\Models\Activity;
+use App\Models\UserAssignment;
+use App\Services\StatsService;
 use App\Services\UserActivityService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
@@ -154,24 +157,29 @@ class AdminController extends Controller
                     return redirect()->back()->with('error', 'Selected matchmaker must be linked to an agency to receive prospects.');
                 }
                 
-                // Assign prospects ONLY to the specific matchmaker (not to the entire agency)
-                // Set agency_id to NULL so other matchmakers in the same agency don't see it
-                // Single conditional update so only rows satisfying conditions at update time are updated (no TOCTOU)
-                $updated = User::whereIn('id', $validated['prospect_ids'])
-                    ->where('status', 'prospect')
-                    ->whereNull('agency_id')
-                    ->whereNull('assigned_matchmaker_id')
-                    ->update([
-                        'assigned_matchmaker_id' => $matchmaker->id,
-                        'agency_id' => null  // Set to null so only this specific matchmaker sees it
-                    ]);
-                $idsUpdated = User::whereIn('id', $validated['prospect_ids'])
-                    ->where('assigned_matchmaker_id', $matchmaker->id)
-                    ->pluck('id');
-                foreach ($idsUpdated as $userId) {
-                    UserActivityService::log($userId, Auth::id(), 'matchmaker_assigned', "Prospect assigné à {$matchmaker->name} (marieuse).", []);
-                }
-                $message = "{$updated} prospects dispatched to matchmaker successfully.";
+                DB::transaction(function () use ($validated, $matchmaker, &$updated, &$message) {
+                    // Assign prospects ONLY to the specific matchmaker (not to the entire agency)
+                    // Set agency_id to NULL so other matchmakers in the same agency don't see it
+                    // Single conditional update so only rows satisfying conditions at update time are updated (no TOCTOU)
+                    $updated = User::whereIn('id', $validated['prospect_ids'])
+                        ->where('status', 'prospect')
+                        ->whereNull('agency_id')
+                        ->whereNull('assigned_matchmaker_id')
+                        ->update([
+                            'assigned_matchmaker_id' => $matchmaker->id,
+                            'agency_id' => null,
+                        ]);
+                    // Deferred (next maintenance pass): idsUpdated is derived after bulk update without
+                    // row locks; assignment logging may miss or mis-attribute rows under concurrency.
+                    $idsUpdated = User::whereIn('id', $validated['prospect_ids'])
+                        ->where('assigned_matchmaker_id', $matchmaker->id)
+                        ->pluck('id');
+                    foreach ($idsUpdated as $userId) {
+                        UserActivityService::log($userId, Auth::id(), 'matchmaker_assigned', "Prospect assigné à {$matchmaker->name} (marieuse).", []);
+                        UserAssignment::recordAssignment($userId, $matchmaker->id, Auth::id(), 'initial');
+                    }
+                    $message = "{$updated} prospects dispatched to matchmaker successfully.";
+                });
             } catch (\Exception $e) {
                 return redirect()->back()->with('error', 'An error occurred while dispatching prospects. Please try again.');
             }
@@ -333,6 +341,11 @@ class AdminController extends Controller
             'approved_by' => Auth::id(),
         ]);
 
+        StatsService::invalidateForMatchmaker(
+            $user->id,
+            $user->agency_id
+        );
+
         return redirect()->back()->with('success', 'User approved successfully.');
     }
 
@@ -344,6 +357,11 @@ class AdminController extends Controller
             'approval_status' => 'rejected',
             'approved_by' => Auth::id(),
         ]);
+
+        StatsService::invalidateForMatchmaker(
+            $user->id,
+            $user->agency_id
+        );
 
         return redirect()->back()->with('success', 'User rejected successfully.');
     }
@@ -615,9 +633,14 @@ class AdminController extends Controller
         // For matchmakers: No restriction - multiple matchmakers can be assigned to the same agency
         // Matchmakers can be assigned to any agency (no validation needed)
 
+        $oldAgencyId = $user->agency_id;
+
         $user->update([
             'agency_id' => $request->agency_id,
         ]);
+
+        StatsService::invalidateForMatchmaker($user->id, $oldAgencyId);
+        StatsService::invalidateForMatchmaker($user->id, (int) $request->agency_id);
 
         return redirect()->back()->with('success', 'User agency updated successfully.');
     }
@@ -638,19 +661,33 @@ class AdminController extends Controller
         try {
             if ($validated['reassign_type'] === 'agency') {
                 $agency = Agency::findOrFail($validated['agency_id']);
-                // Reassign only prospects that are already dispatched (have agency_id OR assigned_matchmaker_id)
-                // Clear assigned_matchmaker_id to remove from old matchmaker's list
-                // Set agency_id to new agency to remove from old agency's list
-                $updated = User::whereIn('id', $validated['prospect_ids'])
-                    ->where('status', 'prospect')
-                    ->where(function($q) {
-                        $q->whereNotNull('agency_id')->orWhereNotNull('assigned_matchmaker_id');
-                    })
-                    ->update([
-                        'agency_id' => $agency->id,
-                        'assigned_matchmaker_id' => null  // Clear to remove from old matchmaker's list
-                    ]);
-                $message = "{$updated} prospects reassigned to agency successfully.";
+
+                DB::transaction(function () use ($validated, $agency, &$updated, &$message) {
+                    $affectedIds = User::whereIn('id', $validated['prospect_ids'])
+                        ->where('status', 'prospect')
+                        ->where(function ($q) {
+                            $q->whereNotNull('agency_id')->orWhereNotNull('assigned_matchmaker_id');
+                        })
+                        ->lockForUpdate()
+                        ->pluck('id');
+
+                    // Reassign only prospects that are already dispatched (have agency_id OR assigned_matchmaker_id)
+                    // Clear assigned_matchmaker_id to remove from old matchmaker's list
+                    // Set agency_id to new agency to remove from old agency's list
+                    $updated = User::whereIn('id', $validated['prospect_ids'])
+                        ->where('status', 'prospect')
+                        ->where(function ($q) {
+                            $q->whereNotNull('agency_id')->orWhereNotNull('assigned_matchmaker_id');
+                        })
+                        ->update([
+                            'agency_id' => $agency->id,
+                            'assigned_matchmaker_id' => null,
+                        ]);
+                    foreach ($affectedIds as $userId) {
+                        UserAssignment::recordUnassignment($userId, Auth::id());
+                    }
+                    $message = "{$updated} prospects reassigned to agency successfully.";
+                });
             } else {
                 $matchmaker = User::findOrFail($validated['matchmaker_id']);
                 // Ensure matchmaker is approved and has a role
@@ -662,26 +699,29 @@ class AdminController extends Controller
                     return redirect()->back()->with('error', 'Selected matchmaker must be linked to an agency to receive prospects.');
                 }
                 
-                // Reassign only prospects that are already dispatched (have agency_id OR assigned_matchmaker_id)
-                // Set assigned_matchmaker_id to new matchmaker to assign to new matchmaker
-                // Set agency_id to NULL to remove from old agency's list and ensure only new matchmaker sees it
-                // Single conditional update so only rows satisfying conditions at update time are updated (no TOCTOU)
-                $updated = User::whereIn('id', $validated['prospect_ids'])
-                    ->where('status', 'prospect')
-                    ->where(function ($q) {
-                        $q->whereNotNull('agency_id')->orWhereNotNull('assigned_matchmaker_id');
-                    })
-                    ->update([
-                        'assigned_matchmaker_id' => $matchmaker->id,
-                        'agency_id' => null  // Clear to remove from old agency's list and ensure only this matchmaker sees it
-                    ]);
-                $idsUpdated = User::whereIn('id', $validated['prospect_ids'])
-                    ->where('assigned_matchmaker_id', $matchmaker->id)
-                    ->pluck('id');
-                foreach ($idsUpdated as $userId) {
-                    UserActivityService::log($userId, Auth::id(), 'matchmaker_assigned', "Prospect réassigné à {$matchmaker->name} (marieuse).", []);
-                }
-                $message = "{$updated} prospects reassigned to matchmaker successfully.";
+                DB::transaction(function () use ($validated, $matchmaker, &$updated, &$message) {
+                    // Reassign only prospects that are already dispatched (have agency_id OR assigned_matchmaker_id)
+                    // Set assigned_matchmaker_id to new matchmaker to assign to new matchmaker
+                    // Set agency_id to NULL to remove from old agency's list and ensure only new matchmaker sees it
+                    // Single conditional update so only rows satisfying conditions at update time are updated (no TOCTOU)
+                    $updated = User::whereIn('id', $validated['prospect_ids'])
+                        ->where('status', 'prospect')
+                        ->where(function ($q) {
+                            $q->whereNotNull('agency_id')->orWhereNotNull('assigned_matchmaker_id');
+                        })
+                        ->update([
+                            'assigned_matchmaker_id' => $matchmaker->id,
+                            'agency_id' => null,
+                        ]);
+                    $idsUpdated = User::whereIn('id', $validated['prospect_ids'])
+                        ->where('assigned_matchmaker_id', $matchmaker->id)
+                        ->pluck('id');
+                    foreach ($idsUpdated as $userId) {
+                        UserActivityService::log($userId, Auth::id(), 'matchmaker_assigned', "Prospect réassigné à {$matchmaker->name} (marieuse).", []);
+                        UserAssignment::recordAssignment($userId, $matchmaker->id, Auth::id(), 'reassign');
+                    }
+                    $message = "{$updated} prospects reassigned to matchmaker successfully.";
+                });
             }
 
             if ($updated === 0) {
@@ -804,19 +844,27 @@ class AdminController extends Controller
                 return redirect()->back()->with('error', 'Selected matchmaker must be from your agency.');
             }
             
-            // Assign prospects ONLY to the specific matchmaker
-            // Only prospects that are dispatched to manager's agency and not yet assigned to a matchmaker
-            $updated = User::whereIn('id', $validated['prospect_ids'])
-                ->where('status', 'prospect')
-                ->where('agency_id', $me->agency_id) // Must be from manager's agency
-                ->whereNull('assigned_matchmaker_id') // Not yet assigned
-                ->update([
-                    'assigned_matchmaker_id' => $matchmaker->id,
-                    'agency_id' => null  // Set to null so only this specific matchmaker sees it
-                ]);
-            
+            DB::transaction(function () use ($validated, $matchmaker, $me, &$updated, &$message) {
+                // Assign prospects ONLY to the specific matchmaker
+                // Only prospects that are dispatched to manager's agency and not yet assigned to a matchmaker
+                $updated = User::whereIn('id', $validated['prospect_ids'])
+                    ->where('status', 'prospect')
+                    ->where('agency_id', $me->agency_id) // Must be from manager's agency
+                    ->whereNull('assigned_matchmaker_id') // Not yet assigned
+                    ->update([
+                        'assigned_matchmaker_id' => $matchmaker->id,
+                        'agency_id' => null,
+                    ]);
+                $idsUpdated = User::whereIn('id', $validated['prospect_ids'])
+                    ->where('assigned_matchmaker_id', $matchmaker->id)
+                    ->pluck('id');
+                foreach ($idsUpdated as $userId) {
+                    UserAssignment::recordAssignment($userId, $matchmaker->id, Auth::id(), 'initial');
+                }
+            });
+
             $message = "{$updated} prospects dispatched to matchmaker successfully.";
-            
+
             if ($updated === 0) {
                 return redirect()->back()->with('warning', 'No prospects were dispatched. They might already be assigned or not belong to your agency.');
             }
@@ -1059,20 +1107,31 @@ class AdminController extends Controller
         // Assign role
         $user->assignRole('user');
 
-        // If appointment was dispatched, assign prospect to same agency/matchmaker
-        if ($appointmentRequest->assigned_matchmaker_id) {
-            $user->assigned_matchmaker_id = $appointmentRequest->assigned_matchmaker_id;
-        }
-        if ($appointmentRequest->assigned_agency_id) {
-            $user->agency_id = $appointmentRequest->assigned_agency_id;
-        }
-        $user->save();
+        DB::transaction(function () use ($appointmentRequest, $user) {
+            // If appointment was dispatched, assign prospect to same agency/matchmaker
+            if ($appointmentRequest->assigned_matchmaker_id) {
+                $user->assigned_matchmaker_id = $appointmentRequest->assigned_matchmaker_id;
+            }
+            if ($appointmentRequest->assigned_agency_id) {
+                $user->agency_id = $appointmentRequest->assigned_agency_id;
+            }
+            $user->save();
 
-        // Link appointment request to prospect
-        $appointmentRequest->update([
-            'status' => 'converted',
-            'converted_to_prospect_id' => $user->id,
-        ]);
+            if ($appointmentRequest->assigned_matchmaker_id) {
+                UserAssignment::recordAssignment(
+                    $user->id,
+                    $appointmentRequest->assigned_matchmaker_id,
+                    Auth::id(),
+                    'initial'
+                );
+            }
+
+            // Link appointment request to prospect
+            $appointmentRequest->update([
+                'status' => 'converted',
+                'converted_to_prospect_id' => $user->id,
+            ]);
+        });
 
         UserActivityService::log($user->id, Auth::id(), 'rdv', 'Demande de rendez-vous convertie en prospect.', []);
 

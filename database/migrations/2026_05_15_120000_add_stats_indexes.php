@@ -23,14 +23,25 @@ return new class extends Migration
 
     public function down(): void
     {
+        // MySQL may use the composite stats index to satisfy FKs on the leading column.
+        // Add a single-column index first so the FK constraint survives dropping the composite.
+        Schema::table('users', function (Blueprint $table) {
+            $table->index('assigned_matchmaker_id', 'users_assigned_matchmaker_fk_idx');
+        });
         Schema::table('users', function (Blueprint $table) {
             $table->dropIndex('users_stats_idx');
         });
 
         Schema::table('propositions', function (Blueprint $table) {
+            $table->index('matchmaker_id', 'propositions_matchmaker_fk_idx');
+        });
+        Schema::table('propositions', function (Blueprint $table) {
             $table->dropIndex('propositions_stats_idx');
         });
 
+        Schema::table('rdvs', function (Blueprint $table) {
+            $table->index('matchmaker_id', 'rdvs_matchmaker_fk_idx');
+        });
         Schema::table('rdvs', function (Blueprint $table) {
             $table->dropIndex('rdvs_stats_idx');
         });

@@ -194,4 +194,14 @@ class User extends Authenticatable
     {
         return $this->hasMany(UserActivity::class, 'performed_by');
     }
+
+    public function userAssignments()
+    {
+        return $this->hasMany(UserAssignment::class, 'user_id');
+    }
+
+    public function currentAssignment()
+    {
+        return $this->hasOne(UserAssignment::class, 'user_id')->whereNull('unassigned_at');
+    }
 }
