@@ -121,7 +121,25 @@ const getMainNavItems = (t: TFunction, role: string): NavItem[] => [
         title: t('navigation.prospects'),
         url: '/staff/agency-prospects',
         icon: UserCheck,
-        roles: ['matchmaker', 'manager'],
+        roles: ['matchmaker'],
+    },
+    {
+        title: t('navigation.prospects'),
+        url: '/staff/agency-prospects',
+        icon: UserCheck,
+        roles: ['manager'],
+        children: [
+            {
+                title: t('navigation.myProspects', { defaultValue: 'Mes prospects' }),
+                url: '/staff/agency-prospects?scope=mine',
+                roles: ['manager'],
+            },
+            {
+                title: t('navigation.agencyProspects', { defaultValue: "Prospects d'agence" }),
+                url: '/staff/agency-prospects',
+                roles: ['manager'],
+            },
+        ],
     },
     {
         title: t('navigation.addProspect'),
@@ -242,8 +260,8 @@ const getMainNavItems = (t: TFunction, role: string): NavItem[] => [
         icon: UserCheck,
         roles: ['matchmaker', 'manager'],
         children: [
-            { title: t('navigation.receivedRequests', { defaultValue: 'Demandes reçues' }), url: '/staff/matchmaker/proposition-requests?type=received', roles: ['matchmaker'] },
-            { title: t('navigation.sentRequests', { defaultValue: 'Demandes envoyées' }), url: '/staff/matchmaker/proposition-requests?type=sent', roles: ['matchmaker'] },
+            { title: t('navigation.receivedRequests', { defaultValue: 'Demandes reçues' }), url: '/staff/matchmaker/proposition-requests?type=received', roles: ['matchmaker', 'manager'] },
+            { title: t('navigation.sentRequests', { defaultValue: 'Demandes envoyées' }), url: '/staff/matchmaker/proposition-requests?type=sent', roles: ['matchmaker', 'manager'] },
         ],
     },
     {
@@ -260,11 +278,11 @@ const getMainNavItems = (t: TFunction, role: string): NavItem[] => [
         title: t('navigation.rdv', { defaultValue: 'RDV' }),
         url: '/staff/rdv?status=en_cours',
         icon: CalendarPlus,
-        roles: ['matchmaker'],
+        roles: ['matchmaker', 'manager'],
         children: [
-            { title: t('navigation.rdvEnCours', { defaultValue: 'RDV en cours' }), url: '/staff/rdv?status=en_cours', roles: ['matchmaker'] },
-            { title: t('navigation.rdvReussis', { defaultValue: 'RDV réussis' }), url: '/staff/rdv?status=reussi', roles: ['matchmaker'] },
-            { title: t('navigation.rdvEchecs', { defaultValue: 'RDV échecs' }), url: '/staff/rdv?status=echec', roles: ['matchmaker'] },
+            { title: t('navigation.rdvEnCours', { defaultValue: 'RDV en cours' }), url: '/staff/rdv?status=en_cours', roles: ['matchmaker', 'manager'] },
+            { title: t('navigation.rdvReussis', { defaultValue: 'RDV réussis' }), url: '/staff/rdv?status=reussi', roles: ['matchmaker', 'manager'] },
+            { title: t('navigation.rdvEchecs', { defaultValue: 'RDV échecs' }), url: '/staff/rdv?status=echec', roles: ['matchmaker', 'manager'] },
         ],
     },
     {

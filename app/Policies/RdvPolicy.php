@@ -10,7 +10,7 @@ class RdvPolicy
 {
     public function create(User $user): bool
     {
-        return $user->hasRole('matchmaker');
+        return $user->hasAnyRole(['matchmaker', 'manager']);
     }
 
     public function view(User $user, Rdv $rdv): bool
@@ -36,18 +36,18 @@ class RdvPolicy
     public function updateFeedback(User $user, RdvFeedback $feedback): bool
     {
         return (int) $feedback->author_id === (int) $user->id
-            && $user->hasRole('matchmaker');
+            && $user->hasAnyRole(['matchmaker', 'manager']);
     }
 
     public function deleteFeedback(User $user, RdvFeedback $feedback): bool
     {
         return (int) $feedback->author_id === (int) $user->id
-            && $user->hasRole('matchmaker');
+            && $user->hasAnyRole(['matchmaker', 'manager']);
     }
 
     public function updateStatus(User $user, Rdv $rdv): bool
     {
         return (int) $rdv->matchmaker_id === (int) $user->id
-            && $user->hasRole('matchmaker');
+            && $user->hasAnyRole(['matchmaker', 'manager']);
     }
 }

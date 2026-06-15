@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import AppLayout from '@/layouts/app-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
@@ -56,6 +56,14 @@ const COLORS = {
 export default function MatchmakerStatistics() {
     const { t } = useTranslation();
     const { statistics = [], filters, agencies = [], matchmakers = [], canViewAll } = usePage().props;
+    const conseillerStaff = useMemo(
+        () => matchmakers.filter((m) => !(m.roles?.some?.((r) => r.name === 'manager')) && m.role !== 'manager'),
+        [matchmakers]
+    );
+    const managerStaff = useMemo(
+        () => matchmakers.filter((m) => m.roles?.some?.((r) => r.name === 'manager') || m.role === 'manager'),
+        [matchmakers]
+    );
     const [activeTabs, setActiveTabs] = useState({});
     const isLoading = statistics === null || statistics === undefined || (Array.isArray(statistics) && statistics.length === 0 && !filters);
 
@@ -312,11 +320,26 @@ export default function MatchmakerStatistics() {
                                             </SelectTrigger>
                                             <SelectContent>
                                                 <SelectItem value="">{t('statistics.allMatchmakers')}</SelectItem>
-                                                {matchmakers.map((mm) => (
-                                                    <SelectItem key={mm.id} value={mm.id.toString()}>
-                                                        {mm.name}
-                                                    </SelectItem>
-                                                ))}
+                                                {conseillerStaff.length > 0 && (
+                                                    <SelectGroup>
+                                                        <SelectLabel>Conseillers</SelectLabel>
+                                                        {conseillerStaff.map((mm) => (
+                                                            <SelectItem key={mm.id} value={mm.id.toString()}>
+                                                                {mm.name} <Badge variant="outline" className="ml-1 text-[10px] px-1 py-0">MM</Badge>
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectGroup>
+                                                )}
+                                                {managerStaff.length > 0 && (
+                                                    <SelectGroup>
+                                                        <SelectLabel>Managers</SelectLabel>
+                                                        {managerStaff.map((mm) => (
+                                                            <SelectItem key={mm.id} value={mm.id.toString()}>
+                                                                {mm.name} <Badge variant="outline" className="ml-1 text-[10px] px-1 py-0">MGR</Badge>
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectGroup>
+                                                )}
                                             </SelectContent>
                                         </Select>
                                     </div>

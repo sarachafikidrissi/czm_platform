@@ -6,7 +6,7 @@ import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { getCommercialCodeDisplay } from '@/lib/heard-about';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -18,7 +18,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 export default function ProspectsDispatch() {
     const { t } = useTranslation();
-    const { prospects = [], agencies = [], matchmakers = [], filters = {}, statusFilter = 'active', commercialOnly = false } = usePage().props;
+    const { prospects = [], agencies = [], matchmakers = [], managers = [], filters = {}, statusFilter = 'active', commercialOnly = false } = usePage().props;
     const isLoading = prospects === null || prospects === undefined;
     const [countries, setCountries] = useState([]);
     const [countryCodeToCities, setCountryCodeToCities] = useState({});
@@ -718,9 +718,26 @@ export default function ProspectsDispatch() {
                                 <Select value={selectedMatchmakerId} onValueChange={setSelectedMatchmakerId}>
                                     <SelectTrigger className="h-9"><SelectValue placeholder={t('staff.dispatchDialog.selectMatchmaker')} /></SelectTrigger>
                                     <SelectContent>
-                                        {matchmakers.map((m) => (
-                                            <SelectItem key={m.id} value={m.id.toString()}>{m.name} ({m.agency?.name || t('staff.noAgency')})</SelectItem>
-                                        ))}
+                                        {matchmakers.length > 0 && (
+                                            <SelectGroup>
+                                                <SelectLabel>Conseillers</SelectLabel>
+                                                {matchmakers.map((m) => (
+                                                    <SelectItem key={m.id} value={m.id.toString()}>
+                                                        {m.name} ({m.agency?.name || t('staff.noAgency')}) <Badge variant="outline" className="ml-1 text-[10px] px-1 py-0">MM</Badge>
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectGroup>
+                                        )}
+                                        {managers.length > 0 && (
+                                            <SelectGroup>
+                                                <SelectLabel>Managers</SelectLabel>
+                                                {managers.map((m) => (
+                                                    <SelectItem key={m.id} value={m.id.toString()}>
+                                                        {m.name} ({m.agency?.name || t('staff.noAgency')}) <Badge variant="outline" className="ml-1 text-[10px] px-1 py-0">MGR</Badge>
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectGroup>
+                                        )}
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -779,9 +796,26 @@ export default function ProspectsDispatch() {
                                 <Select value={selectedReassignMatchmakerId} onValueChange={setSelectedReassignMatchmakerId}>
                                     <SelectTrigger className="h-9"><SelectValue placeholder={t('staff.dispatchDialog.selectMatchmaker')} /></SelectTrigger>
                                     <SelectContent>
-                                        {matchmakers.map((m) => (
-                                            <SelectItem key={m.id} value={m.id.toString()}>{m.name} ({m.agency?.name || t('staff.noAgency')})</SelectItem>
-                                        ))}
+                                        {matchmakers.length > 0 && (
+                                            <SelectGroup>
+                                                <SelectLabel>Conseillers</SelectLabel>
+                                                {matchmakers.map((m) => (
+                                                    <SelectItem key={m.id} value={m.id.toString()}>
+                                                        {m.name} ({m.agency?.name || t('staff.noAgency')}) <Badge variant="outline" className="ml-1 text-[10px] px-1 py-0">MM</Badge>
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectGroup>
+                                        )}
+                                        {managers.length > 0 && (
+                                            <SelectGroup>
+                                                <SelectLabel>Managers</SelectLabel>
+                                                {managers.map((m) => (
+                                                    <SelectItem key={m.id} value={m.id.toString()}>
+                                                        {m.name} ({m.agency?.name || t('staff.noAgency')}) <Badge variant="outline" className="ml-1 text-[10px] px-1 py-0">MGR</Badge>
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectGroup>
+                                        )}
                                     </SelectContent>
                                 </Select>
                             </div>

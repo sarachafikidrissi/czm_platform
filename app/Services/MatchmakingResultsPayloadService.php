@@ -43,7 +43,10 @@ class MatchmakingResultsPayloadService
         $requestMetaMap = [];
         if ($compatibleIds !== []) {
             $requestQuery = PropositionRequest::query()
-                ->where('from_matchmaker_id', $me->id)
+                ->where(function ($q) use ($me) {
+                    $q->where('from_matchmaker_id', $me->id)
+                        ->orWhere('to_matchmaker_id', $me->id);
+                })
                 ->whereIn('compatible_user_id', $compatibleIds)
                 ->orderByDesc('created_at');
 
@@ -110,8 +113,10 @@ class MatchmakingResultsPayloadService
             // Bidirectional, mirroring the status map and `acceptedBothQuery`. We key the action map
             // by the "counterpart" user id (the one in $compatibleIds), regardless of which column
             // (reference_user_id or compatible_user_id) actually holds it on the row.
+            // Not scoped to matchmaker_id: a matchmaker who manages one of the parties
+            // (recipient/reference/compatible) may act on a proposition created by another
+            // matchmaker. Authorization is enforced per-row below via $canManagePair.
             $pairPropositions = Proposition::query()
-                ->where('matchmaker_id', $me->id)
                 ->where(function ($q) use ($referenceUserId, $compatibleIds) {
                     $q->where(function ($forward) use ($referenceUserId, $compatibleIds) {
                         $forward->where('reference_user_id', $referenceUserId)

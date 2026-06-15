@@ -9,6 +9,7 @@ use App\Models\MatchmakerEvaluation;
 use App\Models\MatchmakerNote;
 use App\Models\MonthlyObjective;
 use App\Models\Agency;
+use App\Services\ObjectiveMetricsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -56,8 +57,10 @@ class MatchmakerStatisticsController extends Controller
         $statistics = [];
         foreach ($matchmakerIds as $id) {
             try {
-                $matchmaker = User::find($id);
+                $matchmaker = User::with('roles')->find($id);
                 if (!$matchmaker) continue;
+
+                $isManager = $matchmaker->hasRole('manager');
 
                 // Always create statistics object, even if matchmaker has no data yet
                 // This ensures newly registered matchmakers see empty statistics instead of "no data" message
@@ -72,12 +75,12 @@ class MatchmakerStatisticsController extends Controller
                     'matchmaker_email' => $matchmaker->email,
                     'agency_id' => $matchmaker->agency_id,
                     'agency_name' => $agencyName,
-                    'users' => $this->getUserStatistics($id, $startDate, $endDate),
+                    'users' => $this->getUserStatistics($id, $startDate, $endDate, $isManager),
                     'bills' => $this->getBillStatistics($id, $startDate, $endDate),
                     'subscriptions' => $this->getSubscriptionStatistics($id, $startDate, $endDate),
                     'evaluations' => $this->getEvaluationStatistics($id, $startDate, $endDate),
                     'notes' => $this->getNoteStatistics($id, $startDate, $endDate),
-                    'objectives' => $this->getObjectiveStatistics($id, $selectedMonth, $selectedYear),
+                    'objectives' => $this->getObjectiveStatistics($id, $selectedMonth, $selectedYear, $isManager),
                     'activity' => $this->getActivityStatistics($id, $startDate, $endDate),
                     'profile_insights' => $this->getProfileInsights($id, $startDate, $endDate),
                 ];
@@ -116,9 +119,10 @@ class MatchmakerStatisticsController extends Controller
             $q->where('approval_status', 'approved');
         }])->get();
 
-        $matchmakers = User::role('matchmaker')
+        $matchmakers = User::whereHas('roles', fn ($q) => $q->whereIn('name', ['matchmaker', 'manager']))
             ->where('approval_status', 'approved')
-            ->with('agency')
+            ->with(['agency', 'roles'])
+            ->orderBy('name')
             ->get(['id', 'name', 'email', 'agency_id']);
 
         return Inertia::render('admin/matchmaker-statistics', [
@@ -167,19 +171,19 @@ class MatchmakerStatisticsController extends Controller
      */
     private function getMatchmakerIds($roleName, $me, $matchmakerId, $agencyId)
     {
-        if ($roleName === 'matchmaker') {
-            // Matchmaker sees only their own stats
+        if ($roleName === 'matchmaker' || $roleName === 'manager') {
+            // Matchmaker/manager sees only their own stats
             return [$me->id];
         }
 
         if ($matchmakerId) {
-            // Specific matchmaker selected
-            return [(int)$matchmakerId];
+            // Specific staff member selected
+            return [(int) $matchmakerId];
         }
 
         if ($agencyId) {
-            // All matchmakers in agency
-            return User::role('matchmaker')
+            // All matchmakers and managers in agency
+            return User::whereHas('roles', fn ($q) => $q->whereIn('name', ['matchmaker', 'manager']))
                 ->where('agency_id', $agencyId)
                 ->where('approval_status', 'approved')
                 ->pluck('id')
@@ -187,16 +191,16 @@ class MatchmakerStatisticsController extends Controller
         }
 
         if ($roleName === 'manager' && $me->agency_id) {
-            // Manager sees all matchmakers in their agency
-            return User::role('matchmaker')
+            // Manager sees all staff in their agency
+            return User::whereHas('roles', fn ($q) => $q->whereIn('name', ['matchmaker', 'manager']))
                 ->where('agency_id', $me->agency_id)
                 ->where('approval_status', 'approved')
                 ->pluck('id')
                 ->toArray();
         }
 
-        // Admin sees all matchmakers (or can filter)
-        return User::role('matchmaker')
+        // Admin sees all matchmakers and managers (or can filter)
+        return User::whereHas('roles', fn ($q) => $q->whereIn('name', ['matchmaker', 'manager']))
             ->where('approval_status', 'approved')
             ->pluck('id')
             ->toArray();
@@ -205,11 +209,19 @@ class MatchmakerStatisticsController extends Controller
     /**
      * Get user management statistics
      */
-    private function getUserStatistics($matchmakerId, $startDate, $endDate)
+    private function getUserStatistics($matchmakerId, $startDate, $endDate, $isManager = false)
     {
         // Base query for all assigned users (all time)
-        $baseQuery = User::role('user')
-            ->where('assigned_matchmaker_id', $matchmakerId);
+        if ($isManager) {
+            $baseQuery = User::role('user')
+                ->where(function ($q) use ($matchmakerId) {
+                    $q->where('validated_by_manager_id', $matchmakerId)
+                        ->orWhere('assigned_matchmaker_id', $matchmakerId);
+                });
+        } else {
+            $baseQuery = User::role('user')
+                ->where('assigned_matchmaker_id', $matchmakerId);
+        }
 
         // Total assigned users (all time)
         $totalAssigned = (clone $baseQuery)->count();
@@ -502,14 +514,10 @@ class MatchmakerStatisticsController extends Controller
     /**
      * Get objective statistics
      */
-    private function getObjectiveStatistics($matchmakerId, $month, $year)
+    private function getObjectiveStatistics($matchmakerId, $month, $year, $isManager = false)
     {
-        // Get objective for matchmaker role type
-        $objective = MonthlyObjective::where('role_type', 'matchmaker')
-            ->whereNull('user_id')
-            ->where('month', $month)
-            ->where('year', $year)
-            ->first();
+        // Per-user objective row (works for both managers and matchmakers)
+        $objective = ObjectiveMetricsService::resolveObjectiveForUser($matchmakerId, $month, $year);
 
         if (!$objective) {
             return [
@@ -539,11 +547,23 @@ class MatchmakerStatisticsController extends Controller
             ->whereBetween('created_at', [$startDate, $endDate])
             ->sum('total_amount') ?? 0;
 
-        $realizedMembres = User::role('user')
-            ->whereIn('status', ['member', 'client', 'client_expire'])
-            ->where('assigned_matchmaker_id', $matchmakerId)
-            ->whereBetween('approved_at', [$startDate, $endDate])
-            ->count();
+        if ($isManager) {
+            $realizedMembres = User::role('user')
+                ->whereIn('status', ['member', 'client', 'client_expire'])
+                ->where(function ($q) use ($matchmakerId) {
+                    $q->where('validated_by_manager_id', $matchmakerId)
+                        ->orWhere('assigned_matchmaker_id', $matchmakerId);
+                })
+                ->whereNotNull('approved_at')
+                ->whereBetween('approved_at', [$startDate, $endDate])
+                ->count();
+        } else {
+            $realizedMembres = User::role('user')
+                ->whereIn('status', ['member', 'client', 'client_expire'])
+                ->where('assigned_matchmaker_id', $matchmakerId)
+                ->whereBetween('approved_at', [$startDate, $endDate])
+                ->count();
+        }
 
         $realizedRdv = 0; // Placeholder
         $realizedMatch = 0; // Placeholder

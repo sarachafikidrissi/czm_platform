@@ -107,15 +107,25 @@ class AdminController extends Controller
         }
         $prospects = $query->with('profile')->orderBy('created_at', 'desc')->get(['id','name','email','username','phone','country','city','gender','status','agency_id','assigned_matchmaker_id','rejection_reason','rejected_by','rejected_at','created_at']);
         $agencies = Agency::query()->get(['id','name','country','city']);
-        $matchmakers = User::role('matchmaker')
+        $assignees = User::whereHas('roles', fn ($q) => $q->whereIn('name', ['matchmaker', 'manager']))
             ->where('approval_status', 'approved')
             ->whereNotNull('agency_id')
-            ->get(['id','name','email','agency_id']);
+            ->with('agency')
+            ->orderBy('name')
+            ->get(['id', 'name', 'email', 'agency_id']);
+        $managers = $assignees->filter(fn (User $u) => $u->hasRole('manager'))->values();
+
+        $managerIds = $managers->pluck('id')->all();
+
+        $matchmakers = $assignees->filter(
+            fn (User $u) => $u->hasRole('matchmaker') && ! in_array($u->id, $managerIds, true)
+        )->values();
 
         return Inertia::render('admin/prospects-dispatch', [
             'prospects' => $prospects,
             'agencies' => $agencies,
             'matchmakers' => $matchmakers,
+            'managers' => $managers,
             'statusFilter' => $statusFilter ?: 'active',
             'commercialOnly' => $commercialOnly,
             'filters' => [ 'country' => $country ?: null, 'city' => $city ?: null, 'dispatch' => $dispatch ?: 'all' ],
@@ -149,7 +159,7 @@ class AdminController extends Controller
                 $matchmaker = User::findOrFail($validated['matchmaker_id']);
                 
                 // Ensure matchmaker is approved, has a role, and is linked to an agency
-                if (!$matchmaker->hasRole('matchmaker') || $matchmaker->approval_status !== 'approved') {
+                if (! $matchmaker->hasAnyRole(['matchmaker', 'manager']) || $matchmaker->approval_status !== 'approved') {
                     return redirect()->back()->with('error', 'Selected matchmaker is not valid or not approved.');
                 }
                 
@@ -615,6 +625,7 @@ class AdminController extends Controller
             'agency_id' => 'required|exists:agencies,id',
         ]);
 
+
         $user = User::findOrFail($id);
         
         // Check if user is a manager
@@ -691,7 +702,7 @@ class AdminController extends Controller
             } else {
                 $matchmaker = User::findOrFail($validated['matchmaker_id']);
                 // Ensure matchmaker is approved and has a role
-                if (!$matchmaker->hasRole('matchmaker') || $matchmaker->approval_status !== 'approved') {
+                if (! $matchmaker->hasAnyRole(['matchmaker', 'manager']) || $matchmaker->approval_status !== 'approved') {
                     return redirect()->back()->with('error', 'Selected matchmaker is not valid or not approved.');
                 }
                 
@@ -786,15 +797,24 @@ class AdminController extends Controller
 
         $prospects = $query->get(['id','name','email','username','phone','country','city','status','agency_id','assigned_matchmaker_id','rejection_reason','rejected_by','rejected_at','created_at']);
         
-        // Get matchmakers from the manager's agency
-        $matchmakers = User::role('matchmaker')
+        // Get assignees from the manager's agency (matchmakers + manager self)
+        $assignees = User::whereHas('roles', fn ($q) => $q->whereIn('name', ['matchmaker', 'manager']))
             ->where('agency_id', $me->agency_id)
             ->where('approval_status', 'approved')
-            ->get(['id','name','email','agency_id']);
+            ->orderBy('name')
+            ->get(['id', 'name', 'email', 'agency_id']);
+        $managers = $assignees->filter(fn (User $u) => $u->hasRole('manager'))->values();
+
+        $managerIds = $managers->pluck('id')->all();
+
+        $matchmakers = $assignees->filter(
+            fn (User $u) => $u->hasRole('matchmaker') && ! in_array($u->id, $managerIds, true)
+        )->values();
 
         return Inertia::render('manager/prospects-dispatch', [
             'prospects' => $prospects,
             'matchmakers' => $matchmakers,
+            'managers' => $managers,
             'statusFilter' => $statusFilter ?: 'active',
             'commercialOnly' => $commercialOnly,
         ]);
@@ -836,7 +856,7 @@ class AdminController extends Controller
             $matchmaker = User::findOrFail($validated['matchmaker_id']);
             
             // Ensure matchmaker is approved, has a role, and is linked to the same agency
-            if (!$matchmaker->hasRole('matchmaker') || $matchmaker->approval_status !== 'approved') {
+            if (! $matchmaker->hasAnyRole(['matchmaker', 'manager']) || $matchmaker->approval_status !== 'approved') {
                 return redirect()->back()->with('error', 'Selected matchmaker is not valid or not approved.');
             }
             
@@ -920,16 +940,25 @@ class AdminController extends Controller
         $appointmentRequests = $query->orderBy('created_at', 'desc')->get();
 
         $agencies = Agency::all(['id', 'name', 'country', 'city']);
-        $matchmakers = User::role('matchmaker')
+        $assignees = User::whereHas('roles', fn ($q) => $q->whereIn('name', ['matchmaker', 'manager']))
             ->where('approval_status', 'approved')
             ->whereNotNull('agency_id')
             ->with('agency')
+            ->orderBy('name')
             ->get(['id', 'name', 'email', 'agency_id']);
+        $managers = $assignees->filter(fn (User $u) => $u->hasRole('manager'))->values();
+
+        $managerIds = $managers->pluck('id')->all();
+
+        $matchmakers = $assignees->filter(
+            fn (User $u) => $u->hasRole('matchmaker') && ! in_array($u->id, $managerIds, true)
+        )->values();
 
         return Inertia::render('admin/appointment-requests', [
             'appointmentRequests' => $appointmentRequests,
             'agencies' => $agencies,
             'matchmakers' => $matchmakers,
+            'managers' => $managers,
             'filters' => [
                 'status' => $statusFilter ?: 'all',
                 'treatment_status' => $treatmentStatusFilter ?: 'all',
@@ -972,7 +1001,7 @@ class AdminController extends Controller
                 $matchmaker = User::findOrFail($validated['matchmaker_id']);
 
                 // Ensure matchmaker is approved, has a role, and is linked to an agency
-                if (!$matchmaker->hasRole('matchmaker') || $matchmaker->approval_status !== 'approved') {
+                if (! $matchmaker->hasAnyRole(['matchmaker', 'manager']) || $matchmaker->approval_status !== 'approved') {
                     return redirect()->back()->with('error', 'Selected matchmaker is not valid or not approved.');
                 }
 
@@ -1047,7 +1076,7 @@ class AdminController extends Controller
                 $matchmaker = User::findOrFail($validated['matchmaker_id']);
 
                 // Ensure matchmaker is approved, has a role, and is linked to an agency
-                if (!$matchmaker->hasRole('matchmaker') || $matchmaker->approval_status !== 'approved') {
+                if (! $matchmaker->hasAnyRole(['matchmaker', 'manager']) || $matchmaker->approval_status !== 'approved') {
                     return redirect()->back()->with('error', 'Selected matchmaker is not valid or not approved.');
                 }
 
@@ -1175,11 +1204,19 @@ class AdminController extends Controller
             ->where('agency_id', $me->agency_id)
             ->pluck('id');
 
-        // Get matchmakers for dispatch dialog
-        $matchmakers = User::role('matchmaker')
+        // Get assignees for dispatch dialog (matchmakers + manager self)
+        $assignees = User::whereHas('roles', fn ($q) => $q->whereIn('name', ['matchmaker', 'manager']))
             ->where('agency_id', $me->agency_id)
             ->where('approval_status', 'approved')
+            ->orderBy('name')
             ->get(['id', 'name', 'email']);
+        $managers = $assignees->filter(fn (User $u) => $u->hasRole('manager'))->values();
+
+        $managerIds = $managers->pluck('id')->all();
+
+        $matchmakers = $assignees->filter(
+            fn (User $u) => $u->hasRole('matchmaker') && ! in_array($u->id, $managerIds, true)
+        )->values();
 
         // Include both matchmaker-assigned AND agency-only requests
         $query = AppointmentRequest::where(function($q) use ($matchmakerIds, $me) {
@@ -1222,6 +1259,7 @@ class AdminController extends Controller
             'appointmentRequests' => $appointmentRequests,
             'treatmentStatusFilter' => $treatmentStatusFilter ?: 'all',
             'matchmakers' => $matchmakers,
+            'managers' => $managers,
             'statistics' => [
                 'pending' => $pendingCount,
                 'done' => $doneCount,
@@ -1270,7 +1308,7 @@ class AdminController extends Controller
             $matchmaker = User::findOrFail($validated['matchmaker_id']);
             
             // Ensure matchmaker is approved, has a role, and is linked to the same agency
-            if (!$matchmaker->hasRole('matchmaker') || $matchmaker->approval_status !== 'approved') {
+            if (! $matchmaker->hasAnyRole(['matchmaker', 'manager']) || $matchmaker->approval_status !== 'approved') {
                 return redirect()->back()->with('error', 'Selected matchmaker is not valid or not approved.');
             }
             

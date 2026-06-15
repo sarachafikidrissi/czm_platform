@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Proposition;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -152,13 +153,12 @@ class PropositionRespondTest extends TestCase
             'responded_at' => now()->subDay(),
         ]);
 
-        $response = $this->actingAs($assignedMatchmaker)->get('/staff/matchmaker/propositions', [
-            'X-Inertia' => 'true',
-            'X-Requested-With' => 'XMLHttpRequest',
-        ]);
-
-        $response->assertOk();
-        $response->assertJsonPath('props.propositions.0.can_update_response', true);
+        $this->actingAs($assignedMatchmaker)
+            ->get('/staff/matchmaker/propositions')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('propositions.0.can_update_response', true)
+            );
     }
 
     public function test_assigned_matchmaker_sees_proposition_created_by_another_matchmaker(): void
@@ -183,13 +183,12 @@ class PropositionRespondTest extends TestCase
             'responded_at' => now()->subDay(),
         ]);
 
-        $response = $this->actingAs($assignedMatchmaker)->get('/staff/matchmaker/propositions', [
-            'X-Inertia' => 'true',
-            'X-Requested-With' => 'XMLHttpRequest',
-        ]);
-
-        $response->assertOk();
-        $response->assertJsonPath('props.propositions.0.id', $proposition->id);
-        $response->assertJsonPath('props.propositions.0.can_update_response', true);
+        $this->actingAs($assignedMatchmaker)
+            ->get('/staff/matchmaker/propositions')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('propositions.0.id', $proposition->id)
+                ->where('propositions.0.can_update_response', true)
+            );
     }
 }

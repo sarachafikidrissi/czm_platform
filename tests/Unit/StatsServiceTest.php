@@ -246,11 +246,11 @@ class StatsServiceTest extends TestCase
     }
 
     // -------------------------------------------------------------------------
-    // Members — status restricted to 'member' only
+    // Members — monthly validations vs live member workload
     // -------------------------------------------------------------------------
 
     /** @test */
-    public function member_stats_exclude_client_and_client_expire(): void
+    public function member_new_this_month_includes_client_and_client_expire_validated_in_period(): void
     {
         Role::findOrCreate('user', 'web');
         $base = ['assigned_matchmaker_id' => $this->matchmaker->id, 'approved_at' => now()];
@@ -266,9 +266,26 @@ class StatsServiceTest extends TestCase
 
         $stats = $this->service->compute($this->matchmaker, now()->month, now()->year, 'personal', null, null);
 
-        // Only the 'member' user counts; client and client_expire are excluded
-        $this->assertEquals(1, $stats['membres']['new_this_month']);
+        // All three were validated this month; only the live member counts in total_active
+        $this->assertEquals(3, $stats['membres']['new_this_month']);
         $this->assertEquals(1, $stats['membres']['total_active']);
+    }
+
+    /** @test */
+    public function member_promoted_to_client_still_counts_in_new_this_month(): void
+    {
+        Role::findOrCreate('user', 'web');
+        $user = User::factory()->create([
+            'status' => 'client',
+            'assigned_matchmaker_id' => $this->matchmaker->id,
+            'approved_at' => now(),
+        ]);
+        $user->assignRole('user');
+
+        $stats = $this->service->compute($this->matchmaker, now()->month, now()->year, 'personal', null, null);
+
+        $this->assertEquals(1, $stats['membres']['new_this_month']);
+        $this->assertEquals(0, $stats['membres']['total_active']);
     }
 
     // -------------------------------------------------------------------------

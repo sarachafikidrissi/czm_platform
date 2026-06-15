@@ -17,6 +17,7 @@ use App\Models\UserAssignment;
 use App\Models\UserPhoto;
 use App\Services\MatchmakingResultsPayloadService;
 use App\Services\MatchmakingService;
+use App\Services\StatsService;
 use App\Services\UserActivityService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -338,9 +339,12 @@ class MatchmakerController extends Controller
             } elseif ($actorRole === 'manager') {
                 // If a manager validates directly, set validated_by_manager_id to themselves
                 $validatedByManagerId = $actor->id;
-                // If there's an assigned matchmaker, use that; otherwise, the manager is handling it
                 if ($prospect->assigned_matchmaker_id) {
+                    // Keep existing matchmaker if already assigned
                     $assignedId = $prospect->assigned_matchmaker_id;
+                } else {
+                    // Manager becomes the assigned matchmaker
+                    $assignedId = $actor->id;
                 }
             }
         }
@@ -386,6 +390,27 @@ class MatchmakerController extends Controller
                 UserAssignment::recordAssignment($prospect->id, $assignedId, Auth::id(), 'initial');
             }
         });
+
+        // Invalidate KPI cache for all validation paths.
+        // StatsObserver covers assigned_matchmaker_id when non-null. This covers the
+        // manager-validates-unassigned path where assigned_matchmaker_id stays null
+        // and the observer fires nothing.
+        if ($assignedId) {
+            // Observer already fired for this, but explicit call is harmless and
+            // guarantees agency + platform keys are cleared.
+            StatsService::invalidateForMatchmaker(
+                (int) $assignedId
+            );
+        } elseif ($validatedByManagerId) {
+            // Manager validated with no matchmaker assigned. Observer fired nothing.
+            // Invalidate using the manager's agency explicitly.
+            if ($actor?->agency_id) {
+                StatsService::invalidateForMatchmaker(
+                    (int) $validatedByManagerId,
+                    (int) $actor->agency_id
+                );
+            }
+        }
 
         // Save notes to MatchmakerNote table if provided
         if ($request->filled('notes') && trim($request->notes) !== '') {
@@ -1411,6 +1436,7 @@ class MatchmakerController extends Controller
         }
 
         $statusFilter = $request->string('status_filter')->toString(); // active | rejected | rappeler
+        $scope = $request->string('scope')->toString(); // agency (default) | mine (manager personal caseload)
         $query = User::role('user')
             ->where('status', 'prospect')
             ->with(['profile', 'assignedMatchmaker', 'agency']);
@@ -1418,6 +1444,9 @@ class MatchmakerController extends Controller
         // Role-based filtering
         if ($roleName === 'matchmaker') {
             // Matchmaker: see only prospects assigned to them
+            $query->where('assigned_matchmaker_id', $me->id);
+        } elseif ($roleName === 'manager' && $scope === 'mine') {
+            // Manager personal caseload: prospects assigned directly to the manager
             $query->where('assigned_matchmaker_id', $me->id);
         } elseif ($roleName === 'manager') {
             // Manager: see all prospects from their agency (including those assigned to matchmakers)
@@ -1559,6 +1588,7 @@ class MatchmakerController extends Controller
             'prospects' => $prospects,
             'statusFilter' => $statusFilter ?: 'active',
             'commercialOnly' => $commercialOnly,
+            'scope' => ($roleName === 'manager' && $scope === 'mine') ? 'mine' : 'agency',
             'agencyId' => $me?->agency_id,
             'services' => $services,
             'matrimonialPacks' => $matrimonialPacks,

@@ -35,6 +35,12 @@ use Illuminate\Support\Facades\Cache;
  *    assigned_matchmaker_id (live workload today).
  *    A UI tooltip reads: "Les statistiques reflètent le conseiller actuellement assigné."
  *
+ * 4. MEMBER VALIDATION (new_this_month vs total_active)
+ *    "new_this_month" = prospect validations in the selected month (approved_at timestamp),
+ *    including users who have since become client or client_expire. Aligns with
+ *    ObjectiveMetricsService realized membres. "total_active" = live members only
+ *    (status = 'member' today).
+ *
  * PER-METRIC SHAPE (returned by each getter):
  *   [
  *     'new_this_month' => int,   events in selected month
@@ -146,20 +152,33 @@ class StatsService
 
     private function memberStats(array $mmIds, Carbon $start, Carbon $end, Carbon $prevStart, Carbon $prevEnd, array $targets): array
     {
-        $base = User::role('user')->whereIn('assigned_matchmaker_id', $mmIds)->where('status', 'member');
+        $scope = fn () => User::role('user')->where(function ($q) use ($mmIds) {
+            $q->whereIn('assigned_matchmaker_id', $mmIds)
+                ->orWhereIn('validated_by_manager_id', $mmIds);
+        });
 
-        $new = (clone $base)->whereBetween('approved_at', [$start, $end])->count();
+        // Monthly validations (approved_at) — include downstream statuses so promoting
+        // a member to client does not erase the validation credit for that month.
+        $validatedStatuses = ['member', 'client', 'client_expire'];
+        $monthlyBase = $scope()
+            ->whereNotNull('approved_at')
+            ->whereIn('status', $validatedStatuses);
 
-        $prevNew = (clone $base)->whereBetween('approved_at', [$prevStart, $prevEnd])->count();
+        $new = (clone $monthlyBase)->whereBetween('approved_at', [$start, $end])->count();
 
-        $total = (clone $base)->count();
+        $prevNew = (clone $monthlyBase)->whereBetween('approved_at', [$prevStart, $prevEnd])->count();
+
+        $total = $scope()->where('status', 'member')->count();
 
         return $this->metric($new, $total, $new - $prevNew, $targets['membres'] ?? null);
     }
 
     private function clientStats(array $mmIds, Carbon $start, Carbon $end, Carbon $prevStart, Carbon $prevEnd, array $targets): array
     {
-        $base = User::role('user')->whereIn('assigned_matchmaker_id', $mmIds);
+        $base = User::role('user')->where(function ($q) use ($mmIds) {
+            $q->whereIn('assigned_matchmaker_id', $mmIds)
+                ->orWhereIn('validated_by_manager_id', $mmIds);
+        });
 
         // A user "became client" this month = their status is 'client' and they were
         // approved (or transitioned) within the month. We approximate via approved_at
@@ -253,7 +272,7 @@ class StatsService
                 return [$matchmakerId];
             }
             if ($agencyId) {
-                return User::role('matchmaker')
+                return User::whereHas('roles', fn ($q) => $q->whereIn('name', ['matchmaker', 'manager']))
                     ->where('agency_id', $agencyId)
                     ->where('approval_status', 'approved')
                     ->pluck('id')
@@ -390,13 +409,19 @@ class StatsService
      */
     public static function getMatchmakerList(?int $agencyId = null): array
     {
-        return User::role('matchmaker')
+        return User::whereHas('roles', fn ($q) => $q->whereIn('name', ['matchmaker', 'manager']))
             ->where('approval_status', 'approved')
-            ->when($agencyId, fn($q) => $q->where('agency_id', $agencyId))
+            ->when($agencyId, fn ($q) => $q->where('agency_id', $agencyId))
+            ->with('roles')
             ->select('id', 'name', 'agency_id')
             ->orderBy('name')
             ->get()
-            ->map(fn($u) => ['id' => $u->id, 'name' => $u->name, 'agency_id' => $u->agency_id])
+            ->map(fn ($u) => [
+                'id' => $u->id,
+                'name' => $u->name,
+                'agency_id' => $u->agency_id,
+                'role' => $u->hasRole('manager') ? 'manager' : 'matchmaker',
+            ])
             ->toArray();
     }
 }

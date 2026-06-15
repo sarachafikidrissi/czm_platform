@@ -23,7 +23,7 @@ class PropositionRequestController extends Controller
     public function index(Request $request)
     {
         $me = Auth::user();
-        if (! $me || ! $me->hasRole('matchmaker')) {
+        if (! $me || ! $me->hasAnyRole(['matchmaker', 'manager'])) {
             abort(403, 'Unauthorized.');
         }
 
@@ -88,7 +88,7 @@ class PropositionRequestController extends Controller
     public function store(Request $request)
     {
         $me = Auth::user();
-        if (! $me || ! $me->hasRole('matchmaker')) {
+        if (! $me || ! $me->hasAnyRole(['matchmaker', 'manager'])) {
             abort(403, 'Unauthorized.');
         }
 
@@ -167,7 +167,7 @@ class PropositionRequestController extends Controller
     public function respond(Request $request, PropositionRequest $propositionRequest)
     {
         $me = Auth::user();
-        if (! $me || ! $me->hasRole('matchmaker')) {
+        if (! $me || ! $me->hasAnyRole(['matchmaker', 'manager'])) {
             abort(403, 'Unauthorized.');
         }
 

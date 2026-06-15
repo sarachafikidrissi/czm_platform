@@ -6,6 +6,8 @@ use App\Mail\CommentReplyNotification;
 use App\Models\Activity;
 use App\Models\Agency;
 use App\Models\AppointmentRequest;
+use App\Models\Bill;
+use App\Models\MonthlyObjective;
 use App\Models\Post;
 use App\Models\PostComment;
 use App\Models\PostLike;
@@ -15,6 +17,7 @@ use App\Models\TransferRequest;
 use App\Models\User;
 use App\Services\ObjectiveCommissionCalculator;
 use App\Services\ObjectiveMetricsService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -882,6 +885,52 @@ class PostController extends Controller
                 ],
             ];
 
+            $teamMembers = User::whereHas('roles', fn ($q) => $q->whereIn('name', ['matchmaker', 'manager']))
+                ->where('agency_id', $user->agency_id)
+                ->where('approval_status', 'approved')
+                ->with('roles')
+                ->get(['id', 'name']);
+
+            $memberIds = $teamMembers->pluck('id')->all();
+
+            // Batch all per-user objectives in one query.
+            $objectivesByUserId = MonthlyObjective::whereIn('user_id', $memberIds)
+                ->where('month', $month)
+                ->where('year', $year)
+                ->get()
+                ->keyBy('user_id');
+
+            // Batch paid-bill ventes for the month in one query (only ventes is displayed in this card).
+            $startDate = Carbon::create($year, $month, 1)->startOfMonth();
+            $endDate = Carbon::create($year, $month, 1)->endOfMonth();
+
+            $ventesMap = Bill::whereIn('matchmaker_id', $memberIds)
+                ->where('status', 'paid')
+                ->whereBetween('created_at', [$startDate, $endDate])
+                ->groupBy('matchmaker_id')
+                ->selectRaw('matchmaker_id, SUM(total_amount) as total')
+                ->pluck('total', 'matchmaker_id')
+                ->map(fn ($v) => (float) $v);
+
+            $teamProduction = $teamMembers->map(function ($member) use ($objectivesByUserId, $ventesMap) {
+                $objective = $objectivesByUserId[$member->id] ?? null;
+                $realizedVentes = $ventesMap[$member->id] ?? 0.0;
+                $targetVentes = $objective ? (float) $objective->target_ventes : 0.0;
+                $pct = $targetVentes > 0
+                    ? round(min(100.0, ($realizedVentes / $targetVentes) * 100), 1)
+                    : 0.0;
+
+                return [
+                    'id' => $member->id,
+                    'name' => $member->name,
+                    'role' => $member->hasRole('manager') ? 'manager' : 'matchmaker',
+                    'target_ventes' => $targetVentes,
+                    'realized_ventes' => $realizedVentes,
+                    'percentage' => $pct,
+                    'has_objective' => $objective !== null,
+                ];
+            })->sortByDesc('percentage')->values()->toArray();
+
             $stats = [
                 'prospects' => [
                     'total' => $prospectsQuery->count(),
@@ -892,6 +941,7 @@ class PostController extends Controller
                 'objectives' => $objectivesAgency,
                 'objectivesManager' => $objectivesManager,
                 'objectivesAgency' => $objectivesAgency,
+                'teamProduction' => $teamProduction,
                 'clients' => [
                     'total' => $clientsQuery->count(),
                     'inAppointment' => (clone $baseQuery)->where('status', 'en_rdv')->count(),
@@ -912,7 +962,6 @@ class PostController extends Controller
                         });
                     })->count(),
                 ],
-                'productionByAgency' => $this->getProductionByAgency($user->agency_id),
                 'matchmakers' => User::role('matchmaker')
                     ->where('agency_id', $user->agency_id)
                     ->where('approval_status', 'approved')
@@ -1018,9 +1067,18 @@ class PostController extends Controller
 
         $production = [];
         foreach ($agencies as $agency) {
+            $objective = ObjectiveMetricsService::sumObjectivesForAgency((int) $agency->id, $month, $year);
+            $realized = ObjectiveMetricsService::calculateRealizedForAgencyById((int) $agency->id, $month, $year);
+            $targetVentes = (float) ($objective?->target_ventes ?? 0);
+            $realizedVentes = (float) ($realized['ventes'] ?? 0);
+
             $production[] = [
                 'name' => $agency->name,
-                'percentage' => $this->agencyObjectiveCompletionPercent((int) $agency->id, $month, $year),
+                'percentage' => $targetVentes > 0
+                    ? round(min(100.0, ($realizedVentes / $targetVentes) * 100), 1)
+                    : 0.0,
+                'target_ventes' => $targetVentes,
+                'realized_ventes' => $realizedVentes,
             ];
         }
 
@@ -1028,36 +1086,24 @@ class PostController extends Controller
     }
 
     /**
-     * @return float Completion 0–100, one decimal; average of per-KPI progress where that KPI has a positive target.
+     * @return float Completion 0–100, one decimal; ventes-only attainment.
      */
     private function agencyObjectiveCompletionPercent(int $agencyId, int $month, int $year): float
     {
-        $objective = ObjectiveMetricsService::sumObjectivesForAgency($agencyId, $month, $year);
-        $realized = ObjectiveMetricsService::calculateRealizedForAgencyById($agencyId, $month, $year);
-        $progress = ObjectiveCommissionCalculator::calculateProgress($objective, $realized);
+        $objective = ObjectiveMetricsService::sumObjectivesForAgency(
+            $agencyId, $month, $year
+        );
+        $realized = ObjectiveMetricsService::calculateRealizedForAgencyById(
+            $agencyId, $month, $year
+        );
 
-        if (! $objective) {
+        if (! $objective || (float) $objective->target_ventes <= 0) {
             return 0.0;
         }
 
-        $parts = [];
-        if ((float) $objective->target_ventes > 0) {
-            $parts[] = $progress['ventes'];
-        }
-        if ((int) $objective->target_membres > 0) {
-            $parts[] = $progress['membres'];
-        }
-        if ((int) $objective->target_rdv > 0) {
-            $parts[] = $progress['rdv'];
-        }
-        if ((int) $objective->target_match > 0) {
-            $parts[] = $progress['match'];
-        }
-
-        if ($parts === []) {
-            return 0.0;
-        }
-
-        return round(array_sum($parts) / count($parts), 1);
+        return round(
+            min(100.0, ($realized['ventes'] / (float) $objective->target_ventes) * 100),
+            1
+        );
     }
 }

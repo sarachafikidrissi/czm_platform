@@ -105,11 +105,32 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
                                                     // Check if path matches and query params match
                                                     const pathMatches = currentPath === subPath;
                                                     let paramsMatch = true;
-                                                    subParams.forEach((value, key) => {
-                                                        if (currentParams.get(key) !== value) {
-                                                            paramsMatch = false;
-                                                        }
-                                                    });
+                                                    if (subParams.size > 0) {
+                                                        subParams.forEach((value, key) => {
+                                                            if (currentParams.get(key) !== value) {
+                                                                paramsMatch = false;
+                                                            }
+                                                        });
+                                                    } else {
+                                                        // Param-less child: inactive when a sibling's query params match the current URL
+                                                        const siblingWithParamsMatches = item.children?.some((sibling) => {
+                                                            if (sibling.url === sub.url) {
+                                                                return false;
+                                                            }
+                                                            const siblingParams = new URLSearchParams(sibling.url.split('?')[1] || '');
+                                                            if (siblingParams.size === 0) {
+                                                                return false;
+                                                            }
+                                                            let allMatch = true;
+                                                            siblingParams.forEach((value, key) => {
+                                                                if (currentParams.get(key) !== value) {
+                                                                    allMatch = false;
+                                                                }
+                                                            });
+                                                            return allMatch;
+                                                        }) ?? false;
+                                                        paramsMatch = !siblingWithParamsMatches;
+                                                    }
                                                     
                                                     const isActive = pathMatches && paramsMatch;
                                                     return (

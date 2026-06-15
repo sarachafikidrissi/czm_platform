@@ -3,6 +3,7 @@
 namespace Tests\Feature\Auth;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class RegistrationTest extends TestCase
@@ -18,9 +19,16 @@ class RegistrationTest extends TestCase
 
     public function test_new_users_can_register()
     {
+        Role::findOrCreate('user', 'web');
+
         $response = $this->post('/register', [
             'name' => 'Test User',
             'email' => 'test@example.com',
+            'phone' => '+212600000000',
+            'gender' => 'male',
+            'country' => 'MA',
+            'city' => 'Casablanca',
+            'condition' => true,
             'password' => 'password',
             'password_confirmation' => 'password',
         ]);

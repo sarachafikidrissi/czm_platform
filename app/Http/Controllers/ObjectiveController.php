@@ -895,13 +895,28 @@ class ObjectiveController extends Controller
         }
 
         $userOptions = [['value' => '', 'label' => 'Tous les utilisateurs']];
-        foreach ($users as $user) {
-            $userOptions[] = ['value' => (string) $user->id, 'label' => $user->name];
+        $matchmakerOptions = [];
+        $managerOptions = [];
+
+        if ($roleName === 'admin') {
+            foreach ($users as $user) {
+                if ($user->hasRole('manager')) {
+                    $managerOptions[] = ['value' => (string) $user->id, 'label' => $user->name];
+                } elseif ($user->hasRole('matchmaker')) {
+                    $matchmakerOptions[] = ['value' => (string) $user->id, 'label' => $user->name];
+                }
+            }
+        } else {
+            foreach ($users as $user) {
+                $userOptions[] = ['value' => (string) $user->id, 'label' => $user->name];
+            }
         }
 
         return [
             'agencies' => $roleName === 'admin' ? $agencyOptions : [],
             'users' => in_array($roleName, ['admin', 'manager'], true) ? $userOptions : [],
+            'matchmakers' => $matchmakerOptions,
+            'managers' => $managerOptions,
             'months' => $months,
             'years' => $years,
         ];

@@ -105,7 +105,7 @@ class RdvController extends Controller
     public function store(Request $request)
     {
         $me = Auth::user();
-        if (! $me || ! $me->hasRole('matchmaker')) {
+        if (! $me || ! $me->hasAnyRole(['matchmaker', 'manager'])) {
             abort(403, 'Unauthorized.');
         }
 
@@ -370,7 +370,7 @@ class RdvController extends Controller
     public function matchmakerRdvsPage(Request $request)
     {
         $me = Auth::user();
-        if (! $me || ! $me->hasRole('matchmaker')) {
+        if (! $me || ! $me->hasAnyRole(['matchmaker', 'manager'])) {
             abort(403, 'Unauthorized.');
         }
 

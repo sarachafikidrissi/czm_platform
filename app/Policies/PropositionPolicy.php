@@ -12,7 +12,7 @@ class PropositionPolicy
      */
     public function cancel(User $user, Proposition $proposition): bool
     {
-        if (! $user->hasRole('matchmaker')) {
+        if (! $user->hasAnyRole(['matchmaker', 'manager'])) {
             return false;
         }
 

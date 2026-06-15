@@ -1,8 +1,90 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { AlertTriangle, ArrowRightLeft, Calendar, ClipboardList, HandCoins, Hourglass, User } from 'lucide-react';
 
+const fmtMAD = (n) => {
+    if (n == null || !isFinite(Number(n))) return '— MAD';
+    return n >= 1000 ? (n / 1000).toFixed(0) + ' k MAD' : n + ' MAD';
+};
+
+const fmtPct = (n) => Number(n ?? 0).toFixed(2);
+
+const pctColor = (pct) => {
+    if (pct >= 80) return '#1D9E75';
+    if (pct >= 50) return '#BA7517';
+    if (pct >= 20) return '#993C1D';
+    if (pct > 0) return '#A32D2D';
+    return '#9ca3af';
+};
+
+const MONTH_NAMES = [
+    'janvier', 'février', 'mars', 'avril', 'mai', 'juin',
+    'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre',
+];
+
+const monthYearLabel = (source, suffix = '') => {
+    const month = source?.month;
+    const year = source?.year;
+    if (month && year) {
+        return `${MONTH_NAMES[month - 1]} ${year}${suffix}`;
+    }
+    const now = new Date();
+    return `${MONTH_NAMES[now.getMonth()]} ${now.getFullYear()}${suffix}`;
+};
+
+function VentesBar({ percentage, muted = false }) {
+    const color = muted ? '#d4d4d8' : pctColor(percentage);
+    return (
+        <div className="h-1 w-full overflow-hidden rounded-full bg-zinc-200/90">
+            <div
+                className="h-full rounded-full transition-all"
+                style={{
+                    width: muted ? '0%' : `${Math.min(100, percentage)}%`,
+                    backgroundColor: muted ? 'transparent' : color,
+                }}
+            />
+        </div>
+    );
+}
+
+function PersonalProductionCard({ title, data }) {
+    const target = data?.target_ventes ?? 0;
+    const realized = data?.realized_ventes ?? 0;
+    const pct = data?.progress?.ventes ?? 0;
+    const hasObjective = target > 0;
+
+    return (
+        <Card className="rounded-[18px] border border-black/[0.06] bg-white shadow-sm">
+            <CardHeader className="px-6 pb-2 pt-6">
+                <CardTitle className="font-serif text-xl font-bold tracking-tight text-neutral-900">
+                    {title}
+                </CardTitle>
+                <p className="text-muted-foreground text-xs">{monthYearLabel(data)}</p>
+            </CardHeader>
+            <CardContent className="px-6 pb-6 pt-0">
+                {!hasObjective ? (
+                    <p className="text-muted-foreground text-sm">Aucun objectif défini ce mois</p>
+                ) : (
+                    <div className="space-y-2">
+                        <div className="flex items-center justify-between gap-3 text-sm">
+                            <span className="font-medium text-slate-600">Ventes</span>
+                            <span
+                                className="shrink-0 font-bold tabular-nums"
+                                style={{ color: pctColor(pct) }}
+                            >
+                                {fmtPct(pct)}%
+                            </span>
+                        </div>
+                        <VentesBar percentage={pct} />
+                        <p className="text-muted-foreground text-[11px] tabular-nums">
+                            {fmtMAD(realized)} / {fmtMAD(target)}
+                        </p>
+                    </div>
+                )}
+            </CardContent>
+        </Card>
+    );
+}
 
 export default function NewsFeedSidebar({ statistics, role }) {
     if (!statistics) {
@@ -11,29 +93,189 @@ export default function NewsFeedSidebar({ statistics, role }) {
 
     return (
         <div className="w-full space-y-6">
-            {/* Production par agence */}
-            {statistics.productionByAgency && statistics.productionByAgency.length > 0 && (
-                <Card className="rounded-[18px] border border-black/[0.06] bg-white shadow-sm">
-                    <CardHeader className="px-6 pb-2 pt-6">
-                        <CardTitle className="font-serif text-xl font-bold tracking-tight text-neutral-900">
-                            Production par agence
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4 px-6 pb-6 pt-0">
-                        {statistics.productionByAgency.map((agency, index) => (
-                            <div key={index} className="space-y-2">
-                                <div className="flex items-center justify-between gap-3 text-sm">
-                                    <span className="truncate font-medium text-slate-500">{agency.name}</span>
-                                    <span className="shrink-0 font-bold tabular-nums text-neutral-900">{agency.percentage}%</span>
-                                </div>
-                                <Progress
-                                    value={agency.percentage}
-                                    className="h-2.5 w-full rounded-full bg-zinc-200/90 [&>div]:rounded-full [&>div]:bg-[#890505]"
-                                />
-                            </div>
-                        ))}
-                    </CardContent>
-                </Card>
+            {/* Admin: Production par agence */}
+            {role === 'admin' && statistics.productionByAgency && statistics.productionByAgency.length > 0 && (() => {
+                const sorted = [...statistics.productionByAgency].sort((a, b) => b.percentage - a.percentage);
+                const active = sorted.filter((a) => a.percentage > 0);
+                const inactive = sorted.filter((a) => a.percentage === 0);
+
+                return (
+                    <Card className="rounded-[18px] border border-black/[0.06] bg-white shadow-sm">
+                        <CardHeader className="px-6 pb-2 pt-6">
+                            <CardTitle className="font-serif text-xl font-bold tracking-tight text-neutral-900">
+                                Production par agence
+                            </CardTitle>
+                            <p className="text-muted-foreground text-xs">
+                                {monthYearLabel(statistics.objectivesAgency, ' · classement par ventes')}
+                            </p>
+                        </CardHeader>
+                        <CardContent className="space-y-4 px-6 pb-6 pt-0">
+                            {active.map((agency, index) => {
+                                const rank = index + 1;
+                                const color = pctColor(agency.percentage);
+                                return (
+                                    <div key={agency.name} className="space-y-1.5">
+                                        <div className="flex items-center justify-between gap-3 text-sm">
+                                            <div className="flex min-w-0 items-center gap-2">
+                                                <span
+                                                    className={`shrink-0 w-5 text-center font-bold tabular-nums ${rank <= 3 ? '' : 'text-slate-500'}`}
+                                                    style={rank <= 3 ? { color: '#B47A17' } : undefined}
+                                                >
+                                                    {rank}
+                                                </span>
+                                                <span className="truncate font-medium text-slate-600" title={agency.name}>
+                                                    {agency.name}
+                                                </span>
+                                            </div>
+                                            <span className="shrink-0 font-bold tabular-nums" style={{ color }}>
+                                                {fmtPct(agency.percentage)}%
+                                            </span>
+                                        </div>
+                                        <VentesBar percentage={agency.percentage} />
+                                        {agency.target_ventes != null && agency.realized_ventes != null && (
+                                            <p className="text-muted-foreground text-[11px] tabular-nums">
+                                                {fmtMAD(agency.realized_ventes)} / {fmtMAD(agency.target_ventes)}
+                                            </p>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                            {inactive.length > 0 && (
+                                <>
+                                    <p className="text-muted-foreground pt-1 text-[11px] font-medium uppercase tracking-wider">
+                                        {inactive.length} agence{inactive.length > 1 ? 's' : ''} sans objectif de ventes
+                                    </p>
+                                    {inactive.map((agency) => (
+                                        <div key={agency.name} className="space-y-1.5">
+                                            <div className="flex items-center justify-between gap-3 text-sm">
+                                                <div className="flex min-w-0 items-center gap-2">
+                                                    <span className="text-muted-foreground w-5 shrink-0 text-center">—</span>
+                                                    <span className="text-muted-foreground truncate" title={agency.name}>
+                                                        {agency.name}
+                                                    </span>
+                                                </div>
+                                                <span className="text-muted-foreground shrink-0 tabular-nums">{fmtPct(0)}%</span>
+                                            </div>
+                                            <div className="h-1 w-full rounded-full bg-zinc-200/90" />
+                                        </div>
+                                    ))}
+                                </>
+                            )}
+                        </CardContent>
+                    </Card>
+                );
+            })()}
+
+            {/* Manager: Ma production + Production de l'équipe */}
+            {role === 'manager' && statistics.objectivesManager && (
+                <PersonalProductionCard title="Ma production" data={statistics.objectivesManager} />
+            )}
+
+            {role === 'manager' && (() => {
+                const team = statistics.teamProduction;
+                if (!team || team.length === 0) {
+                    return (
+                        <Card className="rounded-[18px] border border-black/[0.06] bg-white shadow-sm">
+                            <CardHeader className="px-6 pb-2 pt-6">
+                                <CardTitle className="font-serif text-xl font-bold tracking-tight text-neutral-900">
+                                    Production de l'équipe
+                                </CardTitle>
+                                <p className="text-muted-foreground text-xs">
+                                    {monthYearLabel(statistics.objectivesManager)}
+                                </p>
+                            </CardHeader>
+                            <CardContent className="px-6 pb-6 pt-0">
+                                <p className="text-muted-foreground text-sm">Aucun membre d'équipe trouvé</p>
+                            </CardContent>
+                        </Card>
+                    );
+                }
+
+                const sorted = [...team].sort((a, b) => b.percentage - a.percentage);
+                const active = sorted.filter((m) => m.percentage > 0 || m.has_objective);
+                const noObjective = sorted.filter((m) => !m.has_objective && m.percentage === 0);
+
+                return (
+                    <Card className="rounded-[18px] border border-black/[0.06] bg-white shadow-sm">
+                        <CardHeader className="px-6 pb-2 pt-6">
+                            <CardTitle className="font-serif text-xl font-bold tracking-tight text-neutral-900">
+                                Production de l'équipe
+                            </CardTitle>
+                            <p className="text-muted-foreground text-xs">
+                                {monthYearLabel(statistics.objectivesManager)}
+                            </p>
+                        </CardHeader>
+                        <CardContent className="space-y-4 px-6 pb-6 pt-0">
+                            {active.map((member, index) => {
+                                const rank = index + 1;
+                                const isZeroWithObjective = member.has_objective && member.percentage === 0;
+                                const color = isZeroWithObjective ? '#9ca3af' : pctColor(member.percentage);
+                                return (
+                                    <div key={member.id} className="space-y-1.5">
+                                        <div className="flex items-center justify-between gap-3 text-sm">
+                                            <div className="flex min-w-0 items-center gap-2">
+                                                <span
+                                                    className={`w-5 shrink-0 text-center font-bold tabular-nums ${rank <= 3 && !isZeroWithObjective ? '' : 'text-slate-500'}`}
+                                                    style={rank <= 3 && !isZeroWithObjective ? { color: '#B47A17' } : undefined}
+                                                >
+                                                    {rank}
+                                                </span>
+                                                <span className="truncate font-medium text-slate-600" title={member.name}>
+                                                    {member.name}
+                                                </span>
+                                                <span
+                                                    className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${
+                                                        member.role === 'manager'
+                                                            ? 'bg-blue-100 text-blue-700'
+                                                            : 'bg-zinc-200 text-zinc-600'
+                                                    }`}
+                                                >
+                                                    {member.role === 'manager' ? 'MGR' : 'MM'}
+                                                </span>
+                                            </div>
+                                            <span
+                                                className="shrink-0 font-bold tabular-nums"
+                                                style={{ color }}
+                                            >
+                                                {fmtPct(member.percentage)}%
+                                            </span>
+                                        </div>
+                                        <VentesBar percentage={member.percentage} muted={isZeroWithObjective} />
+                                        <p className="text-muted-foreground text-[11px] tabular-nums">
+                                            {fmtMAD(member.realized_ventes)} / {fmtMAD(member.target_ventes)}
+                                        </p>
+                                    </div>
+                                );
+                            })}
+                            {noObjective.length > 0 && (
+                                <>
+                                    <p className="text-muted-foreground pt-1 text-[11px] font-medium uppercase tracking-wider">
+                                        {noObjective.length} conseiller{noObjective.length > 1 ? 's' : ''} sans objectif ce mois
+                                    </p>
+                                    {noObjective.map((member) => (
+                                        <div key={member.id} className="flex items-center justify-between gap-3 text-sm">
+                                            <div className="flex min-w-0 items-center gap-2">
+                                                <span className="text-muted-foreground w-5 shrink-0 text-center">—</span>
+                                                <span className="text-muted-foreground truncate" title={member.name}>
+                                                    {member.name}
+                                                </span>
+                                                <span className="shrink-0 rounded bg-zinc-200 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-zinc-600">
+                                                    {member.role === 'manager' ? 'MGR' : 'MM'}
+                                                </span>
+                                            </div>
+                                            <span className="text-muted-foreground shrink-0 text-[11px]">— MAD</span>
+                                        </div>
+                                    ))}
+                                </>
+                            )}
+                        </CardContent>
+                    </Card>
+                );
+            })()}
+
+            {/* Matchmaker: Ma production */}
+            {role === 'matchmaker' && statistics.objectives && (
+                <PersonalProductionCard title="Ma production" data={statistics.objectives} />
             )}
 
             {/* Mes prospects */}
@@ -113,7 +355,7 @@ export default function NewsFeedSidebar({ statistics, role }) {
                 </Card>
             )}
             {/* Mes Activités */}
-            {role === 'matchmaker' && statistics.activities && (
+            {['matchmaker', 'manager'].includes(role) && statistics.activities && (
                 <Card className="rounded-2xl border border-black/5 bg-white shadow-sm">
                     <CardHeader className="px-5 pt-4 pb-2">
                         <div className="flex items-center justify-between">

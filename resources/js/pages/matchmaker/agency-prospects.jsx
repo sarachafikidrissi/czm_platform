@@ -40,7 +40,7 @@ const getDocumentExample = (documentType) => {
 export default function AgencyProspects() {
     const { t } = useTranslation();
     const { showToast } = useToast();
-    const { prospects = [], statusFilter = 'active', commercialOnly = false, services = [], matrimonialPacks = [], auth } = usePage().props;
+    const { prospects = [], statusFilter = 'active', commercialOnly = false, scope = 'agency', services = [], matrimonialPacks = [], auth } = usePage().props;
     const isLoading = prospects === null || prospects === undefined;
     
     // Handle pagination data structure (server or client fallback)
@@ -110,6 +110,41 @@ export default function AgencyProspects() {
     const [transferring, setTransferring] = useState(false);
     
     const { role: userRole } = usePage().props; // Get role from shared props
+    const isManager = userRole === 'manager';
+    const prospectScope = scope === 'mine' ? 'mine' : 'agency';
+
+    const buildProspectsUrlParams = (overrides = {}) => {
+        const params = { ...overrides };
+
+        if (!('status_filter' in overrides) && statusFilter && statusFilter !== 'active') {
+            params.status_filter = statusFilter;
+        }
+
+        if (!('commercial_only' in overrides) && commercialOnly) {
+            params.commercial_only = 1;
+        }
+
+        if (!('scope' in overrides) && isManager && prospectScope === 'mine') {
+            params.scope = 'mine';
+        }
+
+        return params;
+    };
+
+    const switchProspectScope = (newScope) => {
+        const params = buildProspectsUrlParams();
+        if (newScope === 'mine') {
+            params.scope = 'mine';
+        } else {
+            delete params.scope;
+        }
+        router.get('/staff/agency-prospects', params, {
+            preserveScroll: true,
+            preserveState: true,
+            replace: true,
+        });
+    };
+
     const currentUser = auth?.user;
     const userId = currentUser?.id || null;
     const userAgencyId = currentUser?.agency_id || null;
@@ -563,6 +598,24 @@ export default function AgencyProspects() {
         <AppLayout>
             <Head title="Prospects" />
             <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
+                {isManager && (
+                    <div className="flex items-center gap-2">
+                        <Button
+                            variant={prospectScope === 'mine' ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => switchProspectScope('mine')}
+                        >
+                            Mes prospects
+                        </Button>
+                        <Button
+                            variant={prospectScope === 'agency' ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => switchProspectScope('agency')}
+                        >
+                            Prospects d&apos;agence
+                        </Button>
+                    </div>
+                )}
                 {/* Header with View Toggle and Pagination Info */}
                 <div className="flex flex-col gap-3">
                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
@@ -630,11 +683,11 @@ export default function AgencyProspects() {
                         <div className="flex items-center gap-2">
                             <Label className="text-sm text-muted-foreground">Status</Label>
                             <Select value={statusFilter || 'active'} onValueChange={(v) => {
-                                const url = new URL(window.location.href);
-                                url.searchParams.set('status_filter', v);
-                                if (commercialOnly) url.searchParams.set('commercial_only', '1');
-                                else url.searchParams.delete('commercial_only');
-                                router.visit(url.toString(), { preserveScroll: true, preserveState: true, replace: true });
+                                const params = buildProspectsUrlParams({ status_filter: v });
+                                if (v === 'active') {
+                                    delete params.status_filter;
+                                }
+                                router.get('/staff/agency-prospects', params, { preserveScroll: true, preserveState: true, replace: true });
                             }}>
                                 <SelectTrigger className="h-9 w-[160px]"><SelectValue /></SelectTrigger>
                                 <SelectContent>
@@ -648,10 +701,13 @@ export default function AgencyProspects() {
                         <div className="flex items-center gap-2">
                             <Label className="text-sm text-muted-foreground">{t('profile.heardAboutCommercialCode')}</Label>
                             <Select value={commercialOnly ? 'commercial' : 'all'} onValueChange={(v) => {
-                                const url = new URL(window.location.href);
-                                if (v === 'commercial') url.searchParams.set('commercial_only', '1');
-                                else url.searchParams.delete('commercial_only');
-                                router.visit(url.toString(), { preserveScroll: true, preserveState: true, replace: true });
+                                const params = buildProspectsUrlParams();
+                                if (v === 'commercial') {
+                                    params.commercial_only = 1;
+                                } else {
+                                    delete params.commercial_only;
+                                }
+                                router.get('/staff/agency-prospects', params, { preserveScroll: true, preserveState: true, replace: true });
                             }}>
                                 <SelectTrigger className="h-9 w-[200px]"><SelectValue /></SelectTrigger>
                                 <SelectContent>

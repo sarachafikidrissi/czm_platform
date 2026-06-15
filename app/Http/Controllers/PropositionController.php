@@ -154,7 +154,7 @@ class PropositionController extends Controller
     public function store(Request $request)
     {
         $me = Auth::user();
-        if (! $me || ! $me->hasRole('matchmaker')) {
+        if (! $me || ! $me->hasAnyRole(['matchmaker', 'manager'])) {
             abort(403, 'Unauthorized.');
         }
 
@@ -326,7 +326,7 @@ class PropositionController extends Controller
     public function sendToOther(Request $request)
     {
         $me = Auth::user();
-        if (! $me || ! $me->hasRole('matchmaker')) {
+        if (! $me || ! $me->hasAnyRole(['matchmaker', 'manager'])) {
             abort(403, 'Unauthorized.');
         }
 
@@ -675,7 +675,7 @@ class PropositionController extends Controller
     public function cancel(Proposition $proposition)
     {
         $me = Auth::user();
-        if (! $me || ! $me->hasRole('matchmaker')) {
+        if (! $me || ! $me->hasAnyRole(['matchmaker', 'manager'])) {
             abort(403, 'Unauthorized.');
         }
 

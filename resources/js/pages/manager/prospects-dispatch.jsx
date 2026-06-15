@@ -5,7 +5,7 @@ import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
@@ -16,7 +16,8 @@ import { getCommercialCodeDisplay } from '@/lib/heard-about';
 
 export default function ManagerProspectsDispatch() {
     const { t } = useTranslation();
-    const { prospects = [], matchmakers = [], statusFilter = 'active', commercialOnly = false } = usePage().props;
+    const { prospects = [], matchmakers = [], managers = [], statusFilter = 'active', commercialOnly = false } = usePage().props;
+    const assignees = [...matchmakers, ...managers];
     const [selectedProspectIds, setSelectedProspectIds] = useState([]);
     const [selectAll, setSelectAll] = useState(false);
     const [dispatchOpen, setDispatchOpen] = useState(false);
@@ -293,10 +294,10 @@ export default function ManagerProspectsDispatch() {
                             </DialogDescription>
                         </DialogHeader>
                         <div className="grid gap-4 py-4">
-                            {matchmakers.length === 0 ? (
+                            {assignees.length === 0 ? (
                                 <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                                     <p className="text-yellow-800 text-sm">
-                                        No approved matchmakers available in your agency. Please contact admin to add matchmakers to your agency.
+                                        No approved assignees available in your agency. Please contact admin to add staff to your agency.
                                     </p>
                                 </div>
                             ) : (
@@ -304,14 +305,29 @@ export default function ManagerProspectsDispatch() {
                                     <Label>{t('staff.dispatchDialog.selectMatchmaker')}</Label>
                                     <Select value={selectedMatchmakerId} onValueChange={setSelectedMatchmakerId}>
                                         <SelectTrigger className="h-9">
-                                            <SelectValue placeholder="Select a matchmaker" />
+                                            <SelectValue placeholder="Select an assignee" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            {matchmakers.map((m) => (
-                                                <SelectItem key={m.id} value={String(m.id)}>
-                                                    {m.name} ({m.email})
-                                                </SelectItem>
-                                            ))}
+                                            {matchmakers.length > 0 && (
+                                                <SelectGroup>
+                                                    <SelectLabel>Conseillers</SelectLabel>
+                                                    {matchmakers.map((m) => (
+                                                        <SelectItem key={m.id} value={String(m.id)}>
+                                                            {m.name} ({m.email}) <Badge variant="outline" className="ml-1 text-[10px] px-1 py-0">MM</Badge>
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectGroup>
+                                            )}
+                                            {managers.length > 0 && (
+                                                <SelectGroup>
+                                                    <SelectLabel>Managers</SelectLabel>
+                                                    {managers.map((m) => (
+                                                        <SelectItem key={m.id} value={String(m.id)}>
+                                                            {m.name} ({m.email}) <Badge variant="outline" className="ml-1 text-[10px] px-1 py-0">MGR</Badge>
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectGroup>
+                                            )}
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -323,7 +339,7 @@ export default function ManagerProspectsDispatch() {
                             </Button>
                             <Button 
                                 onClick={submitDispatch} 
-                                disabled={!selectedMatchmakerId || selectedProspectIds.length === 0 || matchmakers.length === 0}
+                                disabled={!selectedMatchmakerId || selectedProspectIds.length === 0 || assignees.length === 0}
                             >
                                 Dispatch
                             </Button>

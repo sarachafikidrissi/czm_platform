@@ -6,7 +6,7 @@ import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
@@ -16,7 +16,7 @@ import { Search, Eye, Send, UserPlus, Phone, Mail, Calendar, User, Stethoscope, 
 export default function AppointmentRequests() {
     const { t } = useTranslation();
     const { showToast } = useToast();
-    const { appointmentRequests = [], agencies = [], matchmakers = [], filters = {} } = usePage().props;
+    const { appointmentRequests = [], agencies = [], matchmakers = [], managers = [], filters = {} } = usePage().props;
     
     const [selectedRequestIds, setSelectedRequestIds] = useState([]);
     const [dispatchOpen, setDispatchOpen] = useState(false);
@@ -434,11 +434,26 @@ export default function AppointmentRequests() {
                                 <Select value={selectedMatchmakerId} onValueChange={setSelectedMatchmakerId}>
                                     <SelectTrigger><SelectValue placeholder="Select matchmaker" /></SelectTrigger>
                                     <SelectContent>
-                                        {matchmakers.map(matchmaker => (
-                                            <SelectItem key={matchmaker.id} value={matchmaker.id.toString()}>
-                                                {matchmaker.name} ({matchmaker.agency?.name || 'No Agency'})
-                                            </SelectItem>
-                                        ))}
+                                        {matchmakers.length > 0 && (
+                                            <SelectGroup>
+                                                <SelectLabel>Conseillers</SelectLabel>
+                                                {matchmakers.map((matchmaker) => (
+                                                    <SelectItem key={matchmaker.id} value={matchmaker.id.toString()}>
+                                                        {matchmaker.name} ({matchmaker.agency?.name || 'No Agency'}) <Badge variant="outline" className="ml-1 text-[10px] px-1 py-0">MM</Badge>
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectGroup>
+                                        )}
+                                        {managers.length > 0 && (
+                                            <SelectGroup>
+                                                <SelectLabel>Managers</SelectLabel>
+                                                {managers.map((matchmaker) => (
+                                                    <SelectItem key={matchmaker.id} value={matchmaker.id.toString()}>
+                                                        {matchmaker.name} ({matchmaker.agency?.name || 'No Agency'}) <Badge variant="outline" className="ml-1 text-[10px] px-1 py-0">MGR</Badge>
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectGroup>
+                                        )}
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -496,11 +511,26 @@ export default function AppointmentRequests() {
                                 <Select value={selectedReassignMatchmakerId} onValueChange={setSelectedReassignMatchmakerId}>
                                     <SelectTrigger><SelectValue placeholder="Select matchmaker" /></SelectTrigger>
                                     <SelectContent>
-                                        {matchmakers.map(matchmaker => (
-                                            <SelectItem key={matchmaker.id} value={matchmaker.id.toString()}>
-                                                {matchmaker.name} ({matchmaker.agency?.name || 'No Agency'})
-                                            </SelectItem>
-                                        ))}
+                                        {matchmakers.length > 0 && (
+                                            <SelectGroup>
+                                                <SelectLabel>Conseillers</SelectLabel>
+                                                {matchmakers.map((matchmaker) => (
+                                                    <SelectItem key={matchmaker.id} value={matchmaker.id.toString()}>
+                                                        {matchmaker.name} ({matchmaker.agency?.name || 'No Agency'}) <Badge variant="outline" className="ml-1 text-[10px] px-1 py-0">MM</Badge>
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectGroup>
+                                        )}
+                                        {managers.length > 0 && (
+                                            <SelectGroup>
+                                                <SelectLabel>Managers</SelectLabel>
+                                                {managers.map((matchmaker) => (
+                                                    <SelectItem key={matchmaker.id} value={matchmaker.id.toString()}>
+                                                        {matchmaker.name} ({matchmaker.agency?.name || 'No Agency'}) <Badge variant="outline" className="ml-1 text-[10px] px-1 py-0">MGR</Badge>
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectGroup>
+                                        )}
                                     </SelectContent>
                                 </Select>
                             </div>

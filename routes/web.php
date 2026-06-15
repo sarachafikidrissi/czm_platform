@@ -442,12 +442,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/users/upload-profile-picture', [\App\Http\Controllers\MatchmakerController::class, 'uploadProfilePicture'])->name('users.upload-profile-picture');
         Route::post('/users/upload-cover-picture', [\App\Http\Controllers\MatchmakerController::class, 'uploadCoverPicture'])->name('users.upload-cover-picture');
         // Matchmaker section routes
-        Route::middleware(['role:matchmaker'])->post('/propositions', [\App\Http\Controllers\PropositionController::class, 'store'])->name('propositions.store');
-        Route::middleware(['role:matchmaker'])->post('/propositions/send-to-other', [\App\Http\Controllers\PropositionController::class, 'sendToOther'])->name('propositions.send-to-other');
-        Route::middleware(['role:matchmaker'])->patch('/propositions/{proposition}/cancel', [\App\Http\Controllers\PropositionController::class, 'cancel'])->name('propositions.cancel');
-        Route::middleware(['role:matchmaker'])->delete('/propositions/{proposition}/cancel', [\App\Http\Controllers\PropositionController::class, 'cancel'])->name('propositions.cancel.delete');
-        Route::middleware(['role:matchmaker'])->post('/proposition-requests', [\App\Http\Controllers\PropositionRequestController::class, 'store'])->name('proposition-requests.store');
-        Route::middleware(['role:matchmaker'])->post('/proposition-requests/{propositionRequest}/respond', [\App\Http\Controllers\PropositionRequestController::class, 'respond'])->name('proposition-requests.respond');
+        Route::middleware(['role:matchmaker|manager'])->post('/propositions', [\App\Http\Controllers\PropositionController::class, 'store'])->name('propositions.store');
+        Route::middleware(['role:matchmaker|manager'])->post('/propositions/send-to-other', [\App\Http\Controllers\PropositionController::class, 'sendToOther'])->name('propositions.send-to-other');
+        Route::middleware(['role:matchmaker|manager'])->patch('/propositions/{proposition}/cancel', [\App\Http\Controllers\PropositionController::class, 'cancel'])->name('propositions.cancel');
+        Route::middleware(['role:matchmaker|manager'])->delete('/propositions/{proposition}/cancel', [\App\Http\Controllers\PropositionController::class, 'cancel'])->name('propositions.cancel.delete');
+        Route::middleware(['role:matchmaker|manager'])->post('/proposition-requests', [\App\Http\Controllers\PropositionRequestController::class, 'store'])->name('proposition-requests.store');
+        Route::middleware(['role:matchmaker|manager'])->post('/proposition-requests/{propositionRequest}/respond', [\App\Http\Controllers\PropositionRequestController::class, 'respond'])->name('proposition-requests.respond');
         Route::get('/matchmaker/propositions', [\App\Http\Controllers\MatchmakerController::class, 'propositionsList'])->name('matchmaker.propositions');
         Route::get('/matchmaker/proposition-requests', [\App\Http\Controllers\PropositionRequestController::class, 'index'])->name('matchmaker.proposition-requests');
         Route::get('/matchmaker/change', [\App\Http\Controllers\MatchmakerController::class, 'matchmakerChange'])->name('matchmaker.change');
@@ -457,7 +457,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/match/results/{userAId}', [\App\Http\Controllers\MatchmakerController::class, 'matchmakingResults'])->name('match.results');
         Route::post('/match/filters/{userAId}', [\App\Http\Controllers\MatchmakerController::class, 'updateMatchmakingFilters'])->name('match.filters.update');
         // RDV routes for matchmaker
-        Route::middleware(['role:matchmaker'])->group(function () {
+        Route::middleware(['role:matchmaker|manager'])->group(function () {
             Route::post('/rdv', [\App\Http\Controllers\RdvController::class, 'store'])->name('rdv.store');
             Route::get('/rdv', [\App\Http\Controllers\RdvController::class, 'matchmakerRdvsPage'])->name('rdv.matchmaker.list');
             Route::get('/rdv/{rdv}', [\App\Http\Controllers\RdvController::class, 'show'])->name('rdv.show');
@@ -569,7 +569,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/mes-rdvs', [\App\Http\Controllers\RdvController::class, 'mesRdvsPage'])->name('mes-rdvs');
         Route::get('/mes-rdvs/{rdv}/feedback', [\App\Http\Controllers\RdvController::class, 'feedbackPage'])->name('mes-rdvs.feedback');
     });
-    Route::middleware(['role:user|matchmaker'])->group(function () {
+    Route::middleware(['role:user|matchmaker|manager'])->group(function () {
         Route::post('/propositions/{proposition}/respond', [\App\Http\Controllers\PropositionController::class, 'respond'])->name('propositions.respond');
         // RDV feedback – accessible to both member participants and the matchmaker
         Route::post('/rdv/{rdv}/feedback', [\App\Http\Controllers\RdvController::class, 'addFeedback'])->name('rdv.feedback.store');

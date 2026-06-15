@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Models\UserActivity;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
+use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -64,7 +65,7 @@ class PropositionActiveAndCancelTest extends TestCase
         ]);
 
         $response->assertStatus(422)->assertJson([
-            'message' => PropositionController::MESSAGE_RECIPIENT_HAS_ACTIVE_PROPOSITION,
+            'message' => PropositionController::MESSAGE_REFERENCE_HAS_ACTIVE_PROPOSITION,
         ]);
     }
 
@@ -332,7 +333,7 @@ class PropositionActiveAndCancelTest extends TestCase
         ]);
 
         $response->assertStatus(422)->assertJson([
-            'message' => PropositionController::MESSAGE_RECIPIENT_HAS_ACTIVE_PROPOSITION,
+            'message' => PropositionController::MESSAGE_REFERENCE_HAS_ACTIVE_PROPOSITION,
         ]);
     }
 
@@ -524,7 +525,7 @@ class PropositionActiveAndCancelTest extends TestCase
         ])
             ->assertStatus(422)
             ->assertJson([
-                'message' => PropositionController::MESSAGE_RECIPIENT_HAS_ACTIVE_PROPOSITION,
+                'message' => PropositionController::MESSAGE_REFERENCE_HAS_ACTIVE_PROPOSITION,
             ]);
     }
 
@@ -594,13 +595,12 @@ class PropositionActiveAndCancelTest extends TestCase
             'status' => 'pending',
         ]);
 
-        $response = $this->actingAs($assignedMatchmaker)->get('/staff/matchmaker/propositions', [
-            'X-Inertia' => 'true',
-            'X-Requested-With' => 'XMLHttpRequest',
-        ]);
-
-        $response->assertOk();
-        $response->assertJsonPath('props.propositions.0.is_active', true);
-        $response->assertJsonPath('props.propositions.0.can_cancel', true);
+        $this->actingAs($assignedMatchmaker)
+            ->get('/staff/matchmaker/propositions')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('propositions.0.is_active', true)
+                ->where('propositions.0.can_cancel', true)
+            );
     }
 }

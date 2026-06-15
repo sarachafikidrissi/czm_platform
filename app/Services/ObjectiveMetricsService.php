@@ -133,7 +133,10 @@ class ObjectiveMetricsService
             ->sum('total_amount');
 
         $membres = User::role('user')
-            ->where('validated_by_manager_id', $managerId)
+            ->where(function ($q) use ($managerId) {
+                $q->where('validated_by_manager_id', $managerId)
+                    ->orWhere('assigned_matchmaker_id', $managerId);
+            })
             ->whereNotNull('approved_at')
             ->whereBetween('approved_at', [$startDate, $endDate])
             ->count();

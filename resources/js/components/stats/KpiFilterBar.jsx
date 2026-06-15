@@ -24,7 +24,12 @@ export default function KpiFilterBar({
     year,
 }) {
     const agencyOptions = agencies.map((a) => ({ value: String(a.id), label: a.name }));
-    const mmOptions     = matchmakers.map((m) => ({ value: String(m.id), label: m.name }));
+    const conseillers = matchmakers.filter((m) => m.role !== 'manager');
+    const managers = matchmakers.filter((m) => m.role === 'manager');
+    const mmOptions = [
+        ...conseillers.map((m) => ({ value: String(m.id), label: `${m.name} [MM]` })),
+        ...managers.map((m) => ({ value: String(m.id), label: `${m.name} [MGR]` })),
+    ];
 
     const hasFilter = agencyId || matchmakerId;
 
@@ -71,10 +76,10 @@ export default function KpiFilterBar({
                 {/* Matchmaker filter — cascades from agency */}
                 <div className="w-52">
                     <SearchableSelect
-                        options={[{ value: '', label: 'Tous les conseillers' }, ...mmOptions]}
+                        options={[{ value: '', label: 'Tous les conseillers / managers' }, ...mmOptions]}
                         value={matchmakerId ? String(matchmakerId) : ''}
                         onValueChange={handleMatchmakerChange}
-                        placeholder="Tous les conseillers"
+                        placeholder="Tous les conseillers / managers"
                         disabled={mmOptions.length === 0}
                     />
                 </div>
