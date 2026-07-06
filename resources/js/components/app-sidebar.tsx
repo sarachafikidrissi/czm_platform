@@ -181,7 +181,25 @@ const getMainNavItems = (t: TFunction, role: string): NavItem[] => [
         title: t('navigation.membersClient'),
         url: '/staff/validated-prospects',
         icon: HeartHandshake,
-        roles: ['admin', 'matchmaker', 'manager'],
+        roles: ['admin', 'matchmaker'],
+    },
+    {
+        title: t('navigation.membersClient'),
+        url: '/staff/validated-prospects',
+        icon: HeartHandshake,
+        roles: ['manager'],
+        children: [
+            {
+                title: t('navigation.myMembers', { defaultValue: 'Mes membres' }),
+                url: '/staff/validated-prospects?scope=mine',
+                roles: ['manager'],
+            },
+            {
+                title: t('navigation.agencyMembers', { defaultValue: "Membres d'agence" }),
+                url: '/staff/validated-prospects',
+                roles: ['manager'],
+            },
+        ],
     },
     {
         title: t('navigation.evaluatedUsers', { defaultValue: 'Evaluated Users' }),
@@ -278,11 +296,40 @@ const getMainNavItems = (t: TFunction, role: string): NavItem[] => [
         title: t('navigation.rdv', { defaultValue: 'RDV' }),
         url: '/staff/rdv?status=en_cours',
         icon: CalendarPlus,
-        roles: ['matchmaker', 'manager'],
+        roles: ['matchmaker'],
         children: [
-            { title: t('navigation.rdvEnCours', { defaultValue: 'RDV en cours' }), url: '/staff/rdv?status=en_cours', roles: ['matchmaker', 'manager'] },
-            { title: t('navigation.rdvReussis', { defaultValue: 'RDV réussis' }), url: '/staff/rdv?status=reussi', roles: ['matchmaker', 'manager'] },
-            { title: t('navigation.rdvEchecs', { defaultValue: 'RDV échecs' }), url: '/staff/rdv?status=echec', roles: ['matchmaker', 'manager'] },
+            { title: t('navigation.rdvEnCours', { defaultValue: 'RDV en cours' }), url: '/staff/rdv?status=en_cours', roles: ['matchmaker'] },
+            { title: t('navigation.rdvReussis', { defaultValue: 'RDV réussis' }), url: '/staff/rdv?status=reussi', roles: ['matchmaker'] },
+            { title: t('navigation.rdvEchecs', { defaultValue: 'RDV échecs' }), url: '/staff/rdv?status=echec', roles: ['matchmaker'] },
+        ],
+    },
+    {
+        title: t('navigation.rdv', { defaultValue: 'RDV' }),
+        url: '/staff/rdv?scope=mine&status=en_cours',
+        icon: CalendarPlus,
+        roles: ['manager'],
+        children: [
+            {
+                title: t('navigation.myRdv', { defaultValue: 'Mes RDV' }),
+                url: '/staff/rdv?scope=mine&status=en_cours',
+                roles: ['manager'],
+            },
+            {
+                title: t('navigation.agencyRdv', { defaultValue: "RDV d'agence" }),
+                url: '/staff/rdv?scope=agency&status=en_cours',
+                roles: ['manager'],
+            },
+        ],
+    },
+    {
+        title: t('navigation.rdv', { defaultValue: 'RDV' }),
+        url: '/staff/rdv?status=en_cours',
+        icon: CalendarPlus,
+        roles: ['admin'],
+        children: [
+            { title: t('navigation.rdvEnCours', { defaultValue: 'RDV en cours' }), url: '/staff/rdv?status=en_cours', roles: ['admin'] },
+            { title: t('navigation.rdvReussis', { defaultValue: 'RDV réussis' }), url: '/staff/rdv?status=reussi', roles: ['admin'] },
+            { title: t('navigation.rdvEchecs', { defaultValue: 'RDV échecs' }), url: '/staff/rdv?status=echec', roles: ['admin'] },
         ],
     },
     {

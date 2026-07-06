@@ -117,11 +117,30 @@ class Rdv extends Model
     }
 
     /**
+     * Returns true if the user has any RDV with status reussi.
+     * Status is updated in-place so a reussi later changed to echec will not match.
+     *
+     * NOTE: Not currently used in production.
+     * Proposition blocking uses PropositionController::hasBlockingRdvForEitherProfile()
+     */
+    public static function hasSuccessfulActiveRdvForUser(int $userId): bool
+    {
+        return static::query()
+            ->where('status', self::STATUS_REUSSI)
+            ->where(function ($q) use ($userId) {
+                $q->where('reference_user_id', $userId)
+                    ->orWhere('compatible_user_id', $userId);
+            })
+            ->exists();
+    }
+
+    /**
      * Latest RDV snapshot for a user, restricted to en_cours/reussi.
      *
      * @return array{
      *     exists: bool,
      *     rdv_id?: int,
+     *     matchmaker_id?: int,
      *     reference_user_id?: int,
      *     compatible_user_id?: int,
      *     status?: string
@@ -136,7 +155,7 @@ class Rdv extends Model
             })
             ->whereIn('status', [self::STATUS_EN_COURS, self::STATUS_REUSSI])
             ->orderByDesc('id')
-            ->first(['id', 'reference_user_id', 'compatible_user_id', 'status']);
+            ->first(['id', 'matchmaker_id', 'reference_user_id', 'compatible_user_id', 'status']);
 
         if (! $rdv) {
             return ['exists' => false];
@@ -145,6 +164,56 @@ class Rdv extends Model
         return [
             'exists' => true,
             'rdv_id' => (int) $rdv->id,
+            'matchmaker_id' => (int) $rdv->matchmaker_id,
+            'reference_user_id' => (int) $rdv->reference_user_id,
+            'compatible_user_id' => (int) $rdv->compatible_user_id,
+            'status' => (string) $rdv->status,
+        ];
+    }
+
+    /**
+     * Latest failed RDV snapshot for restore flow (when no en_cours/reussi blocks the profile).
+     *
+     * @return array{
+     *     exists: bool,
+     *     rdv_id?: int,
+     *     matchmaker_id?: int,
+     *     reference_user_id?: int,
+     *     compatible_user_id?: int,
+     *     status?: string
+     * }
+     */
+    public static function latestFailedSnapshotForUser(int $userId): array
+    {
+        $hasBlockingRdv = static::query()
+            ->where(function ($q) use ($userId) {
+                $q->where('reference_user_id', $userId)
+                    ->orWhere('compatible_user_id', $userId);
+            })
+            ->whereIn('status', [self::STATUS_EN_COURS, self::STATUS_REUSSI])
+            ->exists();
+
+        if ($hasBlockingRdv) {
+            return ['exists' => false];
+        }
+
+        $rdv = static::query()
+            ->where(function ($q) use ($userId) {
+                $q->where('reference_user_id', $userId)
+                    ->orWhere('compatible_user_id', $userId);
+            })
+            ->where('status', self::STATUS_ECHEC)
+            ->orderByDesc('id')
+            ->first(['id', 'matchmaker_id', 'reference_user_id', 'compatible_user_id', 'status']);
+
+        if (! $rdv) {
+            return ['exists' => false];
+        }
+
+        return [
+            'exists' => true,
+            'rdv_id' => (int) $rdv->id,
+            'matchmaker_id' => (int) $rdv->matchmaker_id,
             'reference_user_id' => (int) $rdv->reference_user_id,
             'compatible_user_id' => (int) $rdv->compatible_user_id,
             'status' => (string) $rdv->status,

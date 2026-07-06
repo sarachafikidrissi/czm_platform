@@ -796,6 +796,7 @@ class MatchmakerController extends Controller
         }
 
         $status = $request->input('status', 'all'); // all|member|client|client_expire|rappeler
+        $scope = $request->get('scope'); // null/agency (default) | mine (manager personal caseload)
         $query = User::role('user')
             ->whereIn('status', ['member', 'client', 'client_expire'])
             ->with(['profile', 'assignedMatchmaker']);
@@ -805,6 +806,12 @@ class MatchmakerController extends Controller
             if ($roleName === 'matchmaker') {
                 // Matchmaker: see only users assigned to them (removed from old matchmaker's list when transferred)
                 $query->where('assigned_matchmaker_id', $me->id);
+            } elseif ($roleName === 'manager' && $scope === 'mine') {
+                // Manager personal: only their own members (assigned to them OR validated by them)
+                $query->where(function ($q) use ($me) {
+                    $q->where('assigned_matchmaker_id', $me->id)
+                        ->orWhere('validated_by_manager_id', $me->id);
+                });
             } elseif ($roleName === 'manager') {
                 // Manager: see all members/clients validated from prospects assigned to their agency
                 // This includes:
@@ -1008,6 +1015,7 @@ class MatchmakerController extends Controller
             'prospects' => $prospects,
             'status' => $status ?: 'all',
             'commercialOnly' => $commercialOnly,
+            'scope' => ($roleName === 'manager' && $scope === 'mine') ? 'mine' : 'agency',
             'assignedMatchmaker' => $me,
             'services' => $services,
             'matrimonialPacks' => $matrimonialPacks,

@@ -6,7 +6,8 @@ import { useMatchmakingProposeRequestFlow } from '@/hooks/use-matchmaking-propos
 import { getProfilePicture, getAge, getLocation, getScoreColor, MATCH_PRIMARY } from '@/lib/matchmaking-result-display';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import AppLayout from '@/layouts/app-layout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -17,7 +18,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { 
     ArrowLeft, 
     Filter, 
-    X, 
     RotateCcw, 
     User, 
     MapPin, 
@@ -37,6 +37,23 @@ import { useToast } from '@/hooks/use-toast';
 import { propositionToastFr } from '@/lib/proposition-toast-messages';
 
 const PER_PAGE = 3;
+
+const ETAT_MATRIMONIAL_OPTIONS = [
+    { value: 'celibataire', label: 'Célibataire' },
+    { value: 'marie', label: 'Marié(e)' },
+    { value: 'divorce', label: 'Divorcé(e)' },
+    { value: 'veuf', label: 'Veuf/Veuve' },
+];
+
+const SITUATION_SANTE_OPTIONS = [
+    { value: 'sante_tres_bonne', label: 'Santé très bonne' },
+    { value: 'maladie_chronique', label: 'Maladie chronique' },
+    { value: 'personne_handicap', label: 'Personne en situation de handicap' },
+    { value: 'non_voyant_malvoyant', label: 'Non voyant / Malvoyant' },
+    { value: 'cecite_totale', label: 'مكفوف (Cécité totale)' },
+    { value: 'troubles_psychiques', label: 'Troubles psychiques' },
+    { value: 'autres', label: 'Autres' },
+];
 
 export default function MatchmakingResults({ userA, matches: initialMatches, defaultFilters, appliedFilters: initialAppliedFilters }) {
     const { showToast } = useToast();
@@ -930,6 +947,49 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
     const to = Math.min(currentPage * PER_PAGE, displayMatches.length);
     const paginatedMatches = displayMatches.slice((currentPage - 1) * PER_PAGE, currentPage * PER_PAGE);
 
+    const activeFilterCount = useMemo(() => {
+        const scalarCount = [
+            filters.age_min,
+            filters.age_max,
+            filters.religion,
+            filters.revenu_minimum,
+            filters.niveau_etudes,
+            filters.situation_professionnelle,
+            filters.etat_sante,
+            filters.fumeur,
+            filters.buveur,
+            filters.has_children,
+            filters.origine,
+            filters.logement,
+            filters.motorise,
+            filters.hijab_choice,
+            filters.veil,
+            filters.niqab_acceptance,
+            filters.sport,
+            filters.secteur,
+            filters.polygamy,
+            filters.foreign_marriage,
+            filters.work_after_marriage,
+            filters.pays_residence,
+            filters.pays_origine,
+            filters.ville_residence,
+            filters.ville_origine,
+            filters.children_count,
+            filters.taille_min,
+            filters.taille_max,
+            filters.poids_min,
+            filters.poids_max,
+        ].filter((v) => v !== '' && v !== null && v !== undefined).length;
+
+        const arrayCount =
+            (filters.etat_matrimonial?.length > 0 ? 1 : 0) +
+            (filters.pays_recherche?.length > 0 ? 1 : 0) +
+            (filters.villes_recherche?.length > 0 ? 1 : 0) +
+            (filters.situation_sante?.length > 0 ? 1 : 0);
+
+        return scalarCount + arrayCount;
+    }, [filters]);
+
     return (
         <AppLayout>
             <Head title="Résultats de Matchmaking" />
@@ -956,11 +1016,16 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
                     <div className="flex items-center gap-2">
                         <Button
                             variant={showFilters ? 'default' : 'outline'}
-                            onClick={() => setShowFilters(!showFilters)}
+                            onClick={() => setShowFilters(true)}
                             className="rounded-lg border-border focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                         >
                             <Filter className="w-4 h-4 mr-2" />
                             Filtres
+                            {activeFilterCount > 0 && (
+                                <span className="ml-2 rounded-full bg-primary text-primary-foreground text-xs px-1.5 py-0.5 font-medium">
+                                    {activeFilterCount}
+                                </span>
+                            )}
                         </Button>
                         <Button
                             variant="outline"
@@ -1029,23 +1094,19 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
                 </section>
 
                 {/* Filters Panel */}
-                {showFilters && (
-                    <Card className="overflow-hidden rounded-xl border border-border shadow-sm">
-                        <CardHeader className="border-b border-border/50 pb-4">
-                            <div className="flex items-center justify-between">
-                                <CardTitle className="text-lg font-semibold">Filtres de recherche</CardTitle>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => setShowFilters(false)}
-                                    className="rounded-lg focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                                >
-                                    <X className="w-4 h-4" />
-                                </Button>
-                            </div>
-                        </CardHeader>
-                        <CardContent className="pt-6">
-                            <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+                <Sheet
+                    open={showFilters}
+                    onOpenChange={(open) => {
+                        if (!open) setFilters({ ...appliedFilters });
+                        setShowFilters(open);
+                    }}
+                >
+                    <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto p-4">
+                        <SheetHeader className="mb-6">
+                            <SheetTitle>Filtres de recherche</SheetTitle>
+                        </SheetHeader>
+
+                        <div className="grid grid-cols-1 gap-5">
                                 {/* Age Range */}
                                 <div className="space-y-2">
                                     <Label>Âge minimum</Label>
@@ -1205,32 +1266,21 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
                                 {/* Marital Status - Multi-select */}
                                 <div className="space-y-2">
                                     <Label>État matrimonial</Label>
-                                    <div className="flex flex-wrap gap-4 rounded-lg border border-border bg-muted/20 p-4">
-                                        {['celibataire', 'marie', 'divorce', 'veuf'].map((option) => {
-                                            const currentValue = Array.isArray(filters.etat_matrimonial) ? filters.etat_matrimonial : [];
-                                            const isChecked = currentValue.includes(option);
-                                            return (
-                                                <label key={option} className="flex items-center space-x-2 cursor-pointer">
-                                                    <Checkbox
-                                                        checked={isChecked}
-                                                        onCheckedChange={(checked) => {
-                                                            const current = Array.isArray(filters.etat_matrimonial) ? filters.etat_matrimonial : [];
-                                                            const newValue = checked
-                                                                ? [...current, option]
-                                                                : current.filter((v) => v !== option);
-                                                            setFilters({ ...filters, etat_matrimonial: newValue });
-                                                        }}
-                                                    />
-                                                    <span className="text-sm">
-                                                        {option === 'celibataire' ? 'Célibataire' : 
-                                                         option === 'marie' ? 'Marié(e)' : 
-                                                         option === 'divorce' ? 'Divorcé(e)' : 
-                                                         'Veuf(ve)'}
-                                                    </span>
-                                                </label>
-                                            );
-                                        })}
-                                    </div>
+                                    <SearchableMultiSelect
+                                        options={ETAT_MATRIMONIAL_OPTIONS}
+                                        selectedValues={
+                                            Array.isArray(filters.etat_matrimonial)
+                                                ? filters.etat_matrimonial
+                                                : []
+                                        }
+                                        onSelectionChange={(values) =>
+                                            setFilters({
+                                                ...filters,
+                                                etat_matrimonial: values,
+                                            })
+                                        }
+                                        placeholder="Sélectionner..."
+                                    />
                                 </div>
 
                                 {/* Smoker */}
@@ -1371,35 +1421,21 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
                                 {/* Health Situation - Multi-select */}
                                 <div className="space-y-2">
                                     <Label>Situation de santé</Label>
-                                    <div className="flex flex-wrap gap-4 rounded-lg border border-border bg-muted/20 p-4">
-                                        {[
-                                            { value: 'sante_tres_bonne', label: 'Santé très bonne' },
-                                            { value: 'maladie_chronique', label: 'Maladie chronique' },
-                                            { value: 'personne_handicap', label: 'Personne en situation de handicap' },
-                                            { value: 'non_voyant_malvoyant', label: 'Non voyant / Malvoyant' },
-                                            { value: 'cecite_totale', label: 'مكفوف (Cécité totale)' },
-                                            { value: 'troubles_psychiques', label: 'Troubles psychiques' },
-                                            { value: 'autres', label: 'Autres' }
-                                        ].map((option) => {
-                                            const currentValue = Array.isArray(filters.situation_sante) ? filters.situation_sante : [];
-                                            const isChecked = currentValue.includes(option.value);
-                                            return (
-                                                <label key={option.value} className="flex items-center space-x-2 cursor-pointer">
-                                                    <Checkbox
-                                                        checked={isChecked}
-                                                        onCheckedChange={(checked) => {
-                                                            const current = Array.isArray(filters.situation_sante) ? filters.situation_sante : [];
-                                                            const newValue = checked
-                                                                ? [...current, option.value]
-                                                                : current.filter((v) => v !== option.value);
-                                                            setFilters({ ...filters, situation_sante: newValue });
-                                                        }}
-                                                    />
-                                                    <span className="text-sm">{option.label}</span>
-                                                </label>
-                                            );
-                                        })}
-                                    </div>
+                                    <SearchableMultiSelect
+                                        options={SITUATION_SANTE_OPTIONS}
+                                        selectedValues={
+                                            Array.isArray(filters.situation_sante)
+                                                ? filters.situation_sante
+                                                : []
+                                        }
+                                        onSelectionChange={(values) =>
+                                            setFilters({
+                                                ...filters,
+                                                situation_sante: values,
+                                            })
+                                        }
+                                        placeholder="Sélectionner..."
+                                    />
                                 </div>
 
                                 {/* Motorized */}
@@ -1570,27 +1606,19 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
                                         </div>
                                     </>
                                 )}
-                            </div>
+                        </div>
 
-                            <div className="mt-6 flex justify-end gap-3 border-t border-border/50 pt-6">
-                                <Button
-                                    variant="outline"
-                                    onClick={() => setShowFilters(false)}
-                                    className="rounded-lg focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                                >
-                                    Annuler
-                                </Button>
-                                <Button
-                                    onClick={handleApplyFilters}
-                                    disabled={isLoading}
-                                    className="rounded-lg focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50"
-                                >
-                                    {isLoading ? 'Application...' : 'Appliquer les filtres'}
-                                </Button>
-                            </div>
-                        </CardContent>
-                    </Card>
-                )}
+                        <div className="mt-6 flex justify-end border-t border-border/50 pt-6">
+                            <Button
+                                onClick={handleApplyFilters}
+                                disabled={isLoading}
+                                className="rounded-lg focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50"
+                            >
+                                {isLoading ? 'Application...' : 'Appliquer les filtres'}
+                            </Button>
+                        </div>
+                    </SheetContent>
+                </Sheet>
 
                 {/* Results */}
                 <section className="space-y-4">

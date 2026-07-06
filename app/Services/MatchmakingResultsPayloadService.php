@@ -26,10 +26,10 @@ class MatchmakingResultsPayloadService
         foreach ($compatibleIds as $cid) {
             $compatibleRecipientActiveMap[(int) $cid] = Proposition::hasActiveProposition((int) $cid);
         }
-        $compatibleHasInProgressRdvMap = [];
+        $compatibleHasBlockingRdvMap = [];
         foreach ($compatibleIds as $cid) {
-            $compatibleHasInProgressRdvMap[(int) $cid] = Rdv::query()
-                ->where('status', Rdv::STATUS_EN_COURS)
+            $compatibleHasBlockingRdvMap[(int) $cid] = Rdv::query()
+                ->whereIn('status', [Rdv::STATUS_EN_COURS, Rdv::STATUS_REUSSI])
                 ->where(function ($q) use ($referenceUserId, $cid) {
                     $q->where('reference_user_id', $referenceUserId)
                         ->orWhere('compatible_user_id', $referenceUserId)
@@ -338,7 +338,7 @@ class MatchmakingResultsPayloadService
             $successfulRdvCompatIds = $successfulRdvMap;
         }
 
-        return array_map(function ($match) use ($me, $referenceUserId, $statusMap, $requestMetaMap, $propositionStatusMap, $userAHasActiveProposition, $compatibleRecipientActiveMap, $compatibleHasInProgressRdvMap, $pairActions, $mutualInterestedCompatIds, $closedOnlyRecreationCompatIds, $failedRdvIdForClosedRecreationCompat, $bothAcceptedCompatIds, $rdvExistsCompatIds, $successfulRdvCompatIds, $failedEchecCompatIds, $recreationAllowedCompatIds) {
+        return array_map(function ($match) use ($me, $referenceUserId, $statusMap, $requestMetaMap, $propositionStatusMap, $userAHasActiveProposition, $compatibleRecipientActiveMap, $compatibleHasBlockingRdvMap, $pairActions, $mutualInterestedCompatIds, $closedOnlyRecreationCompatIds, $failedRdvIdForClosedRecreationCompat, $bothAcceptedCompatIds, $rdvExistsCompatIds, $successfulRdvCompatIds, $failedEchecCompatIds, $recreationAllowedCompatIds) {
             $compatId = $match['user']->id;
             $requestMeta = $requestMetaMap[$compatId] ?? null;
             $canProposeFromRequest = ($requestMeta['status'] ?? null) === 'accepted';
@@ -361,7 +361,7 @@ class MatchmakingResultsPayloadService
             $isRecreationContext = $canCreateRdv && $hasPastEchec;
             $canPropose = ! $userAHasActiveProposition
                 && ! ($compatibleRecipientActiveMap[$compatId] ?? false)
-                && ! ($compatibleHasInProgressRdvMap[$compatId] ?? false);
+                && ! ($compatibleHasBlockingRdvMap[$compatId] ?? false);
 
             return [
                 'user' => [

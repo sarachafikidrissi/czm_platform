@@ -1,4 +1,4 @@
-import { router } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import Details from './details';
@@ -7,6 +7,7 @@ import PersonalInfo from './personalInfo';
 import UploadPicture from './uploadPicture';
 
 export default function Profile({ auth, profile, isValidated = false }) {
+    const { registrationCountry = '', registrationCity = '' } = usePage().props;
     const { showToast } = useToast();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [currentStep, setCurrentStep] = useState(profile?.currentStep || 1);
@@ -21,8 +22,8 @@ export default function Profile({ auth, profile, isValidated = false }) {
         revenu: profile?.revenu || '',
         religion: profile?.religion || '',
         origine: profile?.origine || '',
-        paysResidence: profile?.paysResidence || '',
-        villeResidence: profile?.villeResidence || '',
+        paysResidence: profile?.paysResidence || registrationCountry || '',
+        villeResidence: profile?.villeResidence || registrationCity || '',
         paysOrigine: profile?.paysOrigine || '',
         villeOrigine: profile?.villeOrigine || '',
         aproposDescription: profile?.aproposDescription || '',

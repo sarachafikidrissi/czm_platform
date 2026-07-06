@@ -31,7 +31,7 @@ class PropositionController extends Controller
     /** @var string French UI message — cancel not allowed in current state */
     public const MESSAGE_CANCEL_INVALID_STATE = 'Cette proposition ne peut pas être annulée dans son état actuel.';
     public const MESSAGE_CANCEL_EXPIRED = 'Cette proposition est expirée et ne peut pas être annulée.';
-    public const MESSAGE_ACTIVE_RDV_IN_PROGRESS = 'Un RDV est en cours pour ce profil. La proposition sera disponible après la clôture du RDV.';
+    public const MESSAGE_ACTIVE_RDV_IN_PROGRESS = 'Ce profil a déjà un RDV en cours ou réussi. Une nouvelle proposition ne peut être envoyée que si le RDV échoue.';
 
     /**
      * Map a proposition for JSON / Inertia payloads (staff lists).
@@ -183,7 +183,7 @@ class PropositionController extends Controller
 
         $referenceUser = User::select('id', 'assigned_matchmaker_id')->findOrFail($data['reference_user_id']);
         $compatibleUser = User::select('id', 'assigned_matchmaker_id')->findOrFail($data['compatible_user_id']);
-        if ($this->hasInProgressRdvForEitherProfile((int) $referenceUser->id, (int) $compatibleUser->id)) {
+        if ($this->hasBlockingRdvForEitherProfile((int) $referenceUser->id, (int) $compatibleUser->id)) {
             return response()->json([
                 'message' => self::MESSAGE_ACTIVE_RDV_IN_PROGRESS,
             ], 422);
@@ -358,7 +358,7 @@ class PropositionController extends Controller
 
         $referenceUser = User::select('id', 'assigned_matchmaker_id')->findOrFail($data['reference_user_id']);
         $compatibleUser = User::select('id', 'assigned_matchmaker_id')->findOrFail($data['compatible_user_id']);
-        if ($this->hasInProgressRdvForEitherProfile((int) $referenceUser->id, (int) $compatibleUser->id)) {
+        if ($this->hasBlockingRdvForEitherProfile((int) $referenceUser->id, (int) $compatibleUser->id)) {
             return response()->json([
                 'message' => self::MESSAGE_ACTIVE_RDV_IN_PROGRESS,
             ], 422);
@@ -770,10 +770,10 @@ class PropositionController extends Controller
         ]);
     }
 
-    private function hasInProgressRdvForEitherProfile(int $referenceUserId, int $compatibleUserId): bool
+    private function hasBlockingRdvForEitherProfile(int $referenceUserId, int $compatibleUserId): bool
     {
         return Rdv::query()
-            ->where('status', Rdv::STATUS_EN_COURS)
+            ->whereIn('status', [Rdv::STATUS_EN_COURS, Rdv::STATUS_REUSSI])
             ->where(function ($query) use ($referenceUserId, $compatibleUserId) {
                 $query->where('reference_user_id', $referenceUserId)
                     ->orWhere('compatible_user_id', $referenceUserId)

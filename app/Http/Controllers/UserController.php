@@ -166,7 +166,8 @@ class UserController extends Controller
             'profile.matrimonialPack',
             'agency',
             'roles',
-            'assignedMatchmaker:id,agency_id,name,email', // Include more fields for better debugging
+            'assignedMatchmaker:id,agency_id,name,email',
+            'assignedMatchmaker.agency:id,name',
             'posts' => function ($query) {
                 $query->with(['user.profile', 'user', 'likes.user.profile', 'comments.user.roles', 'comments.user.profile'])
                     ->orderBy('created_at', 'desc');
@@ -446,21 +447,64 @@ class UserController extends Controller
             }
         }
 
+        // Load agency manager for self-view AND assigned staff viewing this profile
+        $agencyManager = null;
+        $userSubscription = null;
+
+        $isAssignedStaff = $currentUser && (
+            ($currentUser->hasRole('matchmaker') &&
+             $user->assigned_matchmaker_id === $currentUser->id) ||
+            ($currentUser->hasRole('manager') &&
+             ($user->validated_by_manager_id === $currentUser->id ||
+              $user->assigned_matchmaker_id === $currentUser->id)) ||
+            $currentUser->hasRole('admin')
+        );
+
+        $isSelfView = $currentUser &&
+            $currentUser->id === $user->id &&
+            $currentUser->hasRole('user');
+
+        if ($isSelfView) {
+            // Load their active subscription with pack
+            $userSubscription = $user->subscriptions()
+                ->with('matrimonialPack')
+                ->where('status', 'active')
+                ->latest()
+                ->first();
+        }
+
+        if ($isSelfView || $isAssignedStaff) {
+            // User's agency or their assigned matchmaker's agency
+            $resolvedAgencyId = $user->agency_id ?? $user->assignedMatchmaker?->agency_id;
+            if ($resolvedAgencyId) {
+                $agencyManager = User::whereHas('roles',
+                    fn ($q) => $q->where('name', 'manager'))
+                    ->where('agency_id', $resolvedAgencyId)
+                    ->where('approval_status', 'approved')
+                    ->select('id', 'name')
+                    ->first();
+            }
+        }
+
+        $displayAgency = $user->agency ?? $user->assignedMatchmaker?->agency;
+
         // Add has_bill to user object if it's a matchmaker/admin/manager viewing
         $memberProposition = null;
         $latestMemberProposition = null;
         $memberRdv = null;
+        $memberFailedRdv = null;
         if ($currentUser && ($currentUser->hasRole('matchmaker') || $currentUser->hasRole('admin') || $currentUser->hasRole('manager'))) {
             $user->has_bill = $hasBill;
             $memberProposition = Proposition::activeSnapshotForUser((int) $user->id);
             $latestMemberProposition = Proposition::latestSnapshotForUser((int) $user->id);
             $memberRdv = Rdv::activeOrSuccessfulSnapshotForUser((int) $user->id);
+            $memberFailedRdv = Rdv::latestFailedSnapshotForUser((int) $user->id);
         }
 
         return Inertia::render('user/profile', [
             'user' => $user,
             'profile' => $user->profile,
-            'agency' => $user->agency,
+            'agency' => $displayAgency,
             'matchmakerNotes' => $notes,
             'matchmakerEvaluation' => $evaluation,
             'evaluationAccessLevel' => $evaluationAccessLevel,
@@ -473,6 +517,9 @@ class UserController extends Controller
             'memberProposition' => $memberProposition,
             'latestMemberProposition' => $latestMemberProposition,
             'memberRdv' => $memberRdv,
+            'memberFailedRdv' => $memberFailedRdv,
+            'userSubscription' => $userSubscription,
+            'agencyManager' => $agencyManager,
         ]);
     }
 

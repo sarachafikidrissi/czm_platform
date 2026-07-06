@@ -457,11 +457,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/match/results/{userAId}', [\App\Http\Controllers\MatchmakerController::class, 'matchmakingResults'])->name('match.results');
         Route::post('/match/filters/{userAId}', [\App\Http\Controllers\MatchmakerController::class, 'updateMatchmakingFilters'])->name('match.filters.update');
         // RDV routes for matchmaker
+        Route::patch('/rdv/{rdv}/status', [\App\Http\Controllers\RdvController::class, 'updateStatus'])
+            ->name('rdv.update-status')
+            ->middleware('role:matchmaker|manager|admin');
+        Route::get('/rdv', [\App\Http\Controllers\RdvController::class, 'matchmakerRdvsPage'])
+            ->name('rdv.matchmaker.list')
+            ->middleware('role:matchmaker|manager|admin');
+        Route::get('/rdv/{rdv}', [\App\Http\Controllers\RdvController::class, 'show'])
+            ->name('rdv.show')
+            ->middleware('role:matchmaker|manager|admin');
         Route::middleware(['role:matchmaker|manager'])->group(function () {
             Route::post('/rdv', [\App\Http\Controllers\RdvController::class, 'store'])->name('rdv.store');
-            Route::get('/rdv', [\App\Http\Controllers\RdvController::class, 'matchmakerRdvsPage'])->name('rdv.matchmaker.list');
-            Route::get('/rdv/{rdv}', [\App\Http\Controllers\RdvController::class, 'show'])->name('rdv.show');
-            Route::patch('/rdv/{rdv}/status', [\App\Http\Controllers\RdvController::class, 'updateStatus'])->name('rdv.update-status');
             Route::put('/rdv-feedbacks/{feedback}', [\App\Http\Controllers\RdvController::class, 'updateFeedback'])->name('rdv-feedbacks.update');
             Route::delete('/rdv-feedbacks/{feedback}', [\App\Http\Controllers\RdvController::class, 'deleteFeedback'])->name('rdv-feedbacks.delete');
         });

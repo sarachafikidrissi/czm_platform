@@ -51,7 +51,7 @@ const getDocumentRegex = () => /^[A-Za-z0-9-]{5,20}$/;
 export default function ValidatedProspects() {
     const { t } = useTranslation();
     const { showToast } = useToast();
-    const { prospects, status, commercialOnly = false, assignedMatchmaker, auth, services: validationServices = [], matrimonialPacks: validationPacks = [] } = usePage().props;
+    const { prospects, status, commercialOnly = false, scope, assignedMatchmaker, auth, services: validationServices = [], matrimonialPacks: validationPacks = [] } = usePage().props;
     const isLoading = prospects === null || prospects === undefined;
     
     // Handle pagination data structure
@@ -127,6 +127,18 @@ export default function ValidatedProspects() {
     const currentUser = auth?.user;
     const userId = currentUser?.id || null;
     const userAgencyId = currentUser?.agency_id || null;
+    const isManager = userRole === 'manager';
+    const membersScope = scope === 'mine' ? 'mine' : 'agency';
+
+    const switchMembersScope = (newScope) => {
+        const url = new URL(window.location.href);
+        if (newScope === 'mine') {
+            url.searchParams.set('scope', 'mine');
+        } else {
+            url.searchParams.delete('scope');
+        }
+        router.visit(url.toString(), { preserveScroll: true, preserveState: true, replace: true });
+    };
     
     // Filter prospects based on search query (client-side: name, email, username, code commercial)
     const filteredProspects = useMemo(() => {
@@ -738,6 +750,25 @@ export default function ValidatedProspects() {
                             <p className="text-info-foreground text-sm">
                                 Aucun participant trouvé.
                             </p>
+                        </div>
+                    )}
+
+                    {isManager && (
+                        <div className="flex items-center gap-2 mb-3">
+                            <Button
+                                variant={membersScope === 'mine' ? 'default' : 'outline'}
+                                size="sm"
+                                onClick={() => switchMembersScope('mine')}
+                            >
+                                {t('navigation.myMembers', { defaultValue: 'Mes membres' })}
+                            </Button>
+                            <Button
+                                variant={membersScope === 'agency' ? 'default' : 'outline'}
+                                size="sm"
+                                onClick={() => switchMembersScope('agency')}
+                            >
+                                {t('navigation.agencyMembers', { defaultValue: "Membres d'agence" })}
+                            </Button>
                         </div>
                     )}
 

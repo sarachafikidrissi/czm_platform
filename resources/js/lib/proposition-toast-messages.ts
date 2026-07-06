@@ -52,5 +52,12 @@ export const rdvToastFr = {
     feedbackMatchmakerSuccess: 'Feedback matchmaker enregistré.',
     feedbackAlreadySubmitted: 'Vous avez déjà soumis un feedback pour ce RDV.',
     feedbackError: 'Erreur lors de l\'envoi du feedback.',
+    cancelMatchSuccess:
+        'Match annulé. Les deux profils sont à nouveau disponibles pour de nouvelles propositions.',
+    cancelMatchError: 'Erreur lors de l’annulation du match. Veuillez réessayer.',
+    cancelMatchUnauthorized: 'Vous n’êtes pas autorisé à annuler ce match.',
+    restoreMatchSuccess: 'Match restauré. Le RDV est à nouveau marqué comme réussi.',
+    restoreMatchError: 'Erreur lors de la restauration du match. Veuillez réessayer.',
+    restoreMatchUnauthorized: 'Vous n’êtes pas autorisé à restaurer ce match.',
     genericError: 'Une erreur est survenue. Veuillez réessayer.',
 } as const

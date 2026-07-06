@@ -82,6 +82,7 @@ class RdvController extends Controller
                 'created_at' => $fb->created_at,
             ])->values()->toArray(),
             'can_add_feedback' => $isParticipant && ! $alreadySubmitted,
+            'is_participant' => $isParticipant,
             'other_profile_phone' => ($rdv->share_phone && $otherUser) ? $otherUser->phone : null,
             'my_feedback' => $myFeedback ? [
                 'id' => $myFeedback->id,
@@ -370,37 +371,82 @@ class RdvController extends Controller
     public function matchmakerRdvsPage(Request $request)
     {
         $me = Auth::user();
-        if (! $me || ! $me->hasAnyRole(['matchmaker', 'manager'])) {
+        if (! $me || ! $me->hasAnyRole(['matchmaker', 'manager', 'admin'])) {
             abort(403, 'Unauthorized.');
         }
 
         $status = $request->query('status');
 
-        $rdvs = Rdv::query()
-            ->where('matchmaker_id', $me->id)
-            ->when($status, fn ($q) => $q->where('status', $status))
-            ->with([
-                'matchmaker:id,name,username',
-                'referenceUser:id,name,username,phone',
-                'referenceUser.profile:id,user_id,profile_picture_path',
-                'compatibleUser:id,name,username,phone',
-                'compatibleUser.profile:id,user_id,profile_picture_path',
-                'feedbacks',
-            ])
-            ->latest()
-            ->paginate(10);
+        // Admin: all platform RDVs. Managers: personal vs agency. Matchmakers: own only.
+        $isAdmin = $me->hasRole('admin');
+        $isManager = $me->hasRole('manager');
+        $scope = $isAdmin
+            ? 'platform'
+            : (($isManager && $me->agency_id && $request->query('scope') === 'agency') ? 'agency' : 'mine');
+
+        $relations = [
+            'matchmaker:id,name,username',
+            'referenceUser:id,name,username,phone',
+            'referenceUser.profile:id,user_id,profile_picture_path',
+            'compatibleUser:id,name,username,phone',
+            'compatibleUser.profile:id,user_id,profile_picture_path',
+            'feedbacks',
+        ];
+
+        if ($isAdmin) {
+            $rdvs = Rdv::query()
+                ->when($status, fn ($q) => $q->where('status', $status))
+                ->with($relations)
+                ->latest()
+                ->paginate(10);
+        } elseif ($scope === 'agency') {
+            // Agency view: all RDVs of approved matchmakers AND managers in this agency.
+            $agencyStaffIds = User::whereHas('roles', fn ($q) => $q->whereIn('name', ['matchmaker', 'manager']))
+                ->where('agency_id', $me->agency_id)
+                ->where('approval_status', 'approved')
+                ->pluck('id');
+
+            $rdvs = Rdv::query()
+                ->whereIn('matchmaker_id', $agencyStaffIds)
+                ->when($status, fn ($q) => $q->where('status', $status))
+                ->with($relations)
+                ->latest()
+                ->paginate(10);
+        } else {
+            // Personal caseload (default for managers, only option for matchmakers).
+            $rdvs = Rdv::query()
+                ->where('matchmaker_id', $me->id)
+                ->when($status, fn ($q) => $q->where('status', $status))
+                ->with($relations)
+                ->latest()
+                ->paginate(10);
+        }
 
         $mapped = $rdvs->getCollection()
-            ->map(function (Rdv $rdv) use ($me) {
+            ->map(function (Rdv $rdv) use ($me, $isAdmin) {
                 $row = $this->mapRdv($rdv, $me);
 
-                return array_merge($row, $this->matchmakerRowRecreationMeta($me, $rdv));
+                // Recreation actions are only valid for the matchmaker who owns the RDV.
+                // Agency / platform views may include RDVs owned by other staff: those are view-only.
+                $isOwner = ! $isAdmin && (int) $rdv->matchmaker_id === (int) $me->id;
+
+                $recreateMeta = $isOwner
+                    ? $this->matchmakerRowRecreationMeta($me, $rdv)
+                    : [
+                        'can_recreate_rdv' => false,
+                        'recreate_proposition_id' => null,
+                        'recreate_from_failed_rdv_id' => null,
+                        'is_recreation_context' => false,
+                    ];
+
+                return array_merge($row, $recreateMeta);
             })
             ->values();
 
         return Inertia::render('matchmaker/rdv-list', [
             'rdvs' => $mapped,
             'status_filter' => $status,
+            'scope' => $scope,
             'pagination' => [
                 'current_page' => $rdvs->currentPage(),
                 'last_page' => $rdvs->lastPage(),
@@ -423,15 +469,28 @@ class RdvController extends Controller
         $this->authorize('view', $rdv);
 
         $rdv->load([
-            'matchmaker:id,name,username',
-            'referenceUser:id,name,username,phone',
-            'referenceUser.profile:id,user_id,profile_picture_path',
-            'compatibleUser:id,name,username,phone',
-            'compatibleUser.profile:id,user_id,profile_picture_path',
-            'feedbacks',
+            'matchmaker:id,name,username,email,phone,agency_id',
+            'matchmaker.agency:id,name',
+            'referenceUser:id,name,username,phone,gender,status',
+            'referenceUser.profile:id,user_id,profile_picture_path,date_naissance,pays_residence,ville_residence',
+            'compatibleUser:id,name,username,phone,gender,status',
+            'compatibleUser.profile:id,user_id,profile_picture_path,date_naissance,pays_residence,ville_residence',
+            'feedbacks.author:id,name',
         ]);
 
-        return response()->json($this->mapRdv($rdv, $me));
+        return Inertia::render('matchmaker/rdv-show', [
+            'rdv' => [
+                'id' => $rdv->id,
+                'status' => $rdv->status,
+                'created_at' => $rdv->created_at->format('d/m/Y'),
+                'updated_at' => $rdv->updated_at->format('d/m/Y'),
+                'matchmaker' => $rdv->matchmaker,
+                'reference_user' => $rdv->referenceUser,
+                'compatible_user' => $rdv->compatibleUser,
+                'feedbacks' => $rdv->feedbacks,
+            ],
+            'canUpdateStatus' => $me->can('updateStatus', $rdv),
+        ]);
     }
 
     /**

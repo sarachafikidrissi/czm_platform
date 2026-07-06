@@ -28,6 +28,8 @@ class ProfileController extends Controller
                 'user' => $user,
             ],
             'isValidated' => $isValidated,
+            'registrationCountry' => $user->country,
+            'registrationCity' => $user->city,
             'profile' => $profile ? [
                 // Step 1
                 'nom' => $profile->nom,

@@ -73,7 +73,7 @@ class PropositionActiveAndCancelTest extends TestCase
     {
         $mm = $this->makeUserWithRole('matchmaker');
         $recipient = $this->makeUserWithRole('user', ['assigned_matchmaker_id' => $mm->id]);
-        $other = $this->makeUserWithRole('user');
+        $other = $this->makeUserWithRole('user', ['assigned_matchmaker_id' => $mm->id]);
 
         $existing = Proposition::create([
             'matchmaker_id' => $mm->id,
@@ -471,7 +471,7 @@ class PropositionActiveAndCancelTest extends TestCase
             'compatible_user_id' => $comp->id,
             'recipient_user_id' => $comp->id,
             'message' => 'First',
-            'status' => 'rejected',
+            'status' => 'not_interested',
             'responded_at' => now()->subHours(2),
         ]);
 

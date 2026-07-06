@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import AppLayout from '@/layouts/app-layout';
 import { Head, router, usePage } from '@inertiajs/react';
-import { BookOpen, Building2, Camera, ChevronRight, Eye, Facebook, Heart, Instagram, Linkedin, Mail, MapPin, MessageSquareWarning, User, X, Youtube, Trash2, MoreVertical, UserCircle, Image, ThumbsUp, CheckCircle, Coffee, CreditCard, Lightbulb, Phone, ArrowRightLeft, Pencil, FileText, Calendar, Search, ShoppingCart, GraduationCap, Briefcase, Star } from 'lucide-react';
+import { BookOpen, Building, Building2, Camera, ChevronRight, Eye, Facebook, Heart, Instagram, Link, Linkedin, Mail, MapPin, MessageSquareWarning, User, X, Youtube, Trash2, MoreVertical, UserCircle, UserCheck, Image, ThumbsUp, CheckCircle, Coffee, CreditCard, Lightbulb, Phone, ArrowRightLeft, Pencil, FileText, Calendar, Search, ShoppingCart, GraduationCap, Briefcase, Star, Tag } from 'lucide-react';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import MatchResultMatchCard from '@/components/matchmaking/MatchResultMatchCard';
 import MatchmakingProposeRequestModals from '@/components/matchmaking/MatchmakingProposeRequestModals';
@@ -26,7 +26,7 @@ import { useMatchmakingProposeRequestFlow } from '@/hooks/use-matchmaking-propos
 import { getProfilePicture, getAge, getLocation, getScoreColor } from '@/lib/matchmaking-result-display';
 import { useTranslation } from 'react-i18next';
 import { useToast } from '@/hooks/use-toast';
-import { propositionToastFr } from '@/lib/proposition-toast-messages';
+import { propositionToastFr, rdvToastFr } from '@/lib/proposition-toast-messages';
 import axios from 'axios';
 
 export default function UserProfile({
@@ -45,6 +45,9 @@ export default function UserProfile({
     memberProposition = null,
     latestMemberProposition = null,
     memberRdv = null,
+    memberFailedRdv = null,
+    userSubscription = null,
+    agencyManager = null,
 }) {
     const { t } = useTranslation();
     const { auth } = usePage().props;
@@ -235,8 +238,8 @@ export default function UserProfile({
     }, [matchmakingResults]);
 
     const proposeFlow = useMatchmakingProposeRequestFlow(matchmakingUserA, {
-        onAfterProposeSuccess: () => router.reload({ only: ['matchmakingResults', 'memberProposition', 'latestMemberProposition', 'memberRdv'] }),
-        onAfterRequestSuccess: () => router.reload({ only: ['matchmakingResults', 'memberProposition', 'latestMemberProposition', 'memberRdv'] }),
+        onAfterProposeSuccess: () => router.reload({ only: ['matchmakingResults', 'memberProposition', 'latestMemberProposition', 'memberRdv', 'memberFailedRdv'] }),
+        onAfterRequestSuccess: () => router.reload({ only: ['matchmakingResults', 'memberProposition', 'latestMemberProposition', 'memberRdv', 'memberFailedRdv'] }),
     });
 
     const [profileMmCancellingId, setProfileMmCancellingId] = useState(null);
@@ -250,7 +253,7 @@ export default function UserProfile({
                 const pairToast =
                     data?.pair_was_cancelled ? propositionToastFr.cancelSuccessPaired : propositionToastFr.cancelSuccess;
                 showToast(pairToast, undefined, 'success');
-                router.reload({ only: ['matchmakingResults', 'memberProposition', 'latestMemberProposition', 'memberRdv'] });
+                router.reload({ only: ['matchmakingResults', 'memberProposition', 'latestMemberProposition', 'memberRdv', 'memberFailedRdv'] });
             } catch (error) {
                 const status = error?.response?.status;
                 const backendMsg = error?.response?.data?.message;
@@ -321,6 +324,10 @@ export default function UserProfile({
     const [managePropositionModalOpen, setManagePropositionModalOpen] = useState(false);
     const [manageModalCancelConfirm, setManageModalCancelConfirm] = useState(false);
     const [manageModalCancelling, setManageModalCancelling] = useState(false);
+    const [cancelMatchDialogOpen, setCancelMatchDialogOpen] = useState(false);
+    const [cancelMatchLoading, setCancelMatchLoading] = useState(false);
+    const [restoreMatchDialogOpen, setRestoreMatchDialogOpen] = useState(false);
+    const [restoreMatchLoading, setRestoreMatchLoading] = useState(false);
 
     useEffect(() => {
         if (!managePropositionModalOpen) {
@@ -343,7 +350,7 @@ export default function UserProfile({
             showToast(pairToast, undefined, 'success');
             setManagePropositionModalOpen(false);
             setManageModalCancelConfirm(false);
-            router.reload({ only: ['matchmakingResults', 'memberProposition', 'latestMemberProposition', 'memberRdv'] });
+            router.reload({ only: ['matchmakingResults', 'memberProposition', 'latestMemberProposition', 'memberRdv', 'memberFailedRdv'] });
         } catch (error) {
             const status = error?.response?.status;
             const backendMsg = error?.response?.data?.message;
@@ -358,6 +365,52 @@ export default function UserProfile({
             setManageModalCancelling(false);
         }
     }, [memberProposition?.proposition_id, manageModalCancelConfirm, showToast]);
+
+    const handleCancelMatch = useCallback(async () => {
+        if (!memberRdv?.rdv_id) return;
+
+        setCancelMatchLoading(true);
+        try {
+            await axios.patch(`/staff/rdv/${memberRdv.rdv_id}/status`, { status: 'echec' });
+            setCancelMatchDialogOpen(false);
+            showToast(rdvToastFr.cancelMatchSuccess, undefined, 'success');
+            router.reload({ only: ['matchmakingResults', 'memberProposition', 'latestMemberProposition', 'memberRdv', 'memberFailedRdv'] });
+        } catch (err) {
+            const status = err?.response?.status;
+            if (status === 403) {
+                showToast(rdvToastFr.cancelMatchUnauthorized, undefined, 'error');
+            } else {
+                const msg = err?.response?.data?.message || rdvToastFr.cancelMatchError;
+                showToast(msg, undefined, 'error');
+            }
+        } finally {
+            setCancelMatchLoading(false);
+        }
+    }, [memberRdv?.rdv_id, showToast]);
+
+    const handleRestoreMatch = useCallback(async () => {
+        if (!memberFailedRdv?.rdv_id) return;
+
+        setRestoreMatchLoading(true);
+        try {
+            await axios.patch(`/staff/rdv/${memberFailedRdv.rdv_id}/status`, { status: 'reussi' });
+            setRestoreMatchDialogOpen(false);
+            showToast(rdvToastFr.restoreMatchSuccess, undefined, 'success');
+            router.reload({
+                only: ['matchmakingResults', 'memberProposition', 'latestMemberProposition', 'memberRdv', 'memberFailedRdv'],
+            });
+        } catch (err) {
+            const status = err?.response?.status;
+            if (status === 403) {
+                showToast(rdvToastFr.restoreMatchUnauthorized, undefined, 'error');
+            } else {
+                const msg = err?.response?.data?.message || rdvToastFr.restoreMatchError;
+                showToast(msg, undefined, 'error');
+            }
+        } finally {
+            setRestoreMatchLoading(false);
+        }
+    }, [memberFailedRdv?.rdv_id, showToast]);
 
     // Helper function to check if matchmaker belongs to manager's agency
     const isMatchmakerFromManagerAgency = () => {
@@ -391,6 +444,17 @@ export default function UserProfile({
     const canWrite =
         (viewerRole === 'matchmaker' && user?.assigned_matchmaker_id === auth?.user?.id) ||
         (viewerRole === 'manager' && user?.validated_by_manager_id === auth?.user?.id);
+
+    const canCancelMatch =
+        memberRdv?.exists &&
+        memberRdv?.status === 'reussi' &&
+        (viewerRole === 'admin' ||
+            Number(memberRdv?.matchmaker_id) === Number(auth?.user?.id));
+
+    const canRestoreMatch =
+        memberFailedRdv?.exists &&
+        (viewerRole === 'admin' ||
+            Number(memberFailedRdv?.matchmaker_id) === Number(auth?.user?.id));
 
     // Evaluation permissions come from backend access level only.
     const normalizedEvaluationAccess = evaluationAccessLevel || 'none';
@@ -573,12 +637,34 @@ export default function UserProfile({
 
     // Status badge: pack style when user has a pack, else getStatusInfo
     const getStatusBadgeInfo = () => {
-        const packName = user?.profile?.matrimonial_pack?.name ?? user?.profile?.matrimonialPack?.name ?? subscriptions?.[0]?.matrimonial_pack?.name;
+        const packName = user?.profile?.matrimonial_pack?.name ?? user?.profile?.matrimonialPack?.name ?? subscriptions?.[0]?.matrimonial_pack?.name ?? userSubscription?.matrimonial_pack?.name ?? userSubscription?.matrimonialPack?.name;
         const statusForPrefix = user?.status === 'client_expire' ? 'client' : user?.status;
-        if (staffCanViewMemberInsights && packName) {
+        if ((staffCanViewMemberInsights || isOwnProfile) && packName) {
             return getPackBadgeStyle(packName, statusForPrefix);
         }
         return getStatusInfo(user?.status);
+    };
+
+    const resolvedAgencyName =
+        agency?.name || user?.agency?.name || user?.assignedMatchmaker?.agency?.name || user?.assigned_matchmaker?.agency?.name;
+
+    const getHeardAboutUsLabel = (value) => {
+        if (!value) return null;
+        const labels = {
+            recommande: t('profile.heardAboutUsRecommended'),
+            passage: t('profile.heardAboutUsPassage'),
+            online_ads: t('profile.heardAboutUsOnlineAds'),
+            google_search: t('profile.heardAboutUsGoogleSearch'),
+            youtube_video: t('profile.heardAboutUsYouTubeVideo'),
+            facebook_post: t('profile.heardAboutUsFacebookPost'),
+            instagram_post: t('profile.heardAboutUsInstagramPost'),
+            tiktok_video: t('profile.heardAboutUsTikTokVideo'),
+            collaboration: t('profile.heardAboutUsCollaboration'),
+            phone_call: t('profile.heardAboutUsPhoneCall'),
+            pub: t('profile.heardAboutUsPub'),
+            commercial_terrain: t('profile.heardAboutUsCommercialTerrain'),
+        };
+        return labels[value] ?? value;
     };
 
     // Handle profile picture upload for matchmakers
@@ -844,12 +930,14 @@ export default function UserProfile({
     const [deactivateDialogOpen, setDeactivateDialogOpen] = useState(false);
     const [statusReason, setStatusReason] = useState('');
 
-    // Check if current staff (matchmaker/manager) can see user action tabs
+    // Check if current staff can see user action tabs (icon bar + tab content)
+    // - Admin viewing any member profile
     // - Assigned matchmaker viewing their assigned user
     // - Manager viewing a user assigned to them OR validated by them
     const isStaffViewingUserWithActions =
         userRole === 'user' &&
         (
+            viewerRole === 'admin' ||
             // Assigned matchmaker
             (viewerRole === 'matchmaker' &&
              user?.assigned_matchmaker_id != null &&
@@ -866,6 +954,15 @@ export default function UserProfile({
                  user?.validated_by_manager_id === auth?.user?.id
              ))
         );
+
+    // True when the viewer should see the full
+    // profile card (same as the user sees).
+    // Applies to: the user themselves, their
+    // assigned matchmaker/manager, and admin.
+    const canSeeFullProfileCard =
+        isOwnProfile ||
+        viewerRole === 'admin' ||
+        isStaffViewingUserWithActions;
 
     return (
         <AppLayout>
@@ -1183,7 +1280,20 @@ export default function UserProfile({
                                         )}
                                         <div className="mt-2 flex items-center justify-center gap-1.5 text-sm text-gray-500">
                                             <MapPin className="h-4 w-4 shrink-0 text-[#8B2635]" />
-                                            <span>{user?.city}, {user?.country}</span>
+                                            {(() => {
+                                                const city =
+                                                    profile?.villeResidence ||
+                                                    profile?.ville_residence ||
+                                                    user?.city ||
+                                                    '';
+                                                const country =
+                                                    profile?.paysResidence ||
+                                                    profile?.pays_residence ||
+                                                    user?.country ||
+                                                    '';
+                                                const location = [city, country].filter(Boolean).join(', ');
+                                                return location ? <span>{location}</span> : null;
+                                            })()}
                                             {age !== null && (
                                                 <>
                                                     <span className="text-gray-400">•</span>
@@ -1194,21 +1304,227 @@ export default function UserProfile({
                                     </div>
 
                                     {/* Agency, Pack & Assigned Matchmaker - label above value, icon left, chevron right */}
-                                    {userRole === 'user' && (agency || user?.agency || (subscriptions?.length > 0 && subscriptions[0]?.matrimonial_pack) || user?.profile?.matrimonial_pack || user?.profile?.matrimonialPack || memberProposition || (staffCanViewMemberInsights && (user?.assignedMatchmaker || user?.assigned_matchmaker))) && (
+                                    {userRole === 'user' && (
+                                        (canSeeFullProfileCard && (
+                                            getStatusBadgeInfo()?.label ||
+                                            userSubscription?.matrimonial_pack?.name ||
+                                            userSubscription?.matrimonialPack?.name ||
+                                            subscriptions?.[0]?.matrimonial_pack?.name ||
+                                            user?.profile?.matrimonialPack?.name ||
+                                            user?.profile?.matrimonial_pack?.name ||
+                                            user?.assignedMatchmaker?.name ||
+                                            user?.assigned_matchmaker?.name ||
+                                            agency?.name ||
+                                            user?.agency?.name ||
+                                            agencyManager?.name ||
+                                            profile?.heard_about_us ||
+                                            profile?.heardAboutUs ||
+                                            profile?.heard_about_reference ||
+                                            profile?.heardAboutReference
+                                        )) ||
+                                        (!canSeeFullProfileCard && staffCanViewMemberInsights && (
+                                            resolvedAgencyName ||
+                                            subscriptions?.[0]?.matrimonial_pack?.name ||
+                                            user?.profile?.matrimonial_pack?.name ||
+                                            user?.profile?.matrimonialPack?.name ||
+                                            user?.assignedMatchmaker?.name ||
+                                            user?.assigned_matchmaker?.name
+                                        )) ||
+                                        memberRdv?.exists ||
+                                        memberFailedRdv?.exists ||
+                                        memberProposition?.exists
+                                    ) && (
                                         <div className="mb-5 rounded-lg border border-gray-100 bg-amber-50/80 px-4 py-3">
-                                            {(agency?.name || user?.agency?.name) && (
+                                            {canSeeFullProfileCard && (() => {
+                                                const badge = getStatusBadgeInfo();
+                                                if (!badge?.label) return null;
+                                                return (
+                                                    <div className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
+                                                        <div className="flex min-w-0 flex-1 items-center gap-3">
+                                                            <UserCircle className="h-5 w-5 shrink-0 text-rose-400" />
+                                                            <div className="min-w-0">
+                                                                <p className="text-xs font-medium uppercase tracking-wider text-gray-400">Statut</p>
+                                                                <p className="truncate text-sm font-semibold text-gray-900">{badge.label}</p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })()}
+                                            {canSeeFullProfileCard && (() => {
+                                                const packName =
+                                                    userSubscription?.matrimonial_pack?.name ||
+                                                    userSubscription?.matrimonialPack?.name ||
+                                                    subscriptions?.[0]?.matrimonial_pack?.name ||
+                                                    user?.profile?.matrimonialPack?.name ||
+                                                    user?.profile?.matrimonial_pack?.name;
+                                                if (!packName) return null;
+                                                return (
+                                                    <div className="flex items-center justify-between gap-3 border-t border-gray-100/80 py-2.5">
+                                                        <div className="flex min-w-0 flex-1 items-center gap-3">
+                                                            <Star className="h-5 w-5 shrink-0 text-rose-400" />
+                                                            <div className="min-w-0">
+                                                                <p className="text-xs font-medium uppercase tracking-wider text-gray-400">Pack</p>
+                                                                <p className="truncate text-sm font-semibold text-gray-900">{packName}</p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })()}
+                                            {canSeeFullProfileCard && (user?.assignedMatchmaker?.name || user?.assigned_matchmaker?.name) && (
+                                                <div className="flex items-center justify-between gap-3 border-t border-gray-100/80 py-2.5">
+                                                    <div className="flex min-w-0 flex-1 items-center gap-3">
+                                                        <UserCheck className="h-5 w-5 shrink-0 text-rose-400" />
+                                                        <div className="min-w-0">
+                                                            <p className="text-xs font-medium uppercase tracking-wider text-gray-400">Conseiller</p>
+                                                            <p className="truncate text-sm font-semibold text-gray-900">{user?.assignedMatchmaker?.name || user?.assigned_matchmaker?.name}</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+                                            {canSeeFullProfileCard && resolvedAgencyName && (
+                                                <div className="flex items-center justify-between gap-3 border-t border-gray-100/80 py-2.5">
+                                                    <div className="flex min-w-0 flex-1 items-center gap-3">
+                                                        <Building className="h-5 w-5 shrink-0 text-rose-400" />
+                                                        <div className="min-w-0">
+                                                            <p className="text-xs font-medium uppercase tracking-wider text-gray-400">Agence</p>
+                                                            <p className="truncate text-sm font-semibold text-gray-900">{resolvedAgencyName}</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+                                            {canSeeFullProfileCard && agencyManager?.name && (
+                                                <div className="flex items-center justify-between gap-3 border-t border-gray-100/80 py-2.5">
+                                                    <div className="flex min-w-0 flex-1 items-center gap-3">
+                                                        <Briefcase className="h-5 w-5 shrink-0 text-rose-400" />
+                                                        <div className="min-w-0">
+                                                            <p className="text-xs font-medium uppercase tracking-wider text-gray-400">Manager</p>
+                                                            <p className="truncate text-sm font-semibold text-gray-900">{agencyManager.name}</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+                                            {canSeeFullProfileCard && (() => {
+                                                const heardAboutUs = profile?.heard_about_us ?? profile?.heardAboutUs;
+                                                if (!heardAboutUs || heardAboutUs === 'commercial_terrain') return null;
+                                                const sourceLabel = getHeardAboutUsLabel(heardAboutUs);
+                                                if (!sourceLabel) return null;
+                                                return (
+                                                    <div className="flex items-center justify-between gap-3 border-t border-gray-100/80 py-2.5">
+                                                        <div className="flex min-w-0 flex-1 items-center gap-3">
+                                                            <Link className="h-5 w-5 shrink-0 text-rose-400" />
+                                                            <div className="min-w-0">
+                                                                <p className="text-xs font-medium uppercase tracking-wider text-gray-400">{t('profile.heardAboutUs')}</p>
+                                                                <p className="truncate text-sm font-semibold text-gray-900">{sourceLabel}</p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })()}
+                                            {canSeeFullProfileCard &&
+                                                (profile?.heard_about_us ?? profile?.heardAboutUs) === 'commercial_terrain' &&
+                                                (profile?.heard_about_reference ?? profile?.heardAboutReference) && (
+                                                <div className="flex items-center justify-between gap-3 border-t border-gray-100/80 py-2.5">
+                                                    <div className="flex min-w-0 flex-1 items-center gap-3">
+                                                        <Tag className="h-5 w-5 shrink-0 text-rose-400" />
+                                                        <div className="min-w-0">
+                                                            <p className="text-xs font-medium uppercase tracking-wider text-gray-400">{t('profile.heardAboutCommercialCode', { defaultValue: 'Code commercial' })}</p>
+                                                            <p className="truncate text-sm font-semibold text-gray-900">{profile?.heard_about_reference ?? profile?.heardAboutReference}</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+                                            {canSeeFullProfileCard &&
+                                                (profile?.heard_about_us ?? profile?.heardAboutUs) !== 'commercial_terrain' &&
+                                                (profile?.heard_about_reference ?? profile?.heardAboutReference) && (
+                                                <div className="flex items-center justify-between gap-3 border-t border-gray-100/80 py-2.5">
+                                                    <div className="flex min-w-0 flex-1 items-center gap-3">
+                                                        <Tag className="h-5 w-5 shrink-0 text-rose-400" />
+                                                        <div className="min-w-0">
+                                                            <p className="text-xs font-medium uppercase tracking-wider text-gray-400">Référence</p>
+                                                            <p className="truncate text-sm font-semibold text-gray-900">{profile?.heard_about_reference ?? profile?.heardAboutReference}</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+                                            {(() => {
+                                                if (memberRdv?.exists) {
+                                                    const rdvLabel = memberRdv.status === 'reussi' ? 'RDV réussi' : 'En RDV';
+                                                    return (
+                                                        <div className="flex items-center justify-between gap-3 border-t border-gray-100/80 py-2.5">
+                                                            <div className="flex min-w-0 flex-1 items-center gap-3">
+                                                                <UserCircle className="h-5 w-5 shrink-0 text-rose-400" />
+                                                                <div className="min-w-0">
+                                                                    <p className="text-xs font-medium uppercase tracking-wider text-gray-400">Statut</p>
+                                                                    <p className="truncate text-sm font-semibold text-gray-900">{rdvLabel}</p>
+                                                                </div>
+                                                            </div>
+                                                            <ChevronRight className="h-4 w-4 shrink-0 text-rose-400" />
+                                                        </div>
+                                                    );
+                                                }
+
+                                                if (memberProposition?.exists) {
+                                                    const propositionForDisplay = latestMemberProposition?.exists ? latestMemberProposition : memberProposition;
+                                                    const rawStatus = String(propositionForDisplay?.status ?? '').trim().toLowerCase();
+                                                    const rawUserResponse = String(propositionForDisplay?.user_response ?? '').trim().toLowerCase();
+                                                    const displayState =
+                                                        rawStatus === 'cancelled' || rawStatus === 'expired'
+                                                            ? rawStatus
+                                                            : rawUserResponse !== ''
+                                                              ? rawUserResponse
+                                                              : rawStatus;
+                                                    const normalizedState = String(displayState ?? '').trim().toLowerCase();
+
+                                                    const label =
+                                                        normalizedState === 'pending'
+                                                            ? 'Proposition en cours'
+                                                            : normalizedState === 'interested'
+                                                              ? 'Proposition acceptée'
+                                                              : normalizedState === 'accepted'
+                                                                ? 'Proposition acceptée'
+                                                                : normalizedState === 'not_interested'
+                                                                  ? 'Proposition non acceptée'
+                                                                  : normalizedState === 'rejected'
+                                                                    ? 'Proposition non acceptée'
+                                                                    : normalizedState === 'cancelled'
+                                                                      ? 'Proposition annulée'
+                                                                      : normalizedState === 'expired'
+                                                                        ? 'Proposition expirée'
+                                                                        : null;
+
+                                                    if (!label) {
+                                                        return null;
+                                                    }
+
+                                                    return (
+                                                        <div className="flex items-center justify-between gap-3 border-t border-gray-100/80 py-2.5">
+                                                            <div className="flex min-w-0 flex-1 items-center gap-3">
+                                                                <UserCircle className="h-5 w-5 shrink-0 text-rose-400" />
+                                                                <div className="min-w-0">
+                                                                    <p className="text-xs font-medium uppercase tracking-wider text-gray-400">Proposition status</p>
+                                                                    <p className="truncate text-sm font-semibold text-gray-900">{label}</p>
+                                                                </div>
+                                                            </div>
+                                                            <ChevronRight className="h-4 w-4 shrink-0 text-rose-400" />
+                                                        </div>
+                                                    );
+                                                }
+
+                                                return null;
+                                            })()}
+                                            {!canSeeFullProfileCard && staffCanViewMemberInsights && resolvedAgencyName && (
                                                 <div className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
                                                     <div className="flex min-w-0 flex-1 items-center gap-3">
                                                         <Building2 className="h-5 w-5 shrink-0 text-rose-400" />
                                                         <div className="min-w-0">
                                                             <p className="text-xs font-medium uppercase tracking-wider text-gray-400">Agency</p>
-                                                            <p className="truncate text-sm font-semibold text-gray-900">{agency?.name || user?.agency?.name}</p>
+                                                            <p className="truncate text-sm font-semibold text-gray-900">{resolvedAgencyName}</p>
                                                         </div>
                                                     </div>
                                                     <ChevronRight className="h-4 w-4 shrink-0 text-rose-400" />
                                                 </div>
                                             )}
-                                            {staffCanViewMemberInsights && (subscriptions?.[0]?.matrimonial_pack?.name || user?.profile?.matrimonial_pack?.name || user?.profile?.matrimonialPack?.name) && (
+                                            {!canSeeFullProfileCard && staffCanViewMemberInsights && (subscriptions?.[0]?.matrimonial_pack?.name || user?.profile?.matrimonial_pack?.name || user?.profile?.matrimonialPack?.name) && (
                                                 <div className="flex items-center justify-between gap-3 border-t border-gray-100/80 py-2.5">
                                                     <div className="flex min-w-0 flex-1 items-center gap-3">
                                                         <CreditCard className="h-5 w-5 shrink-0 text-rose-400" />
@@ -1220,43 +1536,7 @@ export default function UserProfile({
                                                     <ChevronRight className="h-4 w-4 shrink-0 text-rose-400" />
                                                 </div>
                                             )}
-                                            {/* proposition status */}
-
-                                            {memberProposition && (
-                                                <div className="flex items-center justify-between gap-3 border-t border-gray-100/80 py-2.5">
-                                                    <div className="flex min-w-0 flex-1 items-center gap-3">
-                                                        <UserCircle className="h-5 w-5 shrink-0 text-rose-400" />
-                                                        <div className="min-w-0">
-                                                            <p className="text-xs font-medium uppercase tracking-wider text-gray-400">Proposition status</p>
-                                                            <p className="truncate text-sm font-semibold text-gray-900">
-                                                                {(() => {
-                                                                    const propositionForDisplay = latestMemberProposition?.exists ? latestMemberProposition : memberProposition;
-                                                                    const rawStatus = String(propositionForDisplay?.status ?? '').trim().toLowerCase();
-                                                                    const rawUserResponse = String(propositionForDisplay?.user_response ?? '').trim().toLowerCase();
-                                                                    const displayState = rawStatus === 'cancelled' || rawStatus === 'expired'
-                                                                        ? rawStatus
-                                                                        : rawUserResponse !== ''
-                                                                            ? rawUserResponse
-                                                                            : rawStatus;
-                                                                    const normalizedState = String(displayState ?? '').trim().toLowerCase();
-
-                                                                    return normalizedState == 'pending' ? 'Proposition en cours'
-                                                                        : normalizedState == 'interested' ? 'Proposition acceptée'
-                                                                            : normalizedState == 'accepted' ? 'Proposition acceptée'
-                                                                                : normalizedState == 'not_interested' ? 'Proposition non acceptée'
-                                                                                    : normalizedState == 'rejected' ? 'Proposition non acceptée'
-                                                                                        : normalizedState == 'cancelled' ? 'Proposition annulée'
-                                                                                            : normalizedState == 'expired' ? 'Proposition expirée'
-                                                                                            : 'Unknown';
-                                                                })()}
-
-                                                            </p>
-                                                        </div>
-                                                    </div>
-                                                    <ChevronRight className="h-4 w-4 shrink-0 text-rose-400" />
-                                                </div>
-                                            )}
-                                            {staffCanViewMemberInsights && (user?.assignedMatchmaker?.name || user?.assigned_matchmaker?.name) && (
+                                            {!canSeeFullProfileCard && staffCanViewMemberInsights && (user?.assignedMatchmaker?.name || user?.assigned_matchmaker?.name) && (
                                                 <div className="flex items-center justify-between gap-3 border-t border-gray-100/80 py-2.5">
                                                     <div className="flex min-w-0 flex-1 items-center gap-3">
                                                         <UserCircle className="h-5 w-5 shrink-0 text-rose-400" />
@@ -1891,10 +2171,52 @@ export default function UserProfile({
                                                 {/* Matchmaking Results (À proposer) */}
                                                 {staffCanViewMemberInsights &&
                                                     ((staffMatchmakingRows && staffMatchmakingRows.length > 0) ||
-                                                        memberProposition?.exists) && (
+                                                        memberProposition?.exists ||
+                                                        memberRdv?.exists ||
+                                                        memberFailedRdv?.exists) && (
                                                     <Card className="border-gray-200 bg-white">
                                                         <CardContent className="p-6">
-                                                            {memberProposition?.exists && (
+                                                            {memberRdv?.exists ? (
+                                                                <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+                                                                    <Badge
+                                                                        className={
+                                                                            memberRdv.status === 'reussi'
+                                                                                ? 'bg-green-700 text-white hover:bg-green-700'
+                                                                                : 'bg-amber-700 text-white hover:bg-amber-700'
+                                                                        }
+                                                                    >
+                                                                        {memberRdv.status === 'reussi' ? 'RDV réussi' : 'En RDV'}
+                                                                    </Badge>
+                                                                    {canCancelMatch && (
+                                                                        <Button
+                                                                            type="button"
+                                                                            size="sm"
+                                                                            variant="outline"
+                                                                            className="border-red-300 text-red-700 hover:bg-red-50"
+                                                                            onClick={() => setCancelMatchDialogOpen(true)}
+                                                                        >
+                                                                            Annuler le match
+                                                                        </Button>
+                                                                    )}
+                                                                </div>
+                                                            ) : memberFailedRdv?.exists ? (
+                                                                <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2">
+                                                                    <Badge className="bg-rose-700 text-white hover:bg-rose-700">
+                                                                        Match annulé (RDV échoué)
+                                                                    </Badge>
+                                                                    {canRestoreMatch && (
+                                                                        <Button
+                                                                            type="button"
+                                                                            size="sm"
+                                                                            variant="outline"
+                                                                            className="border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                                                                            onClick={() => setRestoreMatchDialogOpen(true)}
+                                                                        >
+                                                                            Restaurer le match
+                                                                        </Button>
+                                                                    )}
+                                                                </div>
+                                                            ) : memberProposition?.exists ? (
                                                                 <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
                                                                     <Badge className="bg-amber-700 text-white hover:bg-amber-700">
                                                                         Proposition en cours
@@ -1914,19 +2236,21 @@ export default function UserProfile({
                                                                         Gérer la proposition
                                                                     </Button>
                                                                 </div>
-                                                            )}
+                                                            ) : null}
                                                             <h3 className="mb-4 flex flex-wrap items-center gap-2 text-lg font-semibold text-gray-900">
                                                                 <Heart className="h-5 w-5 shrink-0 text-red-600" />
-                                                                {memberProposition?.exists ? (
+                                                                {memberRdv?.exists ? (
                                                                     <>
-                                                                        Le profil est en cours de proposition avec{' '}
+                                                                        {memberRdv.status === 'reussi'
+                                                                            ? 'RDV réussi avec '
+                                                                            : 'Le profil est en cours de RDV avec '}
                                                                         <span className="text-gray-900">
                                                                             {staffLockedPairCounterpartName ?? 'le partenaire'}
                                                                         </span>
                                                                     </>
-                                                                ) : memberRdv?.exists ? (
+                                                                ) : memberProposition?.exists ? (
                                                                     <>
-                                                                        Le profil est en cours de RDV avec{' '}
+                                                                        Le profil est en cours de proposition avec{' '}
                                                                         <span className="text-gray-900">
                                                                             {staffLockedPairCounterpartName ?? 'le partenaire'}
                                                                         </span>
@@ -1952,7 +2276,7 @@ export default function UserProfile({
                                                                         variant="outline"
                                                                         onClick={() =>
                                                                             router.reload({
-                                                                                only: ['matchmakingResults', 'memberProposition', 'latestMemberProposition', 'memberRdv'],
+                                                                                only: ['matchmakingResults', 'memberProposition', 'latestMemberProposition', 'memberRdv', 'memberFailedRdv'],
                                                                             })
                                                                         }
                                                                     >
@@ -1970,7 +2294,7 @@ export default function UserProfile({
                                                                         variant="outline"
                                                                         onClick={() =>
                                                                             router.reload({
-                                                                                only: ['matchmakingResults', 'memberProposition', 'latestMemberProposition', 'memberRdv'],
+                                                                                only: ['matchmakingResults', 'memberProposition', 'latestMemberProposition', 'memberRdv', 'memberFailedRdv'],
                                                                             })
                                                                         }
                                                                     >
@@ -3752,9 +4076,67 @@ export default function UserProfile({
                     open={profileRespondDialog.open}
                     onOpenChange={(open) => setProfileRespondDialog((prev) => ({ ...prev, open }))}
                     propositionId={profileRespondDialog.propositionId}
-                    onSuccess={() => router.reload({ only: ['matchmakingResults', 'memberProposition', 'latestMemberProposition', 'memberRdv'] })}
+                    onSuccess={() => router.reload({ only: ['matchmakingResults', 'memberProposition', 'latestMemberProposition', 'memberRdv', 'memberFailedRdv'] })}
                 />
             ) : null}
+
+            <Dialog open={cancelMatchDialogOpen} onOpenChange={setCancelMatchDialogOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Annuler le match</DialogTitle>
+                        <DialogDescription>
+                            Les deux profils seront à nouveau disponibles pour de nouvelles propositions.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="gap-2 sm:gap-0">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            disabled={cancelMatchLoading}
+                            onClick={() => setCancelMatchDialogOpen(false)}
+                        >
+                            Retour
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="destructive"
+                            disabled={cancelMatchLoading}
+                            onClick={() => void handleCancelMatch()}
+                        >
+                            {cancelMatchLoading ? 'Annulation...' : 'Confirmer l’annulation'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={restoreMatchDialogOpen} onOpenChange={setRestoreMatchDialogOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Restaurer le match</DialogTitle>
+                        <DialogDescription>
+                            Le RDV sera à nouveau marqué comme réussi et les deux profils ne pourront plus recevoir de
+                            nouvelles propositions tant que le match est actif.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="gap-2 sm:gap-0">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            disabled={restoreMatchLoading}
+                            onClick={() => setRestoreMatchDialogOpen(false)}
+                        >
+                            Retour
+                        </Button>
+                        <Button
+                            type="button"
+                            disabled={restoreMatchLoading}
+                            onClick={() => void handleRestoreMatch()}
+                        >
+                            {restoreMatchLoading ? 'Restauration...' : 'Confirmer la restauration'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </AppLayout>
     );
 }
