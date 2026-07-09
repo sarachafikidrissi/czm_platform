@@ -498,63 +498,26 @@ class ObjectiveController extends Controller
                     $details = Bill::whereIn('matchmaker_id', $matchmakerIds)
                         ->where('status', 'paid')
                         ->whereBetween('created_at', [$startDate, $endDate])
-                        ->with(['user', 'profile', 'matchmaker'])
+                        ->with($this->venteBillRelations(true))
                         ->orderBy('created_at', 'desc')
                         ->get()
-                        ->map(function ($bill) {
-                            return [
-                                'id' => $bill->id,
-                                'bill_number' => $bill->bill_number,
-                                'user_name' => $bill->user->name ?? 'N/A',
-                                'user_email' => $bill->user->email ?? 'N/A',
-                                'matchmaker_name' => $bill->matchmaker->name ?? 'N/A',
-                                'total_amount' => $bill->total_amount,
-                                'pack_name' => $bill->pack_name,
-                                'payment_method' => $bill->payment_method,
-                                'created_at' => $bill->created_at->format('Y-m-d H:i:s'),
-                                'bill_date' => $bill->bill_date->format('Y-m-d'),
-                            ];
-                        });
+                        ->map(fn (Bill $bill) => $this->mapVenteBillDetail($bill, true));
                 } elseif ($scopeType === 'manager_individual') {
                     $details = Bill::where('matchmaker_id', $targetUserId)
                         ->where('status', 'paid')
                         ->whereBetween('created_at', [$startDate, $endDate])
-                        ->with(['user', 'profile'])
+                        ->with($this->venteBillRelations())
                         ->orderBy('created_at', 'desc')
                         ->get()
-                        ->map(function ($bill) {
-                            return [
-                                'id' => $bill->id,
-                                'bill_number' => $bill->bill_number,
-                                'user_name' => $bill->user->name ?? 'N/A',
-                                'user_email' => $bill->user->email ?? 'N/A',
-                                'total_amount' => $bill->total_amount,
-                                'pack_name' => $bill->pack_name,
-                                'payment_method' => $bill->payment_method,
-                                'created_at' => $bill->created_at->format('Y-m-d H:i:s'),
-                                'bill_date' => $bill->bill_date->format('Y-m-d'),
-                            ];
-                        });
+                        ->map(fn (Bill $bill) => $this->mapVenteBillDetail($bill));
                 } elseif ($targetRoleType === 'matchmaker') {
                     $details = Bill::where('matchmaker_id', $targetUserId)
                         ->where('status', 'paid')
                         ->whereBetween('created_at', [$startDate, $endDate])
-                        ->with(['user', 'profile'])
+                        ->with($this->venteBillRelations())
                         ->orderBy('created_at', 'desc')
                         ->get()
-                        ->map(function ($bill) {
-                            return [
-                                'id' => $bill->id,
-                                'bill_number' => $bill->bill_number,
-                                'user_name' => $bill->user->name ?? 'N/A',
-                                'user_email' => $bill->user->email ?? 'N/A',
-                                'total_amount' => $bill->total_amount,
-                                'pack_name' => $bill->pack_name,
-                                'payment_method' => $bill->payment_method,
-                                'created_at' => $bill->created_at->format('Y-m-d H:i:s'),
-                                'bill_date' => $bill->bill_date->format('Y-m-d'),
-                            ];
-                        });
+                        ->map(fn (Bill $bill) => $this->mapVenteBillDetail($bill));
                 } else { // manager
                     $manager = User::find($targetUserId);
                     if ($manager && $manager->agency_id) {
@@ -569,23 +532,10 @@ class ObjectiveController extends Controller
                             $details = Bill::whereIn('matchmaker_id', $matchmakerIds)
                                 ->where('status', 'paid')
                                 ->whereBetween('created_at', [$startDate, $endDate])
-                                ->with(['user', 'profile', 'matchmaker'])
+                                ->with($this->venteBillRelations(true))
                                 ->orderBy('created_at', 'desc')
                                 ->get()
-                                ->map(function ($bill) {
-                                    return [
-                                        'id' => $bill->id,
-                                        'bill_number' => $bill->bill_number,
-                                        'user_name' => $bill->user->name ?? 'N/A',
-                                        'user_email' => $bill->user->email ?? 'N/A',
-                                        'matchmaker_name' => $bill->matchmaker->name ?? 'N/A',
-                                        'total_amount' => $bill->total_amount,
-                                        'pack_name' => $bill->pack_name,
-                                        'payment_method' => $bill->payment_method,
-                                        'created_at' => $bill->created_at->format('Y-m-d H:i:s'),
-                                        'bill_date' => $bill->bill_date->format('Y-m-d'),
-                                    ];
-                                });
+                                ->map(fn (Bill $bill) => $this->mapVenteBillDetail($bill, true));
                         }
                     } else {
                         $details = collect([]);
@@ -983,5 +933,56 @@ class ObjectiveController extends Controller
         }
 
         return ['status' => 'none', 'eligibleTotal' => 0, 'paidTotal' => 0];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function venteBillRelations(bool $withMatchmaker = false): array
+    {
+        $relations = [
+            'user:id,name,email,gender,country',
+            'user.profile:id,user_id,pays_residence',
+            'profile:id,user_id,pays_residence',
+        ];
+
+        if ($withMatchmaker) {
+            $relations[] = 'matchmaker:id,name';
+        }
+
+        return $relations;
+    }
+
+    private function resolveBillMemberCountry(Bill $bill): ?string
+    {
+        return $bill->profile?->pays_residence
+            ?? $bill->user?->profile?->pays_residence
+            ?? $bill->user?->country;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function mapVenteBillDetail(Bill $bill, bool $withMatchmaker = false): array
+    {
+        $payload = [
+            'id' => $bill->id,
+            'bill_number' => $bill->bill_number,
+            'user_name' => $bill->user->name ?? 'N/A',
+            'user_email' => $bill->user->email ?? 'N/A',
+            'country' => $this->resolveBillMemberCountry($bill),
+            'gender' => $bill->user?->gender,
+            'total_amount' => $bill->total_amount,
+            'pack_name' => $bill->pack_name,
+            'payment_method' => $bill->payment_method,
+            'created_at' => $bill->created_at->format('Y-m-d H:i:s'),
+            'bill_date' => $bill->bill_date->format('Y-m-d'),
+        ];
+
+        if ($withMatchmaker) {
+            $payload['matchmaker_name'] = $bill->matchmaker->name ?? 'N/A';
+        }
+
+        return $payload;
     }
 }

@@ -1375,6 +1375,10 @@ class MatchmakerController extends Controller
 
         $user = User::findOrFail($request->user_id);
 
+        if (! \App\Policies\BillPolicy::canMarkMemberAsClient($me, $user)) {
+            abort(403, 'Vous n\'êtes pas autorisé à marquer ce membre comme client. Seul le matchmaker assigné ou un administrateur peut effectuer cette action.');
+        }
+
         // Check if user is currently a member or client_expire (can become a client again)
         if (! in_array($user->status, ['member', 'client_expire'])) {
             return redirect()->back()->with('error', 'User is not a member or already a client.');
@@ -1670,6 +1674,10 @@ class MatchmakerController extends Controller
         }
 
         $user = User::findOrFail($request->user_id);
+
+        if (! \App\Policies\BillPolicy::canCreateBillForMember($me, $user)) {
+            abort(403, 'Vous n\'êtes pas autorisé à créer une facture pour cet utilisateur.');
+        }
 
         // Check if user is currently a member or client_expire (can create new subscription)
         if (! in_array($user->status, ['member', 'client_expire'])) {
@@ -2892,32 +2900,56 @@ class MatchmakerController extends Controller
                 ->value('roles.name');
         }
 
-        // Check approval status for matchmaker and manager
         if (in_array($roleName, ['manager', 'matchmaker'], true)) {
             if ($me->approval_status !== 'approved') {
                 abort(403, 'Your account is not validated yet.');
             }
         }
 
-        $rawPropositions = Proposition::query()
-            ->where(function ($query) use ($me) {
-                $query->where('matchmaker_id', $me->id)
-                    ->orWhereHas('recipientUser', function ($recipientQuery) use ($me) {
-                        $recipientQuery->where('assigned_matchmaker_id', $me->id);
-                    })
-                    ->orWhereExists(function ($visibleGroupQuery) use ($me) {
-                        $visibleGroupQuery->selectRaw('1')
-                            ->from('propositions as visible_propositions')
-                            ->leftJoin('users as visible_recipients', 'visible_recipients.id', '=', 'visible_propositions.recipient_user_id')
-                            ->whereColumn('visible_propositions.reference_user_id', 'propositions.reference_user_id')
-                            ->whereColumn('visible_propositions.compatible_user_id', 'propositions.compatible_user_id')
-                            ->whereColumn('visible_propositions.message', 'propositions.message')
-                            ->where(function ($visibleScope) use ($me) {
-                                $visibleScope->where('visible_propositions.matchmaker_id', $me->id)
-                                    ->orWhere('visible_recipients.assigned_matchmaker_id', $me->id);
-                            });
-                    });
-            })
+        $service = app(\App\Services\PropositionStaffPayloadService::class);
+        $statusFilter = $request->query('status', 'all');
+        $page = max(1, (int) $request->query('page', 1));
+        $perPage = 10;
+
+        $agencyIdFilter = null;
+        if ($me->hasRole('admin') && $request->filled('agency_id')) {
+            $agencyIdFilter = (int) $request->query('agency_id');
+        }
+
+        $matchmakerIdFilter = null;
+        if ($request->filled('matchmaker_id')) {
+            $requestedMatchmakerId = (int) $request->query('matchmaker_id');
+            if ($me->hasRole('admin')) {
+                $matchmakerIdFilter = $requestedMatchmakerId;
+            } elseif ($me->hasRole('manager') && $me->agency_id) {
+                $matchmaker = User::query()
+                    ->where('id', $requestedMatchmakerId)
+                    ->where('agency_id', $me->agency_id)
+                    ->whereHas('roles', fn ($q) => $q->whereIn('name', ['matchmaker', 'manager']))
+                    ->where('approval_status', 'approved')
+                    ->first();
+                if ($matchmaker) {
+                    $matchmakerIdFilter = $requestedMatchmakerId;
+                }
+            }
+        }
+
+        if ($agencyIdFilter && $matchmakerIdFilter) {
+            $matchmaker = User::query()->select('id', 'agency_id')->find($matchmakerIdFilter);
+            if (! $matchmaker || (int) $matchmaker->agency_id !== $agencyIdFilter) {
+                $matchmakerIdFilter = null;
+            }
+        }
+
+        $query = $service->visiblePropositionsQuery($me);
+        if ($agencyIdFilter) {
+            $query = $service->applyAgencyNarrowingFilter($query, $agencyIdFilter);
+        }
+        if ($matchmakerIdFilter) {
+            $query = $service->applyMatchmakerNarrowingFilter($query, $matchmakerIdFilter);
+        }
+
+        $rawPropositions = $query
             ->with([
                 'recipientUser:id,name,username,assigned_matchmaker_id',
                 'recipientUser.profile:id,user_id,profile_picture_path',
@@ -2929,201 +2961,39 @@ class MatchmakerController extends Controller
             ->latest()
             ->get();
 
-        // Build pair-level maps for can_create_rdv computation (canonical key: min_id-max_id).
-        $pairAcceptedByMember = [];
-        foreach ($rawPropositions as $p) {
-            if ((int) $p->matchmaker_id !== (int) $me->id) {
-                continue;
-            }
-            $ref = (int) $p->reference_user_id;
-            $comp = (int) $p->compatible_user_id;
-            if ($ref === $comp) {
-                continue;
-            }
-            $pairKey = $ref < $comp ? "{$ref}-{$comp}" : "{$comp}-{$ref}";
-            if (! isset($pairAcceptedByMember[$pairKey])) {
-                $pairAcceptedByMember[$pairKey] = [];
-            }
-            if ($p->status === Proposition::STATUS_INTERESTED || $p->status === Proposition::STATUS_ACCEPTED) {
-                $recipient = (int) $p->recipient_user_id;
-                if ($recipient === $ref || $recipient === $comp) {
-                    $pairAcceptedByMember[$pairKey][$recipient] = true;
-                }
-            }
-        }
-        $bothAcceptedPairKeySet = [];
-        foreach ($pairAcceptedByMember as $key => $accepted) {
-            [$u1, $u2] = array_map('intval', explode('-', $key));
-            if (($accepted[$u1] ?? false) && ($accepted[$u2] ?? false)) {
-                $bothAcceptedPairKeySet[$key] = true;
-            }
-        }
-
-        $canonicalRdvPairKey = static function (int $a, int $b): string {
-            return $a < $b ? "{$a}-{$b}" : "{$b}-{$a}";
-        };
-
-        // Batch-check which pairs already have blocking RDVs (en_cours/reussi) and successful RDVs.
-        $existingRdvPairKeySet = \App\Models\Rdv::query()
-            ->whereIn('status', [
-                \App\Models\Rdv::STATUS_EN_COURS,
-                \App\Models\Rdv::STATUS_REUSSI,
-            ])
-            ->get(['reference_user_id', 'compatible_user_id'])
-            ->mapWithKeys(fn ($r) => [
-                $canonicalRdvPairKey((int) $r->reference_user_id, (int) $r->compatible_user_id) => true,
-            ])
-            ->all();
-        $successfulRdvPairKeySet = \App\Models\Rdv::query()
-            ->where('status', \App\Models\Rdv::STATUS_REUSSI)
-            ->get(['reference_user_id', 'compatible_user_id'])
-            ->mapWithKeys(fn ($r) => [
-                $canonicalRdvPairKey((int) $r->reference_user_id, (int) $r->compatible_user_id) => true,
-            ])
-            ->all();
-
-        $failedEchecPairKeySet = \App\Models\Rdv::query()
-            ->where('status', \App\Models\Rdv::STATUS_ECHEC)
-            ->get(['reference_user_id', 'compatible_user_id'])
-            ->mapWithKeys(fn ($r) => [
-                $canonicalRdvPairKey((int) $r->reference_user_id, (int) $r->compatible_user_id) => true,
-            ])
-            ->all();
-
-        $recreationAllowedByPairKey = [];
-        foreach (array_keys($failedEchecPairKeySet) as $pairKey) {
-            [$u1, $u2] = array_map('intval', explode('-', $pairKey));
-            if (! \App\Models\Rdv::pairRecreationGuardsPass($u1, $u2)) {
-                continue;
-            }
-            $recreationAllowedByPairKey[$pairKey] = true;
-        }
-
-        $latestFailedRdvIdByPairKey = [];
-        foreach (array_keys($failedEchecPairKeySet) as $pairKey) {
-            [$u1, $u2] = array_map('intval', explode('-', $pairKey));
-            $rid = \App\Models\Rdv::query()
-                ->where('status', \App\Models\Rdv::STATUS_ECHEC)
-                ->where(function ($q) use ($u1, $u2) {
-                    $q->where(function ($forward) use ($u1, $u2) {
-                        $forward->where('reference_user_id', $u1)->where('compatible_user_id', $u2);
-                    })->orWhere(function ($reverse) use ($u1, $u2) {
-                        $reverse->where('reference_user_id', $u2)->where('compatible_user_id', $u1);
-                    });
-                })
-                ->orderByDesc('id')
-                ->value('id');
-            if ($rid !== null) {
-                $latestFailedRdvIdByPairKey[$pairKey] = (int) $rid;
-            }
-        }
-
-        $pairClosedByMember = [];
-        foreach ($rawPropositions as $p) {
-            if ((int) $p->matchmaker_id !== (int) $me->id) {
-                continue;
-            }
-            if ($p->status !== Proposition::STATUS_CLOSED) {
-                continue;
-            }
-            $ref = (int) $p->reference_user_id;
-            $comp = (int) $p->compatible_user_id;
-            if ($ref === $comp) {
-                continue;
-            }
-            $pairKey = $ref < $comp ? "{$ref}-{$comp}" : "{$comp}-{$ref}";
-            if (! isset($pairClosedByMember[$pairKey])) {
-                $pairClosedByMember[$pairKey] = [];
-            }
-            $recipient = (int) $p->recipient_user_id;
-            if ($recipient === $ref || $recipient === $comp) {
-                $pairClosedByMember[$pairKey][$recipient] = true;
-            }
-        }
-        $bothClosedPairKeySet = [];
-        foreach ($pairClosedByMember as $key => $closed) {
-            [$u1, $u2] = array_map('intval', explode('-', $key));
-            if (($closed[$u1] ?? false) && ($closed[$u2] ?? false)) {
-                $bothClosedPairKeySet[$key] = true;
-            }
-        }
-
-        $propositions = $rawPropositions
-            ->map(function (Proposition $proposition) use ($me, $bothAcceptedPairKeySet, $bothClosedPairKeySet, $existingRdvPairKeySet, $successfulRdvPairKeySet, $failedEchecPairKeySet, $recreationAllowedByPairKey, $canonicalRdvPairKey, $latestFailedRdvIdByPairKey) {
-                $isExpired = $proposition->status === 'expired'
-                    || ($proposition->status === 'pending'
-                        && $proposition->created_at
-                        && $proposition->created_at->lt(now()->subDays(7)));
-                $displayStatus = $isExpired ? Proposition::STATUS_EXPIRED : $proposition->status;
-
-                $isActive = $proposition->isActive();
-                $canCancel = ! $isExpired && $proposition->canBeCancelledByMatchmaker() && $me->can('cancel', $proposition);
-
-                $pairKey = $canonicalRdvPairKey((int) $proposition->reference_user_id, (int) $proposition->compatible_user_id);
-                $hasPastEchec = isset($failedEchecPairKeySet[$pairKey]);
-                $recreationAllowed = isset($recreationAllowedByPairKey[$pairKey]);
-                $mutualInterested = isset($bothAcceptedPairKeySet[$pairKey]);
-                $mutualClosedReady = isset($bothClosedPairKeySet[$pairKey]) && $hasPastEchec && $recreationAllowed;
-                $bothSidesAccepted = ($mutualInterested && (! $hasPastEchec || $recreationAllowed))
-                    || $mutualClosedReady;
-                $rdvExists = isset($existingRdvPairKeySet[$pairKey]);
-                $hasSuccessfulRdv = isset($successfulRdvPairKeySet[$pairKey]);
-                $canCreateRdv = $bothSidesAccepted
-                    && ! $rdvExists
-                    && ! $hasSuccessfulRdv
-                    && (int) $proposition->matchmaker_id === (int) $me->id;
-                $isRecreationContext = $canCreateRdv && $hasPastEchec;
-
-                return [
-                    'id' => $proposition->id,
-                    'pair_id' => $proposition->pair_id,
-                    'reference_user_id' => $proposition->reference_user_id,
-                    'compatible_user_id' => $proposition->compatible_user_id,
-                    'recipient_user_id' => $proposition->recipient_user_id,
-                    'message' => $proposition->message,
-                    'status' => $displayStatus,
-                    'user_response' => $proposition->user_response,
-                    'is_expired' => $isExpired,
-                    'is_active' => $isActive,
-                    'can_cancel' => $canCancel,
-                    'can_create_rdv' => $canCreateRdv,
-                    'is_recreation_context' => $isRecreationContext,
-                    'recreate_from_failed_rdv_id' => $isRecreationContext ? ($latestFailedRdvIdByPairKey[$pairKey] ?? null) : null,
-                    'rdv_exists' => $rdvExists,
-                    'cancelled_at' => $proposition->cancelled_at,
-                    'response_message' => $proposition->response_message,
-                    'user_comment' => $proposition->user_comment,
-                    'responded_at' => $proposition->responded_at,
-                    'created_at' => $proposition->created_at,
-                    'can_update_response' => $proposition->recipientUser
-                        && $proposition->status !== Proposition::STATUS_CANCELLED
-                        && $proposition->status !== Proposition::STATUS_CLOSED
-                        && (int) $proposition->recipientUser->assigned_matchmaker_id === (int) $me->id,
-                    'recipient_user' => $proposition->recipientUser ? [
-                        'id' => $proposition->recipientUser->id,
-                        'name' => $proposition->recipientUser->name,
-                        'username' => $proposition->recipientUser->username,
-                        'assigned_matchmaker_id' => $proposition->recipientUser->assigned_matchmaker_id,
-                        'profile' => $proposition->recipientUser->profile,
-                    ] : null,
-                    'reference_user' => $proposition->referenceUser ? [
-                        'id' => $proposition->referenceUser->id,
-                        'name' => $proposition->referenceUser->name,
-                        'username' => $proposition->referenceUser->username,
-                        'profile' => $proposition->referenceUser->profile,
-                    ] : null,
-                    'compatible_user' => $proposition->compatibleUser ? [
-                        'id' => $proposition->compatibleUser->id,
-                        'name' => $proposition->compatibleUser->name,
-                        'username' => $proposition->compatibleUser->username,
-                        'profile' => $proposition->compatibleUser->profile,
-                    ] : null,
-                ];
-            })
+        $context = $service->buildStaffContext($rawPropositions, $me);
+        $mapped = $rawPropositions
+            ->map(fn (Proposition $proposition) => $service->mapStaffRow($proposition, $me, $context))
             ->values();
 
+        $groups = $service->filterGroupsByStatus(
+            $service->groupStaffRows($mapped),
+            $statusFilter === 'all' ? null : $statusFilter,
+        );
+
+        usort($groups, fn ($a, $b) => strtotime((string) ($b['created_at'] ?? '')) <=> strtotime((string) ($a['created_at'] ?? '')));
+
+        $total = count($groups);
+        $lastPage = max(1, (int) ceil($total / $perPage));
+        $page = min($page, $lastPage);
+        $slice = array_slice($groups, ($page - 1) * $perPage, $perPage);
+
         return Inertia::render('matchmaker/propositions-list', [
-            'propositions' => $propositions,
+            'entries' => array_values($slice),
+            'status_filter' => $statusFilter,
+            'agency_id' => $agencyIdFilter,
+            'matchmaker_id' => $matchmakerIdFilter,
+            'agencies' => $me->hasRole('admin')
+                ? \App\Models\Agency::query()->orderBy('name')->get(['id', 'name'])
+                : [],
+            'matchmakers' => ($me->hasRole('admin') || $me->hasRole('manager'))
+                ? StatsService::getMatchmakerList($me->hasRole('manager') ? (int) $me->agency_id : null)
+                : [],
+            'pagination' => [
+                'current_page' => $page,
+                'last_page' => $lastPage,
+                'total' => $total,
+            ],
         ]);
     }
 

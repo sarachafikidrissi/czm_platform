@@ -1,5 +1,6 @@
 // resources/js/components/objectives/DetailModal.jsx
 import { Receipt, Inbox } from 'lucide-react';
+import { router } from '@inertiajs/react';
 import { mad, KPI_META } from '@/lib/objectives';
 import { Modal, ModalHeader } from './Modal';
 import { Button } from './controls';
@@ -10,7 +11,7 @@ import { Button } from './controls';
  *   open, onClose, isMobile, period
  *   kpi  the selected row, expected shape:
  *     { key, label, unit, history: { rows: [...], total: number } }
- *     - ventes  rows: { date, client, montant, statut }
+ *     - ventes  rows: { id, date, client, country, gender, montant, statut }
  *     - membres rows: { date, membre, validePar }
  *   If `history` is loaded lazily, pass a `loading` flag and render a spinner.
  */
@@ -22,10 +23,16 @@ export default function DetailModal({ open, onClose, isMobile, kpi, period, load
   const isVentes = kpi.key === 'ventes';
   const tint = KPI_META[kpi.key]?.tint;
   const HeaderIcon = isVentes ? Receipt : KPI_META[kpi.key]?.icon;
-  const maxWidth = isVentes ? 560 : 460;
+  const maxWidth = isVentes ? 720 : 460;
   const subtitle = isVentes
     ? `${period?.label ?? ''} · Total : ${mad(total)}`
     : `${period?.label ?? ''} · Total : ${total} membre${total > 1 ? 's' : ''}`;
+
+  const openBill = (billId) => {
+    if (!billId) return;
+    onClose();
+    router.visit(`/staff/bills/${billId}`);
+  };
 
   return (
     <Modal open={open} onClose={onClose} isMobile={isMobile} maxWidth={maxWidth}>
@@ -47,15 +54,23 @@ export default function DetailModal({ open, onClose, isMobile, kpi, period, load
               <tr className="text-[11px] uppercase tracking-wide text-neutral-400 text-left">
                 <th className="font-medium px-5 py-2.5">Date</th>
                 <th className="font-medium px-3 py-2.5">Client</th>
+                <th className="font-medium px-3 py-2.5">Pays</th>
+                <th className="font-medium px-3 py-2.5">Genre</th>
                 <th className="font-medium px-3 py-2.5 text-right">Montant</th>
                 <th className="font-medium px-5 py-2.5 text-right">Statut</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100">
-              {rows.map((r, i) => (
-                <tr key={i} className="hover:bg-neutral-50/60">
+              {rows.map((r) => (
+                <tr
+                  key={r.id ?? `${r.date}-${r.client}`}
+                  className={`${r.id ? 'cursor-pointer hover:bg-rose-50/60' : 'hover:bg-neutral-50/60'}`}
+                  onClick={() => openBill(r.id)}
+                >
                   <td className="px-5 py-2.5 font-mono text-neutral-500">{r.date}</td>
                   <td className="px-3 py-2.5 text-neutral-800">{r.client}</td>
+                  <td className="px-3 py-2.5 text-neutral-600">{r.country}</td>
+                  <td className="px-3 py-2.5 text-neutral-600">{r.gender}</td>
                   <td className="px-3 py-2.5 text-right font-mono text-neutral-800">{mad(r.montant)}</td>
                   <td className="px-5 py-2.5 text-right">
                     <span className={`text-[11px] font-medium px-1.5 py-0.5 rounded ${r.statut === 'Validé' ? 'bg-[#e6f3ec] text-[#15803d]' : 'bg-[#fdf0e0] text-[#c2740a]'}`}>{r.statut}</span>
@@ -63,7 +78,7 @@ export default function DetailModal({ open, onClose, isMobile, kpi, period, load
                 </tr>
               ))}
               <tr className="border-t-2 border-neutral-200 font-semibold">
-                <td className="px-5 py-2.5 text-neutral-500" colSpan={2}>Total</td>
+                <td className="px-5 py-2.5 text-neutral-500" colSpan={4}>Total</td>
                 <td className="px-3 py-2.5 text-right font-mono text-neutral-900">{mad(total)}</td>
                 <td className="px-5 py-2.5" />
               </tr>

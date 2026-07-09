@@ -47,3 +47,35 @@ export const EMPTY_COPY = {
   en: { text: 'No objective has been set for this month.',    cta: 'Set an objective',    rtl: false },
   ar: { text: 'لم يتم تحديد أي هدف لهذا الشهر.',              cta: 'تحديد هدف',           rtl: true  },
 };
+
+export function formatMemberGender(gender) {
+  if (gender === 'male') return 'Homme';
+  if (gender === 'female') return 'Femme';
+  return gender || '—';
+}
+
+export function mapDetailsToHistory(type, data) {
+  const rows = data?.details ?? [];
+  if (type === 'ventes') {
+    const mapped = rows.map((r) => ({
+      id: r.id,
+      date: r.bill_date || r.created_at?.slice(0, 10) || '—',
+      client: r.user_name || r.user_email || '—',
+      country: r.country || '—',
+      gender: formatMemberGender(r.gender),
+      montant: parseFloat(r.total_amount) || 0,
+      statut: 'Validé',
+    }));
+    const total = mapped.reduce((sum, r) => sum + r.montant, 0);
+    return { rows: mapped, total };
+  }
+  if (type === 'membres') {
+    const mapped = rows.map((r) => ({
+      date: r.approved_at?.slice(0, 10) || '—',
+      membre: r.name || '—',
+      validePar: r.matchmaker_name || r.validated_by || '—',
+    }));
+    return { rows: mapped, total: mapped.length };
+  }
+  return { rows: [], total: 0 };
+}

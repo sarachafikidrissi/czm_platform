@@ -59,13 +59,13 @@ class UserSubscription extends Model
         return $this->subscription_end < Carbon::now();
     }
 
-    public function getDaysRemainingAttribute()
+    public function getDaysRemainingAttribute(): int
     {
         if ($this->is_expired) {
             return 0;
         }
-        
-        return Carbon::now()->diffInDays($this->subscription_end, false);
+
+        return max(0, (int) Carbon::now()->startOfDay()->diffInDays($this->subscription_end->startOfDay(), false));
     }
 
     // Scopes

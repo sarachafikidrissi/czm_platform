@@ -1,4 +1,4 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -10,18 +10,18 @@ import { usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Skeleton } from '@/components/ui/skeleton';
+import { formatSubscriptionValidity, staffProfilePath } from '@/lib/subscription-display';
 
 export default function UserSubscription() {
-    const { user, profile, subscription, subscriptionStatus } = usePage().props;
+    const { user, profile, subscription, subscriptions = [], subscriptionStatus } = usePage().props;
     const { t } = useTranslation();
     const isLoading = subscription === null || subscription === undefined;
     const [showMatchmakerDialog, setShowMatchmakerDialog] = useState(false);
     const assignedMatchmaker = user?.assignedMatchmaker ?? user?.assigned_matchmaker ?? subscription?.assignedMatchmaker ?? subscription?.assigned_matchmaker ?? null;
-    
-    // Determine current status
-    const isClient = user.status === 'client';
+
+    const isClient = subscriptionStatus === 'active' || user.status === 'client';
     const isMember = user.status === 'member';
-    const isPassiveMember = user.status === 'user' || (!isClient && !isMember);
+    const isPassiveMember = subscriptionStatus === 'no_subscription' && (user.status === 'user' || (!isClient && !isMember));
     
     // Format dates
     const formatDate = (date) => {
@@ -33,7 +33,6 @@ export default function UserSubscription() {
         });
     };
     
-    // Get status badge
     const getStatusBadge = (status) => {
         switch (status) {
             case 'active':
@@ -101,114 +100,104 @@ export default function UserSubscription() {
                     </div>
                 </div>
                 
-                {/* Current Subscription Details */}
+                {/* Subscriptions list */}
                 <Card>
                     <CardHeader>
-                        <CardTitle className="text-red-600 text-lg sm:text-xl">{t('subscription.currentSubscription')}</CardTitle>
+                        <CardTitle className="text-red-600 text-lg sm:text-xl">
+                            {subscriptions.length > 1 ? 'Mes abonnements' : t('subscription.currentSubscription')}
+                        </CardTitle>
+                        {subscriptions.length > 0 && (
+                            <CardDescription>Cliquez sur une ligne pour voir le détail</CardDescription>
+                        )}
                     </CardHeader>
                     <CardContent>
                         {isLoading ? (
                             <div className="space-y-4">
-                                {/* Desktop Table View Skeleton */}
-                                <div className="hidden md:block overflow-x-auto">
-                                    <Table>
-                                        <TableHeader>
-                                            <TableRow>
-                                                <TableHead>{t('subscription.plan')}</TableHead>
-                                                <TableHead>{t('subscription.start')}</TableHead>
-                                                <TableHead>{t('subscription.expire')}</TableHead>
-                                                <TableHead>{t('common.status')}</TableHead>
-                                                <TableHead>{t('subscription.matchmaker')}</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            <TableRow>
-                                                <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                                                <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                                                <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                                                <TableCell><Skeleton className="h-6 w-20" /></TableCell>
-                                                <TableCell><Skeleton className="h-4 w-28" /></TableCell>
-                                            </TableRow>
-                                        </TableBody>
-                                    </Table>
-                                </div>
-                                {/* Mobile Card View Skeleton */}
-                                <div className="md:hidden space-y-3">
-                                    <Card className="border">
-                                        <CardContent className="pt-4">
-                                            <div className="space-y-3">
-                                                <Skeleton className="h-4 w-3/4" />
-                                                <Skeleton className="h-4 w-1/2" />
-                                                <Skeleton className="h-4 w-1/2" />
-                                                <Skeleton className="h-6 w-20" />
-                                                <Skeleton className="h-4 w-2/3" />
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                                </div>
+                                <Skeleton className="h-10 w-full" />
+                                <Skeleton className="h-10 w-full" />
                             </div>
-                        ) : subscription ? (
+                        ) : subscriptions.length > 0 ? (
                             <div className="space-y-4">
-                                {/* Desktop Table View */}
-                                <div className="hidden md:block overflow-x-auto">
+                                <div className="overflow-x-auto rounded-lg border">
                                     <Table>
                                         <TableHeader>
                                             <TableRow>
                                                 <TableHead>{t('subscription.plan')}</TableHead>
                                                 <TableHead>{t('subscription.start')}</TableHead>
                                                 <TableHead>{t('subscription.expire')}</TableHead>
-                                                <TableHead>{t('common.status')}</TableHead>
+                                                <TableHead>Durée</TableHead>
+                                                <TableHead>Validité</TableHead>
                                                 <TableHead>{t('subscription.matchmaker')}</TableHead>
+                                                <TableHead>Agence</TableHead>
+                                                <TableHead>Commande</TableHead>
+                                                <TableHead>{t('common.status')}</TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
-                                            <TableRow>
-                                                <TableCell className="font-medium">
-                                                    {subscription.matrimonial_pack?.name || 'N/A'}
-                                                </TableCell>
-                                                <TableCell>{formatDate(subscription.subscription_start)}</TableCell>
-                                                <TableCell>{formatDate(subscription.subscription_end)}</TableCell>
-                                                <TableCell>{getStatusBadge(subscription.status)}</TableCell>
-                                                <TableCell>
-                                                    {subscription.assigned_matchmaker?.name || 'N/A'}
-                                                </TableCell>
-                                            </TableRow>
+                                            {subscriptions.map((item) => {
+                                                const validity = formatSubscriptionValidity(item, item.duration_months);
+                                                const mm = item.assigned_matchmaker;
+                                                const mmPath = staffProfilePath(mm);
+
+                                                return (
+                                                    <TableRow
+                                                        key={item.id}
+                                                        className="cursor-pointer hover:bg-rose-50/40"
+                                                        onClick={() => router.visit(`/user/subscription/${item.id}`)}
+                                                    >
+                                                        <TableCell className="font-medium">
+                                                            {item.matrimonial_pack?.name || 'N/A'}
+                                                        </TableCell>
+                                                        <TableCell>{formatDate(item.subscription_start)}</TableCell>
+                                                        <TableCell>{formatDate(item.subscription_end)}</TableCell>
+                                                        <TableCell>
+                                                            {item.duration_months ? `${item.duration_months} mois` : '—'}
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <Badge className={validity.className}>{validity.label}</Badge>
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            {mmPath ? (
+                                                                <button
+                                                                    type="button"
+                                                                    className="text-[#890505] hover:underline"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        router.visit(mmPath);
+                                                                    }}
+                                                                >
+                                                                    {mm.name}
+                                                                </button>
+                                                            ) : (
+                                                                mm?.name || 'N/A'
+                                                            )}
+                                                        </TableCell>
+                                                        <TableCell>{mm?.agency?.name ?? '—'}</TableCell>
+                                                        <TableCell>
+                                                            {item.bill_id ? (
+                                                                <button
+                                                                    type="button"
+                                                                    className="text-[#890505] hover:underline"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        router.visit(`/mes-commandes/${item.bill_id}`);
+                                                                    }}
+                                                                >
+                                                                    Voir
+                                                                </button>
+                                                            ) : (
+                                                                '—'
+                                                            )}
+                                                        </TableCell>
+                                                        <TableCell>{getStatusBadge(item.status)}</TableCell>
+                                                    </TableRow>
+                                                );
+                                            })}
                                         </TableBody>
                                     </Table>
                                 </div>
-                                
-                                {/* Mobile Card View */}
-                                <div className="md:hidden space-y-3">
-                                    <Card className="border">
-                                        <CardContent className="pt-4">
-                                            <div className="space-y-3">
-                                                <div>
-                                                    <span className="text-xs text-muted-foreground">{t('subscription.plan')}: </span>
-                                                    <span className="font-medium">{subscription.matrimonial_pack?.name || 'N/A'}</span>
-                                                </div>
-                                                <div>
-                                                    <span className="text-xs text-muted-foreground">{t('subscription.start')}: </span>
-                                                    <span>{formatDate(subscription.subscription_start)}</span>
-                                                </div>
-                                                <div>
-                                                    <span className="text-xs text-muted-foreground">{t('subscription.expire')}: </span>
-                                                    <span>{formatDate(subscription.subscription_end)}</span>
-                                                </div>
-                                                <div>
-                                                    <span className="text-xs text-muted-foreground">{t('common.status')}: </span>
-                                                    <div className="mt-1">{getStatusBadge(subscription.status)}</div>
-                                                </div>
-                                                <div>
-                                                    <span className="text-xs text-muted-foreground">{t('subscription.matchmaker')}: </span>
-                                                    <span>{subscription.assigned_matchmaker?.name || 'N/A'}</span>
-                                                </div>
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                                </div>
-                                
-                                {/* Pack Advantages */}
-                                {subscription.pack_advantages && subscription.pack_advantages.length > 0 && (
+
+                                {subscription?.pack_advantages && subscription.pack_advantages.length > 0 && (
                                     <div className="mt-4 sm:mt-6">
                                         <h4 className="text-base sm:text-lg font-semibold text-gray-800 mb-3">{t('subscription.includedAdvantages')}</h4>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
@@ -229,9 +218,30 @@ export default function UserSubscription() {
                                 <p className="text-sm mt-2">{t('subscription.currentlyPassiveMember')}</p>
                             </div>
                         )}
+
+                        {assignedMatchmaker && (
+                            <div className="mt-6 rounded-lg border border-rose-100 bg-rose-50/30 p-4">
+                                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Votre matchmaker</p>
+                                {staffProfilePath(assignedMatchmaker) ? (
+                                    <button
+                                        type="button"
+                                        className="mt-1 font-semibold text-[#890505] hover:underline"
+                                        onClick={() => router.visit(staffProfilePath(assignedMatchmaker))}
+                                    >
+                                        {assignedMatchmaker.name}
+                                    </button>
+                                ) : (
+                                    <p className="mt-1 font-semibold text-slate-900">{assignedMatchmaker.name}</p>
+                                )}
+                                <div className="mt-2 flex flex-col gap-1 text-sm text-[#890505]">
+                                    {assignedMatchmaker.email && <a href={`mailto:${assignedMatchmaker.email}`}>{assignedMatchmaker.email}</a>}
+                                    {assignedMatchmaker.phone && <a href={`tel:${assignedMatchmaker.phone}`}>{assignedMatchmaker.phone}</a>}
+                                </div>
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
-                
+
                 {/* Subscription Type Explanation */}
                 <Card>
                     <CardContent className="pt-4 sm:pt-6">

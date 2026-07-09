@@ -576,6 +576,111 @@ class PropositionActiveAndCancelTest extends TestCase
         ]);
     }
 
+    public function test_send_to_other_succeeds_after_first_recipient_accepts(): void
+    {
+        $mmA = $this->makeUserWithRole('matchmaker');
+        $mmB = $this->makeUserWithRole('matchmaker');
+        $ref = $this->makeUserWithRole('user', ['assigned_matchmaker_id' => $mmA->id]);
+        $comp = $this->makeUserWithRole('user', ['assigned_matchmaker_id' => $mmB->id]);
+
+        PropositionRequest::create([
+            'reference_user_id' => $ref->id,
+            'compatible_user_id' => $comp->id,
+            'from_matchmaker_id' => $mmA->id,
+            'to_matchmaker_id' => $mmB->id,
+            'message' => 'Please allow',
+            'status' => 'accepted',
+            'responded_at' => now()->subWeek(),
+        ]);
+
+        $first = Proposition::create([
+            'matchmaker_id' => $mmA->id,
+            'user_a_id' => $ref->id,
+            'user_b_id' => $comp->id,
+            'reference_user_id' => $ref->id,
+            'compatible_user_id' => $comp->id,
+            'recipient_user_id' => $comp->id,
+            'message' => 'Staged first',
+            'status' => 'interested',
+            'user_response' => 'interested',
+            'responded_at' => now(),
+        ]);
+
+        $response = $this->actingAs($mmA)->postJson(route('staff.propositions.send-to-other'), [
+            'reference_user_id' => $ref->id,
+            'compatible_user_id' => $comp->id,
+            'recipient_user_id' => $ref->id,
+            'message' => 'Staged second',
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('message', 'Proposition sent.');
+
+        $second = Proposition::find($response->json('id'));
+        $this->assertNotNull($second);
+        $this->assertSame('pending', $second->status);
+        $this->assertSame($ref->id, $second->recipient_user_id);
+        $this->assertNotNull($second->pair_id);
+
+        $first->refresh();
+        $this->assertSame($second->pair_id, $first->pair_id);
+    }
+
+    public function test_send_to_other_blocked_when_recipient_has_external_active_proposition(): void
+    {
+        $mmA = $this->makeUserWithRole('matchmaker');
+        $mmB = $this->makeUserWithRole('matchmaker');
+        $mmC = $this->makeUserWithRole('matchmaker');
+        $ref = $this->makeUserWithRole('user', ['assigned_matchmaker_id' => $mmA->id]);
+        $comp = $this->makeUserWithRole('user', ['assigned_matchmaker_id' => $mmB->id]);
+        $other = $this->makeUserWithRole('user', ['assigned_matchmaker_id' => $mmC->id]);
+
+        PropositionRequest::create([
+            'reference_user_id' => $ref->id,
+            'compatible_user_id' => $comp->id,
+            'from_matchmaker_id' => $mmA->id,
+            'to_matchmaker_id' => $mmB->id,
+            'message' => 'Please allow',
+            'status' => 'accepted',
+            'responded_at' => now()->subWeek(),
+        ]);
+
+        Proposition::create([
+            'matchmaker_id' => $mmA->id,
+            'user_a_id' => $ref->id,
+            'user_b_id' => $comp->id,
+            'reference_user_id' => $ref->id,
+            'compatible_user_id' => $comp->id,
+            'recipient_user_id' => $comp->id,
+            'message' => 'Staged first',
+            'status' => 'interested',
+            'user_response' => 'interested',
+            'responded_at' => now(),
+        ]);
+
+        Proposition::create([
+            'matchmaker_id' => $mmC->id,
+            'user_a_id' => $comp->id,
+            'user_b_id' => $other->id,
+            'reference_user_id' => $comp->id,
+            'compatible_user_id' => $other->id,
+            'recipient_user_id' => $comp->id,
+            'message' => 'Unrelated active',
+            'status' => 'pending',
+        ]);
+
+        $this->actingAs($mmA)->postJson(route('staff.propositions.send-to-other'), [
+            'reference_user_id' => $ref->id,
+            'compatible_user_id' => $comp->id,
+            'recipient_user_id' => $ref->id,
+            'message' => 'Should fail',
+        ])
+            ->assertStatus(422)
+            ->assertJson([
+                'message' => PropositionController::MESSAGE_COMPATIBLE_HAS_ACTIVE_PROPOSITION,
+            ]);
+    }
+
     public function test_staff_propositions_list_includes_can_cancel_and_is_active(): void
     {
         $assignedMatchmaker = $this->makeUserWithRole('matchmaker');
@@ -599,8 +704,8 @@ class PropositionActiveAndCancelTest extends TestCase
             ->get('/staff/matchmaker/propositions')
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->where('propositions.0.is_active', true)
-                ->where('propositions.0.can_cancel', true)
+                ->where('entries.0.recipients.'.$recipient->id.'.is_active', true)
+                ->where('entries.0.recipients.'.$recipient->id.'.can_cancel', true)
             );
     }
 }

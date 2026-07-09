@@ -10,6 +10,7 @@ import EmptyState from '@/components/objectives/EmptyState';
 import SkeletonRows from '@/components/objectives/SkeletonRows';
 import DetailModal from '@/components/objectives/DetailModal';
 import { FieldSelect } from '@/components/objectives/controls';
+import { mapDetailsToHistory } from '@/lib/objectives';
 
 const MONTH_NAMES = [
     'Janvier',
@@ -25,29 +26,6 @@ const MONTH_NAMES = [
     'Novembre',
     'Décembre',
 ];
-
-function mapDetailsToHistory(type, data) {
-    const rows = data?.details ?? [];
-    if (type === 'ventes') {
-        const mapped = rows.map((r) => ({
-            date: r.bill_date || r.created_at?.slice(0, 10) || '—',
-            client: r.user_name || '—',
-            montant: parseFloat(r.total_amount) || 0,
-            statut: 'Validé',
-        }));
-        const total = mapped.reduce((sum, r) => sum + r.montant, 0);
-        return { rows: mapped, total };
-    }
-    if (type === 'membres') {
-        const mapped = rows.map((r) => ({
-            date: r.approved_at?.slice(0, 10) || '—',
-            membre: r.name || '—',
-            validePar: r.matchmaker_name || r.validated_by || '—',
-        }));
-        return { rows: mapped, total: mapped.length };
-    }
-    return { rows: [], total: 0 };
-}
 
 function buildKpis(objective, realized, commission) {
     const definitions = [

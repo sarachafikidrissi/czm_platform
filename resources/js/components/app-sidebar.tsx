@@ -33,7 +33,7 @@ const getMainNavItems = (t: TFunction, role: string): NavItem[] => [
         title: t('navigation.myProfile'),
         url: '/user/profile/{username}',
         icon: User,
-        roles: ['matchmaker', 'manager'],
+        roles: ['matchmaker', 'manager', 'admin'],
     },
     {
         title: t('navigation.myPhotos'),
@@ -266,9 +266,9 @@ const getMainNavItems = (t: TFunction, role: string): NavItem[] => [
         title: t('navigation.matchmaker', { defaultValue: 'Matchmaker' }),
         url: '/staff/matchmaker/propositions',
         icon: UserCog,
-        roles: ['matchmaker', 'manager'],
+        roles: ['matchmaker', 'manager', 'admin'],
         children: [
-            { title: t('navigation.propositionsList', { defaultValue: 'Liste des propositions' }), url: '/staff/matchmaker/propositions', roles: ['matchmaker', 'manager'] },
+            { title: t('navigation.propositionsList', { defaultValue: 'Liste des propositions' }), url: '/staff/matchmaker/propositions', roles: ['matchmaker', 'manager', 'admin'] },
             { title: t('navigation.matchmakerChange', { defaultValue: 'Changement matchmaker' }), url: '/staff/matchmaker/change', roles: ['matchmaker', 'manager'] },
         ],
     },
@@ -343,7 +343,13 @@ const getMainNavItems = (t: TFunction, role: string): NavItem[] => [
 const footerNavItems: NavItem[] = [];
 
 const filterNavItemsByRole = (navItems: NavItem[], userRole: string): NavItem[] => {
-    return navItems.filter(item => item.roles.includes(userRole));
+    return navItems
+        .filter((item) => item.roles.includes(userRole))
+        .map((item) => ({
+            ...item,
+            children: item.children?.filter((child) => child.roles.includes(userRole)),
+        }))
+        .filter((item) => !item.children || item.children.length > 0);
 };
 
 export function AppSidebar() {

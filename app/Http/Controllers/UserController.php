@@ -10,6 +10,8 @@ use App\Models\User;
 use App\Models\UserAssignment;
 use App\Services\MatchmakingResultsPayloadService;
 use App\Services\MatchmakingService;
+use App\Services\ObjectiveCommissionCalculator;
+use App\Services\ObjectiveMetricsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -221,6 +223,7 @@ class UserController extends Controller
                     'id' => $proposition->id,
                     'message' => $proposition->message,
                     'status' => $proposition->status,
+                    'user_response' => $proposition->user_response,
                     'is_expired' => $isExpired,
                     'response_message' => $proposition->response_message,
                     'responded_at' => $proposition->responded_at,
@@ -339,12 +342,22 @@ class UserController extends Controller
         $hasBill = false;
 
         if ($currentUser && ($currentUser->hasRole('matchmaker') || $currentUser->hasRole('admin') || $currentUser->hasRole('manager'))) {
+            if ($userRole === 'user') {
             // Load bills
             $bills = $user->bills()
-                ->with('matchmaker:id,name,email')
+                ->with([
+                    'matchmaker:id,name,email',
+                    'user:id,name,email,gender,country',
+                    'user.profile:id,user_id,pays_residence',
+                    'profile:id,user_id,pays_residence',
+                ])
                 ->orderBy('created_at', 'desc')
                 ->get()
                 ->map(function ($bill) {
+                    $memberCountry = $bill->profile?->pays_residence
+                        ?? $bill->user?->profile?->pays_residence
+                        ?? $bill->user?->country;
+
                     return [
                         'id' => $bill->id,
                         'bill_number' => $bill->bill_number,
@@ -363,6 +376,8 @@ class UserController extends Controller
                         'pack_advantages' => $bill->pack_advantages,
                         'notes' => $bill->notes,
                         'matchmaker' => $bill->matchmaker,
+                        'member_country' => $memberCountry,
+                        'member_gender' => $bill->user?->gender,
                     ];
                 });
 
@@ -393,6 +408,7 @@ class UserController extends Controller
                         'days_remaining' => $subscription->days_remaining,
                     ];
                 });
+            }
 
             // Load matchmaking search criteria from profile
             if ($user->profile) {
@@ -447,6 +463,57 @@ class UserController extends Controller
             }
         }
 
+        // Load performance data for staff subjects (authorized viewers only)
+        $staffPerformance = null;
+        $viewerRole = $currentUser?->roles->first()?->name ?? 'user';
+        $isOwnProfile = $currentUser && $currentUser->id === $user->id;
+        $viewerIsManagerOfSubjectAgency = $viewerRole === 'manager'
+            && $currentUser?->agency_id
+            && $user->agency_id
+            && (int) $currentUser->agency_id === (int) $user->agency_id;
+        $viewerCanSeePerformance = $viewerRole === 'admin'
+            || $isOwnProfile
+            || $viewerIsManagerOfSubjectAgency;
+
+        if ($viewerCanSeePerformance && in_array($userRole, ['matchmaker', 'manager'], true)) {
+            $currentMonth = now()->month;
+            $currentYear = now()->year;
+
+            $realized = $userRole === 'manager'
+                ? ObjectiveMetricsService::calculateRealizedForManager(
+                    $user->id, $currentMonth, $currentYear
+                )
+                : ObjectiveMetricsService::calculateRealizedForMatchmaker(
+                    $user->id, $currentMonth, $currentYear
+                );
+
+            $objective = ObjectiveMetricsService::resolveObjectiveForUser(
+                $user->id, $currentMonth, $currentYear
+            );
+
+            $progress = $objective
+                ? ObjectiveCommissionCalculator::calculateProgress($objective, $realized)
+                : null;
+
+            $prospectsCount = User::role('user')
+                ->where('assigned_matchmaker_id', $user->id)
+                ->where('status', 'prospect')
+                ->count();
+
+            $staffPerformance = [
+                'month' => $currentMonth,
+                'year' => $currentYear,
+                'prospects' => $prospectsCount,
+                'ventes' => $realized['ventes'],
+                'membres' => $realized['membres'],
+                'rdv' => $realized['rdv'],
+                'target_ventes' => $objective?->target_ventes ?? null,
+                'target_membres' => $objective?->target_membres ?? null,
+                'progress_ventes' => $progress['ventes'] ?? null,
+                'progress_membres' => $progress['membres'] ?? null,
+            ];
+        }
+
         // Load agency manager for self-view AND assigned staff viewing this profile
         $agencyManager = null;
         $userSubscription = null;
@@ -493,7 +560,7 @@ class UserController extends Controller
         $latestMemberProposition = null;
         $memberRdv = null;
         $memberFailedRdv = null;
-        if ($currentUser && ($currentUser->hasRole('matchmaker') || $currentUser->hasRole('admin') || $currentUser->hasRole('manager'))) {
+        if ($currentUser && ($currentUser->hasRole('matchmaker') || $currentUser->hasRole('admin') || $currentUser->hasRole('manager')) && $userRole === 'user') {
             $user->has_bill = $hasBill;
             $memberProposition = Proposition::activeSnapshotForUser((int) $user->id);
             $latestMemberProposition = Proposition::latestSnapshotForUser((int) $user->id);
@@ -520,6 +587,7 @@ class UserController extends Controller
             'memberFailedRdv' => $memberFailedRdv,
             'userSubscription' => $userSubscription,
             'agencyManager' => $agencyManager,
+            'staffPerformance' => $staffPerformance,
         ]);
     }
 
@@ -528,28 +596,55 @@ class UserController extends Controller
         /** @var User $user */
         $user = Auth::user();
 
-        // Check account status
         $profile = $user->profile;
         if ($profile && $profile->account_status === 'desactivated') {
             return redirect()->route('dashboard');
         }
 
-        // Load assigned matchmaker relationship
         $user->load('assignedMatchmaker');
 
-        // Get user's latest subscription
-        $latestSubscription = $user->subscriptions()
-            ->with(['matrimonialPack', 'assignedMatchmaker'])
+        $subscriptions = $user->subscriptions()
+            ->with(['matrimonialPack', 'assignedMatchmaker:id,name,email,phone,username,agency_id', 'assignedMatchmaker.agency:id,name'])
             ->orderBy('created_at', 'desc')
-            ->first();
+            ->get();
 
-        // Get user's profile with matrimonial pack info
-        $profile = $user->profile;
+        $paidBills = $user->bills()
+            ->where('status', 'paid')
+            ->orderBy('created_at')
+            ->get(['id', 'created_at']);
+
+        $subscriptions = $subscriptions->map(function ($subscription) use ($paidBills) {
+                $linkedBill = $paidBills
+                    ->filter(fn ($bill) => $bill->created_at <= $subscription->created_at)
+                    ->sortByDesc('created_at')
+                    ->first();
+
+                return [
+                    'id' => $subscription->id,
+                    'matrimonial_pack_id' => $subscription->matrimonial_pack_id,
+                    'subscription_start' => $subscription->subscription_start,
+                    'subscription_end' => $subscription->subscription_end,
+                    'duration_months' => $subscription->duration_months,
+                    'pack_price' => $subscription->pack_price,
+                    'pack_advantages' => $subscription->pack_advantages,
+                    'payment_mode' => $subscription->payment_mode,
+                    'status' => $subscription->status,
+                    'matrimonial_pack' => $subscription->matrimonialPack,
+                    'assigned_matchmaker' => $subscription->assignedMatchmaker,
+                    'is_active' => $subscription->is_active,
+                    'is_expired' => $subscription->is_expired,
+                    'days_remaining' => $subscription->days_remaining,
+                    'bill_id' => $linkedBill?->id,
+                ];
+            });
+
+        $latestSubscription = $subscriptions->first();
 
         return Inertia::render('user/subscription', [
             'user' => $user,
             'profile' => $profile,
             'subscription' => $latestSubscription,
+            'subscriptions' => $subscriptions,
             'subscriptionStatus' => $user->getSubscriptionStatus(),
         ]);
     }

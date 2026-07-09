@@ -3,9 +3,11 @@ import { Head, router, usePage } from '@inertiajs/react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import ConfirmDialog from '@/components/ConfirmDialog';
 import MatchmakerFeedbackModal from '@/components/rdv/MatchmakerFeedbackModal';
 import CreateRdvModal from '@/components/rdv/CreateRdvModal';
 import { useToast } from '@/hooks/use-toast';
+import { getRdvStatusConfirmConfig } from '@/lib/rdv-status-confirm';
 import { rdvToastFr } from '@/lib/proposition-toast-messages';
 import {
     Calendar,
@@ -47,14 +49,6 @@ const TABS = [
     { key: 'reussi', label: 'Réussis' },
     { key: 'echec', label: 'Échecs' },
 ];
-
-const CONFIRM_MESSAGES = {
-    reussi:
-        "Confirmer que ce RDV s'est bien déroulé ? Le profil compatible ne pourra plus recevoir de nouvelles propositions.",
-    echec:
-        'Confirmer que ce RDV a échoué ? Les profils seront à nouveau disponibles pour de nouvelles propositions.',
-    cancelMatch: "Confirmer l'annulation du match ? Les deux profils redeviendront disponibles.",
-};
 
 const getProfilePicture = (user) => {
     if (user?.profile?.profile_picture_path) return `/storage/${user.profile.profile_picture_path}`;
@@ -135,7 +129,7 @@ function RdvRowActions({
     statusUpdatingId,
     onFeedback,
     onRecreate,
-    onConfirmStatusUpdate,
+    onRequestStatusUpdate,
     layout = 'column',
 }) {
     const stopClick = (e) => e.stopPropagation();
@@ -183,7 +177,7 @@ function RdvRowActions({
                         size="sm"
                         className="min-h-11 bg-emerald-600 text-white hover:bg-emerald-700 sm:min-h-8"
                         disabled={statusUpdatingId === rdv.id}
-                        onClick={() => onConfirmStatusUpdate(rdv, 'reussi', CONFIRM_MESSAGES.reussi)}
+                        onClick={() => onRequestStatusUpdate(rdv, 'reussi')}
                     >
                         <CheckCircle className="mr-1 h-3.5 w-3.5" />
                         Réussi
@@ -192,7 +186,7 @@ function RdvRowActions({
                         size="sm"
                         className="min-h-11 bg-rose-600 text-white hover:bg-rose-700 sm:min-h-8"
                         disabled={statusUpdatingId === rdv.id}
-                        onClick={() => onConfirmStatusUpdate(rdv, 'echec', CONFIRM_MESSAGES.echec)}
+                        onClick={() => onRequestStatusUpdate(rdv, 'echec')}
                     >
                         <XCircle className="mr-1 h-3.5 w-3.5" />
                         Échec
@@ -205,7 +199,7 @@ function RdvRowActions({
                     size="sm"
                     className="min-h-11 bg-emerald-600 text-white hover:bg-emerald-700 sm:min-h-8"
                     disabled={statusUpdatingId === rdv.id}
-                    onClick={() => onConfirmStatusUpdate(rdv, 'reussi', CONFIRM_MESSAGES.reussi)}
+                    onClick={() => onRequestStatusUpdate(rdv, 'reussi')}
                 >
                     <CheckCircle className="mr-1 h-3.5 w-3.5" />
                     Marquer réussi
@@ -217,7 +211,7 @@ function RdvRowActions({
                     size="sm"
                     className="min-h-11 bg-rose-600 text-white hover:bg-rose-700 sm:min-h-8"
                     disabled={statusUpdatingId === rdv.id}
-                    onClick={() => onConfirmStatusUpdate(rdv, 'echec', CONFIRM_MESSAGES.cancelMatch)}
+                    onClick={() => onRequestStatusUpdate(rdv, 'echec')}
                 >
                     <XCircle className="mr-1 h-3.5 w-3.5" />
                     Annuler le match
@@ -238,6 +232,7 @@ export default function RdvList() {
     const [recreateModal, setRecreateModal] = useState(null);
     const [localRdvs, setLocalRdvs] = useState(rdvs);
     const [statusUpdatingId, setStatusUpdatingId] = useState(null);
+    const [statusConfirm, setStatusConfirm] = useState(null);
 
     const canUpdateRdvStatus = (rdv) =>
         isAdmin || Number(rdv.matchmaker?.id) === Number(auth?.user?.id);
@@ -310,11 +305,21 @@ export default function RdvList() {
         }
     };
 
-    const confirmStatusUpdate = (rdv, newStatus, message) => {
-        if (!window.confirm(message)) {
-            return;
-        }
-        handleStatusUpdate(rdv.id, newStatus);
+    const requestStatusUpdate = (rdv, newStatus) => {
+        const config = getRdvStatusConfirmConfig(rdv.status, newStatus);
+        setStatusConfirm({
+            rdvId: rdv.id,
+            newStatus,
+            ...config,
+        });
+    };
+
+    const handleConfirmStatusUpdate = async () => {
+        if (!statusConfirm) return;
+
+        const { rdvId, newStatus } = statusConfirm;
+        await handleStatusUpdate(rdvId, newStatus);
+        setStatusConfirm(null);
     };
 
     const buildPaginationParams = (page) => {
@@ -349,7 +354,7 @@ export default function RdvList() {
             statusUpdatingId,
             onFeedback: setFeedbackModal,
             onRecreate: setRecreateModal,
-            onConfirmStatusUpdate: confirmStatusUpdate,
+            onRequestStatusUpdate: requestStatusUpdate,
         };
 
         return (
@@ -586,6 +591,20 @@ export default function RdvList() {
                     }}
                 />
             )}
+
+            <ConfirmDialog
+                open={Boolean(statusConfirm)}
+                onOpenChange={(open) => {
+                    if (!open && !statusUpdatingId) {
+                        setStatusConfirm(null);
+                    }
+                }}
+                title={statusConfirm?.title ?? ''}
+                description={statusConfirm?.description ?? ''}
+                confirmLabel={statusConfirm?.confirmLabel}
+                loading={Boolean(statusConfirm && statusUpdatingId === statusConfirm.rdvId)}
+                onConfirm={() => void handleConfirmStatusUpdate()}
+            />
         </AppLayout>
     );
 }

@@ -69,7 +69,8 @@ export default function MesRdvs() {
                                     return (
                                         <div
                                             key={rdv.id}
-                                            className="grid grid-cols-1 gap-3 px-5 py-4 lg:grid-cols-[1fr_1fr_1fr_120px_140px_80px_140px]"
+                                            className="grid cursor-pointer grid-cols-1 gap-3 px-5 py-4 transition-colors hover:bg-rose-50/40 lg:grid-cols-[1fr_1fr_1fr_120px_140px_80px_140px]"
+                                            onClick={() => router.visit(`/mes-rdvs/${rdv.id}`)}
                                         >
                                             <div className="text-sm text-slate-700">
                                                 <span className="text-xs font-semibold uppercase text-slate-400 lg:hidden">Date: </span>
@@ -86,7 +87,20 @@ export default function MesRdvs() {
                                                             className="h-8 w-8 rounded-full object-cover"
                                                         />
                                                         <div>
-                                                            <div className="text-sm font-medium text-slate-900">{other.name}</div>
+                                                            {other.username ? (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        router.visit(`/profile/${other.username}`);
+                                                                    }}
+                                                                    className="text-left text-sm font-medium text-slate-900 transition-colors hover:text-[#890505] hover:underline"
+                                                                >
+                                                                    {other.name}
+                                                                </button>
+                                                            ) : (
+                                                                <div className="text-sm font-medium text-slate-900">{other.name}</div>
+                                                            )}
                                                             {other.username && (
                                                                 <div className="text-xs text-muted-foreground">@{other.username}</div>
                                                             )}
@@ -127,7 +141,10 @@ export default function MesRdvs() {
                                                     variant="outline"
                                                     className="h-8 border-rose-200 text-rose-700 hover:bg-rose-50 disabled:opacity-50"
                                                     disabled={alreadySubmitted}
-                                                    onClick={() => router.visit(`/mes-rdvs/${rdv.id}/feedback`)}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        router.visit(`/mes-rdvs/${rdv.id}/feedback`);
+                                                    }}
                                                 >
                                                     {alreadySubmitted ? 'Feedback envoyé' : 'Ajouter un feedback'}
                                                 </Button>

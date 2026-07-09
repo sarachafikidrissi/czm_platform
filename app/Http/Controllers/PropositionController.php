@@ -7,6 +7,7 @@ use App\Models\PropositionRequest;
 use App\Models\Rdv;
 use App\Models\User;
 use App\Models\UserActivity;
+use App\Services\PropositionStaffPayloadService;
 use App\Services\UserActivityService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Exceptions\HttpResponseException;
@@ -60,6 +61,7 @@ class PropositionController extends Controller
             'can_cancel' => $canCancel,
             'cancelled_at' => $proposition->cancelled_at,
             'response_message' => $proposition->response_message,
+            'user_response' => $proposition->user_response,
             'responded_at' => $proposition->responded_at,
             'created_at' => $proposition->created_at,
             'pair_id' => $proposition->pair_id,
@@ -100,14 +102,14 @@ class PropositionController extends Controller
     /**
      * List propositions for the authenticated user.
      */
-    public function index()
+    public function index(Request $request)
     {
         $me = Auth::user();
         if (! $me || ! $me->hasRole('user')) {
             abort(403, 'Unauthorized.');
         }
 
-        $propositions = Proposition::query()
+        $paginated = Proposition::query()
             ->where('recipient_user_id', $me->id)
             ->with([
                 'matchmaker:id,name,username',
@@ -117,11 +119,19 @@ class PropositionController extends Controller
                 'compatibleUser.profile:id,user_id,profile_picture_path',
             ])
             ->latest()
-            ->get()
+            ->paginate(10);
+
+        $propositions = $paginated->getCollection()
             ->map(function (Proposition $proposition) use ($me) {
                 $base = $this->mapPropositionForPayload($proposition, $me);
+                $isExpired = (bool) ($base['is_expired'] ?? false);
+                $canRespond = ! $isExpired
+                    && $proposition->status === Proposition::STATUS_PENDING
+                    && $proposition->responded_at === null;
 
                 return array_merge($base, [
+                    'recipient_user_id' => $proposition->recipient_user_id,
+                    'can_respond' => $canRespond,
                     'matchmaker' => $proposition->matchmaker ? [
                         'id' => $proposition->matchmaker->id,
                         'name' => $proposition->matchmaker->name,
@@ -145,6 +155,167 @@ class PropositionController extends Controller
 
         return Inertia::render('propositions', [
             'propositions' => $propositions,
+            'pagination' => [
+                'current_page' => $paginated->currentPage(),
+                'last_page' => $paginated->lastPage(),
+                'total' => $paginated->total(),
+            ],
+        ]);
+    }
+
+    /**
+     * Single proposition detail.
+     * GET /propositions/{proposition} | GET /staff/propositions/{proposition}
+     */
+    public function show(Proposition $proposition)
+    {
+        $me = Auth::user();
+        if (! $me) {
+            abort(403, 'Unauthorized.');
+        }
+
+        $this->authorize('view', $proposition);
+
+        $viewerRole = $me->roles->first()?->name ?? 'user';
+        $service = app(PropositionStaffPayloadService::class);
+
+        $proposition->load([
+            'matchmaker:id,name,username,email,phone,agency_id',
+            'matchmaker.agency:id,name',
+            'referenceUser:id,name,username,phone,gender,status',
+            'referenceUser.profile:id,user_id,profile_picture_path,date_naissance,pays_residence,ville_residence',
+            'compatibleUser:id,name,username,phone,gender,status',
+            'compatibleUser.profile:id,user_id,profile_picture_path,date_naissance,pays_residence,ville_residence',
+            'recipientUser:id,name,username,assigned_matchmaker_id',
+            'recipientUser.profile:id,user_id,profile_picture_path',
+        ]);
+
+        $pairRows = $proposition->pair_id
+            ? Proposition::query()
+                ->where('pair_id', $proposition->pair_id)
+                ->with([
+                    'recipientUser:id,name,username,assigned_matchmaker_id',
+                    'recipientUser.profile:id,user_id,profile_picture_path',
+                    'referenceUser:id,name,username',
+                    'referenceUser.profile:id,user_id,profile_picture_path',
+                    'compatibleUser:id,name,username',
+                    'compatibleUser.profile:id,user_id,profile_picture_path',
+                ])
+                ->orderBy('id')
+                ->get()
+            : collect([$proposition]);
+
+        $rawForContext = $service->visiblePropositionsQuery($me)
+            ->where(function ($q) use ($proposition) {
+                $q->where('reference_user_id', $proposition->reference_user_id)
+                    ->where('compatible_user_id', $proposition->compatible_user_id);
+            })
+            ->with([
+                'recipientUser:id,name,username,assigned_matchmaker_id',
+                'recipientUser.profile:id,user_id,profile_picture_path',
+                'referenceUser:id,name,username',
+                'referenceUser.profile:id,user_id,profile_picture_path',
+                'compatibleUser:id,name,username',
+                'compatibleUser.profile:id,user_id,profile_picture_path',
+            ])
+            ->get();
+
+        $context = $service->buildStaffContext($rawForContext, $me);
+        $mappedRows = $pairRows->map(fn (Proposition $row) => $service->mapStaffRow($row, $me, $context));
+        $group = $service->groupStaffRows($mappedRows)[0] ?? null;
+
+        if ($group === null) {
+            $singleMapped = $service->mapStaffRow($proposition, $me, $context);
+            $group = [
+                'key' => $proposition->pair_id ? 'pair-'.$proposition->pair_id : 'single-'.$proposition->id,
+                'id' => $proposition->id,
+                'pair_id' => $proposition->pair_id,
+                'matchmaker_id' => $proposition->matchmaker_id,
+                'reference_user' => $service->mapUserSummary($proposition->referenceUser, true),
+                'compatible_user' => $service->mapUserSummary($proposition->compatibleUser, true),
+                'message' => $proposition->message,
+                'created_at' => $proposition->created_at,
+                'recipients' => [
+                    $proposition->recipient_user_id => $singleMapped,
+                ],
+                'aggregate_status' => $service->computeAggregateStatus([
+                    'recipients' => [$proposition->recipient_user_id => $singleMapped],
+                ]),
+            ];
+        }
+
+        $myRecipientRow = $group['recipients'][$me->id]
+            ?? $group['recipients'][(string) $me->id]
+            ?? null;
+        $isExpired = $myRecipientRow
+            ? (bool) ($myRecipientRow['is_expired'] ?? false)
+            : ($proposition->status === Proposition::STATUS_EXPIRED
+                || ($proposition->status === Proposition::STATUS_PENDING
+                    && $proposition->created_at
+                    && $proposition->created_at->lt(now()->subDays(7))));
+
+        $canRespond = $viewerRole === 'user'
+            && (int) $proposition->recipient_user_id === (int) $me->id
+            && ! $isExpired
+            && $proposition->status === Proposition::STATUS_PENDING
+            && $proposition->responded_at === null;
+
+        $recipientRows = [];
+        foreach ($group['recipients'] as $recipientId => $row) {
+            $recipientRows[(string) $recipientId] = $row;
+        }
+
+        $cancellable = array_values(array_filter($recipientRows, fn ($row) => ! empty($row['can_cancel'])));
+        $rdvSource = collect($recipientRows)->first(fn ($row) => ! empty($row['can_create_rdv']));
+
+        if ($viewerRole === 'user') {
+            return Inertia::render('proposition-show', [
+                'proposition' => [
+                    'id' => $group['id'],
+                    'pair_id' => $group['pair_id'],
+                    'message' => $group['message'],
+                    'aggregate_status' => $group['aggregate_status'],
+                    'created_at' => $proposition->created_at?->format('d/m/Y'),
+                    'updated_at' => $proposition->updated_at?->format('d/m/Y'),
+                    'reference_user_id' => $proposition->reference_user_id,
+                    'compatible_user_id' => $proposition->compatible_user_id,
+                    'recipient_user_id' => $proposition->recipient_user_id,
+                    'reference_user' => $service->mapUserSummary($proposition->referenceUser, false),
+                    'compatible_user' => $service->mapUserSummary($proposition->compatibleUser, false),
+                    'matchmaker' => $proposition->matchmaker,
+                    'my_recipient_row' => $myRecipientRow,
+                ],
+                'viewerRole' => $viewerRole,
+                'canRespond' => $canRespond,
+            ]);
+        }
+
+        return Inertia::render('proposition-show', [
+            'proposition' => [
+                'id' => $group['id'],
+                'pair_id' => $group['pair_id'],
+                'message' => $group['message'],
+                'aggregate_status' => $group['aggregate_status'],
+                'created_at' => $proposition->created_at?->format('d/m/Y'),
+                'updated_at' => $proposition->updated_at?->format('d/m/Y'),
+                'reference_user_id' => $proposition->reference_user_id,
+                'compatible_user_id' => $proposition->compatible_user_id,
+                'recipient_user_id' => $proposition->recipient_user_id,
+                'reference_user' => $service->mapUserSummary($proposition->referenceUser, true),
+                'compatible_user' => $service->mapUserSummary($proposition->compatibleUser, true),
+                'matchmaker' => $proposition->matchmaker,
+                'recipients' => $recipientRows,
+                'my_recipient_row' => $myRecipientRow,
+                'can_cancel' => count($cancellable) > 0,
+                'cancellable_proposition_id' => $cancellable[0]['id'] ?? null,
+                'can_create_rdv' => $rdvSource !== null,
+                'rdv_proposition_id' => $rdvSource['id'] ?? null,
+                'is_recreation_context' => (bool) ($rdvSource['is_recreation_context'] ?? false),
+                'recreate_from_failed_rdv_id' => $rdvSource['recreate_from_failed_rdv_id'] ?? null,
+                'rdv_exists' => collect($recipientRows)->contains(fn ($row) => ! empty($row['rdv_exists'])),
+            ],
+            'viewerRole' => $viewerRole,
+            'canRespond' => $canRespond,
         ]);
     }
 
@@ -350,26 +521,39 @@ class PropositionController extends Controller
             ], 422);
         }
 
-        if (Proposition::hasActiveProposition($recipientId)) {
+        $referenceUserId = (int) $data['reference_user_id'];
+        $compatibleUserId = (int) $data['compatible_user_id'];
+
+        $sibling = Proposition::query()
+            ->where('matchmaker_id', $me->id)
+            ->where('reference_user_id', $referenceUserId)
+            ->where('compatible_user_id', $compatibleUserId)
+            ->where('recipient_user_id', '!=', $recipientId)
+            ->whereIn('recipient_user_id', [$referenceUserId, $compatibleUserId])
+            ->active()
+            ->orderByDesc('id')
+            ->first();
+
+        if (Proposition::hasActiveProposition($recipientId, $sibling?->id)) {
             return response()->json([
                 'message' => self::MESSAGE_RECIPIENT_HAS_ACTIVE_PROPOSITION,
             ], 422);
         }
 
-        $referenceUser = User::select('id', 'assigned_matchmaker_id')->findOrFail($data['reference_user_id']);
-        $compatibleUser = User::select('id', 'assigned_matchmaker_id')->findOrFail($data['compatible_user_id']);
+        $referenceUser = User::select('id', 'assigned_matchmaker_id')->findOrFail($referenceUserId);
+        $compatibleUser = User::select('id', 'assigned_matchmaker_id')->findOrFail($compatibleUserId);
         if ($this->hasBlockingRdvForEitherProfile((int) $referenceUser->id, (int) $compatibleUser->id)) {
             return response()->json([
                 'message' => self::MESSAGE_ACTIVE_RDV_IN_PROGRESS,
             ], 422);
         }
 
-        if (Proposition::hasActiveProposition((int) $referenceUser->id)) {
+        if (Proposition::hasActiveProposition((int) $referenceUser->id, $sibling?->id)) {
             return response()->json([
                 'message' => self::MESSAGE_REFERENCE_HAS_ACTIVE_PROPOSITION,
             ], 422);
         }
-        if (Proposition::hasActiveProposition((int) $compatibleUser->id)) {
+        if (Proposition::hasActiveProposition((int) $compatibleUser->id, $sibling?->id)) {
             return response()->json([
                 'message' => self::MESSAGE_COMPATIBLE_HAS_ACTIVE_PROPOSITION,
             ], 422);
@@ -416,15 +600,6 @@ class PropositionController extends Controller
         }
 
         $pairId = null;
-        $sibling = Proposition::query()
-            ->where('matchmaker_id', $me->id)
-            ->where('reference_user_id', $referenceUser->id)
-            ->where('compatible_user_id', $compatibleUser->id)
-            ->where('recipient_user_id', '!=', $recipientId)
-            ->whereIn('recipient_user_id', [$referenceUser->id, $compatibleUser->id])
-            ->active()
-            ->orderByDesc('id')
-            ->first();
 
         if ($sibling !== null) {
             if ($sibling->pair_id !== null) {

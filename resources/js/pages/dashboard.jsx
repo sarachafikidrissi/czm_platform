@@ -192,7 +192,7 @@ function UserDashboardContent({
                             dueDate: unpaidBill.due_date,
                         })}
                         actionLabel={t('orders.viewInvoices')}
-                        onAction={() => router.visit('/user/bills')}
+                        onAction={() => router.visit('/mes-commandes')}
                         icon={<Receipt className="h-5 w-5 text-[#e0495a]" />}
                     />
                 )}

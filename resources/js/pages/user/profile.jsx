@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import AppLayout from '@/layouts/app-layout';
 import { Head, router, usePage } from '@inertiajs/react';
-import { BookOpen, Building, Building2, Camera, ChevronRight, Eye, Facebook, Heart, Instagram, Link, Linkedin, Mail, MapPin, MessageSquareWarning, User, X, Youtube, Trash2, MoreVertical, UserCircle, UserCheck, Image, ThumbsUp, CheckCircle, Coffee, CreditCard, Lightbulb, Phone, ArrowRightLeft, Pencil, FileText, Calendar, Search, ShoppingCart, GraduationCap, Briefcase, Star, Tag } from 'lucide-react';
+import { BookOpen, Building, Building2, Camera, ChevronRight, Eye, Facebook, Heart, Instagram, Link, Linkedin, Mail, MapPin, MessageSquareWarning, User, X, Youtube, Trash2, MoreVertical, UserCircle, UserCheck, Image, ThumbsUp, CheckCircle, Coffee, CreditCard, Lightbulb, Phone, ArrowRightLeft, Pencil, FileText, Calendar, Search, ShoppingCart, GraduationCap, Briefcase, Star, Tag, Users, ShieldCheck, Check } from 'lucide-react';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import MatchResultMatchCard from '@/components/matchmaking/MatchResultMatchCard';
 import MatchmakingProposeRequestModals from '@/components/matchmaking/MatchmakingProposeRequestModals';
@@ -27,6 +27,7 @@ import { getProfilePicture, getAge, getLocation, getScoreColor } from '@/lib/mat
 import { useTranslation } from 'react-i18next';
 import { useToast } from '@/hooks/use-toast';
 import { propositionToastFr, rdvToastFr } from '@/lib/proposition-toast-messages';
+import { formatMemberGender } from '@/lib/objectives';
 import axios from 'axios';
 
 export default function UserProfile({
@@ -48,6 +49,7 @@ export default function UserProfile({
     memberFailedRdv = null,
     userSubscription = null,
     agencyManager = null,
+    staffPerformance = null,
 }) {
     const { t } = useTranslation();
     const { auth } = usePage().props;
@@ -65,8 +67,20 @@ export default function UserProfile({
 
     // Get user role
     const userRole = user?.roles?.[0]?.name || 'user';
-    
 
+    const roleLabel =
+        userRole === 'manager' ? 'Manager' :
+        userRole === 'admin' ? 'Admin' :
+        userRole === 'matchmaker' ? 'Conseiller' :
+        null;
+
+    const isStaffProfileCard = userRole === 'matchmaker' || userRole === 'manager' || userRole === 'admin';
+
+    const frenchMonthNames = [
+        'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+        'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre',
+    ];
+    
     // Calculate age from date of birth
     const calculateAge = (dateOfBirth) => {
         if (!dateOfBirth) return null;
@@ -139,79 +153,7 @@ export default function UserProfile({
     const [avis, setAvis] = useState('');
     const [commentaire, setCommentaire] = useState('');
 
-    // Proposition response state (for profile view)
-    const [propositionToRespondState, setPropositionToRespondState] = useState(propositionToRespond);
-    const [responseMessages, setResponseMessages] = useState({});
-    const [responseProcessingIds, setResponseProcessingIds] = useState({});
-    const [responseErrors, setResponseErrors] = useState({});
-    const [responseSelections, setResponseSelections] = useState({});
-
-    useEffect(() => {
-        setPropositionToRespondState(propositionToRespond);
-        if (propositionToRespond?.id) {
-            setResponseSelections((prev) => ({
-                ...prev,
-                [propositionToRespond.id]: '',
-            }));
-        }
-    }, [propositionToRespond]);
-
-    const handlePropositionRespond = async (propositionId, status) => {
-        const message = (responseMessages[propositionId] || '').trim();
-        if (!status) {
-            setResponseErrors((prev) => ({ ...prev, [propositionId]: 'Veuillez sélectionner une réponse.' }));
-            return;
-        }
-        if (!message) {
-            setResponseErrors((prev) => ({ ...prev, [propositionId]: 'Veuillez saisir un motif.' }));
-            return;
-        }
-
-        setResponseProcessingIds((prev) => ({ ...prev, [propositionId]: true }));
-        setResponseErrors((prev) => ({ ...prev, [propositionId]: '' }));
-        try {
-            await axios.post(`/propositions/${propositionId}/respond`, {
-                status,
-                response_message: message || null,
-            });
-
-            const mappedStatus = status === 'accepted' ? 'interested' : 'not_interested';
-            setPropositionToRespondState((prev) =>
-                prev && prev.id === propositionId
-                    ? {
-                          ...prev,
-                          status: mappedStatus,
-                          response_message: message || null,
-                          responded_at: new Date().toISOString(),
-                      }
-                    : prev,
-            );
-            showToast(
-                status === 'accepted' ? propositionToastFr.memberAccept : propositionToastFr.memberDecline,
-                undefined,
-                'success',
-            );
-        } catch (error) {
-            const m = error?.response?.data?.message;
-            if (m === 'Proposition already responded.') {
-                showToast(propositionToastFr.memberAlreadyAnswered, undefined, 'warning');
-                setResponseErrors((prev) => ({ ...prev, [propositionId]: propositionToastFr.memberAlreadyAnswered }));
-            } else if (m === 'Proposition expired.') {
-                showToast(propositionToastFr.memberExpired, undefined, 'warning');
-                setResponseErrors((prev) => ({ ...prev, [propositionId]: propositionToastFr.memberExpired }));
-            } else if (m === 'Cette proposition a été annulée.') {
-                showToast('Cette proposition a été annulée.', undefined, 'warning');
-                setResponseErrors((prev) => ({ ...prev, [propositionId]: 'Cette proposition a été annulée.' }));
-            } else {
-                showToast(propositionToastFr.memberGenericError, undefined, 'error');
-                setResponseErrors((prev) => ({ ...prev, [propositionId]: propositionToastFr.memberGenericError }));
-            }
-        } finally {
-            setResponseProcessingIds((prev) => ({ ...prev, [propositionId]: false }));
-        }
-    };
-
-    // Visibility: who can see notes/evaluation
+    // Photo deletion state
     const viewerRole = auth?.user?.roles?.[0]?.name || 'user';
     const viewerIsMatchmaker = viewerRole === 'matchmaker';
     const staffCanViewMemberInsights =
@@ -473,18 +415,6 @@ export default function UserProfile({
         isOwnProfile ||
         (viewerRole === 'matchmaker' && user?.assigned_matchmaker_id === auth?.user?.id) ||
         (viewerRole === 'admin');
-
-    const normalizedPropositionStatus = propositionToRespondState
-        ? propositionToRespondState.is_expired
-            ? 'expired'
-            : propositionToRespondState.status === 'interested' || propositionToRespondState.status === 'accepted'
-              ? 'accepted'
-              : propositionToRespondState.status === 'not_interested' || propositionToRespondState.status === 'rejected'
-                ? 'rejected'
-                : 'pending'
-        : null;
-    const isPropositionPending = normalizedPropositionStatus === 'pending';
-    const isPropositionProcessing = propositionToRespondState ? responseProcessingIds[propositionToRespondState.id] : false;
 
     // Photo deletion state
     const [photoToDelete, setPhotoToDelete] = useState(null);
@@ -964,6 +894,122 @@ export default function UserProfile({
         viewerRole === 'admin' ||
         isStaffViewingUserWithActions;
 
+    const viewerIsManagerOfSubjectAgency =
+        viewerRole === 'manager' &&
+        auth?.user?.agency_id &&
+        user?.agency_id &&
+        auth.user.agency_id === user.agency_id;
+
+    const canSeePerformance =
+        staffPerformance !== null && (
+            viewerRole === 'admin' ||
+            isOwnProfile ||
+            viewerIsManagerOfSubjectAgency
+        );
+
+    const tabActiveClassName = 'rounded-none px-4 py-3 data-[state=active]:border-b-2 data-[state=active]:border-[#890505] data-[state=active]:text-[#890505]';
+
+    const staffTabTriggerClassName =
+        'inline-flex items-center rounded-none border-b-[3px] border-transparent bg-transparent px-6 py-3.5 text-sm font-medium text-gray-400 shadow-none transition-colors hover:text-gray-700 data-[state=active]:border-[#890505] data-[state=active]:bg-transparent data-[state=active]:font-semibold data-[state=active]:text-[#890505] data-[state=active]:shadow-none';
+
+    const formatStaffVentes = (value) =>
+        value >= 1000 ? `${Math.round(value / 1000)}k MAD` : `${value} MAD`;
+
+    const formatStaffVentesTarget = (value) =>
+        value >= 1000 ? `${Math.round(value / 1000)}k MAD` : `${value} MAD`;
+
+    const getStaffProgressDisplay = (realized, target) => {
+        if (target == null || target <= 0) return null;
+        const percent = (realized / target) * 100;
+        const rounded = Math.round(percent);
+        const exceeded = percent > 100;
+
+        return {
+            percent,
+            rounded,
+            exceeded,
+            barWidth: Math.min(percent, 100),
+            goalMet: exceeded || percent >= 100,
+        };
+    };
+
+    const StaffContactField = ({ icon: Icon, label, children, valueClassName = 'text-gray-900' }) => (
+        <div className="flex gap-3">
+            <Icon className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" strokeWidth={1.75} aria-hidden />
+            <div className="min-w-0 flex-1">
+                <div className="text-xs font-normal text-gray-500">{label}</div>
+                <div className={`truncate text-sm font-semibold ${valueClassName}`}>{children}</div>
+            </div>
+        </div>
+    );
+
+    const StaffPerformanceMetricTile = ({
+        icon: Icon,
+        value,
+        target,
+        label,
+        formatValue = (v) => String(v ?? 0),
+        formatTarget = (t) => String(t),
+        theme,
+    }) => {
+        const hasTarget = target != null && target > 0;
+        const display = hasTarget ? getStaffProgressDisplay(value, target) : null;
+        const statusText = hasTarget ? `sur ${formatTarget(target)} visé` : 'Aucun objectif défini';
+
+        return (
+            <div className={`relative flex min-h-[10.5rem] flex-col rounded-xl p-4 ${theme.bg}`}>
+                <div className="mb-3 flex items-start justify-between">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white shadow-sm">
+                        <Icon className={`h-4 w-4 ${theme.accentText}`} strokeWidth={2} aria-hidden />
+                    </div>
+                    {display?.goalMet && (
+                        <div
+                            className="flex h-5 w-5 items-center justify-center rounded-full bg-green-500 shadow-sm"
+                            aria-label="Objectif atteint"
+                        >
+                            <Check className="h-3 w-3 text-white" strokeWidth={3} aria-hidden />
+                        </div>
+                    )}
+                </div>
+
+                <div className={`text-3xl font-bold leading-none tabular-nums ${theme.accentText}`}>
+                    {formatValue(value ?? 0)}
+                </div>
+
+                <div className="mt-1.5 text-xs text-gray-500">{statusText}</div>
+
+                <div className="mt-auto pt-3 text-sm font-semibold text-gray-900">{label}</div>
+
+                {display && hasTarget && (
+                    <div className="mt-2 flex items-center gap-2">
+                        <div
+                            className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/70"
+                            role="progressbar"
+                            aria-valuenow={Math.round(display.barWidth)}
+                            aria-valuemin={0}
+                            aria-valuemax={100}
+                            aria-label={`${label} : ${display.rounded}%`}
+                        >
+                            <div
+                                className="h-full rounded-full bg-green-500"
+                                style={{ width: `${display.barWidth}%` }}
+                            />
+                        </div>
+                        <span className="shrink-0 text-xs font-bold text-green-600">{display.rounded}%</span>
+                    </div>
+                )}
+            </div>
+        );
+    };
+
+    const staffPerformanceSubtitle = [
+        staffPerformance ? `${frenchMonthNames[staffPerformance.month - 1]} ${staffPerformance.year}` : null,
+        user?.name,
+        [roleLabel, user?.agency?.name].filter(Boolean).join(', '),
+    ]
+        .filter(Boolean)
+        .join(' · ');
+
     return (
         <AppLayout>
             <Head title={`${user?.name} - ${t('common.profile')}`}>
@@ -1004,7 +1050,7 @@ export default function UserProfile({
             </Head>
             <div className="min-h-screen bg-gray-50">
                 {/* Banner Image Section */}
-                <div className="relative h-64 w-full overflow-hidden bg-gradient-to-r from-blue-600 to-purple-600 md:h-80">
+                <div className="relative h-64 w-full overflow-hidden bg-gradient-to-r from-[#890505] to-[#6d0404] md:h-80">
                     {effectiveBannerImageSrc && !bannerImageError ? (
                         <img
                             src={effectiveBannerImageSrc}
@@ -1013,7 +1059,7 @@ export default function UserProfile({
                             onError={() => setBannerImageError(true)}
                         />
                     ) : (
-                        <div className="h-full w-full bg-gradient-to-r from-blue-600 to-purple-600" />
+                        <div className="h-full w-full bg-gradient-to-r from-[#890505] to-[#6d0404]" />
                     )}
                     {(isOwnProfile || (isStaffViewingUserWithActions && canWrite)) && (
                         <div className="absolute top-4 right-4 z-20 flex gap-2">
@@ -1067,8 +1113,8 @@ export default function UserProfile({
                         {/* Left Sidebar - Profile Card */}
                         <div className="lg:col-span-3">
                             <Card className="sticky top-6 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-md">
-                                {/* Matchmaker profile card - design from preview */}
-                                {userRole === 'matchmaker' ? (
+                                {/* Staff profile card (matchmaker / manager / admin) */}
+                                {isStaffProfileCard ? (
                                 <CardContent className="relative bg-gray-50 p-0 pt-1.5">
                                     <div className="absolute left-0 right-0 top-0 h-1.5 bg-[#8B2635]" aria-hidden />
                                     <div className="p-6 pt-6">
@@ -1083,7 +1129,6 @@ export default function UserProfile({
                                                         </div>
                                                     )}
                                                 </div>
-                                                <span className="absolute bottom-0 right-0 h-4 w-4 rounded-full border-2 border-white bg-green-500" aria-label="Online" />
                                                 {isOwnProfile && (
                                                     <label className="absolute -right-2 -bottom-2 cursor-pointer">
                                                         <input
@@ -1116,26 +1161,41 @@ export default function UserProfile({
                                             </div>
                                         </div>
                                         <h2 className="text-center text-xl font-bold tracking-tight text-gray-900">{user?.name}</h2>
-                                        {user?.agency?.name && (
-                                            <p className="mt-1 text-center text-sm font-medium uppercase tracking-wider text-[#8B2635]">
-                                                {user.agency.name}
+                                        {user?.username && (
+                                            <p className="text-center text-sm text-gray-400 mt-0.5">
+                                                @{user.username}
                                             </p>
                                         )}
+                                        {user?.agency?.name && user?.agency?.id && (
+                                            <a
+                                                href={`/agencies/${user.agency.id}`}
+                                                className="mt-1 block text-center text-sm font-medium uppercase tracking-wider text-[#8B2635] transition-colors hover:text-[#721f2b] hover:underline"
+                                            >
+                                                {user.agency.name}
+                                            </a>
+                                        )}
                                         <div className="mt-2 flex justify-center">
-                                            <span className="inline-block rounded-md bg-[#8B2635] px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-white">
-                                                Matchmaker
-                                            </span>
+                                            {roleLabel && (
+                                                <span className="inline-flex rounded-md px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide bg-rose-100 text-red-700">
+                                                    {roleLabel}
+                                                </span>
+                                            )}
                                         </div>
-                                        {!isOwnProfile && (
+                                        {userRole === 'matchmaker' && !isOwnProfile && viewerRole !== 'user' && (
+                                            <Button
+                                                className="mt-5 w-full gap-2 rounded-lg bg-[#8B2635] text-white hover:bg-[#721f2b]"
+                                                onClick={() => router.visit('/appointment-request')}
+                                            >
+                                                <BookOpen className="h-4 w-4" />
+                                                Book {user?.name?.split(' ')[0]}
+                                            </Button>
+                                        )}
+                                        {userRole === 'matchmaker' && !isOwnProfile && viewerRole === 'user' && (
                                             <Button
                                                 className="mt-5 w-full gap-2 rounded-lg bg-[#8B2635] text-white hover:bg-[#721f2b]"
                                                 onClick={() => {
-                                                    if (viewerRole === 'user') {
-                                                        if (assignedMatchmakerId === user?.id) router.get(`/messages?user=${user.id}`);
-                                                        else router.post(`/user/matchmakers/${user.id}/select`);
-                                                    } else {
-                                                        router.get(`/messages?user=${user.id}`);
-                                                    }
+                                                    if (assignedMatchmakerId === user?.id) router.get(`/messages?user=${user.id}`);
+                                                    else router.post(`/user/matchmakers/${user.id}/select`);
                                                 }}
                                             >
                                                 <Mail className="h-4 w-4" />
@@ -1260,6 +1320,11 @@ export default function UserProfile({
                                     {/* Name & Status badge & Location */}
                                     <div className="mb-3 text-center">
                                         <h2 className="text-xl font-bold tracking-tight text-gray-900">{user?.name}</h2>
+                                        {user?.username && (
+                                            <p className="text-sm text-gray-400 mt-0.5">
+                                                @{user.username}
+                                            </p>
+                                        )}
                                         {staffCanViewMemberInsights && (
                                             <div className="mt-2 flex justify-center">
                                                 {userRole === 'user' ? (() => {
@@ -1272,9 +1337,11 @@ export default function UserProfile({
                                                         </span>
                                                     );
                                                 })() : (
-                                                    <span className="inline-flex rounded-md px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide bg-rose-100 text-red-700">
-                                                        Matchmaker
-                                                    </span>
+                                                    roleLabel && (
+                                                        <span className="inline-flex rounded-md px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide bg-rose-100 text-red-700">
+                                                            {roleLabel}
+                                                        </span>
+                                                    )
                                                 )}
                                             </div>
                                         )}
@@ -1551,84 +1618,12 @@ export default function UserProfile({
                                         </div>
                                     )}
 
-                                    {/* Agency link - Only for matchmaker/admin/manager profile */}
-                                    {(userRole === 'matchmaker' || userRole === 'admin' || userRole === 'manager') && user?.agency && (
-                                        <div className="mb-4">
-                                            <a
-                                                href={`/agencies/${user.agency.id}`}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="text-sm font-medium text-[#8B2635] transition-colors hover:text-[#721f2b] hover:underline"
-                                            >
-                                                {user.agency.name}
-                                            </a>
-                                        </div>
-                                    )}
-
-                                    {/* Social Networks - Only for matchmaker/admin/manager */}
-                                    {(userRole === 'matchmaker' || userRole === 'admin' || userRole === 'manager') && (
-                                        <div className="mb-4 flex justify-center gap-3">
-                                            {user?.facebook_url && (
-                                                <a
-                                                    href={user.facebook_url}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="text-[#1877F2] transition-colors"
-                                                    title="Facebook"
-                                                >
-                                                    <Facebook className="h-5 w-5" />
-                                                </a>
-                                            )}
-                                            {user?.instagram_url && (
-                                                <a
-                                                    href={user.instagram_url}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="text-[#E4405F] transition-colors"
-                                                    title="Instagram"
-                                                >
-                                                    <Instagram className="h-5 w-5" />
-                                                </a>
-                                            )}
-                                            {user?.linkedin_url && (
-                                                <a
-                                                    href={user.linkedin_url}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="text-[#0077B5] transition-colors"
-                                                    title="LinkedIn"
-                                                >
-                                                    <Linkedin className="h-5 w-5" />
-                                                </a>
-                                            )}
-                                            {user?.youtube_url && (
-                                                <a
-                                                    href={user.youtube_url}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="text-[#FF0000] transition-colors"
-                                                    title="YouTube"
-                                                >
-                                                    <Youtube className="h-5 w-5" />
-                                                </a>
-                                            )}
-                                        </div>
-                                    )}
-
                                     {/* Divider */}
                                     <div className="border-t border-gray-200" />
 
                                     {/* Action Buttons */}
                                     <div className="mt-4 flex gap-3">
-                                        {/* Staff viewing user profile: Message + View Profile */}
-                                        {/* Book button - Only for non-user roles viewing matchmaker profiles */}
-                                        {userRole === 'matchmaker' && !isOwnProfile && viewerRole !== 'user' && (
-                                            <Button className="flex-1 gap-2 rounded-lg bg-[#8B2635] text-white hover:bg-[#721f2b]">
-                                                <BookOpen className="h-4 w-4" />
-                                                Book {user?.name?.split(' ')[0]}
-                                            </Button>
-                                        )}
-                                        {/* Matchmaker selection buttons - Only visible to users viewing a matchmaker profile */}
+                                        {/* Matchmaker selection buttons - users viewing a matchmaker profile */}
                                         {viewerRole === 'user' && userRole === 'matchmaker' && !isOwnProfile && (
                                             <>
                                                 {/* Case 1: No matchmaker assigned - Show "Select Matchmaker" */}
@@ -1960,7 +1955,11 @@ export default function UserProfile({
                                                         {subscriptions && subscriptions.length > 0 ? (
                                                             <div className="space-y-4">
                                                                 {subscriptions.map((subscription) => (
-                                                                    <Card key={subscription.id} className="border-gray-200">
+                                                                    <Card
+                                                                        key={subscription.id}
+                                                                        className="cursor-pointer border-gray-200 transition-colors hover:bg-rose-50/40"
+                                                                        onClick={() => router.visit(`/staff/subscriptions/${subscription.id}`)}
+                                                                    >
                                                                         <CardContent className="p-4">
                                                                             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                                                                                 <div>
@@ -2025,6 +2024,8 @@ export default function UserProfile({
                                                                             <TableHead>Numéro de facture</TableHead>
                                                                             <TableHead>Numéro de commande</TableHead>
                                                                             <TableHead>Date</TableHead>
+                                                                            <TableHead>Pays</TableHead>
+                                                                            <TableHead>Genre</TableHead>
                                                                             <TableHead>Montant</TableHead>
                                                                             <TableHead>Statut</TableHead>
                                                                             <TableHead>Mode de paiement</TableHead>
@@ -2032,10 +2033,16 @@ export default function UserProfile({
                                                                     </TableHeader>
                                                                     <TableBody>
                                                                         {bills.map((bill) => (
-                                                                            <TableRow key={bill.id}>
+                                                                            <TableRow
+                                                                                key={bill.id}
+                                                                                className="cursor-pointer hover:bg-rose-50/40"
+                                                                                onClick={() => router.visit(`/staff/bills/${bill.id}`)}
+                                                                            >
                                                                                 <TableCell className="font-medium">{bill.bill_number}</TableCell>
                                                                                 <TableCell>{bill.order_number}</TableCell>
                                                                                 <TableCell>{bill.bill_date ? new Date(bill.bill_date).toLocaleDateString('fr-FR') : 'N/A'}</TableCell>
+                                                                                <TableCell>{bill.member_country || '—'}</TableCell>
+                                                                                <TableCell>{formatMemberGender(bill.member_gender)}</TableCell>
                                                                                 <TableCell>{bill.total_amount} {bill.currency}</TableCell>
                                                                                 <TableCell>
                                                                                     <Badge className={bill.status === 'paid' ? 'bg-green-600' : bill.status === 'unpaid' ? 'bg-red-600' : 'bg-gray-600'}>
@@ -2490,7 +2497,15 @@ export default function UserProfile({
                                 </div>
                             )}
 
-                            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                            <Tabs
+                                value={activeTab}
+                                onValueChange={setActiveTab}
+                                className={
+                                    userRole === 'matchmaker' || userRole === 'admin' || userRole === 'manager'
+                                        ? 'w-full overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm'
+                                        : 'w-full'
+                                }
+                            >
                                 {/* Tabs for regular users */}
                                 {userRole === 'user' && (
                                     <TabsList
@@ -2506,26 +2521,26 @@ export default function UserProfile({
                                     >
                                         <TabsTrigger
                                             value="personal"
-                                            className="rounded-none px-4 py-3 data-[state=active]:border-b-2 data-[state=active]:border-[#096725] data-[state=active]:text-[#096725]"
+                                            className={tabActiveClassName}
                                         >
                                             Informations personnelles
                                         </TabsTrigger>
                                         <TabsTrigger
                                             value="lifestyle"
-                                            className="rounded-none px-4 py-3 data-[state=active]:border-b-2 data-[state=active]:border-[#096725] data-[state=active]:text-[#096725]"
+                                            className={tabActiveClassName}
                                         >
                                             Mode de vie
                                         </TabsTrigger>
                                         <TabsTrigger
                                             value="partner"
-                                            className="rounded-none px-4 py-3 data-[state=active]:border-b-2 data-[state=active]:border-[#096725] data-[state=active]:text-[#096725]"
+                                            className={tabActiveClassName}
                                         >
                                             Profil recherché
                                         </TabsTrigger>
                                         {canViewPhotos && (
                                             <TabsTrigger
                                                 value="photos"
-                                                className="rounded-none px-4 py-3 data-[state=active]:border-b-2 data-[state=active]:border-[#096725] data-[state=active]:text-[#096725]"
+                                                className={tabActiveClassName}
                                             >
                                                 Photos
                                             </TabsTrigger>
@@ -2533,7 +2548,7 @@ export default function UserProfile({
                                         {canViewEvaluation && (
                                             <TabsTrigger
                                                 value="notes"
-                                                className="rounded-none px-4 py-3 data-[state=active]:border-b-2 data-[state=active]:border-[#096725] data-[state=active]:text-[#096725]"
+                                                className={tabActiveClassName}
                                             >
                                                 Notes et Évaluation du Matchmaker
                                             </TabsTrigger>
@@ -2543,17 +2558,11 @@ export default function UserProfile({
 
                                 {/* Tabs for matchmaker/admin/manager */}
                                 {(userRole === 'matchmaker' || userRole === 'admin' || userRole === 'manager') && (
-                                    <TabsList className="grid h-auto w-full grid-cols-2 rounded-none border-b bg-white p-0">
-                                        <TabsTrigger
-                                            value="info"
-                                            className="rounded-none px-4 py-3 data-[state=active]:border-b-2 data-[state=active]:border-[#096725] data-[state=active]:text-[#096725]"
-                                        >
+                                    <TabsList className="flex h-auto w-full justify-start gap-8 rounded-none border-b border-gray-200 bg-white px-2 pt-1 shadow-none">
+                                        <TabsTrigger value="info" className={staffTabTriggerClassName}>
                                             Informations
                                         </TabsTrigger>
-                                        <TabsTrigger
-                                            value="posts"
-                                            className="rounded-none px-4 py-3 data-[state=active]:border-b-2 data-[state=active]:border-[#096725] data-[state=active]:text-[#096725]"
-                                        >
+                                        <TabsTrigger value="posts" className={staffTabTriggerClassName}>
                                             Posts
                                         </TabsTrigger>
                                     </TabsList>
@@ -2561,85 +2570,118 @@ export default function UserProfile({
 
                                 {/* Tab: Informations for matchmaker/admin/manager */}
                                 {(userRole === 'matchmaker' || userRole === 'admin' || userRole === 'manager') && (
-                                    <TabsContent value="info" className="mt-6 space-y-6">
-                                        {/* About Me / Bio */}
-
-                                        {/* Matchmaker Bio */}
+                                    <TabsContent value="info" className="mt-0 space-y-4 bg-gray-50 p-4 sm:p-5">
                                         {userRole === 'matchmaker' && user?.matchmaker_bio && (
-                                            <Card className="border-gray-200 bg-white">
-                                                <CardContent className="p-6">
-                                                    <h3 className="mb-3 text-lg font-semibold text-gray-900">Matchmaker Bio</h3>
+                                            <Card className="rounded-xl border-0 bg-white shadow-sm">
+                                                <CardContent className="p-5 sm:p-6">
+                                                    <div className="mb-4 flex items-center gap-3">
+                                                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-green-100">
+                                                            <User className="h-5 w-5 text-green-700" strokeWidth={2} aria-hidden />
+                                                        </div>
+                                                        <h3 className="text-lg font-bold text-gray-900">Bio</h3>
+                                                    </div>
                                                     <p className="leading-relaxed text-gray-700">{user.matchmaker_bio}</p>
                                                 </CardContent>
                                             </Card>
                                         )}
 
-                                        {/* Contact Information */}
-                                        <Card className="border-gray-200 bg-white">
-                                            <CardContent className="p-6">
-                                                <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-gray-900">
-                                                    <User className="h-5 w-5 text-[#096725]" />
-                                                    Informations de contact
-                                                </h3>
-                                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                                                    <div>
-                                                        <div className="mb-1 text-sm text-gray-600">Nom</div>
-                                                        <div className="font-medium text-gray-900">{user?.name || '—'}</div>
+                                        <Card className="rounded-xl border-0 bg-white shadow-sm">
+                                            <CardContent className="p-5 sm:p-6">
+                                                <div className="mb-5 flex items-center gap-3">
+                                                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-green-100">
+                                                        <User className="h-5 w-5 text-green-700" strokeWidth={2} aria-hidden />
                                                     </div>
-                                                    <div>
-                                                        <div className="mb-1 text-sm text-gray-600">Email</div>
-                                                        <div className="font-medium text-gray-900">{user?.email || '—'}</div>
-                                                    </div>
-                                                    <div>
-                                                        <div className="mb-1 text-sm text-gray-600">Téléphone</div>
-                                                        <div className="font-medium text-gray-900">{user?.phone || '—'}</div>
-                                                    </div>
-                                                    <div>
-                                                        <div className="mb-1 text-sm text-gray-600">Localisation</div>
-                                                        <div className="font-medium text-gray-900">
-                                                            {user?.city && user?.country
-                                                                ? `${user.city}, ${user.country}`
-                                                                : user?.city || user?.country || '—'}
-                                                        </div>
-                                                    </div>
+                                                    <h3 className="text-lg font-bold text-gray-900">Informations de contact</h3>
+                                                </div>
+
+                                                <div className="grid grid-cols-1 gap-x-8 gap-y-5 sm:grid-cols-2">
+                                                    <StaffContactField icon={User} label="Nom">
+                                                        {user?.name || '—'}
+                                                    </StaffContactField>
+                                                    <StaffContactField icon={Mail} label="Email">
+                                                        {user?.email || '—'}
+                                                    </StaffContactField>
+                                                    <StaffContactField icon={Phone} label="Téléphone">
+                                                        {user?.phone || '—'}
+                                                    </StaffContactField>
+                                                    <StaffContactField icon={MapPin} label="Localisation">
+                                                        {user?.city && user?.country
+                                                            ? `${user.city}, ${user.country}`
+                                                            : user?.city || user?.country || '—'}
+                                                    </StaffContactField>
                                                     {user?.agency && (
-                                                        <div>
-                                                            <div className="mb-1 text-sm text-gray-600">Agence</div>
-                                                            <div className="font-medium text-gray-900">{user.agency.name || '—'}</div>
-                                                        </div>
+                                                        <StaffContactField icon={Building2} label="Agence" valueClassName="text-gray-900">
+                                                            {user.agency.id ? (
+                                                                <a
+                                                                    href={`/agencies/${user.agency.id}`}
+                                                                    className="font-semibold text-gray-900 transition-colors hover:text-[#890505] hover:underline"
+                                                                >
+                                                                    {user.agency.name || '—'}
+                                                                </a>
+                                                            ) : (
+                                                                user.agency.name || '—'
+                                                            )}
+                                                        </StaffContactField>
                                                     )}
-                                                    <div>
-                                                        <div className="mb-1 text-sm text-gray-600">Rôle</div>
-                                                        <div className="font-medium text-gray-900 capitalize">{userRole || '—'}</div>
-                                                    </div>
+                                                    <StaffContactField icon={ShieldCheck} label="Rôle">
+                                                        {roleLabel || userRole || '—'}
+                                                    </StaffContactField>
                                                 </div>
                                             </CardContent>
                                         </Card>
 
-                                        {/* Professional Statistics - Only for matchmakers */}
-                                        {userRole === 'matchmaker' && (
-                                            <Card className="border-gray-200 bg-white">
-                                                <CardContent className="p-6">
-                                                    <h3 className="mb-4 text-lg font-semibold text-gray-900">
-                                                        {t('profile.userProfile.professionalStatistics')}
-                                                    </h3>
-                                                    <div className="grid grid-cols-2 gap-4">
-                                                        <div className="rounded-lg bg-blue-50 p-4 text-center">
-                                                            <div className="text-2xl font-bold text-blue-600">12</div>
-                                                            <div className="text-sm text-gray-600">{t('profile.userProfile.successfulMatches')}</div>
-                                                        </div>
-                                                        <div className="rounded-lg bg-green-50 p-4 text-center">
-                                                            <div className="text-2xl font-bold text-[#096725]">8</div>
-                                                            <div className="text-sm text-gray-600">{t('profile.userProfile.happyCouples')}</div>
-                                                        </div>
-                                                        <div className="rounded-lg bg-yellow-50 p-4 text-center">
-                                                            <div className="text-2xl font-bold text-yellow-600">4.8</div>
-                                                            <div className="text-sm text-gray-600">{t('profile.userProfile.rating')}</div>
-                                                        </div>
-                                                        <div className="rounded-lg bg-purple-50 p-4 text-center">
-                                                            <div className="text-2xl font-bold text-purple-600">2</div>
-                                                            <div className="text-sm text-gray-600">{t('profile.userProfile.yearsExperience')}</div>
-                                                        </div>
+                                        {canSeePerformance && staffPerformance && (
+                                            <Card className="rounded-xl border-0 bg-white shadow-sm">
+                                                <CardContent className="p-5 sm:p-6">
+                                                    <div className="mb-5">
+                                                        <h3 className="text-lg font-bold text-gray-900">Performance</h3>
+                                                        <p className="mt-1 text-sm text-gray-500">{staffPerformanceSubtitle}</p>
+                                                    </div>
+
+                                                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                                        <StaffPerformanceMetricTile
+                                                            icon={User}
+                                                            value={staffPerformance.prospects}
+                                                            target={null}
+                                                            label="Prospects actifs"
+                                                            theme={{
+                                                                bg: 'bg-violet-50',
+                                                                accentText: 'text-violet-600',
+                                                            }}
+                                                        />
+                                                        <StaffPerformanceMetricTile
+                                                            icon={Users}
+                                                            value={staffPerformance.membres}
+                                                            target={staffPerformance.target_membres}
+                                                            label="Membres validés"
+                                                            formatTarget={(t) => String(t)}
+                                                            theme={{
+                                                                bg: 'bg-green-50',
+                                                                accentText: 'text-green-600',
+                                                            }}
+                                                        />
+                                                        <StaffPerformanceMetricTile
+                                                            icon={ShoppingCart}
+                                                            value={staffPerformance.ventes}
+                                                            target={staffPerformance.target_ventes}
+                                                            label="Ventes du mois"
+                                                            formatValue={formatStaffVentes}
+                                                            formatTarget={formatStaffVentesTarget}
+                                                            theme={{
+                                                                bg: 'bg-sky-50',
+                                                                accentText: 'text-sky-600',
+                                                            }}
+                                                        />
+                                                        <StaffPerformanceMetricTile
+                                                            icon={Calendar}
+                                                            value={staffPerformance.rdv}
+                                                            target={null}
+                                                            label="RDV ce mois"
+                                                            theme={{
+                                                                bg: 'bg-orange-50',
+                                                                accentText: 'text-orange-500',
+                                                            }}
+                                                        />
                                                     </div>
                                                 </CardContent>
                                             </Card>
@@ -2649,13 +2691,17 @@ export default function UserProfile({
 
                                 {/* Posts Tab for matchmaker/admin/manager */}
                                 {(userRole === 'matchmaker' || userRole === 'admin' || userRole === 'manager') && (
-                                    <TabsContent value="posts" className="mt-6 space-y-6">
-                                        <Card className="border-gray-200 bg-white">
-                                            <CardContent className="p-6">
-                                                <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-gray-900">
-                                                    <MessageSquareWarning className="h-5 w-5 text-[#096725]" />
-                                                    {t('profile.userProfile.posts')}
-                                                </h3>
+                                    <TabsContent value="posts" className="mt-0 bg-gray-50 p-4 sm:p-5">
+                                        <Card className="rounded-xl border-0 bg-white shadow-sm">
+                                            <CardContent className="p-5 sm:p-6">
+                                                <div className="mb-5 flex items-center gap-3">
+                                                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-green-100">
+                                                        <FileText className="h-5 w-5 text-green-700" strokeWidth={2} aria-hidden />
+                                                    </div>
+                                                    <h3 className="text-lg font-bold text-gray-900">
+                                                        {t('profile.userProfile.posts')}
+                                                    </h3>
+                                                </div>
                                                 {isOwnProfile && (userRole === 'matchmaker' || userRole === 'admin' || userRole === 'manager') && (
                                                     <div className="mb-4">
                                                         <CreatePost />
@@ -2873,78 +2919,24 @@ export default function UserProfile({
                                             </CardContent>
                                         </Card>
 
-                                        {propositionToRespondState && (
-                                            <Card className="border border-[#e6d7c3] bg-[#fff7e8]">
+                                        {propositionToRespond && (
+                                            <Card className="border border-rose-100/60 bg-rose-50/30">
                                                 <CardContent className="p-6">
-                                                    <h3 className="mb-4 text-center text-xl font-extrabold text-[#e53935]">Donner votre avis</h3>
-                                                    <div className="space-y-4">
-                                                        <div className="space-y-3">
-                                                            <label className="flex items-center gap-3 text-sm text-gray-700">
-                                                                <input
-                                                                    type="radio"
-                                                                    name={`proposition-${propositionToRespondState.id}`}
-                                                                    value="accepted"
-                                                                    checked={responseSelections[propositionToRespondState.id] === 'accepted'}
-                                                                    disabled={!isPropositionPending || isPropositionProcessing}
-                                                                    onChange={() =>
-                                                                        setResponseSelections((prev) => ({
-                                                                            ...prev,
-                                                                            [propositionToRespondState.id]: 'accepted',
-                                                                        }))
-                                                                    }
-                                                                />
-                                                                Intéressé
-                                                            </label>
-                                                            <label className="flex items-center gap-3 text-sm text-gray-700">
-                                                                <input
-                                                                    type="radio"
-                                                                    name={`proposition-${propositionToRespondState.id}`}
-                                                                    value="rejected"
-                                                                    checked={responseSelections[propositionToRespondState.id] === 'rejected'}
-                                                                    disabled={!isPropositionPending || isPropositionProcessing}
-                                                                    onChange={() =>
-                                                                        setResponseSelections((prev) => ({
-                                                                            ...prev,
-                                                                            [propositionToRespondState.id]: 'rejected',
-                                                                        }))
-                                                                    }
-                                                                />
-                                                                Pas intéressé
-                                                            </label>
-                                                        </div>
-                                                        <Textarea
-                                                            value={responseMessages[propositionToRespondState.id] || ''}
-                                                            onChange={(event) =>
-                                                                setResponseMessages((prev) => ({
-                                                                    ...prev,
-                                                                    [propositionToRespondState.id]: event.target.value,
-                                                                }))
-                                                            }
-                                                            placeholder="Veuillez donner plus de détails"
-                                                            disabled={!isPropositionPending || isPropositionProcessing}
-                                                            className="min-h-[90px] bg-white"
-                                                        />
-                                                        {responseErrors[propositionToRespondState.id] && (
-                                                            <div className="text-sm text-red-600">{responseErrors[propositionToRespondState.id]}</div>
-                                                        )}
+                                                    <h3 className="mb-2 text-center text-lg font-semibold text-rose-900">
+                                                        Proposition en attente
+                                                    </h3>
+                                                    <p className="mb-4 text-center text-sm text-muted-foreground">
+                                                        Votre conseiller vous a proposé un profil. Consultez la proposition et
+                                                        répondez depuis la page dédiée.
+                                                    </p>
+                                                    <div className="flex justify-center">
                                                         <Button
                                                             type="button"
-                                                            className="bg-[#e53935] text-white hover:bg-[#cf2f2b]"
-                                                            disabled={!isPropositionPending || isPropositionProcessing}
-                                                            onClick={() =>
-                                                                handlePropositionRespond(
-                                                                    propositionToRespondState.id,
-                                                                    responseSelections[propositionToRespondState.id],
-                                                                )
-                                                            }
+                                                            className="bg-[#890505] text-white hover:bg-[#721f2b]"
+                                                            onClick={() => router.visit(`/propositions/${propositionToRespond.id}`)}
                                                         >
-                                                            Soumettre
+                                                            Voir la proposition
                                                         </Button>
-                                                        {propositionToRespondState.response_message && !isPropositionPending && (
-                                                            <div className="rounded-lg bg-white p-3 text-sm text-gray-700">
-                                                                Votre réponse: {propositionToRespondState.response_message}
-                                                            </div>
-                                                        )}
                                                     </div>
                                                 </CardContent>
                                             </Card>

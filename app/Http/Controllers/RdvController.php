@@ -457,7 +457,7 @@ class RdvController extends Controller
 
     /**
      * Single RDV detail.
-     * GET /staff/rdv/{rdv}
+     * GET /staff/rdv/{rdv} | GET /mes-rdvs/{rdv}
      */
     public function show(Rdv $rdv)
     {
@@ -467,6 +467,8 @@ class RdvController extends Controller
         }
 
         $this->authorize('view', $rdv);
+
+        $viewerRole = $me->roles->first()?->name ?? 'user';
 
         $rdv->load([
             'matchmaker:id,name,username,email,phone,agency_id',
@@ -478,18 +480,72 @@ class RdvController extends Controller
             'feedbacks.author:id,name',
         ]);
 
+        $mapFeedback = fn (RdvFeedback $fb) => [
+            'id' => $fb->id,
+            'author_id' => $fb->author_id,
+            'author_role' => $fb->author_role,
+            'avis' => $fb->avis,
+            'feedback_message' => $fb->feedback_message,
+            'espace_de_rdv' => $fb->espace_de_rdv,
+            'espace_autre_detail' => $fb->espace_autre_detail,
+            'signe_de_rdv' => $fb->signe_de_rdv,
+            'avis_matchmaker' => $fb->avis_matchmaker,
+            'evaluation_de_rdv' => $fb->evaluation_de_rdv,
+            'created_at' => $fb->created_at,
+            'author' => $fb->author ? [
+                'id' => $fb->author->id,
+                'name' => $fb->author->name,
+            ] : null,
+        ];
+
+        $feedbacks = [
+            'reference_user' => $rdv->feedbacks
+                ->filter(fn (RdvFeedback $fb) => (int) $fb->author_id === (int) $rdv->reference_user_id)
+                ->map($mapFeedback)
+                ->values()
+                ->all(),
+            'compatible_user' => $rdv->feedbacks
+                ->filter(fn (RdvFeedback $fb) => (int) $fb->author_id === (int) $rdv->compatible_user_id)
+                ->map($mapFeedback)
+                ->values()
+                ->all(),
+            'matchmaker' => $rdv->feedbacks
+                ->filter(fn (RdvFeedback $fb) => (int) $fb->author_id === (int) $rdv->matchmaker_id)
+                ->map($mapFeedback)
+                ->values()
+                ->all(),
+        ];
+
+        $rdvDetails = [
+            'regle' => $rdv->regle,
+            'message' => $rdv->message,
+            'share_phone' => $rdv->share_phone,
+            'created_at' => $rdv->created_at->format('d/m/Y H:i'),
+        ];
+
+        if ($viewerRole !== 'user') {
+            $rdvDetails['motif_de_recreation'] = $rdv->motif_de_recreation;
+            $rdvDetails['is_recreation'] = (bool) $rdv->is_recreation;
+        }
+
         return Inertia::render('matchmaker/rdv-show', [
             'rdv' => [
                 'id' => $rdv->id,
                 'status' => $rdv->status,
+                'reference_user_id' => $rdv->reference_user_id,
+                'compatible_user_id' => $rdv->compatible_user_id,
+                'share_phone' => $rdv->share_phone,
                 'created_at' => $rdv->created_at->format('d/m/Y'),
                 'updated_at' => $rdv->updated_at->format('d/m/Y'),
+                'rdvDetails' => $rdvDetails,
                 'matchmaker' => $rdv->matchmaker,
                 'reference_user' => $rdv->referenceUser,
                 'compatible_user' => $rdv->compatibleUser,
-                'feedbacks' => $rdv->feedbacks,
+                'feedbacks' => $feedbacks,
             ],
-            'canUpdateStatus' => $me->can('updateStatus', $rdv),
+            'viewerRole' => $viewerRole,
+            'canUpdateStatus' => $viewerRole !== 'user' && $me->can('updateStatus', $rdv),
+            'canAddFeedback' => $me->can('addFeedback', $rdv),
         ]);
     }
 

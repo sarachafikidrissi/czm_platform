@@ -1,354 +1,88 @@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import CreateRdvModal from '@/components/rdv/CreateRdvModal';
-import { useToast } from '@/hooks/use-toast';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import AppLayout from '@/layouts/app-layout';
-import { propositionToastFr } from '@/lib/proposition-toast-messages';
+import { getProfilePicture } from '@/lib/matchmaking-result-display';
+import { getPropositionStatusMeta } from '@/lib/proposition-status';
 import { Head, router, usePage } from '@inertiajs/react';
-import axios from 'axios';
-import { Plus, CalendarPlus } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { Plus } from 'lucide-react';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
-function propositionSameUnorderedPair(p, refId, compatId) {
-    const a = Number(p.reference_user_id);
-    const b = Number(p.compatible_user_id);
-    const r = Number(refId);
-    const c = Number(compatId);
-    return (a === r && b === c) || (a === c && b === r);
-}
+const STATUS_TABS = [
+    { key: 'all', label: 'Toutes' },
+    { key: 'pending', label: 'En attente' },
+    { key: 'accepted', label: 'Acceptées' },
+    { key: 'closed', label: 'Clôturées' },
+    { key: 'expired', label: 'Expirées' },
+];
 
 export default function PropositionsList() {
     const { t } = useTranslation();
-    const { showToast } = useToast();
-    const { propositions: initialPropositions = [] } = usePage().props;
-    const [propositions, setPropositions] = useState(initialPropositions);
-    const [isSending, setIsSending] = useState({});
-    const [errorByKey, setErrorByKey] = useState({});
-    const [responseMessages, setResponseMessages] = useState({});
-    const [processingIds, setProcessingIds] = useState({});
-    const [responseErrors, setResponseErrors] = useState({});
-    const [responseSuccesses, setResponseSuccesses] = useState({});
-    const [isRespondModalOpen, setIsRespondModalOpen] = useState(false);
-    const [activeRecipient, setActiveRecipient] = useState(null);
-    const [activeRecipientLabel, setActiveRecipientLabel] = useState('');
-    const [cancelEntry, setCancelEntry] = useState(null);
-    const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
-    /** While a grouped cancel request is in flight (one button per row). */
-    const [cancellingEntryKey, setCancellingEntryKey] = useState(null);
-    const [rdvModalEntry, setRdvModalEntry] = useState(null);
-    /** @type {Record<string, 'created' | 'recreated'>} */
-    const [rdvBadgeByEntryKey, setRdvBadgeByEntryKey] = useState({});
-    const rdvInProgressBackendMessages = new Set([
-        propositionToastFr.sendBlockedRdvInProgress,
-        'Un RDV est en cours pour ce profil. La proposition sera disponible après la clôture du RDV.',
-    ]);
-    const getProfilePicture = (user) => {
-        if (user?.profile?.profile_picture_path) {
-            return `/storage/${user.profile.profile_picture_path}`;
+    const {
+        role: viewerRole = '',
+        entries = [],
+        pagination = {},
+        status_filter = 'all',
+        agency_id = null,
+        matchmaker_id = null,
+        agencies = [],
+        matchmakers = [],
+    } = usePage().props;
+
+    const isAdmin = viewerRole === 'admin';
+    const isManager = viewerRole === 'manager';
+    const showAgencyFilter = isAdmin;
+    const showMatchmakerFilter = isAdmin || isManager;
+
+    const buildListParams = (overrides = {}) => {
+        const params = { ...overrides };
+
+        if (!('status' in overrides) && status_filter && status_filter !== 'all') {
+            params.status = status_filter;
         }
-        if (!user?.name) return 'https://ui-avatars.com/api/?name=User&background=random';
-        return `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=random`;
+
+        if (!('agency_id' in overrides) && agency_id) {
+            params.agency_id = agency_id;
+        }
+
+        if (!('matchmaker_id' in overrides) && matchmaker_id) {
+            params.matchmaker_id = matchmaker_id;
+        }
+
+        return params;
     };
 
-    const normalizeStatus = (status, isExpired) => {
-        if (isExpired) return 'expired';
-        if (status === 'expired') return 'expired';
-        if (status === 'closed') return 'closed';
-        if (status === 'cancelled') return 'cancelled';
-        if (status === 'interested' || status === 'accepted') return 'accepted';
-        if (status === 'not_interested' || status === 'rejected') return 'rejected';
-        return 'pending';
-    };
-
-    const getRecipientDisplayStatus = (recipient) => {
-        if (!recipient) return null;
-        if (recipient.status === 'closed') return 'closed';
-        const response = typeof recipient.user_response === 'string' ? recipient.user_response.trim() : recipient.user_response;
-        return response ? response : recipient.status;
-    };
-
-    const getStatusMeta = (status, isExpired) => {
-        const normalized = normalizeStatus(status, isExpired);
-        if (normalized === 'accepted') {
-            return { label: 'Acceptée', variant: 'default', className: 'bg-emerald-50 text-emerald-700 border border-emerald-100' };
-        }
-        if (normalized === 'rejected') {
-            return { label: 'Refusée', variant: 'destructive', className: 'bg-rose-50 text-rose-700 border border-rose-100' };
-        }
-        if (normalized === 'expired') {
-            return { label: 'Expirée', variant: 'secondary', className: 'bg-amber-50 text-amber-700 border border-amber-100' };
-        }
-        if (normalized === 'cancelled') {
-            return { label: 'Annulée', variant: 'secondary', className: 'bg-slate-100 text-slate-700 border border-slate-200' };
-        }
-        if (normalized === 'closed') {
-            return { label: 'Clôturée (RDV)', variant: 'secondary', className: 'bg-sky-50 text-sky-800 border border-sky-100' };
-        }
-        return { label: 'En attente', variant: 'outline', className: 'bg-slate-50 text-slate-600 border border-slate-200' };
-    };
-
-    const handleRespond = async (propositionId, status) => {
-        const message = (responseMessages[propositionId] || '').trim();
-        if (status === 'rejected' && !message) {
-            setResponseErrors((prev) => ({ ...prev, [propositionId]: 'Veuillez saisir un motif de rejet.' }));
-            return false;
-        }
-
-        setProcessingIds((prev) => ({ ...prev, [propositionId]: true }));
-        setResponseErrors((prev) => ({ ...prev, [propositionId]: '' }));
-        setResponseSuccesses((prev) => ({ ...prev, [propositionId]: '' }));
-        try {
-            const { data } = await axios.post(`/propositions/${propositionId}/respond`, {
-                status,
-                response_message: message || null,
-            });
-
-            const mappedStatus = status === 'accepted' ? 'interested' : 'not_interested';
-            const syncedStatus = typeof data?.status === 'string' && data.status.trim() !== '' ? data.status : mappedStatus;
-            setPropositions((prev) => {
-                const responded = prev.find((item) => item.id === propositionId);
-                const pairId = responded?.pair_id ?? null;
-
-                return prev.map((item) => {
-                    if (item.id === propositionId) {
-                        return {
-                            ...item,
-                            status: syncedStatus,
-                            user_response: mappedStatus,
-                            response_message: message || null,
-                            responded_at: new Date().toISOString(),
-                        };
-                    }
-
-                    if (pairId !== null && item.pair_id === pairId) {
-                        return {
-                            ...item,
-                            status: syncedStatus,
-                        };
-                    }
-
-                    return item;
-                });
-            });
-            setResponseSuccesses((prev) => ({ ...prev, [propositionId]: propositionToastFr.respondUpdateSuccess }));
-            showToast(propositionToastFr.respondUpdateSuccess, undefined, 'success');
-            return true;
-        } catch (error) {
-            const status = error?.response?.status;
-            if (status === 403) {
-                showToast(propositionToastFr.respondUpdateUnauthorized, undefined, 'error');
-                setResponseErrors((prev) => ({ ...prev, [propositionId]: propositionToastFr.respondUpdateUnauthorized }));
-            } else {
-                showToast(propositionToastFr.respondUpdateError, undefined, 'error');
-                setResponseErrors((prev) => ({ ...prev, [propositionId]: propositionToastFr.respondUpdateError }));
-            }
-            return false;
-        } finally {
-            setProcessingIds((prev) => ({ ...prev, [propositionId]: false }));
-        }
-    };
-
-    const groupedPropositions = useMemo(() => {
-        const map = new Map();
-
-        // API returns rows `latest()` first; for each recipient slot keep the best row for RDV actions
-        // (prefer `can_create_rdv`, then newer created_at / higher id) so older `closed` rows do not win.
-        const prefersBetterRecipientRow = (prev, next) => {
-            if (!prev) return next;
-            const prevCan = Boolean(prev.can_create_rdv);
-            const nextCan = Boolean(next.can_create_rdv);
-            if (nextCan && !prevCan) return next;
-            if (prevCan && !nextCan) return prev;
-            const ta = new Date(prev.created_at).getTime();
-            const tb = new Date(next.created_at).getTime();
-            if (tb !== ta) return tb >= ta ? next : prev;
-            return (Number(next.id) || 0) >= (Number(prev.id) || 0) ? next : prev;
-        };
-
-        const sorted = [...propositions].sort((a, b) => {
-            const ta = new Date(a.created_at).getTime();
-            const tb = new Date(b.created_at).getTime();
-            if (ta !== tb) {
-                return ta - tb;
-            }
-            return (Number(a.id) || 0) - (Number(b.id) || 0);
+    const visitList = (overrides = {}) => {
+        router.get('/staff/matchmaker/propositions', buildListParams(overrides), {
+            preserveScroll: true,
+            preserveState: true,
+            replace: true,
         });
-
-        sorted.forEach((proposition) => {
-            const key = proposition.pair_id ? `pair-${proposition.pair_id}` : `single-${proposition.id}`;
-            if (!map.has(key)) {
-                map.set(key, {
-                    key,
-                    reference_user: proposition.reference_user,
-                    compatible_user: proposition.compatible_user,
-                    message: proposition.message,
-                    created_at: proposition.created_at,
-                    recipients: {},
-                });
-            }
-            const entry = map.get(key);
-            const rid = proposition.recipient_user_id;
-            entry.recipients[rid] = prefersBetterRecipientRow(entry.recipients[rid], proposition);
-
-            if (new Date(proposition.created_at) < new Date(entry.created_at)) {
-                entry.created_at = proposition.created_at;
-            }
-        });
-
-        return Array.from(map.values());
-    }, [propositions]);
-
-    const getAggregateStatus = (entry) => {
-        const recipientEntries = Object.values(entry.recipients);
-        const normalizedStatuses = recipientEntries.map((item) => normalizeStatus(item.status, item.is_expired));
-
-        if (normalizedStatuses.includes('cancelled')) {
-            return 'cancelled';
-        }
-        if (normalizedStatuses.includes('expired')) {
-            return 'expired';
-        }
-        if (normalizedStatuses.includes('rejected')) {
-            return 'rejected';
-        }
-        if (normalizedStatuses.length > 0 && normalizedStatuses.every((s) => s === 'closed')) {
-            return 'closed';
-        }
-        if (normalizedStatuses.length === 2 && normalizedStatuses.every((s) => s === 'accepted')) {
-            return 'accepted';
-        }
-        return 'pending';
     };
 
-    const getCancellablePropositions = (entry) => Object.values(entry.recipients || {}).filter((p) => p && p.can_cancel);
+    const agencyOptions = useMemo(
+        () => agencies.map((agency) => ({ value: String(agency.id), label: agency.name })),
+        [agencies],
+    );
 
-    const handleConfirmCancel = async () => {
-        if (!cancelEntry) return;
-        const toCancel = getCancellablePropositions(cancelEntry);
-        if (toCancel.length === 0) return;
-
-        const entryKey = cancelEntry.key;
-        setCancellingEntryKey(entryKey);
-        try {
-            const first = toCancel[0];
-            const { data } = await axios.patch(`/staff/propositions/${first.id}/cancel`);
-            const cancelledIds = new Set(
-                Array.isArray(data?.cancelled_proposition_ids) && data.cancelled_proposition_ids.length > 0
-                    ? data.cancelled_proposition_ids
-                    : [first.id],
-            );
-            showToast(
-                data?.pair_was_cancelled ? propositionToastFr.cancelSuccessPaired : propositionToastFr.cancelSuccess,
-                undefined,
-                'success',
-            );
-            setPropositions((prev) =>
-                prev.map((item) =>
-                    cancelledIds.has(item.id)
-                        ? {
-                              ...item,
-                              status: 'cancelled',
-                              is_active: false,
-                              can_cancel: false,
-                              cancelled_at: new Date().toISOString(),
-                          }
-                        : item,
-                ),
-            );
-            setIsCancelDialogOpen(false);
-            setCancelEntry(null);
-        } catch (error) {
-            const status = error?.response?.status;
-            const backendMsg = error?.response?.data?.message;
-            if (status === 403) {
-                showToast(propositionToastFr.cancelUnauthorized, undefined, 'error');
-            } else if (status === 422 && backendMsg === propositionToastFr.cancelExpired) {
-                showToast(propositionToastFr.cancelExpired, undefined, 'warning');
-            } else if (status === 422 && backendMsg === propositionToastFr.cancelInvalidState) {
-                showToast(propositionToastFr.cancelInvalidState, undefined, 'warning');
-            } else {
-                showToast(propositionToastFr.cancelError, undefined, 'error');
-            }
-        } finally {
-            setCancellingEntryKey(null);
+    const filteredMatchmakers = useMemo(() => {
+        if (!agency_id) {
+            return matchmakers;
         }
-    };
+        return matchmakers.filter((matchmaker) => Number(matchmaker.agency_id) === Number(agency_id));
+    }, [matchmakers, agency_id]);
 
-    const getOtherRecipientId = (entry) => {
-        const refId = entry.reference_user?.id;
-        const compId = entry.compatible_user?.id;
-        if (!refId || !compId) return null;
+    const matchmakerOptions = useMemo(() => {
+        const conseillers = filteredMatchmakers.filter((m) => m.role !== 'manager');
+        const managers = filteredMatchmakers.filter((m) => m.role === 'manager');
 
-        const hasRef = !!entry.recipients[refId];
-        const hasComp = !!entry.recipients[compId];
-        if (hasRef && hasComp) return null;
-        return hasRef ? compId : refId;
-    };
-
-    const canSendToOther = (entry) => {
-        const refId = entry.reference_user?.id;
-        const compId = entry.compatible_user?.id;
-        if (!refId || !compId) return false;
-        const hasRef = !!entry.recipients[refId];
-        const hasComp = !!entry.recipients[compId];
-        if (hasRef === hasComp) return false;
-        const currentRecipient = hasRef ? entry.recipients[refId] : entry.recipients[compId];
-        return normalizeStatus(getRecipientDisplayStatus(currentRecipient), currentRecipient?.is_expired) === 'accepted';
-    };
-
-    const handleSendToOther = async (entry) => {
-        const recipientId = getOtherRecipientId(entry);
-        if (!recipientId) return;
-
-        const requestKey = entry.key;
-        setIsSending((prev) => ({ ...prev, [requestKey]: true }));
-        setErrorByKey((prev) => ({ ...prev, [requestKey]: '' }));
-        try {
-            const response = await axios.post('/staff/propositions/send-to-other', {
-                reference_user_id: entry.reference_user?.id,
-                compatible_user_id: entry.compatible_user?.id,
-                recipient_user_id: recipientId,
-                message: entry.message,
-            });
-
-            const newItem = {
-                id: response?.data?.id || `${requestKey}-${recipientId}`,
-                reference_user_id: entry.reference_user?.id,
-                compatible_user_id: entry.compatible_user?.id,
-                recipient_user_id: recipientId,
-                reference_user: entry.reference_user,
-                compatible_user: entry.compatible_user,
-                recipient_user: recipientId === entry.reference_user?.id ? entry.reference_user : entry.compatible_user,
-                message: entry.message,
-                status: 'pending',
-                user_response: null,
-                response_message: null,
-                user_comment: null,
-                created_at: new Date().toISOString(),
-            };
-
-            setPropositions((prev) => [newItem, ...prev]);
-            showToast(propositionToastFr.sendSuccess, undefined, 'success');
-        } catch (error) {
-            const status = error?.response?.status;
-            const backendMsg = error?.response?.data?.message;
-            if (status === 422 && backendMsg === propositionToastFr.sendBlockedActive) {
-                showToast(propositionToastFr.sendBlockedActive, undefined, 'warning');
-                setErrorByKey((prev) => ({ ...prev, [requestKey]: propositionToastFr.sendBlockedActive }));
-            } else if (status === 422 && rdvInProgressBackendMessages.has(backendMsg)) {
-                showToast(propositionToastFr.sendBlockedRdvInProgress, undefined, 'warning');
-                setErrorByKey((prev) => ({ ...prev, [requestKey]: propositionToastFr.sendBlockedRdvInProgress }));
-            } else {
-                showToast(propositionToastFr.sendError, undefined, 'error');
-                setErrorByKey((prev) => ({ ...prev, [requestKey]: propositionToastFr.sendError }));
-            }
-        } finally {
-            setIsSending((prev) => ({ ...prev, [requestKey]: false }));
-        }
-    };
+        return [
+            ...conseillers.map((m) => ({ value: String(m.id), label: `${m.name} [MM]` })),
+            ...managers.map((m) => ({ value: String(m.id), label: `${m.name} [MGR]` })),
+        ];
+    }, [filteredMatchmakers]);
 
     return (
         <AppLayout>
@@ -361,296 +95,146 @@ export default function PropositionsList() {
                         </div>
                         <p className="text-muted-foreground text-sm">Gérez les mises en relation et les retours des candidats.</p>
                     </div>
-                    <div className="flex items-center gap-2">
-                        {/* <Button variant="outline" size="sm" className="gap-2">
-                            Filtrer
-                        </Button> */}
-                        <Button size="sm" className="bg-rose-800 text-white hover:bg-rose-900" onClick={() => router.visit('/staff/match/search')}>
-                            <Plus className="h-4 w-4" />
-                            Nouvelle proposition
-                        </Button>
-                    </div>
+                    <Button size="sm" className="bg-rose-800 text-white hover:bg-rose-900" onClick={() => router.visit('/staff/match/search')}>
+                        <Plus className="h-4 w-4" />
+                        Nouvelle proposition
+                    </Button>
                 </div>
-                {groupedPropositions.length === 0 ? (
-                    <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border p-6 text-sm text-neutral-700 dark:text-neutral-200">
-                        Aucune proposition envoyee pour le moment.
+
+                <div className="flex flex-wrap gap-2">
+                    {STATUS_TABS.map((tab) => (
+                        <Button
+                            key={tab.key}
+                            size="sm"
+                            variant={status_filter === tab.key ? 'default' : 'outline'}
+                            className={status_filter === tab.key ? 'bg-rose-800 text-white hover:bg-rose-900' : ''}
+                            onClick={() => visitList({ status: tab.key === 'all' ? undefined : tab.key, page: undefined })}
+                        >
+                            {tab.label}
+                        </Button>
+                    ))}
+                </div>
+
+                {(showAgencyFilter || showMatchmakerFilter) && (
+                    <div className="flex flex-wrap items-center gap-3">
+                        {showAgencyFilter && (
+                            <div className="w-52">
+                                <SearchableSelect
+                                    options={[{ value: '', label: 'Toutes les agences' }, ...agencyOptions]}
+                                    value={agency_id ? String(agency_id) : ''}
+                                    onValueChange={(value) =>
+                                        visitList({
+                                            agency_id: value || undefined,
+                                            matchmaker_id: undefined,
+                                            page: undefined,
+                                        })
+                                    }
+                                    placeholder="Toutes les agences"
+                                />
+                            </div>
+                        )}
+                        {showMatchmakerFilter && (
+                            <div className="w-56">
+                                <SearchableSelect
+                                    options={[{ value: '', label: 'Tous les conseillers / managers' }, ...matchmakerOptions]}
+                                    value={matchmaker_id ? String(matchmaker_id) : ''}
+                                    onValueChange={(value) =>
+                                        visitList({
+                                            matchmaker_id: value || undefined,
+                                            page: undefined,
+                                        })
+                                    }
+                                    placeholder="Tous les conseillers / managers"
+                                />
+                            </div>
+                        )}
                     </div>
+                )}
+
+                {entries.length === 0 ? (
+                    <Card className="border border-rose-100/60 shadow-sm">
+                        <CardContent className="p-6 text-sm text-neutral-600">
+                            Aucune proposition envoyée pour le moment.
+                        </CardContent>
+                    </Card>
                 ) : (
                     <Card className="border border-rose-100/60 shadow-sm">
                         <CardContent className="p-0">
-                            <div className="hidden grid-cols-[minmax(200px,1.1fr)_minmax(200px,1.1fr)_minmax(180px,1.4fr)_minmax(200px,1.1fr)_minmax(140px,0.75fr)_minmax(240px,1.5fr)_minmax(100px,0.55fr)] gap-4 border-b bg-rose-50/60 px-5 py-3 text-xs font-semibold tracking-wide text-rose-900 uppercase lg:grid">
-                                <div>Profil de référence</div>
+                            <div className="hidden grid-cols-[120px_1fr_1fr_160px_140px] gap-4 border-b bg-rose-50/60 px-5 py-3 text-xs font-semibold uppercase tracking-wide text-rose-900 lg:grid">
+                                <div>Date</div>
+                                <div>Profil référence</div>
                                 <div>Profil compatible</div>
-                                <div>Message</div>
-                                <div>Statuts globaux</div>
-                                <div>Actions</div>
-                                <div>Réponses</div>
-                                <div>Date d'envoi</div>
+                                <div>Statut agrégé</div>
+                                <div>Action</div>
                             </div>
                             <div className="divide-y">
-                                {groupedPropositions.map((entry) => {
+                                {entries.map((entry) => {
                                     const refUser = entry.reference_user;
                                     const compUser = entry.compatible_user;
-                                    const refRecipient = entry.recipients[refUser?.id];
-                                    const compRecipient = entry.recipients[compUser?.id];
-                                    const refStatusMeta = refRecipient
-                                        ? getStatusMeta(getRecipientDisplayStatus(refRecipient), refRecipient?.is_expired)
-                                        : {
-                                              label: 'Non envoyée',
-                                              variant: 'outline',
-                                              className: 'bg-slate-50 text-slate-600 border border-slate-200',
-                                          };
-                                    const compStatusMeta = compRecipient
-                                        ? getStatusMeta(getRecipientDisplayStatus(compRecipient), compRecipient?.is_expired)
-                                        : {
-                                              label: 'Non envoyée',
-                                              variant: 'outline',
-                                              className: 'bg-slate-50 text-slate-600 border border-slate-200',
-                                          };
-                                    const aggregateStatus = getAggregateStatus(entry);
-                                    const aggregateMeta = getStatusMeta(aggregateStatus);
-                                    const rowIsExpired = aggregateStatus === 'expired';
-                                    const rowIsClosed = aggregateStatus === 'closed';
-                                    const rowActionsLocked = rowIsExpired || rowIsClosed;
-                                    const refResponse = refRecipient?.response_message || refRecipient?.user_comment;
-                                    const compResponse = compRecipient?.response_message || compRecipient?.user_comment;
-                                    const showSendToOther = canSendToOther(entry);
-                                    const rowError = errorByKey[entry.key];
-                                    const refCanRespond =
-                                        refRecipient &&
-                                        !refRecipient?.is_expired &&
-                                        refRecipient?.status !== 'cancelled' &&
-                                        refRecipient?.status !== 'closed' &&
-                                        Boolean(refRecipient?.can_update_response);
-                                    const compCanRespond =
-                                        compRecipient &&
-                                        !compRecipient?.is_expired &&
-                                        compRecipient?.status !== 'cancelled' &&
-                                        compRecipient?.status !== 'closed' &&
-                                        Boolean(compRecipient?.can_update_response);
-                                    const refProcessing = refRecipient ? processingIds[refRecipient.id] : false;
-                                    const compProcessing = compRecipient ? processingIds[compRecipient.id] : false;
-                                    const refError = refRecipient ? responseErrors[refRecipient.id] : '';
-                                    const compError = compRecipient ? responseErrors[compRecipient.id] : '';
-                                    const refSuccess = refRecipient ? responseSuccesses[refRecipient.id] : '';
-                                    const compSuccess = compRecipient ? responseSuccesses[compRecipient.id] : '';
-                                    const refRespondDisabled = !refCanRespond || refProcessing;
-                                    const compRespondDisabled = !compCanRespond || compProcessing;
-                                    const refIsAnswered = refRecipient
-                                        ? ['accepted', 'rejected', 'cancelled', 'closed'].includes(
-                                              normalizeStatus(getRecipientDisplayStatus(refRecipient), refRecipient?.is_expired),
-                                          )
-                                        : false;
-                                    const compIsAnswered = compRecipient
-                                        ? ['accepted', 'rejected', 'cancelled', 'closed'].includes(
-                                              normalizeStatus(getRecipientDisplayStatus(compRecipient), compRecipient?.is_expired),
-                                          )
-                                        : false;
-
-                                    const cancellablePropositions = getCancellablePropositions(entry);
-                                    const canShowGroupCancel = cancellablePropositions.length > 0;
-
-                                    // can_create_rdv: true when any proposition in the group has the flag
-                                    const canCreateRdv = Object.values(entry.recipients).some((p) => p?.can_create_rdv);
-                                    const rdvExists = Object.values(entry.recipients).some((p) => p?.rdv_exists);
-                                    const rdvSourceProposition = canCreateRdv
-                                        ? Object.values(entry.recipients).find((p) => p?.can_create_rdv)
-                                        : null;
-                                    const rdvPropositionId = rdvSourceProposition?.id ?? null;
-                                    const recreateFromFailedRaw = rdvSourceProposition?.recreate_from_failed_rdv_id;
-                                    const recreateFromFailedId =
-                                        recreateFromFailedRaw != null && recreateFromFailedRaw !== ''
-                                            ? Number(recreateFromFailedRaw)
-                                            : NaN;
-                                    const recreateFromFailedOk = Number.isFinite(recreateFromFailedId) && recreateFromFailedId > 0;
-                                    const rdvPropNum = rdvPropositionId != null ? Number(rdvPropositionId) : NaN;
-                                    const hasRdvCreateAction =
-                                        canCreateRdv &&
-                                        (recreateFromFailedOk || (Number.isFinite(rdvPropNum) && rdvPropNum > 0));
-                                    const isRdvRecreationContext = Boolean(rdvSourceProposition?.is_recreation_context);
+                                    const aggregateMeta = getPropositionStatusMeta(entry.aggregate_status);
 
                                     return (
                                         <div
                                             key={entry.key}
-                                            className="grid grid-cols-1 gap-4 px-5 py-4 lg:grid-cols-[minmax(200px,1.1fr)_minmax(200px,1.1fr)_minmax(180px,1.4fr)_minmax(200px,1.1fr)_minmax(140px,0.75fr)_minmax(240px,1.5fr)_minmax(100px,0.55fr)]"
+                                            className="grid cursor-pointer grid-cols-1 gap-3 px-5 py-4 transition-colors hover:bg-rose-50/40 lg:grid-cols-[120px_1fr_1fr_160px_140px]"
+                                            onClick={() => router.visit(`/staff/propositions/${entry.id}`)}
                                         >
+                                            <div className="text-sm text-slate-700">
+                                                {new Date(entry.created_at).toLocaleDateString('fr-FR')}
+                                            </div>
+
+                                            <div className="flex items-center gap-2">
+                                                <img
+                                                    src={
+                                                        refUser
+                                                            ? getProfilePicture(refUser, refUser.profile)
+                                                            : 'https://ui-avatars.com/api/?name=User&background=random'
+                                                    }
+                                                    alt={refUser?.name}
+                                                    className="h-8 w-8 rounded-full object-cover"
+                                                />
+                                                <div>
+                                                    <div className="text-sm font-medium text-slate-900">{refUser?.name || '—'}</div>
+                                                    {refUser?.username && (
+                                                        <div className="text-xs text-muted-foreground">@{refUser.username}</div>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center gap-2">
+                                                <img
+                                                    src={
+                                                        compUser
+                                                            ? getProfilePicture(compUser, compUser.profile)
+                                                            : 'https://ui-avatars.com/api/?name=User&background=random'
+                                                    }
+                                                    alt={compUser?.name}
+                                                    className="h-8 w-8 rounded-full object-cover"
+                                                />
+                                                <div>
+                                                    <div className="text-sm font-medium text-slate-900">{compUser?.name || '—'}</div>
+                                                    {compUser?.username && (
+                                                        <div className="text-xs text-muted-foreground">@{compUser.username}</div>
+                                                    )}
+                                                </div>
+                                            </div>
+
                                             <div>
-                                                <div className="flex items-center gap-2">
-                                                    <img
-                                                        src={getProfilePicture(refUser)}
-                                                        alt={refUser?.name}
-                                                        className="h-10 w-10 rounded-full object-cover"
-                                                    />
-                                                    <div>
-                                                        <div className="text-sm font-semibold text-slate-900">{refUser?.name || '-'}</div>
-                                                        <div className="text-muted-foreground text-xs">@{refUser?.username}</div>
-                                                    </div>
-                                                </div>
-                                                {refUser?.username && (
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        className="mt-3 h-8 border-rose-200 text-rose-700 hover:bg-rose-50"
-                                                        onClick={() => window.open(`/profile/${refUser.username}`, '_blank', 'noopener,noreferrer')}
-                                                    >
-                                                        Voir profil
-                                                    </Button>
-                                                )}
+                                                <Badge className={aggregateMeta.className}>{aggregateMeta.label}</Badge>
                                             </div>
+
                                             <div>
-                                                <div className="flex items-center gap-2">
-                                                    <img
-                                                        src={getProfilePicture(compUser)}
-                                                        alt={compUser?.name}
-                                                        className="h-10 w-10 rounded-full object-cover"
-                                                    />
-                                                    <div>
-                                                        <div className="text-sm font-semibold text-slate-900">{compUser?.name || '-'}</div>
-                                                        <div className="text-muted-foreground text-xs">@{compUser?.username}</div>
-                                                    </div>
-                                                </div>
-                                                {compUser?.username && (
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        className="mt-3 h-8 border-rose-200 text-rose-700 hover:bg-rose-50"
-                                                        onClick={() => window.open(`/profile/${compUser.username}`, '_blank', 'noopener,noreferrer')}
-                                                    >
-                                                        Voir profil
-                                                    </Button>
-                                                )}
-                                            </div>
-                                            <div className="text-muted-foreground text-sm">
-                                                {entry.message ? (
-                                                    <span className="italic">"{entry.message}"</span>
-                                                ) : (
-                                                    <span className="text-muted-foreground text-xs">-</span>
-                                                )}
-                                            </div>
-                                            <div className="space-y-2">
-                                                <div className="flex flex-wrap items-center gap-2">
-                                                    <Badge variant={refStatusMeta.variant} className={refStatusMeta.className}>
-                                                        Réf: {refStatusMeta.label}
-                                                    </Badge>
-                                                    <Badge variant={compStatusMeta.variant} className={compStatusMeta.className}>
-                                                        Comp: {compStatusMeta.label}
-                                                    </Badge>
-                                                </div>
-                                                <Badge variant={aggregateMeta.variant} className={aggregateMeta.className}>
-                                                    Global: {aggregateMeta.label}
-                                                </Badge>
-                                            </div>
-                                            <div className="flex flex-col w-full gap-2 justify-center lg:min-h-[4rem]">
-                                                {!rowActionsLocked && canShowGroupCancel ? (
-                                                    <Button
-                                                        type="button"
-                                                        variant="outline"
-                                                        size="sm"
-                                                        className="h-9 w-full  border-rose-200 text-rose-800 hover:bg-rose-50"
-                                                        disabled={cancellingEntryKey === entry.key}
-                                                        onClick={() => {
-                                                            setCancelEntry(entry);
-                                                            setIsCancelDialogOpen(true);
-                                                        }}
-                                                    >
-                                                        {cancellingEntryKey === entry.key
-                                                            ? 'Annulation…'
-                                                            : cancellablePropositions.length > 1
-                                                              ? 'Annuler'
-                                                              : 'Annuler'}
-                                                    </Button>
-                                                ) : !rowActionsLocked ? (
-                                                    <span className="text-muted-foreground text-xs">Proposition annulée</span>
-                                                ) : rowIsClosed ? (
-                                                    <span className="text-muted-foreground text-xs">Proposition clôturée (RDV créé)</span>
-                                                ) : (
-                                                    <span className="text-muted-foreground text-xs">Aucune action disponible</span>
-                                                )}
-                                                {!rowIsExpired && hasRdvCreateAction && (
-                                                    <Button
-                                                        type="button"
-                                                        size="sm"
-                                                        className="h-9 w-full bg-emerald-700 text-white hover:bg-emerald-800"
-                                                        onClick={() =>
-                                                            setRdvModalEntry({
-                                                                key: entry.key,
-                                                                referenceUserId: entry.reference_user?.id,
-                                                                compatibleUserId: entry.compatible_user?.id,
-                                                                propositionId: recreateFromFailedOk ? null : rdvPropositionId,
-                                                                fromFailedRdvId: recreateFromFailedOk ? recreateFromFailedId : null,
-                                                                isRecreationContext: isRdvRecreationContext,
-                                                            })
-                                                        }
-                                                    >
-                                                        <CalendarPlus className="mr-1.5 h-4 w-4" />
-                                                        {isRdvRecreationContext ? 'Re-créer un RDV' : 'Créer un RDV'}
-                                                    </Button>
-                                                )}
-                                                {!rowIsExpired && !canCreateRdv && rdvExists && (
-                                                    <Badge variant="secondary" className="h-9 w-full justify-center bg-slate-100 text-slate-700">
-                                                        {rdvBadgeByEntryKey[entry.key] === 'recreated' ? 'RDV re-créé' : 'RDV créé'}
-                                                    </Badge>
-                                                )}
-                                            </div>
-                                            <div className="grid gap-3 lg:grid-cols-2">
-                                                <div className="rounded-lg border border-slate-100 bg-slate-50/50 p-3">
-                                                    <div className="text-[11px] font-semibold text-slate-500 uppercase">Rép. référence</div>
-                                                    {!rowActionsLocked && (
-                                                        <Button
-                                                            size="sm"
-                                                            className="mt-3 h-8 w-full bg-rose-800 text-white hover:bg-rose-900"
-                                                            disabled={refRespondDisabled}
-                                                            onClick={() => {
-                                                                setActiveRecipient(refRecipient || null);
-                                                                setActiveRecipientLabel('Référence');
-                                                                setIsRespondModalOpen(true);
-                                                            }}
-                                                        >
-                                                            {refIsAnswered ? 'Mettre à jour la réponse' : 'Répondre'}
-                                                        </Button>
-                                                    )}
-                                                    {refResponse && (
-                                                        <div className="mt-2 text-xs text-slate-600">Dernière réponse: {refResponse}</div>
-                                                    )}
-                                                    {refSuccess && <div className="mt-2 text-xs text-emerald-700">{refSuccess}</div>}
-                                                </div>
-                                                <div className="rounded-lg border border-slate-100 bg-slate-50/50 p-3">
-                                                    <div className="text-[11px] font-semibold text-slate-500 uppercase">Rép. compatible</div>
-                                                    {!rowActionsLocked && (
-                                                        <Button
-                                                            size="sm"
-                                                            className="mt-3 h-8 w-full bg-rose-800 text-white hover:bg-rose-900"
-                                                            disabled={compRespondDisabled}
-                                                            onClick={() => {
-                                                                setActiveRecipient(compRecipient || null);
-                                                                setActiveRecipientLabel('Compatible');
-                                                                setIsRespondModalOpen(true);
-                                                            }}
-                                                        >
-                                                            {compIsAnswered ? 'Mettre à jour la réponse' : 'Répondre'}
-                                                        </Button>
-                                                    )}
-                                                    {compResponse && (
-                                                        <div className="mt-2 text-xs text-slate-600">Dernière réponse: {compResponse}</div>
-                                                    )}
-                                                    {compSuccess && <div className="mt-2 text-xs text-emerald-700">{compSuccess}</div>}
-                                                </div>
-                                                {!rowActionsLocked && showSendToOther && (
-                                                    <div className="lg:col-span-2">
-                                                        <Button
-                                                            size="sm"
-                                                            className="h-8"
-                                                            onClick={() => handleSendToOther(entry)}
-                                                            disabled={isSending[entry.key]}
-                                                        >
-                                                            {isSending[entry.key] ? 'Envoi...' : 'Envoyer au profil restant'}
-                                                        </Button>
-                                                        {rowError && <div className="mt-2 text-xs text-red-600">{rowError}</div>}
-                                                    </div>
-                                                )}
-                                            </div>
-                                            <div className="text-muted-foreground text-xs lg:text-right">
-                                                {new Date(entry.created_at).toLocaleDateString()}
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="h-8 border-rose-200 text-rose-700 hover:bg-rose-50"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        router.visit(`/staff/propositions/${entry.id}`);
+                                                    }}
+                                                >
+                                                    Voir détail
+                                                </Button>
                                             </div>
                                         </div>
                                     );
@@ -659,154 +243,31 @@ export default function PropositionsList() {
                         </CardContent>
                     </Card>
                 )}
-            </div>
-            <Dialog
-                open={isRespondModalOpen}
-                onOpenChange={(open) => {
-                    if (!open) {
-                        setIsRespondModalOpen(false);
-                        setActiveRecipient(null);
-                        setActiveRecipientLabel('');
-                    }
-                }}
-            >
-                <DialogContent className="max-w-md">
-                    <DialogHeader>
-                        <DialogTitle>Répondre à la proposition</DialogTitle>
-                        <DialogDescription>{activeRecipientLabel ? `Profil ${activeRecipientLabel.toLowerCase()}` : 'Réponse'}</DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-2">
-                        <div className="text-xs font-semibold text-slate-500 uppercase">Motif</div>
-                        <div className="text-muted-foreground text-xs">
-                            Statut actuel:{' '}
-                            {activeRecipient
-                                ? normalizeStatus(getRecipientDisplayStatus(activeRecipient), activeRecipient.is_expired) === 'accepted'
-                                    ? 'Acceptée'
-                                    : normalizeStatus(getRecipientDisplayStatus(activeRecipient), activeRecipient.is_expired) === 'rejected'
-                                      ? 'Refusée'
-                                      : normalizeStatus(getRecipientDisplayStatus(activeRecipient), activeRecipient.is_expired) === 'expired'
-                                        ? 'Expirée'
-                                        : 'En attente'
-                                : '-'}
-                        </div>
-                        <textarea
-                            value={activeRecipient ? responseMessages[activeRecipient.id] || '' : ''}
-                            onChange={(event) => {
-                                const value = event.target.value;
-                                if (!activeRecipient) return;
-                                setResponseMessages((prev) => ({
-                                    ...prev,
-                                    [activeRecipient.id]: value,
-                                }));
-                            }}
-                            placeholder="Motif (obligatoire en cas de refus)"
-                            rows={3}
-                            className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"
-                            disabled={!activeRecipient || processingIds[activeRecipient.id]}
-                        />
-                        {activeRecipient && responseErrors[activeRecipient.id] && (
-                            <div className="text-xs text-red-600">{responseErrors[activeRecipient.id]}</div>
-                        )}
-                    </div>
-                    <DialogFooter className="gap-2 sm:gap-0">
-                        <Button variant="outline" onClick={() => setIsRespondModalOpen(false)}>
-                            Annuler
-                        </Button>
+
+                {pagination.last_page > 1 && (
+                    <div className="flex items-center justify-center gap-2">
                         <Button
                             variant="outline"
-                            className="border-rose-200 text-rose-700 hover:bg-rose-50"
-                            disabled={!activeRecipient || processingIds[activeRecipient.id]}
-                            onClick={async () => {
-                                if (!activeRecipient) return;
-                                const ok = await handleRespond(activeRecipient.id, 'rejected');
-                                if (ok) setIsRespondModalOpen(false);
-                            }}
+                            size="sm"
+                            disabled={pagination.current_page <= 1}
+                            onClick={() => visitList({ page: pagination.current_page - 1 })}
                         >
-                            Refuser
+                            Précédent
                         </Button>
+                        <span className="text-sm text-muted-foreground">
+                            Page {pagination.current_page} / {pagination.last_page}
+                        </span>
                         <Button
-                            className="bg-rose-800 text-white hover:bg-rose-900"
-                            disabled={!activeRecipient || processingIds[activeRecipient.id]}
-                            onClick={async () => {
-                                if (!activeRecipient) return;
-                                const ok = await handleRespond(activeRecipient.id, 'accepted');
-                                if (ok) setIsRespondModalOpen(false);
-                            }}
+                            variant="outline"
+                            size="sm"
+                            disabled={pagination.current_page >= pagination.last_page}
+                            onClick={() => visitList({ page: pagination.current_page + 1 })}
                         >
-                            Accepter
+                            Suivant
                         </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-            <Dialog
-                open={isCancelDialogOpen}
-                onOpenChange={(open) => {
-                    setIsCancelDialogOpen(open);
-                    if (!open) setCancelEntry(null);
-                }}
-            >
-                <DialogContent className="max-w-md">
-                    <DialogHeader>
-                        <DialogTitle>Annuler la proposition</DialogTitle>
-                        <DialogDescription>
-                            {cancelEntry && getCancellablePropositions(cancelEntry).length > 1
-                                ? 'Êtes-vous sûr de vouloir annuler cette proposition pour les deux profils (référence et compatible) ? Vous pourrez ensuite en envoyer une nouvelle.'
-                                : 'Êtes-vous sûr de vouloir annuler cette proposition ? Cela permettra d’en envoyer une nouvelle vers ce profil.'}
-                        </DialogDescription>
-                    </DialogHeader>
-                    <DialogFooter className="gap-2 sm:gap-0">
-                        <Button variant="outline" onClick={() => setIsCancelDialogOpen(false)}>
-                            Retour
-                        </Button>
-                        <Button
-                            className="bg-rose-800 text-white hover:bg-rose-900"
-                            disabled={!cancelEntry || cancellingEntryKey === cancelEntry.key}
-                            onClick={handleConfirmCancel}
-                        >
-                            {cancelEntry && cancellingEntryKey === cancelEntry.key ? 'Annulation…' : 'Confirmer l’annulation'}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-            {rdvModalEntry && (
-                <CreateRdvModal
-                    open={Boolean(rdvModalEntry)}
-                    propositionId={rdvModalEntry.propositionId}
-                    fromFailedRdvId={rdvModalEntry.fromFailedRdvId}
-                    isRecreationContext={Boolean(rdvModalEntry.isRecreationContext)}
-                    onClose={() => setRdvModalEntry(null)}
-                    onSuccess={({ wasRecreation } = {}) => {
-                        const refUid = rdvModalEntry.referenceUserId;
-                        const compatUid = rdvModalEntry.compatibleUserId;
-                        const entryKey = rdvModalEntry.key;
-                        setRdvBadgeByEntryKey((prev) => ({
-                            ...prev,
-                            [entryKey]: wasRecreation ? 'recreated' : 'created',
-                        }));
-                        setPropositions((prev) => {
-                            if (refUid == null || compatUid == null) return prev;
-                            return prev.map((p) =>
-                                propositionSameUnorderedPair(p, refUid, compatUid)
-                                    ? {
-                                          ...p,
-                                          status: 'closed',
-                                          is_active: false,
-                                          can_cancel: false,
-                                          can_create_rdv: false,
-                                          is_recreation_context: false,
-                                          recreate_from_failed_rdv_id: null,
-                                          can_update_response: false,
-                                          rdv_exists: true,
-                                      }
-                                    : p,
-                            );
-                        });
-                        setRdvModalEntry(null);
-                    }}
-                />
-            )}
+                    </div>
+                )}
+            </div>
         </AppLayout>
     );
 }

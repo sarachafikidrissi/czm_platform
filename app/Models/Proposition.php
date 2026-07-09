@@ -84,9 +84,12 @@ class Proposition extends Model
             });
     }
 
-    public static function hasActiveProposition(int $userId): bool
+    public static function hasActiveProposition(int $userId, ?int $excludePropositionId = null): bool
     {
-        return static::query()->activeForUser($userId)->exists();
+        return static::query()
+            ->activeForUser($userId)
+            ->when($excludePropositionId, fn ($q, $id) => $q->where('id', '!=', $id))
+            ->exists();
     }
 
     /**
@@ -545,5 +548,21 @@ class Proposition extends Model
     public function recipientUser()
     {
         return $this->belongsTo(User::class, 'recipient_user_id');
+    }
+
+    /**
+     * Whether this user was ever a recipient on this proposition cycle and submitted a response.
+     */
+    public static function recipientHasRespondedInPair(self $proposition, int $userId): bool
+    {
+        $query = static::query()
+            ->where('recipient_user_id', $userId)
+            ->whereNotNull('responded_at');
+
+        if ($proposition->pair_id !== null && $proposition->pair_id !== '') {
+            return $query->where('pair_id', $proposition->pair_id)->exists();
+        }
+
+        return $query->where('id', $proposition->id)->exists();
     }
 }

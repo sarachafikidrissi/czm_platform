@@ -157,7 +157,7 @@ class PropositionRespondTest extends TestCase
             ->get('/staff/matchmaker/propositions')
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->where('propositions.0.can_update_response', true)
+                ->where('entries.0.recipients.'.$recipient->id.'.can_update_response', true)
             );
     }
 
@@ -187,8 +187,8 @@ class PropositionRespondTest extends TestCase
             ->get('/staff/matchmaker/propositions')
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->where('propositions.0.id', $proposition->id)
-                ->where('propositions.0.can_update_response', true)
+                ->where('entries.0.recipients.'.$recipient->id.'.id', $proposition->id)
+                ->where('entries.0.recipients.'.$recipient->id.'.can_update_response', true)
             );
     }
 }

@@ -453,8 +453,9 @@ class RdvTest extends TestCase
         $response = $this->actingAs($mm)->get(route('staff.matchmaker.propositions'));
         $response->assertStatus(200);
         $props = $response->viewData('page')['props'] ?? [];
-        $propositionsList = $props['propositions'] ?? [];
-        $hasCanCreateTrue = collect($propositionsList)->contains('can_create_rdv', true);
+        $recipientRows = collect($props['entries'] ?? [])
+            ->flatMap(fn ($entry) => array_values($entry['recipients'] ?? []));
+        $hasCanCreateTrue = $recipientRows->contains('can_create_rdv', true);
         $this->assertFalse($hasCanCreateTrue);
     }
 
@@ -594,9 +595,10 @@ class RdvTest extends TestCase
         $response = $this->actingAs($mm)->get(route('staff.matchmaker.propositions'));
         $response->assertStatus(200);
         $props = $response->viewData('page')['props'] ?? [];
-        $propositionsList = $props['propositions'] ?? [];
+        $recipientRows = collect($props['entries'] ?? [])
+            ->flatMap(fn ($entry) => array_values($entry['recipients'] ?? []));
 
-        $row = collect($propositionsList)->first(fn ($p) => (bool) ($p['can_create_rdv'] ?? false));
+        $row = $recipientRows->first(fn ($p) => (bool) ($p['can_create_rdv'] ?? false));
         $this->assertNotNull($row);
         $this->assertTrue($row['is_recreation_context']);
     }

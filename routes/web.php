@@ -449,6 +449,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::middleware(['role:matchmaker|manager'])->post('/proposition-requests', [\App\Http\Controllers\PropositionRequestController::class, 'store'])->name('proposition-requests.store');
         Route::middleware(['role:matchmaker|manager'])->post('/proposition-requests/{propositionRequest}/respond', [\App\Http\Controllers\PropositionRequestController::class, 'respond'])->name('proposition-requests.respond');
         Route::get('/matchmaker/propositions', [\App\Http\Controllers\MatchmakerController::class, 'propositionsList'])->name('matchmaker.propositions');
+        Route::get('/propositions/{proposition}', [\App\Http\Controllers\PropositionController::class, 'show'])
+            ->name('staff.propositions.show')
+            ->middleware('role:matchmaker|manager|admin');
         Route::get('/matchmaker/proposition-requests', [\App\Http\Controllers\PropositionRequestController::class, 'index'])->name('matchmaker.proposition-requests');
         Route::get('/matchmaker/change', [\App\Http\Controllers\MatchmakerController::class, 'matchmakerChange'])->name('matchmaker.change');
         // Match section routes
@@ -465,6 +468,21 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->middleware('role:matchmaker|manager|admin');
         Route::get('/rdv/{rdv}', [\App\Http\Controllers\RdvController::class, 'show'])
             ->name('rdv.show')
+            ->middleware('role:matchmaker|manager|admin');
+        Route::get('/bills', [\App\Http\Controllers\BillController::class, 'staffIndex'])
+            ->name('bills.index')
+            ->middleware('role:matchmaker|manager|admin');
+        Route::get('/bills/{bill}', [\App\Http\Controllers\BillController::class, 'show'])
+            ->name('bills.show')
+            ->middleware('role:matchmaker|manager|admin');
+        Route::get('/bills/{bill}/download', [\App\Http\Controllers\BillController::class, 'downloadPdf'])
+            ->name('bills.download')
+            ->middleware('role:matchmaker|manager|admin');
+        Route::post('/bills/{bill}/send-email', [\App\Http\Controllers\BillController::class, 'sendEmail'])
+            ->name('bills.send-email')
+            ->middleware('role:matchmaker|manager|admin');
+        Route::get('/subscriptions/{subscription}', [\App\Http\Controllers\SubscriptionController::class, 'show'])
+            ->name('subscriptions.show')
             ->middleware('role:matchmaker|manager|admin');
         Route::middleware(['role:matchmaker|manager'])->group(function () {
             Route::post('/rdv', [\App\Http\Controllers\RdvController::class, 'store'])->name('rdv.store');
@@ -493,14 +511,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/matchmakers', [\App\Http\Controllers\UserController::class, 'matchmakers'])->name('matchmakers');
         Route::post('/matchmakers/{matchmaker}/select', [\App\Http\Controllers\UserController::class, 'selectMatchmaker'])->name('matchmakers.select');
 
-        // Bill routes
-        Route::get('/bills', [\App\Http\Controllers\BillController::class, 'index'])->name('bills');
-        Route::get('/bills/{bill}', [\App\Http\Controllers\BillController::class, 'show'])->name('bills.show');
+        // Bill routes — canonical list is /mes-commandes; keep legacy download path
+        Route::redirect('/bills', '/mes-commandes')->name('bills');
         Route::get('/bills/{bill}/download', [\App\Http\Controllers\BillController::class, 'downloadPdf'])->name('bills.download');
-        Route::post('/bills/{bill}/send-email', [\App\Http\Controllers\BillController::class, 'sendEmail'])->name('bills.send-email');
 
         // Subscription routes
         Route::get('/subscription', [\App\Http\Controllers\UserController::class, 'subscription'])->name('subscription');
+        Route::get('/subscription/{subscription}', [\App\Http\Controllers\SubscriptionController::class, 'show'])->name('subscription.show');
         // Reactivation request
         Route::post('/reactivation-request', [\App\Http\Controllers\AccountStatusController::class, 'submitReactivationRequest'])->name('reactivation-request');
         // Activity history (own)
@@ -571,8 +588,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::middleware(['role:user'])->group(function () {
         Route::get('/propositions', [\App\Http\Controllers\PropositionController::class, 'index'])->name('propositions');
+        Route::get('/propositions/{proposition}', [\App\Http\Controllers\PropositionController::class, 'show'])->name('propositions.show');
         // Mes RDVs pages for members
         Route::get('/mes-rdvs', [\App\Http\Controllers\RdvController::class, 'mesRdvsPage'])->name('mes-rdvs');
+        Route::get('/mes-rdvs/{rdv}', [\App\Http\Controllers\RdvController::class, 'show'])->name('mes-rdvs.show');
         Route::get('/mes-rdvs/{rdv}/feedback', [\App\Http\Controllers\RdvController::class, 'feedbackPage'])->name('mes-rdvs.feedback');
     });
     Route::middleware(['role:user|matchmaker|manager'])->group(function () {
@@ -585,7 +604,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         return Inertia::render('appointments');
     })->name('appointments');
 
-    Route::get('/mes-commandes', [\App\Http\Controllers\BillController::class, 'index'])->name('mes-commandes');
+    Route::middleware(['role:user'])->group(function () {
+        Route::get('/mes-commandes', [\App\Http\Controllers\BillController::class, 'index'])->name('mes-commandes');
+        Route::get('/mes-commandes/{bill}', [\App\Http\Controllers\BillController::class, 'show'])->name('mes-commandes.show');
+        Route::get('/mes-commandes/{bill}/download', [\App\Http\Controllers\BillController::class, 'downloadPdf'])->name('mes-commandes.download');
+    });
 });
 
 require __DIR__.'/settings.php';
