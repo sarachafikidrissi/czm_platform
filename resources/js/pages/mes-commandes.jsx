@@ -10,10 +10,6 @@ import { CreditCard, ShoppingCart } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-function isOverdue(dueDate, status) {
-    return status !== 'paid' && dueDate && new Date(dueDate) < new Date();
-}
-
 function StaffLink({ user, onNavigate }) {
     if (!user?.name) return <span className="text-slate-500">—</span>;
     const path = staffProfilePath(user);
@@ -80,7 +76,7 @@ export default function MesCommandes() {
                                     <div className="divide-y">
                                         {bills.map((bill) => {
                                             const statusMeta = getBillStatusMeta(bill.status);
-                                            const overdue = isOverdue(bill.due_date, bill.status);
+                                            const overdue = bill.is_overdue === true;
                                             const validity = formatSubscriptionValidity(bill.subscription, bill.duration_months);
                                             const manager = bill.agency_manager ?? bill.matchmaker?.agency_manager;
 

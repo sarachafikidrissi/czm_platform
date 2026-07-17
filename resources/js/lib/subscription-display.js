@@ -32,6 +32,24 @@ export function formatSubscriptionValidity(subscription, durationMonths) {
     return { label: '—', className: 'bg-slate-100 text-slate-500 border border-slate-200' };
 }
 
+export function isStaffViewer(viewerRole) {
+    return viewerRole === 'admin' || viewerRole === 'manager' || viewerRole === 'matchmaker';
+}
+
+export function subscriptionShowPath(subscriptionId, viewerRole) {
+    if (!subscriptionId) return null;
+    return isStaffViewer(viewerRole)
+        ? `/staff/subscriptions/${subscriptionId}`
+        : `/user/subscription/${subscriptionId}`;
+}
+
+export function billShowPath(billId, viewerRole) {
+    if (!billId) return null;
+    return isStaffViewer(viewerRole)
+        ? `/staff/bills/${billId}`
+        : `/mes-commandes/${billId}`;
+}
+
 export function staffProfilePath(user) {
     if (!user?.username) return null;
     return `/profile/${user.username}`;

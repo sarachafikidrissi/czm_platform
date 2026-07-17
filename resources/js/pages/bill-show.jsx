@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import AppLayout from '@/layouts/app-layout';
 import { getBillStatusMeta } from '@/lib/bill-status';
-import { formatDateFr, formatSubscriptionValidity, staffProfilePath } from '@/lib/subscription-display';
+import { formatDateFr, formatSubscriptionValidity, isStaffViewer, staffProfilePath, subscriptionShowPath } from '@/lib/subscription-display';
 import { Head, router, usePage } from '@inertiajs/react';
 import {
     ArrowLeft,
@@ -103,7 +103,7 @@ function formatDate(value) {
 export default function BillShow() {
     const { bill, viewerRole, backUrl, downloadUrl, sendEmailUrl, markAsClientUrl } = usePage().props;
     const statusMeta = getBillStatusMeta(bill.status);
-    const isStaff = viewerRole !== 'user';
+    const isStaff = isStaffViewer(viewerRole);
 
     const handleMarkPaid = () => {
         if (!bill.member_user_id) return;
@@ -220,7 +220,7 @@ export default function BillShow() {
                                     variant="outline"
                                     size="sm"
                                     className="border-rose-200"
-                                    onClick={() => router.visit(`/user/subscription/${bill.subscription.id}`)}
+                                    onClick={() => router.visit(subscriptionShowPath(bill.subscription.id, viewerRole))}
                                 >
                                     Voir l&apos;abonnement
                                 </Button>

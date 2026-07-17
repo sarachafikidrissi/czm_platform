@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Bill;
 use App\Models\User;
 use App\Models\UserSubscription;
+use App\Services\BillSubscriptionLinkService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
@@ -56,12 +57,20 @@ class SubscriptionController extends Controller
             $payload['notes'] = $subscription->notes;
         }
 
-        $linkedBill = Bill::query()
+        $paidBills = Bill::query()
             ->where('user_id', $subscription->user_id)
             ->where('status', 'paid')
-            ->where('created_at', '<=', $subscription->created_at)
-            ->orderByDesc('created_at')
-            ->first(['id', 'order_number', 'bill_number']);
+            ->orderBy('created_at')
+            ->get(['id', 'created_at', 'status', 'order_number', 'bill_number']);
+        $allSubscriptions = UserSubscription::query()
+            ->where('user_id', $subscription->user_id)
+            ->orderBy('created_at')
+            ->get();
+        $linkedBill = app(BillSubscriptionLinkService::class)->findBillForSubscription(
+            $subscription,
+            $paidBills,
+            $allSubscriptions,
+        );
 
         if ($linkedBill) {
             $payload['bill_id'] = $linkedBill->id;

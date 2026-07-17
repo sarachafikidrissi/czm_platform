@@ -95,19 +95,23 @@ class PropositionStaffPayloadService
      */
     public function resolvePropositionParties(Proposition $proposition): array
     {
-        $recipient = $proposition->relationLoaded('recipientUser')
-            ? $proposition->recipientUser
-            : User::query()->select(['id', 'assigned_matchmaker_id'])->find($proposition->recipient_user_id);
+        return [
+            $this->resolvePartyUser($proposition, 'recipientUser', (int) $proposition->recipient_user_id),
+            $this->resolvePartyUser($proposition, 'referenceUser', (int) $proposition->reference_user_id),
+            $this->resolvePartyUser($proposition, 'compatibleUser', (int) $proposition->compatible_user_id),
+        ];
+    }
 
-        $referenceUser = $proposition->relationLoaded('referenceUser')
-            ? $proposition->referenceUser
-            : User::query()->select(['id', 'assigned_matchmaker_id'])->find($proposition->reference_user_id);
+    protected function resolvePartyUser(Proposition $proposition, string $relation, int $userId): ?User
+    {
+        if ($proposition->relationLoaded($relation)) {
+            $user = $proposition->{$relation};
+            if ($user && array_key_exists('assigned_matchmaker_id', $user->getAttributes())) {
+                return $user;
+            }
+        }
 
-        $compatibleUser = $proposition->relationLoaded('compatibleUser')
-            ? $proposition->compatibleUser
-            : User::query()->select(['id', 'assigned_matchmaker_id'])->find($proposition->compatible_user_id);
-
-        return [$recipient, $referenceUser, $compatibleUser];
+        return User::query()->select(['id', 'assigned_matchmaker_id'])->find($userId);
     }
 
     /**

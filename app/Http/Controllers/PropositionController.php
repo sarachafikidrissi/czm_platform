@@ -271,7 +271,7 @@ class PropositionController extends Controller
         if ($viewerRole === 'user') {
             return Inertia::render('proposition-show', [
                 'proposition' => [
-                    'id' => $group['id'],
+                    'id' => $proposition->id,
                     'pair_id' => $group['pair_id'],
                     'message' => $group['message'],
                     'aggregate_status' => $group['aggregate_status'],
@@ -292,7 +292,7 @@ class PropositionController extends Controller
 
         return Inertia::render('proposition-show', [
             'proposition' => [
-                'id' => $group['id'],
+                'id' => $proposition->id,
                 'pair_id' => $group['pair_id'],
                 'message' => $group['message'],
                 'aggregate_status' => $group['aggregate_status'],

@@ -6,10 +6,11 @@ use App\Models\Bill;
 use App\Models\User;
 use App\Models\UserSubscription;
 use App\Mail\BillEmail;
+use App\Services\BillSubscriptionLinkService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -64,7 +65,8 @@ class BillController extends Controller
         ]);
 
         $agencyManager = $this->resolveAgencyManager($bill->matchmaker?->agency_id);
-        $subscriptionMap = $this->buildBillSubscriptionMap(
+        $linkService = app(BillSubscriptionLinkService::class);
+        $subscriptionMap = $linkService->buildBillToSubscriptionMap(
             $bill->user->bills()->orderBy('created_at')->get(['id', 'created_at', 'status']),
             $bill->user->subscriptions()->orderBy('created_at')->get(),
         );
@@ -73,9 +75,7 @@ class BillController extends Controller
             $linkedSubscription->load('matrimonialPack:id,name,duration');
         }
 
-        $isOverdue = $bill->status !== 'paid'
-            && $bill->due_date
-            && $bill->due_date->lt(now()->startOfDay());
+        $isOverdue = $this->computeIsOverdue($bill);
 
         $row = array_merge($this->mapBillRow($bill), [
             'notes' => $bill->notes,
@@ -97,21 +97,11 @@ class BillController extends Controller
         return $row;
     }
 
-    /**
-     * @return array<string, UserSubscription>
-     */
-    protected function buildBillSubscriptionMap(Collection $bills, Collection $subscriptions): array
+    protected function computeIsOverdue(Bill $bill): bool
     {
-        $sortedBills = $bills->sortBy('created_at')->values();
-        $sortedSubs = $subscriptions->sortBy('created_at')->values();
-        $map = [];
-        $count = min($sortedBills->count(), $sortedSubs->count());
-
-        for ($i = 0; $i < $count; $i++) {
-            $map[$sortedBills[$i]->id] = $sortedSubs[$i];
-        }
-
-        return $map;
+        return $bill->status !== 'paid'
+            && $bill->due_date
+            && $bill->due_date->lt(now()->startOfDay());
     }
 
     protected function resolveAgencyManager(?int $agencyId): ?User
@@ -209,6 +199,7 @@ class BillController extends Controller
         ?User $agencyManager,
     ): array {
         $row = $this->mapBillRow($bill);
+        $row['is_overdue'] = $this->computeIsOverdue($bill);
         $row['matchmaker'] = $this->mapMatchmakerPayload($bill->matchmaker, $agencyManager);
         $row['agency_manager'] = $agencyManager
             ? $this->mapStaffContact($agencyManager)
@@ -234,9 +225,10 @@ class BillController extends Controller
             ->orderBy('created_at', 'desc')
             ->paginate(10);
 
+        $linkService = app(BillSubscriptionLinkService::class);
         $allBills = $user->bills()->orderBy('created_at')->get(['id', 'created_at', 'status']);
         $allSubscriptions = $user->subscriptions()->orderBy('created_at')->get();
-        $subscriptionMap = $this->buildBillSubscriptionMap($allBills, $allSubscriptions);
+        $subscriptionMap = $linkService->buildBillToSubscriptionMap($allBills, $allSubscriptions);
 
         $agencyIds = $paginated->getCollection()
             ->pluck('matchmaker.agency_id')
@@ -276,6 +268,12 @@ class BillController extends Controller
             abort(403, 'Unauthorized.');
         }
 
+        if (in_array($me->roles->first()?->name ?? '', ['manager', 'matchmaker'], true)) {
+            if ($me->approval_status !== 'approved') {
+                abort(403, 'Your account is not validated yet.');
+            }
+        }
+
         $query = Bill::query()
             ->with([
                 'user:id,name,username,assigned_matchmaker_id,agency_id',
@@ -288,10 +286,14 @@ class BillController extends Controller
         } elseif ($me->hasRole('matchmaker')) {
             $query->whereHas('user', fn ($q) => $q->where('assigned_matchmaker_id', $me->id));
         } elseif ($me->hasRole('manager')) {
-            $query->whereHas('user', function ($q) use ($me) {
-                $q->where('agency_id', $me->agency_id)
-                    ->orWhere('assigned_matchmaker_id', $me->id);
-            });
+            if ($me->agency_id === null) {
+                $query->whereHas('user', fn ($q) => $q->where('assigned_matchmaker_id', $me->id));
+            } else {
+                $query->whereHas('user', function ($q) use ($me) {
+                    $q->where('agency_id', $me->agency_id)
+                        ->orWhere('assigned_matchmaker_id', $me->id);
+                });
+            }
         }
 
         $paginated = $query->paginate(10);
@@ -377,7 +379,12 @@ class BillController extends Controller
 
             return back()->with('success', 'Facture renvoyée par email avec succès.');
         } catch (\Exception $e) {
-            return back()->with('error', 'Erreur lors de l\'envoi de l\'email: '.$e->getMessage());
+            Log::error('Bill email send failed', [
+                'bill_id' => $bill->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return back()->with('error', 'Erreur lors de l\'envoi de l\'email. Veuillez réessayer.');
         }
     }
 }

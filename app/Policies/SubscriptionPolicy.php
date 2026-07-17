@@ -7,6 +7,19 @@ use App\Models\UserSubscription;
 
 class SubscriptionPolicy
 {
+    protected static function isApprovedStaff(User $user): bool
+    {
+        if ($user->hasRole('admin')) {
+            return true;
+        }
+
+        if ($user->hasAnyRole(['matchmaker', 'manager'])) {
+            return $user->approval_status === 'approved';
+        }
+
+        return false;
+    }
+
     public function view(User $user, UserSubscription $subscription): bool
     {
         if ($user->hasRole('admin')) {
@@ -15,6 +28,10 @@ class SubscriptionPolicy
 
         if ((int) $subscription->user_id === (int) $user->id) {
             return true;
+        }
+
+        if (! self::isApprovedStaff($user)) {
+            return false;
         }
 
         if (! $user->hasAnyRole(['matchmaker', 'manager'])) {

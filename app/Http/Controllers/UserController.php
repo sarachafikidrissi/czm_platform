@@ -8,6 +8,7 @@ use App\Models\PropositionRequest;
 use App\Models\Rdv;
 use App\Models\User;
 use App\Models\UserAssignment;
+use App\Services\BillSubscriptionLinkService;
 use App\Services\MatchmakingResultsPayloadService;
 use App\Services\MatchmakingService;
 use App\Services\ObjectiveCommissionCalculator;
@@ -611,13 +612,17 @@ class UserController extends Controller
         $paidBills = $user->bills()
             ->where('status', 'paid')
             ->orderBy('created_at')
-            ->get(['id', 'created_at']);
+            ->get(['id', 'created_at', 'status']);
 
-        $subscriptions = $subscriptions->map(function ($subscription) use ($paidBills) {
-                $linkedBill = $paidBills
-                    ->filter(fn ($bill) => $bill->created_at <= $subscription->created_at)
-                    ->sortByDesc('created_at')
-                    ->first();
+        $allSubscriptions = $user->subscriptions()->orderBy('created_at')->get();
+        $linkService = app(BillSubscriptionLinkService::class);
+
+        $subscriptions = $subscriptions->map(function ($subscription) use ($paidBills, $allSubscriptions, $linkService) {
+                $linkedBill = $linkService->findBillForSubscription(
+                    $subscription,
+                    $paidBills,
+                    $allSubscriptions,
+                );
 
                 return [
                     'id' => $subscription->id,

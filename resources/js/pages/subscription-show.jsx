@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import AppLayout from '@/layouts/app-layout';
 import { Head, router, usePage } from '@inertiajs/react';
 import { ArrowLeft, Building, Check, Mail } from 'lucide-react';
-import { formatSubscriptionValidity, staffProfilePath } from '@/lib/subscription-display';
+import { formatSubscriptionValidity, billShowPath, isStaffViewer, staffProfilePath } from '@/lib/subscription-display';
 
 function MatchmakerContactBar({ matchmaker, agencyManager }) {
     if (!matchmaker) {
@@ -89,7 +89,7 @@ function statusBadge(status) {
 export default function SubscriptionShow() {
     const { subscription, viewerRole, backUrl } = usePage().props;
     const meta = statusBadge(subscription.status);
-    const isStaff = viewerRole !== 'user';
+    const isStaff = isStaffViewer(viewerRole);
 
     return (
         <AppLayout>
@@ -147,7 +147,7 @@ export default function SubscriptionShow() {
                                 <button
                                     type="button"
                                     className="font-medium text-[#890505] hover:underline"
-                                    onClick={() => router.visit(`/mes-commandes/${subscription.bill_id}`)}
+                                    onClick={() => router.visit(billShowPath(subscription.bill_id, viewerRole))}
                                 >
                                     {subscription.bill_order_number ?? 'Voir la facture'}
                                 </button>

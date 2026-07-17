@@ -7,6 +7,19 @@ use App\Models\User;
 
 class BillPolicy
 {
+    protected static function isApprovedStaff(User $user): bool
+    {
+        if ($user->hasRole('admin')) {
+            return true;
+        }
+
+        if ($user->hasAnyRole(['matchmaker', 'manager'])) {
+            return $user->approval_status === 'approved';
+        }
+
+        return false;
+    }
+
     public function view(User $user, Bill $bill): bool
     {
         if ($user->hasRole('admin')) {
@@ -51,6 +64,10 @@ class BillPolicy
             return true;
         }
 
+        if (! self::isApprovedStaff($user)) {
+            return false;
+        }
+
         if (! $user->hasAnyRole(['matchmaker', 'manager'])) {
             return false;
         }
@@ -89,6 +106,10 @@ class BillPolicy
             return true;
         }
 
+        if (! self::isApprovedStaff($user)) {
+            return false;
+        }
+
         $member = $bill->relationLoaded('user')
             ? $bill->user
             : User::query()->select(['id', 'assigned_matchmaker_id'])->find($bill->user_id);
@@ -103,6 +124,10 @@ class BillPolicy
     {
         if ($staff->hasRole('admin')) {
             return true;
+        }
+
+        if (! self::isApprovedStaff($staff)) {
+            return false;
         }
 
         if ($staff->hasRole('matchmaker')) {
@@ -124,6 +149,10 @@ class BillPolicy
     {
         if ($staff->hasRole('admin')) {
             return true;
+        }
+
+        if (! self::isApprovedStaff($staff)) {
+            return false;
         }
 
         return (int) $member->assigned_matchmaker_id === (int) $staff->id;
