@@ -73,6 +73,8 @@ export default function AgencyProspects() {
         payment_mode: '',
     });
     const [validatingProspect, setValidatingProspect] = useState(null);
+    const [cinConfirm, setCinConfirm] = useState('');
+    const [cinConfirmError, setCinConfirmError] = useState(null);
     const [viewMode, setViewMode] = useState('table'); // 'cards' or 'table'
     
     // Rejection dialog state
@@ -567,6 +569,8 @@ export default function AgencyProspects() {
     // Pre-fill form when prospect is selected
     const handleValidateClick = (prospect) => {
         setValidatingProspect(prospect);
+        setCinConfirm('');
+        setCinConfirmError(null);
         
         // Pre-fill from profile if user already provided
         const profile = prospect.profile;
@@ -992,7 +996,7 @@ export default function AgencyProspects() {
                     </div>
                 )}
             </div>
-            <Dialog open={!!validatingProspect} onOpenChange={(open) => { if (!open) { setValidatingProspect(null); reset(); } }}>
+            <Dialog open={!!validatingProspect} onOpenChange={(open) => { if (!open) { setValidatingProspect(null); setCinConfirm(''); setCinConfirmError(null); reset(); } }}>
                 <DialogContent className="sm:w-[500px]   sm:max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle>Validate Prospect</DialogTitle>
@@ -1032,12 +1036,34 @@ export default function AgencyProspects() {
                                 <Input 
                                     id="cin" 
                                     value={data.cin} 
-                                    onChange={(e) => setData('cin', e.target.value)} 
+                                    onChange={(e) => {
+                                        setData('cin', e.target.value);
+                                        setCinConfirmError(null);
+                                    }} 
                                     placeholder={getDocumentExample(data.document_type)}
+                                    autoComplete="off"
                                 />
                             )}
                             {errors.cin && <p className="text-error text-sm">{errors.cin}</p>}
                         </div>
+                        {!validatingProspect?.profile?.cin && (
+                            <div className="grid gap-2">
+                                <Label htmlFor="cin_confirm">
+                                    Confirmer {getDocumentLabel(data.document_type)} *
+                                </Label>
+                                <Input
+                                    id="cin_confirm"
+                                    value={cinConfirm}
+                                    onChange={(e) => {
+                                        setCinConfirm(e.target.value);
+                                        setCinConfirmError(null);
+                                    }}
+                                    placeholder={getDocumentExample(data.document_type)}
+                                    autoComplete="off"
+                                />
+                                {cinConfirmError && <p className="text-error text-sm">{cinConfirmError}</p>}
+                            </div>
+                        )}
                         <div className="grid gap-2">
                             <Label htmlFor="front">
                                 Identity Card Front {!validatingProspect?.profile?.identity_card_front_path && '*'}
@@ -1210,7 +1236,7 @@ export default function AgencyProspects() {
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => { setValidatingProspect(null); reset(); }}>Cancel</Button>
+                        <Button variant="outline" onClick={() => { setValidatingProspect(null); setCinConfirm(''); setCinConfirmError(null); reset(); }}>Cancel</Button>
                         <Button
                                 onClick={() => {
                                     // Check if CNI and front are needed
@@ -1236,6 +1262,18 @@ export default function AgencyProspects() {
                                         return;
                                     }
 
+                                    if (needsCin) {
+                                        if (!cinConfirm || cinConfirm.trim() === '') {
+                                            setCinConfirmError(`Confirmation du ${getDocumentLabel(data.document_type)} requise`);
+                                            return;
+                                        }
+                                        if (data.cin.trim().toUpperCase() !== cinConfirm.trim().toUpperCase()) {
+                                            setCinConfirmError(`Les numéros ${getDocumentLabel(data.document_type)} ne correspondent pas`);
+                                            return;
+                                        }
+                                        setCinConfirmError(null);
+                                    }
+
                                     // Use useForm's post method instead of manual FormData
                                     post(`/staff/prospects/${validatingProspect?.id}/validate`, {
                                         forceFormData: true,
@@ -1244,7 +1282,9 @@ export default function AgencyProspects() {
                                             showToast('Erreur de validation', 'Validation failed: ' + (err.message || 'Please check all fields'), 'error');
                                         },
                                         onSuccess: () => { 
-                                            setValidatingProspect(null); 
+                                            setValidatingProspect(null);
+                                            setCinConfirm('');
+                                            setCinConfirmError(null);
                                             reset(); 
                                         },
                                     });

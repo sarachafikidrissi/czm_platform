@@ -86,6 +86,7 @@ export default function ValidatedProspects() {
     const [selectedUserForValidation, setSelectedUserForValidation] = useState(null);
     const [validationSubmitting, setValidationSubmitting] = useState(false);
     const [validationErrors, setValidationErrors] = useState({});
+    const [validationCinDecryptFailed, setValidationCinDecryptFailed] = useState(false);
     const [validationData, setValidationData] = useState({
         notes: '',
         document_type: 'cin',
@@ -202,9 +203,10 @@ export default function ValidatedProspects() {
                 setMatrimonialPacks(data.matrimonial_packs);
                 
                 // Pre-fill form with existing data
+                // matrimonial_pack_id/pack_price must be strings to match SelectItem values and controlled Input state
                 setSubscriptionData({
-                    matrimonial_pack_id: data.profile.matrimonial_pack_id || '',
-                    pack_price: data.profile.pack_price || '',
+                    matrimonial_pack_id: data.profile.matrimonial_pack_id ? String(data.profile.matrimonial_pack_id) : '',
+                    pack_price: data.profile.pack_price != null ? String(data.profile.pack_price) : '',
                     pack_advantages: data.profile.pack_advantages || [],
                     payment_mode: data.profile.payment_mode || ''
                 });
@@ -434,6 +436,10 @@ export default function ValidatedProspects() {
         const profile = user?.profile || {};
         setSelectedUserForValidation(user);
         setValidationErrors({});
+        // profile.cin is the raw encrypted value; if it exists but the backend couldn't
+        // decrypt it (e.g. stored under a previous APP_KEY), cin_decrypted comes back empty.
+        // Surface that distinction instead of silently showing a blank field.
+        setValidationCinDecryptFailed(Boolean(profile.cin) && !profile.cin_decrypted);
         setValidationData({
             notes: profile.notes || '',
             document_type: profile.document_type || 'cin',
@@ -494,6 +500,7 @@ export default function ValidatedProspects() {
                 setValidationModalOpen(false);
                 setSelectedUserForValidation(null);
                 setValidationErrors({});
+                setValidationCinDecryptFailed(false);
                 router.reload({ only: ['prospects'] });
             },
         });
@@ -1799,6 +1806,11 @@ export default function ValidatedProspects() {
                                 onChange={(e) => setValidationData((prev) => ({ ...prev, cin: e.target.value }))}
                                 placeholder="Ex: AB12345 or B-123456"
                             />
+                            {validationCinDecryptFailed && (
+                                <p className="text-xs text-amber-600">
+                                    Un numéro existant est enregistré mais n'a pas pu être déchiffré (clé de chiffrement différente). Veuillez le ressaisir.
+                                </p>
+                            )}
                             {validationErrors.cin && <p className="text-xs text-red-600">{validationErrors.cin}</p>}
                         </div>
                         <div className="grid gap-2">

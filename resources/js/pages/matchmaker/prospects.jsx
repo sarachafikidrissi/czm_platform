@@ -50,7 +50,9 @@ export default function MatchmakerProspects() {
     const [paymentMode, setPaymentMode] = useState('');
     const [documentType, setDocumentType] = useState('cin');
     const [cin, setCin] = useState('');
+    const [cinConfirm, setCinConfirm] = useState('');
     const [cinError, setCinError] = useState(null);
+    const [cinConfirmError, setCinConfirmError] = useState(null);
     const [front, setFront] = useState(null);
     const [submitting, setSubmitting] = useState(false);
     const [errors, setErrors] = useState({ notes: null, recommendations: null, cin: null, identity_card_front: null, payment_mode: null, general: null });
@@ -181,6 +183,9 @@ export default function MatchmakerProspects() {
         } else {
             setCin('');
         }
+        setCinConfirm('');
+        setCinError(null);
+        setCinConfirmError(null);
         
         // If user already uploaded front, we won't show it but mark that it exists
         setFront(null);
@@ -194,6 +199,7 @@ export default function MatchmakerProspects() {
         const documentRegex = getDocumentRegex(documentType);
         // Validate CNI only if needed and provided
         let cinOk = true;
+        let cinConfirmOk = true;
         let cinValue = null;
         if (needsCin) {
             if (!cin || cin.trim() === '' || cin.includes('****')) {
@@ -206,11 +212,23 @@ export default function MatchmakerProspects() {
                     cinValue = cin.trim();
                 }
             }
+
+            // Require re-entry to catch typos when staff enters a new document number
+            if (!cinConfirm || cinConfirm.trim() === '') {
+                setCinConfirmError(`Confirmation du ${getDocumentLabel(documentType)} requise`);
+                cinConfirmOk = false;
+            } else if (cin.trim().toUpperCase() !== cinConfirm.trim().toUpperCase()) {
+                setCinConfirmError(`Les numéros ${getDocumentLabel(documentType)} ne correspondent pas`);
+                cinConfirmOk = false;
+            } else {
+                setCinConfirmError(null);
+            }
         } else {
             // User already provided CNI, use existing decrypted value from profile
             // Backend sends cin_decrypted for display purposes
             cinValue = selectedProspect?.profile?.cin_decrypted || hasExistingCin;
             setCinError(null);
+            setCinConfirmError(null);
         }
         
         setErrors({ 
@@ -222,7 +240,7 @@ export default function MatchmakerProspects() {
             general: null 
         });
         
-        if (!cinOk || (needsFront && !front)) return;
+        if (!cinOk || !cinConfirmOk || (needsFront && !front)) return;
 
         const fd = new FormData();
         fd.append('notes', notes);
@@ -274,6 +292,9 @@ export default function MatchmakerProspects() {
                 setPaymentMode('');
                 setDocumentType('cin');
                 setCin('');
+                setCinConfirm('');
+                setCinError(null);
+                setCinConfirmError(null);
                 setFront(null);
                 setErrors({ notes: null, recommendations: null, cin: null, identity_card_front: null, payment_mode: null, general: null });
             }
@@ -614,13 +635,36 @@ export default function MatchmakerProspects() {
                                                             <Input 
                                                                 id="cin" 
                                                                 value={cin} 
-                                                                onChange={(e) => setCin(e.target.value)} 
+                                                                onChange={(e) => {
+                                                                    setCin(e.target.value);
+                                                                    setCinError(null);
+                                                                    setCinConfirmError(null);
+                                                                }} 
                                                                 placeholder={getDocumentExample(documentType)}
+                                                                autoComplete="off"
                                                             />
                                                         )}
                                                         {cinError && <p className="text-error text-sm">{cinError}</p>}
                                                         {errors.cin && <p className="text-error text-sm">{errors.cin}</p>}
                                                     </div>
+                                                    {!selectedProspect?.profile?.cin && (
+                                                        <div className="grid gap-2">
+                                                            <Label htmlFor="cin_confirm">
+                                                                Confirmer {getDocumentLabel(documentType)} *
+                                                            </Label>
+                                                            <Input
+                                                                id="cin_confirm"
+                                                                value={cinConfirm}
+                                                                onChange={(e) => {
+                                                                    setCinConfirm(e.target.value);
+                                                                    setCinConfirmError(null);
+                                                                }}
+                                                                placeholder={getDocumentExample(documentType)}
+                                                                autoComplete="off"
+                                                            />
+                                                            {cinConfirmError && <p className="text-error text-sm">{cinConfirmError}</p>}
+                                                        </div>
+                                                    )}
                                                     <div className="grid grid-cols-2 gap-3">
                                                         <div className="grid gap-2">
                                                             <Label htmlFor="front">
