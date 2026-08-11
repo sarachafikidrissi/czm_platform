@@ -344,71 +344,71 @@ class UserController extends Controller
 
         if ($currentUser && ($currentUser->hasRole('matchmaker') || $currentUser->hasRole('admin') || $currentUser->hasRole('manager'))) {
             if ($userRole === 'user') {
-            // Load bills
-            $bills = $user->bills()
-                ->with([
-                    'matchmaker:id,name,email',
-                    'user:id,name,email,gender,country',
-                    'user.profile:id,user_id,pays_residence',
-                    'profile:id,user_id,pays_residence',
-                ])
-                ->orderBy('created_at', 'desc')
-                ->get()
-                ->map(function ($bill) {
-                    $memberCountry = $bill->profile?->pays_residence
-                        ?? $bill->user?->profile?->pays_residence
-                        ?? $bill->user?->country;
+                // Load bills
+                $bills = $user->bills()
+                    ->with([
+                        'matchmaker:id,name,email',
+                        'user:id,name,email,gender,country',
+                        'user.profile:id,user_id,pays_residence',
+                        'profile:id,user_id,pays_residence',
+                    ])
+                    ->orderBy('created_at', 'desc')
+                    ->get()
+                    ->map(function ($bill) {
+                        $memberCountry = $bill->profile?->pays_residence
+                            ?? $bill->user?->profile?->pays_residence
+                            ?? $bill->user?->country;
 
-                    return [
-                        'id' => $bill->id,
-                        'bill_number' => $bill->bill_number,
-                        'order_number' => $bill->order_number,
-                        'bill_date' => $bill->bill_date,
-                        'due_date' => $bill->due_date,
-                        'status' => $bill->status,
-                        'amount' => $bill->amount,
-                        'tax_rate' => $bill->tax_rate,
-                        'tax_amount' => $bill->tax_amount,
-                        'total_amount' => $bill->total_amount,
-                        'currency' => $bill->currency,
-                        'payment_method' => $bill->payment_method,
-                        'pack_name' => $bill->pack_name,
-                        'pack_price' => $bill->pack_price,
-                        'pack_advantages' => $bill->pack_advantages,
-                        'notes' => $bill->notes,
-                        'matchmaker' => $bill->matchmaker,
-                        'member_country' => $memberCountry,
-                        'member_gender' => $bill->user?->gender,
-                    ];
-                });
+                        return [
+                            'id' => $bill->id,
+                            'bill_number' => $bill->bill_number,
+                            'order_number' => $bill->order_number,
+                            'bill_date' => $bill->bill_date,
+                            'due_date' => $bill->due_date,
+                            'status' => $bill->status,
+                            'amount' => $bill->amount,
+                            'tax_rate' => $bill->tax_rate,
+                            'tax_amount' => $bill->tax_amount,
+                            'total_amount' => $bill->total_amount,
+                            'currency' => $bill->currency,
+                            'payment_method' => $bill->payment_method,
+                            'pack_name' => $bill->pack_name,
+                            'pack_price' => $bill->pack_price,
+                            'pack_advantages' => $bill->pack_advantages,
+                            'notes' => $bill->notes,
+                            'matchmaker' => $bill->matchmaker,
+                            'member_country' => $memberCountry,
+                            'member_gender' => $bill->user?->gender,
+                        ];
+                    });
 
-            // Add has_bill flag
-            $hasBill = $user->bills()->where('status', '!=', 'paid')->exists();
+                // The action is available only while the member's current bill is unpaid.
+                $hasBill = $user->latestBill()->first()?->status === 'unpaid';
 
-            // Load subscriptions
-            $subscriptions = $user->subscriptions()
-                ->with(['matrimonialPack', 'assignedMatchmaker:id,name,email'])
-                ->orderBy('created_at', 'desc')
-                ->get()
-                ->map(function ($subscription) {
-                    return [
-                        'id' => $subscription->id,
-                        'matrimonial_pack_id' => $subscription->matrimonial_pack_id,
-                        'subscription_start' => $subscription->subscription_start,
-                        'subscription_end' => $subscription->subscription_end,
-                        'duration_months' => $subscription->duration_months,
-                        'pack_price' => $subscription->pack_price,
-                        'pack_advantages' => $subscription->pack_advantages,
-                        'payment_mode' => $subscription->payment_mode,
-                        'status' => $subscription->status,
-                        'notes' => $subscription->notes,
-                        'matrimonial_pack' => $subscription->matrimonialPack,
-                        'assigned_matchmaker' => $subscription->assignedMatchmaker,
-                        'is_active' => $subscription->is_active,
-                        'is_expired' => $subscription->is_expired,
-                        'days_remaining' => $subscription->days_remaining,
-                    ];
-                });
+                // Load subscriptions
+                $subscriptions = $user->subscriptions()
+                    ->with(['matrimonialPack', 'assignedMatchmaker:id,name,email'])
+                    ->orderBy('created_at', 'desc')
+                    ->get()
+                    ->map(function ($subscription) {
+                        return [
+                            'id' => $subscription->id,
+                            'matrimonial_pack_id' => $subscription->matrimonial_pack_id,
+                            'subscription_start' => $subscription->subscription_start,
+                            'subscription_end' => $subscription->subscription_end,
+                            'duration_months' => $subscription->duration_months,
+                            'pack_price' => $subscription->pack_price,
+                            'pack_advantages' => $subscription->pack_advantages,
+                            'payment_mode' => $subscription->payment_mode,
+                            'status' => $subscription->status,
+                            'notes' => $subscription->notes,
+                            'matrimonial_pack' => $subscription->matrimonialPack,
+                            'assigned_matchmaker' => $subscription->assignedMatchmaker,
+                            'is_active' => $subscription->is_active,
+                            'is_expired' => $subscription->is_expired,
+                            'days_remaining' => $subscription->days_remaining,
+                        ];
+                    });
             }
 
             // Load matchmaking search criteria from profile
@@ -618,30 +618,30 @@ class UserController extends Controller
         $linkService = app(BillSubscriptionLinkService::class);
 
         $subscriptions = $subscriptions->map(function ($subscription) use ($paidBills, $allSubscriptions, $linkService) {
-                $linkedBill = $linkService->findBillForSubscription(
-                    $subscription,
-                    $paidBills,
-                    $allSubscriptions,
-                );
+            $linkedBill = $linkService->findBillForSubscription(
+                $subscription,
+                $paidBills,
+                $allSubscriptions,
+            );
 
-                return [
-                    'id' => $subscription->id,
-                    'matrimonial_pack_id' => $subscription->matrimonial_pack_id,
-                    'subscription_start' => $subscription->subscription_start,
-                    'subscription_end' => $subscription->subscription_end,
-                    'duration_months' => $subscription->duration_months,
-                    'pack_price' => $subscription->pack_price,
-                    'pack_advantages' => $subscription->pack_advantages,
-                    'payment_mode' => $subscription->payment_mode,
-                    'status' => $subscription->status,
-                    'matrimonial_pack' => $subscription->matrimonialPack,
-                    'assigned_matchmaker' => $subscription->assignedMatchmaker,
-                    'is_active' => $subscription->is_active,
-                    'is_expired' => $subscription->is_expired,
-                    'days_remaining' => $subscription->days_remaining,
-                    'bill_id' => $linkedBill?->id,
-                ];
-            });
+            return [
+                'id' => $subscription->id,
+                'matrimonial_pack_id' => $subscription->matrimonial_pack_id,
+                'subscription_start' => $subscription->subscription_start,
+                'subscription_end' => $subscription->subscription_end,
+                'duration_months' => $subscription->duration_months,
+                'pack_price' => $subscription->pack_price,
+                'pack_advantages' => $subscription->pack_advantages,
+                'payment_mode' => $subscription->payment_mode,
+                'status' => $subscription->status,
+                'matrimonial_pack' => $subscription->matrimonialPack,
+                'assigned_matchmaker' => $subscription->assignedMatchmaker,
+                'is_active' => $subscription->is_active,
+                'is_expired' => $subscription->is_expired,
+                'days_remaining' => $subscription->days_remaining,
+                'bill_id' => $linkedBill?->id,
+            ];
+        });
 
         $latestSubscription = $subscriptions->first();
 

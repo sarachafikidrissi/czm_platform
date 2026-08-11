@@ -694,7 +694,7 @@ export default function ValidatedProspects() {
                                 <Table2 className="w-4 h-4" />
                                 Table
                             </Button>
-                            {/* <Button
+                            <Button
                                 variant="outline"
                                 size="sm"
                                 onClick={() => setTestExpirationOpen(true)}
@@ -702,8 +702,8 @@ export default function ValidatedProspects() {
                             >
                                 <TestTube className="w-4 h-4" />
                                 Test Expiration
-                            </Button> */}
-                            {/* <Button
+                            </Button>
+                            <Button
                                 variant="outline"
                                 size="sm"
                                 onClick={() => setTestThreeDayReminderOpen(true)}
@@ -711,7 +711,7 @@ export default function ValidatedProspects() {
                             >
                                 <TestTube className="w-4 h-4" />
                                 Test 3-Day Reminder
-                            </Button> */}
+                            </Button>
                         </div>
                         
                         {/* Pagination Info */}

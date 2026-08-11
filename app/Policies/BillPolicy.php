@@ -102,6 +102,10 @@ class BillPolicy
      */
     public function markPaid(User $user, Bill $bill): bool
     {
+        if ($bill->status === 'paid') {
+            return false;
+        }
+
         if ($user->hasRole('admin')) {
             return true;
         }

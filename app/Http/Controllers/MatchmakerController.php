@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Mail\BillEmail;
+use App\Mail\ClientWelcomeMail;
 use App\Mail\ProspectCredentialsMail;
 use App\Models\Activity;
 use App\Models\AppointmentRequest;
@@ -23,7 +24,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
@@ -925,7 +928,7 @@ class MatchmakerController extends Controller
             'validatedByManager',
             'approvedBy',
             'assignedMatchmaker',
-            'bills',
+            'latestBill',
             'subscriptions' => function ($q) {
                 $q->orderBy('created_at', 'desc');
             },
@@ -938,9 +941,9 @@ class MatchmakerController extends Controller
             $prospect->to_rappeler = $prospect->to_rappeler ?? false;
         });
 
-        // Add has_bill flag to each prospect
+        // The action is available only while the member's current bill is unpaid.
         $prospects->each(function ($prospect) {
-            $prospect->has_bill = $prospect->bills->where('status', '!=', 'paid')->isNotEmpty();
+            $prospect->has_bill = $prospect->latestBill?->status === 'unpaid';
         });
 
         // Decrypt document number for validation update form prefill
@@ -1375,8 +1378,10 @@ class MatchmakerController extends Controller
 
         $user = User::findOrFail($request->user_id);
 
+        $markAsClientDeniedMessage = 'Vous n\'êtes pas autorisé à marquer ce membre comme client. Seul le matchmaker assigné ou un administrateur peut effectuer cette action.';
+
         if (! \App\Policies\BillPolicy::canMarkMemberAsClient($me, $user)) {
-            abort(403, 'Vous n\'êtes pas autorisé à marquer ce membre comme client. Seul le matchmaker assigné ou un administrateur peut effectuer cette action.');
+            abort(403, $markAsClientDeniedMessage);
         }
 
         // Check if user is currently a member or client_expire (can become a client again)
@@ -1384,37 +1389,102 @@ class MatchmakerController extends Controller
             return redirect()->back()->with('error', 'User is not a member or already a client.');
         }
 
-        // Get user's profile with matrimonial pack information
-        $profile = $user->profile;
-        if (! $profile || ! $profile->matrimonial_pack_id) {
-            return redirect()->back()->with('error', 'User profile or matrimonial pack information not found.');
-        }
-        $profile->load('matrimonialPack');
+        $result = DB::transaction(function () use ($user, $markAsClientDeniedMessage) {
+            $unpaidBills = Bill::query()
+                ->where('user_id', $user->id)
+                ->where('status', 'unpaid')
+                ->orderByDesc('created_at')
+                ->orderByDesc('id')
+                ->lockForUpdate()
+                ->get();
 
-        // Create subscription record
-        try {
-            \App\Models\UserSubscription::createFromProfile(
-                $profile,
-                $user,
-                $user->assigned_matchmaker_id
+            if ($unpaidBills->isEmpty()) {
+                return ['error' => 'Ce membre n\'a aucune facture en attente.'];
+            }
+
+            try {
+                Gate::authorize('markPaid', $unpaidBills->first());
+            } catch (\Illuminate\Auth\Access\AuthorizationException) {
+                abort(403, $markAsClientDeniedMessage);
+            }
+
+            // Get user's profile with matrimonial pack information
+            $profile = $user->profile;
+            if (! $profile || ! $profile->matrimonial_pack_id) {
+                return ['error' => 'User profile or matrimonial pack information not found.'];
+            }
+            $profile->load('matrimonialPack');
+
+            // Create subscription record
+            try {
+                \App\Models\UserSubscription::createFromProfile(
+                    $profile,
+                    $user,
+                    $user->assigned_matchmaker_id
+                );
+            } catch (\Exception $e) {
+                return ['error' => 'Failed to create subscription. Please try again.'];
+            }
+
+            $packName = $profile->matrimonialPack?->name ?? 'Abonnement';
+            $durationMonths = $profile->matrimonialPack?->duration ?? 6;
+            UserActivityService::log($user->id, Auth::id(), 'subscription', "Abonnement ajouté : {$packName}, {$durationMonths} mois.", []);
+
+            // Update user status to client (preserve original agency assignment)
+            $previousStatus = $user->status;
+            $user->update(['status' => 'client']);
+
+            UserActivityService::log(
+                $user->id,
+                Auth::id(),
+                'status_change',
+                "Statut passé de {$previousStatus} à client.",
+                ['previous_status' => $previousStatus, 'new_status' => 'client']
             );
-        } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Failed to create subscription. Please try again.');
+
+            $affectedBillIds = $unpaidBills->pluck('id');
+
+            // Update the captured current bill, plus any legacy duplicate unpaid bills.
+            Bill::whereKey($affectedBillIds)
+                ->where('status', 'unpaid')
+                ->update(['status' => 'paid']);
+
+            $paidBills = Bill::query()
+                ->whereKey($affectedBillIds)
+                ->with([
+                    'user',
+                    'profile',
+                    'matchmaker',
+                    'user.profile',
+                ])
+                ->orderByDesc('created_at')
+                ->orderByDesc('id')
+                ->get();
+
+            return [
+                'paidBills' => $paidBills,
+                'affectedBillIds' => $affectedBillIds,
+            ];
+        });
+
+        if (isset($result['error'])) {
+            return redirect()->back()->with('error', $result['error']);
         }
 
-        $packName = $profile->matrimonialPack?->name ?? 'Abonnement';
-        $durationMonths = $profile->matrimonialPack?->duration ?? 6;
-        UserActivityService::log($user->id, Auth::id(), 'subscription', "Abonnement ajouté : {$packName}, {$durationMonths} mois.", []);
+        $paidBills = $result['paidBills'];
+        $affectedBillIds = $result['affectedBillIds'];
 
-        // Update user status to client (preserve original agency assignment)
-        $user->update(['status' => 'client']);
+        $user->loadMissing('assignedMatchmaker');
 
-        UserActivityService::log($user->id, Auth::id(), 'status_change', 'Statut passé de membre à client.', ['previous_status' => 'member', 'new_status' => 'client']);
-
-        // Update bill status to paid for this user
-        Bill::where('user_id', $user->id)
-            ->where('status', '!=', 'paid')
-            ->update(['status' => 'paid']);
+        try {
+            Mail::to($user->email)->send(new ClientWelcomeMail($user, $paidBills->all()));
+        } catch (\Throwable $e) {
+            Log::error('Failed to send client welcome email.', [
+                'user_id' => $user->id,
+                'bill_ids' => $affectedBillIds->all(),
+                'exception' => $e,
+            ]);
+        }
 
         return redirect()->back()->with('success', 'Member marked as client successfully. Subscription created and bill status updated to paid.');
     }

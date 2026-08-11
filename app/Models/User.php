@@ -11,7 +11,7 @@ use Spatie\Permission\Traits\HasRoles;
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable , HasRoles;
+    use HasFactory, HasRoles , Notifiable;
 
     /**
      * The attributes that are mass assignable.
@@ -54,7 +54,7 @@ class User extends Authenticatable
         'is_traite',
         'acceptance_reason',
         'accepted_by',
-        'accepted_at'
+        'accepted_at',
     ];
 
     /**
@@ -84,54 +84,74 @@ class User extends Authenticatable
         ];
     }
 
-    public function profile() {
+    public function profile()
+    {
         return $this->hasOne(Profile::class)->withDefault([
             'current_step' => 1,
-            'is_completed' => false
+            'is_completed' => false,
         ]);
     }
 
-    public function assignedMatchmaker() {
+    public function assignedMatchmaker()
+    {
         return $this->belongsTo(User::class, 'assigned_matchmaker_id');
     }
 
-    public function assignedUsers() {
+    public function assignedUsers()
+    {
         return $this->hasMany(User::class, 'assigned_matchmaker_id');
     }
 
-    public function approvedBy() {
+    public function approvedBy()
+    {
         return $this->belongsTo(User::class, 'approved_by');
     }
 
-    public function approvedUsers() {
+    public function approvedUsers()
+    {
         return $this->hasMany(User::class, 'approved_by');
     }
 
-    public function validatedByManager() {
+    public function validatedByManager()
+    {
         return $this->belongsTo(User::class, 'validated_by_manager_id');
     }
 
-    public function validatedUsers() {
+    public function validatedUsers()
+    {
         return $this->hasMany(User::class, 'validated_by_manager_id');
     }
 
-    public function agency() {
+    public function agency()
+    {
         return $this->belongsTo(Agency::class);
     }
 
-    public function bills() {
+    public function bills()
+    {
         return $this->hasMany(Bill::class);
     }
 
-    public function createdBills() {
+    public function latestBill()
+    {
+        return $this->hasOne(Bill::class)->ofMany([
+            'created_at' => 'max',
+            'id' => 'max',
+        ]);
+    }
+
+    public function createdBills()
+    {
         return $this->hasMany(Bill::class, 'matchmaker_id');
     }
 
-    public function posts() {
+    public function posts()
+    {
         return $this->hasMany(Post::class);
     }
 
-    public function photos() {
+    public function photos()
+    {
         return $this->hasMany(UserPhoto::class);
     }
 
@@ -155,11 +175,13 @@ class User extends Authenticatable
         return $this->hasMany(PropositionRequest::class, 'to_matchmaker_id');
     }
 
-    public function subscriptions() {
+    public function subscriptions()
+    {
         return $this->hasMany(UserSubscription::class);
     }
 
-    public function activeSubscription() {
+    public function activeSubscription()
+    {
         return $this->hasOne(UserSubscription::class)->where('status', 'active')
             ->where('subscription_start', '<=', now())
             ->where('subscription_end', '>=', now());
@@ -174,14 +196,14 @@ class User extends Authenticatable
     public function getSubscriptionStatus()
     {
         $subscription = $this->activeSubscription;
-        if (!$subscription) {
+        if (! $subscription) {
             return 'no_subscription';
         }
-        
+
         if ($subscription->is_expired) {
             return 'expired';
         }
-        
+
         return 'active';
     }
 
