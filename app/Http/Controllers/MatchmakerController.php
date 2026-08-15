@@ -449,11 +449,6 @@ class MatchmakerController extends Controller
 
         $prospect = User::findOrFail($id);
 
-        // Check if prospect status is 'prospect'
-        if ($prospect->status !== 'prospect') {
-            return redirect()->back()->with('error', 'Seuls les prospects peuvent être rejetés.');
-        }
-
         $me = Auth::user();
         if (! $me) {
             abort(403, 'Unauthorized.');
@@ -464,7 +459,7 @@ class MatchmakerController extends Controller
             ->where('model_has_roles.model_id', $me->id)
             ->value('roles.name');
 
-        // Check authorization: admin, assigned matchmaker, matchmaker from same agency (for manager-added prospects), or manager of the agency
+        // Check authorization: admin, assigned matchmaker, or manager assigned to the prospect
         $canReject = false;
 
         if ($roleName === 'admin') {
@@ -485,12 +480,33 @@ class MatchmakerController extends Controller
             abort(403, 'Vous n\'êtes pas autorisé à rejeter ce prospect.');
         }
 
-        // Update prospect with rejection information
-        $prospect->update([
-            'rejection_reason' => $request->rejection_reason,
-            'rejected_by' => $me->id,
-            'rejected_at' => now(),
-        ]);
+        $result = DB::transaction(function () use ($request, $me, $id) {
+            $prospect = User::query()->whereKey($id)->lockForUpdate()->firstOrFail();
+
+            if ($prospect->status !== 'prospect') {
+                return 'not_prospect';
+            }
+
+            if ($prospect->rejection_reason) {
+                return 'already_rejected';
+            }
+
+            $prospect->update([
+                'rejection_reason' => $request->rejection_reason,
+                'rejected_by' => $me->id,
+                'rejected_at' => now(),
+            ]);
+
+            return 'ok';
+        });
+
+        if ($result === 'not_prospect') {
+            return redirect()->back()->with('error', 'Seuls les prospects peuvent être rejetés.');
+        }
+
+        if ($result === 'already_rejected') {
+            return redirect()->back()->with('error', 'Ce prospect a déjà été rejeté.');
+        }
 
         return redirect()->back()->with('success', 'Prospect rejeté avec succès.');
     }
@@ -1431,11 +1447,12 @@ class MatchmakerController extends Controller
             UserActivityService::log($user->id, Auth::id(), 'subscription', "Abonnement ajouté : {$packName}, {$durationMonths} mois.", []);
 
             // Update user status to client (preserve original agency assignment)
-            $previousStatus = $user->status;
-            $user->update(['status' => 'client']);
+            $lockedUser = User::query()->whereKey($user->id)->lockForUpdate()->firstOrFail();
+            $previousStatus = $lockedUser->status;
+            $lockedUser->update(['status' => 'client']);
 
             UserActivityService::log(
-                $user->id,
+                $lockedUser->id,
                 Auth::id(),
                 'status_change',
                 "Statut passé de {$previousStatus} à client.",

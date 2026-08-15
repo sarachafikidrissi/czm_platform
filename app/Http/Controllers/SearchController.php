@@ -82,7 +82,7 @@ class SearchController extends Controller
                       ->orWhere('email', 'like', "%{$query}%")
                       ->orWhere('phone', 'like', "%{$query}%");
                 })
-                ->with(['roles', 'agency'])
+                ->with(['roles', 'agency', 'profile'])
                 ->orderBy('created_at', 'desc')
                 ->limit(20)
                 ->get();
@@ -127,6 +127,7 @@ class SearchController extends Controller
                 ] : null,
                 'role' => $isStaffMember ? ($userRoles[0] ?? null) : null,
                 'document_type' => $user->profile?->document_type ?? 'cin',
+                'account_status' => $user->profile?->account_status ?? 'active',
             ];
         });
 

@@ -6,6 +6,8 @@ use App\Models\User;
 use App\Models\Profile;
 use App\Models\ReactivationRequest;
 use App\Models\Activity;
+use App\Models\UserAssignment;
+use App\Models\UserSubscription;
 use App\Services\UserActivityService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -85,9 +87,8 @@ class AccountStatusController extends Controller
 
     /**
      * Matchmaker/Manager/Admin: Activate member/client account
-     * Matchmaker: only assigned to them
-     * Manager: users from their agency or validated by them
-     * Admin: any user
+     * Any staff member can activate; matchmaker/manager activators become the assigned matchmaker.
+     * Admin: any user, status flip only (no reassignment).
      */
     public function activateMemberClient(Request $request, $userId)
     {
@@ -103,7 +104,7 @@ class AccountStatusController extends Controller
         }
 
         $user = User::findOrFail($userId);
-        
+
         // Check if user is a member or client (for matchmakers and managers)
         // Admin can activate any user
         if (in_array($roleName, ['matchmaker', 'manager'])) {
@@ -111,36 +112,55 @@ class AccountStatusController extends Controller
                 return redirect()->back()->with('error', 'Can only activate member or client accounts.');
             }
 
-            if ($roleName === 'matchmaker') {
-                // Check if matchmaker is assigned to this user
-                if ($user->assigned_matchmaker_id !== $me->id) {
-                    abort(403, 'You can only activate accounts assigned to you.');
-                }
-            } elseif ($roleName === 'manager') {
-                // Manager can activate users from their agency or validated by them
-                $canActivate = false;
-                if ($me->agency_id && $user->agency_id === $me->agency_id) {
-                    $canActivate = true;
-                }
-                if ($user->validated_by_manager_id === $me->id) {
-                    $canActivate = true;
-                }
-                if (!$canActivate) {
-                    abort(403, 'You can only activate accounts from your agency or validated by you.');
-                }
+            if (($user->profile->account_status ?? null) !== 'desactivated') {
+                return redirect()->back()->with('error', 'Can only activate deactivated accounts.');
             }
         }
 
-        $profile = $user->profile ?? $user->profile()->create([]);
-        
-        $profile->update([
-            'account_status' => 'active',
-            'activation_reason' => $request->reason,
-            'deactivation_reason' => null,
-        ]);
+        $previousMatchmakerId = $user->assigned_matchmaker_id;
+        $shouldReassign = in_array($roleName, ['matchmaker', 'manager']);
+
+        DB::transaction(function () use ($request, $me, $user, $shouldReassign, $previousMatchmakerId) {
+            $profile = $user->profile ?? $user->profile()->create([]);
+
+            $profile->update([
+                'account_status' => 'active',
+                'activation_reason' => $request->reason,
+                'deactivation_reason' => null,
+            ]);
+
+            if ($shouldReassign) {
+                $userUpdates = ['assigned_matchmaker_id' => $me->id];
+                if ($me->agency_id) {
+                    $userUpdates['agency_id'] = $me->agency_id;
+                }
+                $user->update($userUpdates);
+
+                UserSubscription::where('user_id', $user->id)
+                    ->where('status', 'active')
+                    ->update(['assigned_matchmaker_id' => $me->id]);
+
+                UserAssignment::recordAssignment($user->id, $me->id, $me->id, 'activation_reassign');
+            }
+
+            UserActivityService::log($user->id, $me->id, 'status_change', 'Compte activé. ' . $request->reason, []);
+
+            if ($shouldReassign) {
+                UserActivityService::log(
+                    $user->id,
+                    $me->id,
+                    'matchmaker_assigned',
+                    "Membre réassigné à {$me->name} (activation).",
+                    [
+                        'previous_matchmaker_id' => $previousMatchmakerId,
+                        'new_matchmaker_id' => $me->id,
+                        'agency_id' => $me->agency_id,
+                    ]
+                );
+            }
+        });
 
         Activity::record('member.activated', $me->id, $user->fresh(), ['reason' => $request->reason]);
-        UserActivityService::log($user->id, $me->id, 'status_change', 'Compte activé. ' . $request->reason, []);
 
         return redirect()->back()->with('success', 'Account activated successfully.');
     }

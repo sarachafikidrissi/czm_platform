@@ -1228,6 +1228,7 @@
             "statusProspectToMember": "Statut passé de prospect à membre (validé).",
             "statusMemberToClient": "Statut passé de membre à client.",
             "memberAssigned": "Membre assigné à {{name}}.",
+            "memberReassignedOnActivation": "Membre réassigné à {{name}} (activation).",
             "prospectAssigned": "Prospect assigné à {{name}} (marieuse).",
             "prospectReassigned": "Prospect réassigné à {{name}} (marieuse).",
             "accountActivated": "Compte activé.",

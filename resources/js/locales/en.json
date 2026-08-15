@@ -1225,6 +1225,7 @@
             "statusProspectToMember": "Status changed from prospect to member (validated).",
             "statusMemberToClient": "Status changed from member to client.",
             "memberAssigned": "Member assigned to {{name}}.",
+            "memberReassignedOnActivation": "Member reassigned to {{name}} (activation).",
             "prospectAssigned": "Prospect assigned to {{name}} (matchmaker).",
             "prospectReassigned": "Prospect reassigned to {{name}} (matchmaker).",
             "accountActivated": "Account activated.",

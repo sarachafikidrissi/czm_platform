@@ -1752,7 +1752,7 @@ export default function ValidatedProspects() {
                                         }}
                                     >
                                         <UserCheck className="h-4 w-4" />
-                                        Activer le compte
+                                        Réactiver le compte
                                     </button>
                                 ) : (
                                     <button

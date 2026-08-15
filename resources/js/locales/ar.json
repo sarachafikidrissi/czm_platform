@@ -1225,6 +1225,7 @@
             "statusProspectToMember": "تم تغيير الحالة من مرشح إلى عضو (مُعتمد).",
             "statusMemberToClient": "تم تغيير الحالة من عضو إلى عميل.",
             "memberAssigned": "تم تعيين العضو إلى {{name}}.",
+            "memberReassignedOnActivation": "تم إعادة تعيين العضو إلى {{name}} (تفعيل).",
             "prospectAssigned": "تم تعيين المرشح إلى {{name}} (وسيط زواج).",
             "prospectReassigned": "تم إعادة تعيين المرشح إلى {{name}} (وسيط زواج).",
             "accountActivated": "تم تفعيل الحساب.",

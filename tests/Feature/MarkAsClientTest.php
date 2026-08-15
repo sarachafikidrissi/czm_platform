@@ -7,6 +7,7 @@ use App\Models\Bill;
 use App\Models\MatrimonialPack;
 use App\Models\Profile;
 use App\Models\User;
+use App\Models\UserActivity;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Mail\Events\MessageSent;
 use Illuminate\Support\Facades\Event;
@@ -105,6 +106,16 @@ class MarkAsClientTest extends TestCase
         $this->assertDatabaseHas('bills', ['id' => $olderBill->id, 'status' => 'paid']);
         $this->assertDatabaseHas('bills', ['id' => $currentBill->id, 'status' => 'paid']);
         $this->assertDatabaseCount('user_subscriptions', 1);
+
+        $statusChange = UserActivity::where('user_id', $this->member->id)
+            ->where('type', 'status_change')
+            ->first();
+
+        $this->assertNotNull($statusChange);
+        $this->assertSame('Statut passé de member à client.', $statusChange->description);
+        $this->assertSame('member', $statusChange->metadata['previous_status']);
+        $this->assertSame('client', $statusChange->metadata['new_status']);
+        $this->assertSame($this->matchmaker->id, $statusChange->performed_by);
 
         Mail::assertSent(ClientWelcomeMail::class, function (ClientWelcomeMail $mail) use ($olderBill, $currentBill) {
             return $mail->hasTo($this->member->email)

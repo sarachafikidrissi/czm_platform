@@ -152,8 +152,8 @@ export default function AgencyProspects() {
     const userAgencyId = currentUser?.agency_id || null;
     
     // Check if current user can reject a prospect
-    const canRejectProspect = (prospect) => {
-        if (!prospect || prospect.status !== 'prospect') {
+    const canRejectProspect = (prospect) => {        
+        if (!prospect || prospect.status !== 'prospect' || prospect.rejection_reason) {
             return false;
         }
         if (!userRole || !userId) {
@@ -444,6 +444,7 @@ export default function AgencyProspects() {
         setSelectedUserForInfo(user);
         setUserInfoModalOpen(true);
     };
+    
 
     // Handle copy link
     const handleCopyLink = () => {
@@ -1479,7 +1480,7 @@ export default function AgencyProspects() {
                                         }}
                                     >
                                         <CheckCircle className="h-4 w-4 text-rose-700" />
-                                        Accepter
+                                        Réactiver le prospect
                                     </button>
                                 )}
                                 {canMarkAsRappeler(selectedUserForInfo) && !selectedUserForInfo.to_rappeler && (

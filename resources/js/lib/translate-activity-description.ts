@@ -34,6 +34,9 @@ export function translateActivityDescription(description: string | undefined | n
     const memAssign = d.match(/^Membre assigné à (.+)\.$/);
     if (memAssign) return t('activityHistory.desc.memberAssigned', { name: memAssign[1] });
 
+    const memReassignActivation = d.match(/^Membre réassigné à (.+) \(activation\)\.$/);
+    if (memReassignActivation) return t('activityHistory.desc.memberReassignedOnActivation', { name: memReassignActivation[1] });
+
     const prospectAssign = d.match(/^Prospect assigné à (.+) \(marieuse\)\.$/);
     if (prospectAssign) return t('activityHistory.desc.prospectAssigned', { name: prospectAssign[1] });
 

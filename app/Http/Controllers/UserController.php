@@ -28,7 +28,10 @@ class UserController extends Controller
         }
 
         $canWrite = ($viewer->hasRole('matchmaker') && $target->assigned_matchmaker_id === $viewer->id)
-            || ($viewer->hasRole('manager') && $target->validated_by_manager_id === $viewer->id);
+            || ($viewer->hasRole('manager') && (
+                $target->validated_by_manager_id === $viewer->id
+                || $target->assigned_matchmaker_id === $viewer->id
+            ));
 
         if ($canWrite) {
             return 'write';
@@ -515,7 +518,7 @@ class UserController extends Controller
             ];
         }
 
-        // Load agency manager for self-view AND assigned staff viewing this profile
+        // Load agency manager for self-view, assigned staff, and agency managers
         $agencyManager = null;
         $userSubscription = null;
 
@@ -527,6 +530,13 @@ class UserController extends Controller
               $user->assigned_matchmaker_id === $currentUser->id)) ||
             $currentUser->hasRole('admin')
         );
+
+        $resolvedAgencyId = $user->agency_id ?? $user->assignedMatchmaker?->agency_id;
+        $isManagerOfAssignedAgency = $currentUser
+            && $currentUser->hasRole('manager')
+            && $currentUser->agency_id
+            && $resolvedAgencyId
+            && (int) $currentUser->agency_id === (int) $resolvedAgencyId;
 
         $isSelfView = $currentUser &&
             $currentUser->id === $user->id &&
@@ -541,9 +551,7 @@ class UserController extends Controller
                 ->first();
         }
 
-        if ($isSelfView || $isAssignedStaff) {
-            // User's agency or their assigned matchmaker's agency
-            $resolvedAgencyId = $user->agency_id ?? $user->assignedMatchmaker?->agency_id;
+        if ($isSelfView || $isAssignedStaff || $isManagerOfAssignedAgency) {
             if ($resolvedAgencyId) {
                 $agencyManager = User::whereHas('roles',
                     fn ($q) => $q->where('name', 'manager'))
@@ -567,6 +575,18 @@ class UserController extends Controller
             $latestMemberProposition = Proposition::latestSnapshotForUser((int) $user->id);
             $memberRdv = Rdv::activeOrSuccessfulSnapshotForUser((int) $user->id);
             $memberFailedRdv = Rdv::latestFailedSnapshotForUser((int) $user->id);
+        }
+
+        // Member phone: only the member, their assigned matchmaker, authorized manager, or admin.
+        // (Members do not create posts — no nested post.user scrub needed.)
+        $canSeeMemberPhone = $currentUser && (
+            $currentUser->id === $user->id
+            || $isAssignedStaff
+            || $isManagerOfAssignedAgency
+        );
+
+        if ($userRole === 'user' && ! $canSeeMemberPhone) {
+            $user->makeHidden(['phone']);
         }
 
         return Inertia::render('user/profile', [

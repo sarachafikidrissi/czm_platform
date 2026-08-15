@@ -382,10 +382,21 @@ export default function UserProfile({
                 // Manager can view if prospect was validated by a matchmaker from their agency
                 isMatchmakerFromManagerAgency()));
 
-    // Write permissions: only assigned matchmaker OR manager who validated the prospect can write/edit (NOT admin)
+    // Write permissions: assigned matchmaker OR manager who validated the prospect (NOT admin)
+    const isAssignedToViewer =
+        user?.assigned_matchmaker_id != null &&
+        (Number(user?.assigned_matchmaker_id) === Number(auth?.user?.id) ||
+         String(user?.assigned_matchmaker_id) === String(auth?.user?.id));
+
     const canWrite =
-        (viewerRole === 'matchmaker' && user?.assigned_matchmaker_id === auth?.user?.id) ||
+        ((viewerRole === 'matchmaker' || viewerRole === 'manager') && isAssignedToViewer) ||
         (viewerRole === 'manager' && user?.validated_by_manager_id === auth?.user?.id);
+
+    // Any staff can activate a deactivated member/client account
+    const canActivateAccount =
+        userRole === 'user' &&
+        ['admin', 'manager', 'matchmaker'].includes(viewerRole) &&
+        user?.profile?.account_status === 'desactivated';
 
     const canCancelMatch =
         memberRdv?.exists &&
@@ -671,6 +682,10 @@ export default function UserProfile({
 
     // Handle activate account
     const handleActivateAccount = () => {
+        if (!statusReason.trim()) {
+            return;
+        }
+
         router.post(`/staff/users/${user.id}/activate`, {
             reason: statusReason,
         }, {
@@ -868,6 +883,7 @@ export default function UserProfile({
         userRole === 'user' &&
         (
             viewerRole === 'admin' ||
+            canActivateAccount ||
             // Assigned matchmaker
             (viewerRole === 'matchmaker' &&
              user?.assigned_matchmaker_id != null &&
@@ -888,11 +904,14 @@ export default function UserProfile({
     // True when the viewer should see the full
     // profile card (same as the user sees).
     // Applies to: the user themselves, their
-    // assigned matchmaker/manager, and admin.
+    // assigned matchmaker/manager, agency manager, and admin.
     const canSeeFullProfileCard =
         isOwnProfile ||
         viewerRole === 'admin' ||
-        isStaffViewingUserWithActions;
+        isStaffViewingUserWithActions ||
+        (viewerRole === 'manager' && isMatchmakerFromManagerAgency());
+
+    const canSeeMemberPhone = canSeeFullProfileCard;
 
     const viewerIsManagerOfSubjectAgency =
         viewerRole === 'manager' &&
@@ -1372,6 +1391,7 @@ export default function UserProfile({
 
                                     {/* Agency, Pack & Assigned Matchmaker - label above value, icon left, chevron right */}
                                     {userRole === 'user' && (
+                                        (canSeeMemberPhone && user?.phone) ||
                                         (canSeeFullProfileCard && (
                                             getStatusBadgeInfo()?.label ||
                                             userSubscription?.matrimonial_pack?.name ||
@@ -1444,6 +1464,22 @@ export default function UserProfile({
                                                         <div className="min-w-0">
                                                             <p className="text-xs font-medium uppercase tracking-wider text-gray-400">Conseiller</p>
                                                             <p className="truncate text-sm font-semibold text-gray-900">{user?.assignedMatchmaker?.name || user?.assigned_matchmaker?.name}</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+                                            {canSeeMemberPhone && user?.phone && (
+                                                <div className="flex items-center justify-between gap-3 border-t border-gray-100/80 py-2.5">
+                                                    <div className="flex min-w-0 flex-1 items-center gap-3">
+                                                        <Phone className="h-5 w-5 shrink-0 text-rose-400" />
+                                                        <div className="min-w-0">
+                                                            <p className="text-xs font-medium uppercase tracking-wider text-gray-400">Téléphone</p>
+                                                            <a
+                                                                href={`tel:${user.phone}`}
+                                                                className="truncate text-sm font-semibold text-gray-900 hover:text-[#890505] hover:underline"
+                                                            >
+                                                                {user.phone}
+                                                            </a>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -1903,35 +1939,35 @@ export default function UserProfile({
                                                                     Transférer
                                                                 </Button>
                                                             )}
-                                                            {canWrite && (
-                                                                user?.profile?.account_status === 'desactivated' ? (
-                                                                    <Button
-                                                                        variant="default"
-                                                                        size="sm"
-                                                                        className="bg-green-600 hover:bg-green-700"
-                                                                        onClick={() => {
-                                                                            setStatusReason('');
-                                                                            setActivateDialogOpen(true);
-                                                                        }}
-                                                                    >
-                                                                        <CheckCircle className="w-4 h-4 mr-2" />
-                                                                        Activer le compte
-                                                                    </Button>
-                                                                ) : (
-                                                                    <Button
-                                                                        variant="destructive"
-                                                                        size="sm"
-                                                                        onClick={() => {
-                                                                            setStatusReason('');
-                                                                            setDeactivateDialogOpen(true);
-                                                                        }}
-                                                                    >
-                                                                        <X className="w-4 h-4 mr-2" />
-                                                                        Désactiver le compte
-                                                                    </Button>
-                                                                )
+                                                            {canActivateAccount && (
+                                                                <Button
+                                                                    variant="default"
+                                                                    size="sm"
+                                                                    className="bg-green-600 hover:bg-green-700"
+                                                                    onClick={() => {
+                                                                        setStatusReason('');
+                                                                        setActivateDialogOpen(true);
+                                                                    }}
+                                                                >
+                                                                    <CheckCircle className="w-4 h-4 mr-2" />
+                                                                    Activer le compte
+                                                                </Button>
                                                             )}
-                                                            {(!canWrite && 
+                                                            {canWrite && user?.profile?.account_status !== 'desactivated' && (
+                                                                <Button
+                                                                    variant="destructive"
+                                                                    size="sm"
+                                                                    onClick={() => {
+                                                                        setStatusReason('');
+                                                                        setDeactivateDialogOpen(true);
+                                                                    }}
+                                                                >
+                                                                    <X className="w-4 h-4 mr-2" />
+                                                                    Désactiver le compte
+                                                                </Button>
+                                                            )}
+                                                            {(!canWrite &&
+                                                              !canActivateAccount &&
                                                               !((user?.status === 'member' || user?.status === 'client_expire') && !user?.has_bill) &&
                                                               !((user?.status === 'member' || user?.status === 'client_expire') && user?.has_bill) &&
                                                               !(user?.status === 'client_expire' && !user?.to_rappeler)) && (
@@ -3933,12 +3969,13 @@ export default function UserProfile({
                     </DialogHeader>
                     <div className="space-y-4">
                         <div className="space-y-2">
-                            <Label>Raison (optionnel)</Label>
+                            <Label>Raison *</Label>
                             <textarea
                                 className="w-full min-h-[100px] rounded-md border border-gray-300 px-3 py-2"
                                 value={statusReason}
                                 onChange={(e) => setStatusReason(e.target.value)}
                                 placeholder="Raison de l'activation..."
+                                required
                             />
                         </div>
                     </div>
@@ -3952,6 +3989,7 @@ export default function UserProfile({
                         <Button
                             onClick={handleActivateAccount}
                             className="bg-green-600 hover:bg-green-700"
+                            disabled={!statusReason.trim()}
                         >
                             <CheckCircle className="w-4 h-4 mr-2" />
                             Activer

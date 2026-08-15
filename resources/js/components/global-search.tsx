@@ -21,6 +21,7 @@ interface SearchUser {
         name: string;
     } | null;
     role?: string | null;
+    account_status?: string;
 }
 
 interface GlobalSearchProps {
@@ -315,6 +316,11 @@ export function GlobalSearch({ role }: GlobalSearchProps) {
                                                                 user.status === 'prospect' && "bg-yellow-500/20 text-yellow-600"
                                                             )}>
                                                                 {user.status}
+                                                            </span>
+                                                        )}
+                                                        {user.account_status === 'desactivated' && (
+                                                            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-500/20 text-red-600">
+                                                                Désactivé
                                                             </span>
                                                         )}
                                                     </div>
