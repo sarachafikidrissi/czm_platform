@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { LayoutGrid, Table2, Mail, MapPin, CheckCircle, Pencil, TestTube, Link as LinkIcon, Copy, Check, Search, Phone, ArrowRightLeft, AlertCircle, ChevronLeft, ChevronRight, UserCog, Eye, EyeOff, CreditCard, MessageSquare, UserX, UserCheck, KeyRound, FileText } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -51,8 +51,20 @@ const getDocumentRegex = () => /^[A-Za-z0-9-]{5,20}$/;
 export default function ValidatedProspects() {
     const { t } = useTranslation();
     const { showToast } = useToast();
-    const { prospects, status, commercialOnly = false, scope, assignedMatchmaker, auth, services: validationServices = [], matrimonialPacks: validationPacks = [] } = usePage().props;
-    const isLoading = prospects === null || prospects === undefined;
+    const { prospects, status, commercialOnly = false, scope, search: initialSearch = '', assignedMatchmaker, auth, services: validationServices = [], matrimonialPacks: validationPacks = [] } = usePage().props;
+    const [isLoading, setIsLoading] = useState(false);
+
+    const withLoadingVisit = (options = {}) => {
+        const { onFinish: userOnFinish, ...rest } = options;
+        return {
+            onStart: () => setIsLoading(true),
+            onFinish: () => {
+                setIsLoading(false);
+                userOnFinish?.();
+            },
+            ...rest,
+        };
+    };
     
     // Handle pagination data structure
     const prospectsData = prospects?.data || prospects || [];
@@ -104,7 +116,9 @@ export default function ValidatedProspects() {
         email: '',
         username: ''
     });
-    const [searchQuery, setSearchQuery] = useState('');
+    const [searchQuery, setSearchQuery] = useState(initialSearch);
+    const searchDebounceRef = useRef(null);
+    const pendingSearchRef = useRef(null);
     
     // Password dialog state
     const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
@@ -138,33 +152,66 @@ export default function ValidatedProspects() {
         } else {
             url.searchParams.delete('scope');
         }
-        router.visit(url.toString(), { preserveScroll: true, preserveState: true, replace: true });
+        if (searchQuery.trim()) url.searchParams.set('search', searchQuery.trim());
+        else url.searchParams.delete('search');
+        url.searchParams.delete('page');
+        router.visit(url.toString(), withLoadingVisit({ preserveScroll: true, preserveState: true, replace: true }));
     };
-    
-    // Filter prospects based on search query (client-side: name, email, username, code commercial)
-    const filteredProspects = useMemo(() => {
-        if (!prospectsData || prospectsData.length === 0) return [];
-        if (!searchQuery.trim()) {
-            return prospectsData;
+
+    useEffect(() => {
+        const pending = pendingSearchRef.current;
+        if (pending !== null && pending !== initialSearch) {
+            const url = new URL(window.location.href);
+            url.searchParams.set('page', '1');
+            if (pending) url.searchParams.set('search', pending);
+            else url.searchParams.delete('search');
+            router.visit(url.toString(), withLoadingVisit({
+                preserveState: true,
+                replace: true,
+                onFinish: () => {
+                    pendingSearchRef.current = null;
+                },
+            }));
+        } else {
+            setSearchQuery(initialSearch);
         }
-        const query = searchQuery.toLowerCase().trim();
-        return prospectsData.filter(p => {
-            const name = (p.name || '').toLowerCase();
-            const email = (p.email || '').toLowerCase();
-            const username = (p.username || '').toLowerCase();
-            const commercialCode = (p.profile?.heard_about_us === 'commercial_terrain' ? (p.profile?.heard_about_reference || '') : '').toString().toLowerCase();
-            return name.includes(query) || email.includes(query) || username.includes(query) || commercialCode.includes(query);
-        });
-    }, [prospectsData, searchQuery]);
+    }, [initialSearch]);
+
+    useEffect(() => {
+        if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+        const trimmed = searchQuery.trim();
+        searchDebounceRef.current = setTimeout(() => {
+            const url = new URL(window.location.href);
+            const currentSearch = url.searchParams.get('search') ?? '';
+            if (currentSearch === trimmed) return;
+            pendingSearchRef.current = trimmed;
+            if (trimmed) url.searchParams.set('search', trimmed);
+            else url.searchParams.delete('search');
+            url.searchParams.set('page', '1');
+            router.visit(url.toString(), withLoadingVisit({
+                preserveState: true,
+                replace: true,
+                onFinish: () => {
+                    pendingSearchRef.current = null;
+                },
+            }));
+        }, 400);
+        return () => {
+            if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+        };
+    }, [searchQuery]);
     
     // Pagination handlers
     const handlePageChange = (page) => {
         const url = new URL(window.location.href);
         url.searchParams.set('page', page);
-        router.visit(url.toString(), {
+        if (searchQuery.trim()) url.searchParams.set('search', searchQuery.trim());
+        else url.searchParams.delete('search');
+        router.visit(url.toString(), withLoadingVisit({
             preserveState: true,
             preserveScroll: false,
-        });
+            replace: true,
+        }));
     };
     
     const showingStart = prospects?.from ?? (prospectsData.length > 0 ? 1 : 0);
@@ -737,22 +784,21 @@ export default function ValidatedProspects() {
                                 value={searchQuery}
                                 onChange={(e) => {
                                     setSearchQuery(e.target.value);
-                                    setCurrentPage(1); // Reset to first page when searching
                                 }}
                                 className="pl-10"
                             />
                         </div>
                     </div>
 
-                    {filteredProspects.length === 0 && searchQuery.trim() && (
+                    {prospectsData.length === 0 && (initialSearch || '').trim() && (
                         <div className="mb-4 p-4 bg-info-light border border-info rounded-lg">
                             <p className="text-info-foreground text-sm">
-                                Aucun résultat trouvé pour "{searchQuery}". Veuillez essayer une autre recherche.
+                                Aucun résultat trouvé pour "{initialSearch}". Veuillez essayer une autre recherche.
                             </p>
                         </div>
                     )}
                     
-                    {filteredProspects.length === 0 && !searchQuery.trim() && !isLoading && (
+                    {prospectsData.length === 0 && !(initialSearch || '').trim() && !isLoading && (
                         <div className="mb-4 p-4 bg-info-light border border-info rounded-lg">
                             <p className="text-info-foreground text-sm">
                                 Aucun participant trouvé.
@@ -788,7 +834,10 @@ export default function ValidatedProspects() {
                                 url.searchParams.set('status', v);
                                 if (commercialOnly) url.searchParams.set('commercial_only', '1');
                                 else url.searchParams.delete('commercial_only');
-                                router.visit(url.toString(), { preserveScroll: true, preserveState: true, replace: true });
+                                if (searchQuery.trim()) url.searchParams.set('search', searchQuery.trim());
+                                else url.searchParams.delete('search');
+                                url.searchParams.delete('page');
+                                router.visit(url.toString(), withLoadingVisit({ preserveScroll: true, preserveState: true, replace: true }));
                             }}>
                                 <SelectTrigger className="h-9 w-[160px]"><SelectValue /></SelectTrigger>
                                 <SelectContent>
@@ -809,7 +858,10 @@ export default function ValidatedProspects() {
                                 const url = new URL(window.location.href);
                                 if (v === 'commercial') url.searchParams.set('commercial_only', '1');
                                 else url.searchParams.delete('commercial_only');
-                                router.visit(url.toString(), { preserveScroll: true, preserveState: true, replace: true });
+                                if (searchQuery.trim()) url.searchParams.set('search', searchQuery.trim());
+                                else url.searchParams.delete('search');
+                                url.searchParams.delete('page');
+                                router.visit(url.toString(), withLoadingVisit({ preserveScroll: true, preserveState: true, replace: true }));
                             }}>
                                 <SelectTrigger className="h-9 w-[200px]"><SelectValue /></SelectTrigger>
                                 <SelectContent>
@@ -837,7 +889,7 @@ export default function ValidatedProspects() {
                                 </Card>
                             ))
                         ) : (
-                            filteredProspects.map((u) => (
+                            prospectsData.map((u) => (
                             <Card key={u.id} className="overflow-hidden hover:shadow-lg transition-shadow">
                                 <div className="relative">
                                     <img
@@ -1083,7 +1135,7 @@ export default function ValidatedProspects() {
                                                 </TableRow>
                                             ))
                                         ) : (
-                                            filteredProspects.map((u) => (
+                                            prospectsData.map((u) => (
                                             <TableRow 
                                                 key={u.id}
                                                 className="h-16 border-b border-slate-100 hover:bg-slate-50/70"
@@ -1161,7 +1213,7 @@ export default function ValidatedProspects() {
                                 </Table>
                             </div>
                             
-                            {filteredProspects.length === 0 && !searchQuery.trim() && !isLoading && (
+                            {prospectsData.length === 0 && !(initialSearch || '').trim() && !isLoading && (
                                 <div className="border-t border-slate-100 px-6 py-10 text-center">
                                     <p className="text-sm text-slate-500">No participants found.</p>
                                 </div>

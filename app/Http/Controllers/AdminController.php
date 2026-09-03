@@ -10,11 +10,13 @@ use App\Models\Activity;
 use App\Models\UserAssignment;
 use App\Services\StatsService;
 use App\Services\UserActivityService;
+use App\Support\ProspectListSearch;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use App\Mail\StaffCredentialsMail;
 use Illuminate\Support\Str;
@@ -75,15 +77,41 @@ class AdminController extends Controller
         $dispatch = $request->string('dispatch')->toString(); // all|dispatched|not_dispatched
         $statusFilter = $request->string('status_filter')->toString(); // active | rejected
         $query = User::role('user')->where('status', 'prospect')->with(['profile', 'agency', 'assignedMatchmaker']);
-        
-        // Filter by rejection status
+
+        $agencyIdFilter = $request->filled('agency_id') ? (int) $request->integer('agency_id') : null;
+        $matchmakerIdFilter = null;
+        if ($request->filled('matchmaker_id')) {
+            $requestedMatchmakerId = (int) $request->integer('matchmaker_id');
+            $matchmaker = User::query()
+                ->where('id', $requestedMatchmakerId)
+                ->whereHas('roles', fn ($q) => $q->whereIn('name', ['matchmaker', 'manager']))
+                ->where('approval_status', 'approved')
+                ->whereNotNull('agency_id')
+                ->first();
+            if ($matchmaker) {
+                $matchmakerIdFilter = $requestedMatchmakerId;
+            }
+        }
+
+        if ($agencyIdFilter && $matchmakerIdFilter) {
+            $matchmaker = User::query()->select('id', 'agency_id')->find($matchmakerIdFilter);
+            if (! $matchmaker || (int) $matchmaker->agency_id !== $agencyIdFilter) {
+                $matchmakerIdFilter = null;
+            }
+        }
+
+        // Filter by rejection / traité status
         if ($statusFilter === 'rejected') {
             $query->whereNotNull('rejection_reason');
+        } elseif ($statusFilter === 'rappeler') {
+            $query->where('to_rappeler', true)->whereNotNull('rejection_reason');
+        } elseif ($statusFilter === 'traite') {
+            $query->where('is_traite', true)->whereNull('rejection_reason');
         } else {
             // Default to active (non-rejected) prospects
             $query->whereNull('rejection_reason');
         }
-        
+
         if ($country) {
             $query->where('country', $country);
         }
@@ -91,7 +119,7 @@ class AdminController extends Controller
             $query->where('city', $city);
         }
         if ($dispatch === 'dispatched') {
-            $query->where(function($q) {
+            $query->where(function ($q) {
                 $q->whereNotNull('agency_id')->orWhereNotNull('assigned_matchmaker_id');
             });
         } elseif ($dispatch === 'not_dispatched') {
@@ -105,7 +133,32 @@ class AdminController extends Controller
                     ->where('heard_about_reference', '!=', '');
             });
         }
-        $prospects = $query->with('profile')->orderBy('created_at', 'desc')->get(['id','name','email','username','phone','country','city','gender','status','agency_id','assigned_matchmaker_id','rejection_reason','rejected_by','rejected_at','created_at']);
+
+        if ($agencyIdFilter) {
+            $assigneeIds = User::whereHas('roles', fn ($q) => $q->whereIn('name', ['matchmaker', 'manager']))
+                ->where('agency_id', $agencyIdFilter)
+                ->where('approval_status', 'approved')
+                ->pluck('id');
+            $query->where(function ($q) use ($agencyIdFilter, $assigneeIds) {
+                $q->where('agency_id', $agencyIdFilter);
+                if ($assigneeIds->isNotEmpty()) {
+                    $q->orWhereIn('assigned_matchmaker_id', $assigneeIds);
+                }
+            });
+        }
+
+        if ($matchmakerIdFilter) {
+            $query->where('assigned_matchmaker_id', $matchmakerIdFilter);
+        }
+
+        $search = ProspectListSearch::apply($query, $request->string('search')->toString());
+
+        $prospects = $query
+            ->orderByRaw('CASE WHEN agency_id IS NULL AND assigned_matchmaker_id IS NULL THEN 0 ELSE 1 END')
+            ->orderBy('is_traite')
+            ->orderBy('created_at', 'desc')
+            ->paginate(10)
+            ->withQueryString();
         $agencies = Agency::query()->get(['id','name','country','city']);
         $assignees = User::whereHas('roles', fn ($q) => $q->whereIn('name', ['matchmaker', 'manager']))
             ->where('approval_status', 'approved')
@@ -121,13 +174,26 @@ class AdminController extends Controller
             fn (User $u) => $u->hasRole('matchmaker') && ! in_array($u->id, $managerIds, true)
         )->values();
 
+        $services = Schema::hasTable('services')
+            ? Service::query()->get(['id', 'name'])
+            : collect();
+        $matrimonialPacks = Schema::hasTable('matrimonial_packs')
+            ? MatrimonialPack::query()->get(['id', 'name', 'duration'])
+            : collect();
+
         return Inertia::render('admin/prospects-dispatch', [
             'prospects' => $prospects,
             'agencies' => $agencies,
             'matchmakers' => $matchmakers,
             'managers' => $managers,
+            'filterMatchmakers' => StatsService::getMatchmakerList(),
+            'agency_id' => $agencyIdFilter,
+            'matchmaker_id' => $matchmakerIdFilter,
             'statusFilter' => $statusFilter ?: 'active',
             'commercialOnly' => $commercialOnly,
+            'search' => $search,
+            'services' => $services,
+            'matrimonialPacks' => $matrimonialPacks,
             'filters' => [ 'country' => $country ?: null, 'city' => $city ?: null, 'dispatch' => $dispatch ?: 'all' ],
         ]);
     }
@@ -774,13 +840,36 @@ class AdminController extends Controller
         $statusFilter = $request->string('status_filter')->toString(); // active | rejected
         $query = User::role('user')
             ->where('status', 'prospect')
-            ->where('agency_id', $me->agency_id) // Only prospects dispatched to manager's agency
-            ->whereNull('assigned_matchmaker_id') // Only prospects not yet assigned to a matchmaker
-            ->with(['profile', 'agency']);
+            ->with(['profile', 'agency', 'assignedMatchmaker']);
 
-        // Filter by rejection status
+        $matchmakerIdFilter = null;
+        if ($request->filled('matchmaker_id')) {
+            $requestedMatchmakerId = (int) $request->integer('matchmaker_id');
+            $matchmaker = User::query()
+                ->where('id', $requestedMatchmakerId)
+                ->where('agency_id', $me->agency_id)
+                ->whereHas('roles', fn ($q) => $q->whereIn('name', ['matchmaker', 'manager']))
+                ->where('approval_status', 'approved')
+                ->first();
+            if ($matchmaker) {
+                $matchmakerIdFilter = $requestedMatchmakerId;
+            }
+        }
+
+        if ($matchmakerIdFilter) {
+            $query->where('assigned_matchmaker_id', $matchmakerIdFilter);
+        } else {
+            $query->where('agency_id', $me->agency_id)
+                ->whereNull('assigned_matchmaker_id');
+        }
+
+        // Filter by rejection / traité status
         if ($statusFilter === 'rejected') {
             $query->whereNotNull('rejection_reason');
+        } elseif ($statusFilter === 'rappeler') {
+            $query->where('to_rappeler', true)->whereNotNull('rejection_reason');
+        } elseif ($statusFilter === 'traite') {
+            $query->where('is_traite', true)->whereNull('rejection_reason');
         } else {
             // Default to active (non-rejected) prospects
             $query->whereNull('rejection_reason');
@@ -795,8 +884,13 @@ class AdminController extends Controller
             });
         }
 
-        $prospects = $query->get(['id','name','email','username','phone','country','city','status','agency_id','assigned_matchmaker_id','rejection_reason','rejected_by','rejected_at','created_at']);
-        
+        $search = ProspectListSearch::apply($query, $request->string('search')->toString());
+
+        $prospects = $query->orderBy('is_traite')
+            ->orderBy('created_at', 'desc')
+            ->paginate(5)
+            ->withQueryString();
+
         // Get assignees from the manager's agency (matchmakers + manager self)
         $assignees = User::whereHas('roles', fn ($q) => $q->whereIn('name', ['matchmaker', 'manager']))
             ->where('agency_id', $me->agency_id)
@@ -815,8 +909,11 @@ class AdminController extends Controller
             'prospects' => $prospects,
             'matchmakers' => $matchmakers,
             'managers' => $managers,
+            'filterMatchmakers' => StatsService::getMatchmakerList((int) $me->agency_id),
+            'matchmaker_id' => $matchmakerIdFilter,
             'statusFilter' => $statusFilter ?: 'active',
             'commercialOnly' => $commercialOnly,
+            'search' => $search,
         ]);
     }
 

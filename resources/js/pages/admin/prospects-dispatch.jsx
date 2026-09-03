@@ -1,8 +1,10 @@
 import { Head, router, usePage } from '@inertiajs/react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import AppLayout from '@/layouts/app-layout';
+import { ProspectProfileActionsModals } from '@/components/prospect-profile-actions-modals';
+import { ProspectTraiteBadge } from '@/components/prospect-traite-badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -12,14 +14,59 @@ import { getCommercialCodeDisplay } from '@/lib/heard-about';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { XCircle, CheckCircle, Copy, Check, Mail, Search } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { SearchableSelect } from '@/components/ui/searchable-select';
+import { useProspectProfileActions } from '@/hooks/use-prospect-profile-actions';
+import { Search, ChevronLeft, ChevronRight, UserCog } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 
+const TABLE_HEAD_CLASS = 'px-5 py-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500';
+const PRIMARY_BUTTON_CLASS = 'bg-rose-800 text-white hover:bg-rose-900';
+
 export default function ProspectsDispatch() {
     const { t } = useTranslation();
-    const { prospects = [], agencies = [], matchmakers = [], managers = [], filters = {}, statusFilter = 'active', commercialOnly = false } = usePage().props;
-    const isLoading = prospects === null || prospects === undefined;
+    const {
+        prospects = [],
+        agencies = [],
+        matchmakers = [],
+        managers = [],
+        filterMatchmakers = [],
+        filters = {},
+        agency_id = null,
+        matchmaker_id = null,
+        statusFilter = 'active',
+        commercialOnly = false,
+        search: initialSearch = '',
+        services = [],
+        matrimonialPacks = [],
+        auth,
+        role: userRole,
+    } = usePage().props;
+    const prospectProfileActions = useProspectProfileActions({ services, matrimonialPacks, auth, userRole });
+    const { handleOpenActions } = prospectProfileActions;
+    const [isLoading, setIsLoading] = useState(false);
+
+    const withLoadingVisit = (options = {}) => ({
+        onStart: () => setIsLoading(true),
+        onFinish: () => setIsLoading(false),
+        ...options,
+    });
+
+    const showDispatchedColumn = statusFilter === 'active' || statusFilter === 'traite';
+    const showRejectionColumn = statusFilter === 'rejected' || statusFilter === 'rappeler';
+
+    const DEFAULT_PER_PAGE = 5;
+    const isServerPaginated = Array.isArray(prospects?.data);
+    const allProspects = isServerPaginated ? prospects.data : Array.isArray(prospects) ? prospects : [];
+    const perPage = isServerPaginated ? prospects?.per_page || DEFAULT_PER_PAGE : DEFAULT_PER_PAGE;
+    const currentPageNum = isServerPaginated ? prospects?.current_page || 1 : 1;
+    const lastPage = isServerPaginated ? prospects?.last_page || 1 : 1;
+    const prospectsData = allProspects;
+    const hasPagination = lastPage > 1;
+    const showingStart = isServerPaginated ? (prospects?.from ?? 0) : (allProspects.length ? 1 : 0);
+    const showingEnd = isServerPaginated ? (prospects?.to ?? 0) : allProspects.length;
+    const total = isServerPaginated ? (prospects?.total ?? 0) : allProspects.length;
     const [countries, setCountries] = useState([]);
     const [countryCodeToCities, setCountryCodeToCities] = useState({});
     const [selectedCountryCode, setSelectedCountryCode] = useState('');
@@ -27,6 +74,7 @@ export default function ProspectsDispatch() {
     const [errorCountries, setErrorCountries] = useState('');
 
     const [selectedProspectIds, setSelectedProspectIds] = useState([]);
+    const [prospectDispatchById, setProspectDispatchById] = useState({});
     const [selectAll, setSelectAll] = useState(false);
     const [dispatchOpen, setDispatchOpen] = useState(false);
     const [reassignOpen, setReassignOpen] = useState(false);
@@ -42,57 +90,9 @@ export default function ProspectsDispatch() {
     const [selectedProspect, setSelectedProspect] = useState(null);
     const [reason, setReason] = useState('');
     const [submitting, setSubmitting] = useState(false);
-    const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
-    const [rejectionReason, setRejectionReason] = useState('');
-    const [rejecting, setRejecting] = useState(false);
-    const [userInfoModalOpen, setUserInfoModalOpen] = useState(false);
-    const [selectedUserForInfo, setSelectedUserForInfo] = useState(null);
-    const [searchQuery, setSearchQuery] = useState('');
-    
-    const handleReject = (prospect) => {
-        if (prospect.status !== 'prospect') return;
-        setSelectedProspect(prospect);
-        setRejectionReason('');
-        setRejectDialogOpen(true);
-    };
-    
-    const handleAccept = (prospect) => {
-        if (!prospect) return;
-        router.post(`/admin/prospects/${prospect.id}/accept`, {}, {
-            onSuccess: () => {
-                // Prospect will be removed from rejected list and added back to prospects
-            },
-            onError: () => {
-                // Error handling
-            }
-        });
-    };
-    
-    const canAcceptProspect = (prospect) => {
-        if (!prospect || !prospect.rejection_reason) return false;
-        // Admin can accept any rejected prospect
-        return true;
-    };
-    
-    const submitRejection = () => {
-        if (!selectedProspect || !rejectionReason.trim()) return;
-        
-        setRejecting(true);
-        router.post(`/admin/prospects/${selectedProspect.id}/reject`, {
-            rejection_reason: rejectionReason
-        }, {
-            onSuccess: () => {
-                setRejectDialogOpen(false);
-                setRejectionReason('');
-                setSelectedProspect(null);
-                setRejecting(false);
-            },
-            onError: () => {
-                setRejecting(false);
-            }
-        });
-    };
-
+    const [searchQuery, setSearchQuery] = useState(initialSearch);
+    const searchDebounceRef = useRef(null);
+    const lastSubmittedSearchRef = useRef(null);
     useEffect(() => {
         let isMounted = true;
         const fetchCountries = async () => {
@@ -157,114 +157,190 @@ export default function ProspectsDispatch() {
         }
     }, [countries, prospectsCountry]);
 
-    const handleFilterProspects = (countryName, cityName, dispatchVal = dispatchStatus, statusVal = statusFilter, commercialVal = commercialOnly) => {
-        const params = new URLSearchParams();
-        if (countryName) params.set('country', countryName);
-        if (cityName) params.set('city', cityName);
-        if (dispatchVal && dispatchVal !== 'all') params.set('dispatch', dispatchVal);
-        if (statusVal && statusVal !== 'active') params.set('status_filter', statusVal);
-        if (commercialVal) params.set('commercial_only', '1');
-        router.visit(`/admin/prospects?${params.toString()}`, { preserveScroll: true, preserveState: true, replace: true });
+    const buildFilterParams = (overrides = {}) => {
+        const params = { ...overrides };
+
+        const countryName =
+            'country' in overrides
+                ? overrides.country
+                : selectedCountryCode
+                  ? countries.find((c) => c.iso2 === selectedCountryCode)?.frenchName || ''
+                  : prospectsCountry;
+        const cityName = 'city' in overrides ? overrides.city : prospectsCity;
+        const dispatchVal = 'dispatch' in overrides ? overrides.dispatch : dispatchStatus;
+        const statusVal = 'status_filter' in overrides ? overrides.status_filter : statusFilter;
+        const commercialVal = 'commercial_only' in overrides ? overrides.commercial_only : commercialOnly;
+
+        if (countryName) params.country = countryName;
+        else delete params.country;
+
+        if (cityName) params.city = cityName;
+        else delete params.city;
+
+        if (dispatchVal && dispatchVal !== 'all') params.dispatch = dispatchVal;
+        else delete params.dispatch;
+
+        if (statusVal && statusVal !== 'active') params.status_filter = statusVal;
+        else delete params.status_filter;
+
+        if (commercialVal) params.commercial_only = 1;
+        else delete params.commercial_only;
+
+        if (!('agency_id' in overrides) && agency_id) params.agency_id = agency_id;
+        if (!('matchmaker_id' in overrides) && matchmaker_id) params.matchmaker_id = matchmaker_id;
+
+        if (!('search' in overrides)) {
+            const trimmedSearch = searchQuery.trim();
+            if (trimmedSearch) params.search = trimmedSearch;
+        }
+
+        if (!('page' in overrides)) delete params.page;
+
+        Object.keys(params).forEach((key) => {
+            if (params[key] === undefined || params[key] === null || params[key] === '') {
+                delete params[key];
+            }
+        });
+
+        return params;
     };
+
+    const visitProspects = (overrides = {}) => {
+        router.get(
+            '/admin/prospects',
+            buildFilterParams(overrides),
+            withLoadingVisit({
+                preserveScroll: true,
+                preserveState: true,
+                replace: true,
+            }),
+        );
+    };
+
+    const handleFilterProspects = (
+        countryName,
+        cityName,
+        dispatchVal = dispatchStatus,
+        statusVal = statusFilter,
+        commercialVal = commercialOnly,
+        extraOverrides = {},
+    ) => {
+        visitProspects({
+            country: countryName || undefined,
+            city: cityName || undefined,
+            dispatch: dispatchVal,
+            status_filter: statusVal,
+            commercial_only: commercialVal ? 1 : undefined,
+            ...extraOverrides,
+        });
+    };
+
+    const handlePageChange = (page) => {
+        visitProspects({ page });
+    };
+
+    useEffect(() => {
+        if (lastSubmittedSearchRef.current === null || lastSubmittedSearchRef.current === initialSearch) {
+            setSearchQuery(initialSearch);
+            lastSubmittedSearchRef.current = initialSearch;
+        } else {
+            const params = buildFilterParams({
+                page: 1,
+                search: lastSubmittedSearchRef.current || undefined,
+            });
+            if (!lastSubmittedSearchRef.current) delete params.search;
+            else params.search = lastSubmittedSearchRef.current;
+            router.get(
+                '/admin/prospects',
+                params,
+                withLoadingVisit({ preserveScroll: true, preserveState: true, replace: true }),
+            );
+        }
+    }, [initialSearch]);
+
+    useEffect(() => {
+        if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+        const trimmed = searchQuery.trim();
+        searchDebounceRef.current = setTimeout(() => {
+            const url = new URL(window.location.href);
+            const currentSearch = url.searchParams.get('search') ?? '';
+            if (currentSearch === trimmed) return;
+            lastSubmittedSearchRef.current = trimmed;
+            visitProspects({ page: 1, search: trimmed || undefined });
+        }, 400);
+        return () => {
+            if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+        };
+    }, [searchQuery]);
+
+    const agencyOptions = useMemo(
+        () => agencies.map((agency) => ({ value: String(agency.id), label: agency.name })),
+        [agencies],
+    );
+
+    const filteredFilterMatchmakers = useMemo(() => {
+        if (!agency_id) {
+            return filterMatchmakers;
+        }
+        return filterMatchmakers.filter((matchmaker) => Number(matchmaker.agency_id) === Number(agency_id));
+    }, [filterMatchmakers, agency_id]);
+
+    const matchmakerFilterOptions = useMemo(() => {
+        const conseillers = filteredFilterMatchmakers.filter((m) => m.role !== 'manager');
+        const mgrs = filteredFilterMatchmakers.filter((m) => m.role === 'manager');
+
+        return [
+            ...conseillers.map((m) => ({ value: String(m.id), label: `${m.name} [MM]` })),
+            ...mgrs.map((m) => ({ value: String(m.id), label: `${m.name} [MGR]` })),
+        ];
+    }, [filteredFilterMatchmakers]);
 
     // Helper function to check if a prospect is dispatched
     const isDispatched = (prospect) => {
         return prospect.agency_id !== null || prospect.assigned_matchmaker_id !== null;
     };
 
-    // Helper function to get profile picture URL
-    const getProfilePicture = (user) => {
-        if (user.profile?.profile_picture_path) {
-            return `/storage/${user.profile.profile_picture_path}`;
-        }
-        return `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=random`;
+    const cacheProspectDispatch = (prospect) => {
+        setProspectDispatchById((prev) => ({ ...prev, [prospect.id]: isDispatched(prospect) }));
     };
-
-    // Handle user info modal
-    const handleUserInfoClick = (user) => {
-        setSelectedUserForInfo(user);
-        setUserInfoModalOpen(true);
-    };
-
-    // Handle copy link
-    const handleCopyLink = () => {
-        if (selectedUserForInfo) {
-            const profileUrl = `${window.location.origin}/profile/${selectedUserForInfo.username}`;
-            navigator.clipboard.writeText(profileUrl).then(() => {
-                // You could add a toast notification here
-            });
-        }
-    };
-
-    // Handle view profile
-    const handleViewProfile = () => {
-        if (selectedUserForInfo) {
-            window.open(`/profile/${selectedUserForInfo.username}`, '_blank', 'noopener,noreferrer');
-        }
-    };
-
-    // Get dispatched and non-dispatched prospects
-    const dispatchedProspects = useMemo(() => 
-        prospects.filter(p => isDispatched(p)).map(p => p.id), 
-        [prospects]
-    );
-    const nonDispatchedProspects = useMemo(() => 
-        prospects.filter(p => !isDispatched(p)).map(p => p.id), 
-        [prospects]
-    );
-
-    // Filter prospects based on search query
-    const filteredProspects = useMemo(() => {
-        if (!prospects || prospects.length === 0) return [];
-        if (!searchQuery.trim()) {
-            return prospects;
-        }
-        const query = searchQuery.toLowerCase().trim();
-        return prospects.filter(p => {
-            const name = (p.name || '').toLowerCase();
-            const email = (p.email || '').toLowerCase();
-            const username = (p.username || '').toLowerCase();
-            return name.includes(query) || email.includes(query) || username.includes(query);
-        });
-    }, [prospects, searchQuery]);
 
     const handleToggleAll = (checked) => {
         setSelectAll(checked);
         if (checked) {
-            const filteredIds = filteredProspects.map((p) => p.id);
-            setSelectedProspectIds((prev) => [...new Set([...prev, ...filteredIds])]);
+            prospectsData.forEach((p) => cacheProspectDispatch(p));
+            const ids = prospectsData.map((p) => p.id);
+            setSelectedProspectIds((prev) => [...new Set([...prev, ...ids])]);
         } else {
-            // Only unselect filtered prospects
-            const filteredIds = filteredProspects.map((p) => p.id);
-            setSelectedProspectIds((prev) => prev.filter(id => !filteredIds.includes(id)));
+            const ids = prospectsData.map((p) => p.id);
+            setSelectedProspectIds((prev) => prev.filter((id) => !ids.includes(id)));
         }
     };
 
-    const toggleProspect = (id) => {
+    const toggleProspect = (prospect) => {
+        cacheProspectDispatch(prospect);
+        const id = prospect.id;
         setSelectedProspectIds((prev) => {
             const newIds = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
-            // Update selectAll state based on whether all filtered prospects are selected
-            const filteredIds = filteredProspects.map((p) => p.id);
-            const allFilteredSelected = filteredIds.length > 0 && filteredIds.every(filteredId => newIds.includes(filteredId));
-            setSelectAll(allFilteredSelected);
+            const pageIds = prospectsData.map((p) => p.id);
+            const allSelected = pageIds.length > 0 && pageIds.every((pageId) => newIds.includes(pageId));
+            setSelectAll(allSelected);
             return newIds;
         });
     };
 
-    // Sync selectAll state when filtered prospects or selected IDs change
+    // Sync selectAll state when page prospects or selected IDs change
     useEffect(() => {
-        if (filteredProspects.length > 0) {
-            const filteredIds = filteredProspects.map((p) => p.id);
-            const allFilteredSelected = filteredIds.every(id => selectedProspectIds.includes(id));
-            setSelectAll(allFilteredSelected);
+        if (prospectsData.length > 0) {
+            const pageIds = prospectsData.map((p) => p.id);
+            const allSelected = pageIds.every((id) => selectedProspectIds.includes(id));
+            setSelectAll(allSelected);
         } else {
             setSelectAll(false);
         }
-    }, [filteredProspects, selectedProspectIds]);
+    }, [prospectsData, selectedProspectIds]);
 
-    // Filter selections when opening dispatch dialog - only allow non-dispatched
     const handleDispatchClick = () => {
-        const validIds = selectedProspectIds.filter(id => nonDispatchedProspects.includes(id));
+        const validIds = selectedProspectIds.filter((id) => !prospectDispatchById[id]);
         if (validIds.length !== selectedProspectIds.length) {
             setSelectedProspectIds(validIds);
             setSelectAll(false);
@@ -272,9 +348,8 @@ export default function ProspectsDispatch() {
         setDispatchOpen(true);
     };
 
-    // Filter selections when opening reassign dialog - only allow dispatched
     const handleReassignClick = () => {
-        const validIds = selectedProspectIds.filter(id => dispatchedProspects.includes(id));
+        const validIds = selectedProspectIds.filter((id) => prospectDispatchById[id]);
         if (validIds.length !== selectedProspectIds.length) {
             setSelectedProspectIds(validIds);
             setSelectAll(false);
@@ -282,19 +357,13 @@ export default function ProspectsDispatch() {
         setReassignOpen(true);
     };
 
-    // Check if selected prospects are valid for dispatch (non-dispatched)
     const hasValidDispatchSelection = useMemo(() => {
-        return selectedProspectIds.length > 0 && 
-               selectedProspectIds.every(id => nonDispatchedProspects.includes(id));
-    }, [selectedProspectIds, nonDispatchedProspects]);
+        return selectedProspectIds.length > 0 && selectedProspectIds.every((id) => !prospectDispatchById[id]);
+    }, [selectedProspectIds, prospectDispatchById]);
 
-    // Check if selected prospects are valid for reassign (dispatched)
     const hasValidReassignSelection = useMemo(() => {
-        return selectedProspectIds.length > 0 && 
-               selectedProspectIds.every(id => dispatchedProspects.includes(id));
-    }, [selectedProspectIds, dispatchedProspects]);
-
-    const agencyOptions = agencies;
+        return selectedProspectIds.length > 0 && selectedProspectIds.every((id) => prospectDispatchById[id]);
+    }, [selectedProspectIds, prospectDispatchById]);
 
     const submitDispatch = () => {
         if (selectedProspectIds.length === 0) return;
@@ -302,7 +371,7 @@ export default function ProspectsDispatch() {
         if (dispatchType === 'matchmaker' && !selectedMatchmakerId) return;
         
         // Only send non-dispatched prospects
-        const validIds = selectedProspectIds.filter(id => nonDispatchedProspects.includes(id));
+        const validIds = selectedProspectIds.filter((id) => !prospectDispatchById[id]);
         if (validIds.length === 0) return;
         
         const payload = {
@@ -334,7 +403,7 @@ export default function ProspectsDispatch() {
         if (reassignType === 'matchmaker' && !selectedReassignMatchmakerId) return;
         
         // Only send dispatched prospects
-        const validIds = selectedProspectIds.filter(id => dispatchedProspects.includes(id));
+        const validIds = selectedProspectIds.filter((id) => prospectDispatchById[id]);
         if (validIds.length === 0) return;
         
         const payload = {
@@ -441,6 +510,8 @@ export default function ProspectsDispatch() {
                                     <SelectContent>
                                         <SelectItem value="active">{t('staff.userInfo.activeStatus')}</SelectItem>
                                         <SelectItem value="rejected">{t('staff.userInfo.rejectedStatus')}</SelectItem>
+                                        <SelectItem value="rappeler">A rappeler</SelectItem>
+                                        <SelectItem value="traite">Traité</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -466,14 +537,49 @@ export default function ProspectsDispatch() {
                                     </SelectContent>
                                 </Select>
                             </div>
+                            <div className="w-[220px]">
+                                <Label className="mb-2 block">{t('staff.agency')}</Label>
+                                <SearchableSelect
+                                    options={[{ value: '', label: t('staff.all') }, ...agencyOptions]}
+                                    value={agency_id ? String(agency_id) : ''}
+                                    onValueChange={(value) =>
+                                        visitProspects({
+                                            agency_id: value || undefined,
+                                            matchmaker_id: undefined,
+                                        })
+                                    }
+                                    placeholder={t('staff.all')}
+                                />
+                            </div>
+                            <div className="w-[240px]">
+                                <Label className="mb-2 block">{t('staff.matchmaker')}</Label>
+                                <SearchableSelect
+                                    options={[{ value: '', label: 'Tous les conseillers / managers' }, ...matchmakerFilterOptions]}
+                                    value={matchmaker_id ? String(matchmaker_id) : ''}
+                                    onValueChange={(value) =>
+                                        visitProspects({
+                                            matchmaker_id: value || undefined,
+                                        })
+                                    }
+                                    placeholder="Tous les conseillers / managers"
+                                />
+                            </div>
                             <Button variant="outline" onClick={() => {
                                 setSelectedCountryCode('');
                                 setDispatchStatus('all');
-                                handleFilterProspects('', '', 'all', 'active', false);
+                                visitProspects({
+                                    country: undefined,
+                                    city: undefined,
+                                    dispatch: 'all',
+                                    status_filter: 'active',
+                                    commercial_only: undefined,
+                                    agency_id: undefined,
+                                    matchmaker_id: undefined,
+                                });
                             }}>{t('staff.reset')}</Button>
                             <div className="ml-auto flex gap-2">
-                                <Button disabled={!hasValidDispatchSelection} onClick={handleDispatchClick}>{t('staff.dispatchProspects')}</Button>
-                                <Button disabled={!hasValidReassignSelection} variant="outline" onClick={handleReassignClick}>{t('staff.reassignProspects')}</Button>
+                                <Button disabled={!hasValidDispatchSelection} className={PRIMARY_BUTTON_CLASS} onClick={handleDispatchClick}>{t('staff.dispatchProspects')}</Button>
+                                <Button disabled={!hasValidReassignSelection} variant="outline" className="text-rose-700 hover:text-rose-800" onClick={handleReassignClick}>{t('staff.reassignProspects')}</Button>
                             </div>
                         </div>
 
@@ -490,35 +596,35 @@ export default function ProspectsDispatch() {
                             </div>
                         </div>
 
-                        {filteredProspects.length === 0 && searchQuery.trim() && (
+                        {prospectsData.length === 0 && (initialSearch || '').trim() && (
                             <div className="mb-4 p-4 bg-info-light border border-info rounded-lg">
                                 <p className="text-info-foreground text-sm">
-                                    {t('staff.noResults', { query: searchQuery })}
+                                    {t('staff.noResults', { query: initialSearch })}
                                 </p>
                             </div>
                         )}
 
                         <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead className="w-10">
-                                        <input 
-                                            type="checkbox" 
-                                            checked={filteredProspects.length > 0 && filteredProspects.every(p => selectedProspectIds.includes(p.id))} 
-                                            onChange={(e) => handleToggleAll(e.target.checked)} 
+                            <TableHeader className="bg-slate-50">
+                                <TableRow className="border-b border-slate-200/80">
+                                    <TableHead className={`w-10 ${TABLE_HEAD_CLASS}`}>
+                                        <Checkbox
+                                            checked={prospectsData.length > 0 && prospectsData.every((p) => selectedProspectIds.includes(p.id))}
+                                            onCheckedChange={handleToggleAll}
                                         />
                                     </TableHead>
-                                    <TableHead>{t('staff.tableHeaders.name')}</TableHead>
-                                    <TableHead>{t('staff.tableHeaders.gender')}</TableHead>
-                                    <TableHead>{t('staff.tableHeaders.country')}</TableHead>
-                                    <TableHead>{t('staff.tableHeaders.city')}</TableHead>
-                                    <TableHead>{t('staff.tableHeaders.phone')}</TableHead>
-                                    {statusFilter === 'active' && <TableHead>{t('staff.tableHeaders.dispatchedTo')}</TableHead>}
-                                    {statusFilter === 'rejected' && <TableHead>{t('staff.tableHeaders.rejectionReason')}</TableHead>}
-                                    <TableHead>{t('staff.tableHeaders.accountStatus')}</TableHead>
-                                    <TableHead className="hidden xl:table-cell">{t('profile.heardAboutCommercialCode')}</TableHead>
-                                    <TableHead>{t('staff.tableHeaders.date')}</TableHead>
-                                    <TableHead>{t('staff.tableHeaders.actions')}</TableHead>
+                                    <TableHead className={TABLE_HEAD_CLASS}>{t('staff.tableHeaders.name')}</TableHead>
+                                    <TableHead className={TABLE_HEAD_CLASS}>{t('staff.tableHeaders.gender')}</TableHead>
+                                    <TableHead className={TABLE_HEAD_CLASS}>{t('staff.tableHeaders.country')}</TableHead>
+                                    <TableHead className={TABLE_HEAD_CLASS}>{t('staff.tableHeaders.city')}</TableHead>
+                                    <TableHead className={TABLE_HEAD_CLASS}>{t('staff.tableHeaders.phone')}</TableHead>
+                                    {showDispatchedColumn && <TableHead className={TABLE_HEAD_CLASS}>{t('staff.tableHeaders.dispatchedTo')}</TableHead>}
+                                    {showRejectionColumn && <TableHead className={TABLE_HEAD_CLASS}>{t('staff.tableHeaders.rejectionReason')}</TableHead>}
+                                    <TableHead className={TABLE_HEAD_CLASS}>Traitement</TableHead>
+                                    <TableHead className={TABLE_HEAD_CLASS}>{t('staff.tableHeaders.accountStatus')}</TableHead>
+                                    <TableHead className={`hidden xl:table-cell ${TABLE_HEAD_CLASS}`}>{t('profile.heardAboutCommercialCode')}</TableHead>
+                                    <TableHead className={TABLE_HEAD_CLASS}>{t('staff.tableHeaders.date')}</TableHead>
+                                    <TableHead className={TABLE_HEAD_CLASS}>{t('staff.tableHeaders.actions')}</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -531,8 +637,9 @@ export default function ProspectsDispatch() {
                                             <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                                             <TableCell><Skeleton className="h-4 w-28" /></TableCell>
                                             <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                                            {statusFilter === 'active' && <TableCell><Skeleton className="h-4 w-32" /></TableCell>}
-                                            {statusFilter === 'rejected' && <TableCell><Skeleton className="h-4 w-40" /></TableCell>}
+                                            {showDispatchedColumn && <TableCell><Skeleton className="h-4 w-32" /></TableCell>}
+                                            {showRejectionColumn && <TableCell><Skeleton className="h-4 w-40" /></TableCell>}
+                                            <TableCell><Skeleton className="h-6 w-20" /></TableCell>
                                             <TableCell><Skeleton className="h-6 w-16" /></TableCell>
                                             <TableCell className="hidden xl:table-cell"><Skeleton className="h-4 w-28" /></TableCell>
                                             <TableCell><Skeleton className="h-4 w-24" /></TableCell>
@@ -545,28 +652,23 @@ export default function ProspectsDispatch() {
                                         </TableRow>
                                     ))
                                 ) : (
-                                    filteredProspects.map((p) => (
+                                    prospectsData.map((p) => (
                                     <TableRow 
                                         key={p.id} 
-                                        className={`cursor-pointer hover:bg-muted/50 ${statusFilter === 'rejected' ? 'bg-error-light' : ''}`}
-                                        onClick={() => handleUserInfoClick(p)}
+                                        className={showRejectionColumn ? 'bg-error-light' : ''}
                                     >
-                                        <TableCell onClick={(e) => e.stopPropagation()}>
-                                            <input 
-                                                type="checkbox" 
-                                                checked={selectedProspectIds.includes(p.id)} 
-                                                onChange={(e) => {
-                                                    e.stopPropagation();
-                                                    toggleProspect(p.id);
-                                                }} 
+                                        <TableCell onClick={(e) => e.stopPropagation()} className="px-5">
+                                            <Checkbox
+                                                checked={selectedProspectIds.includes(p.id)}
+                                                onCheckedChange={() => toggleProspect(p)}
                                             />
                                         </TableCell>
-                                        <TableCell className="font-medium">{p.name}</TableCell>
-                                        <TableCell>{p.gender || 'N/A'}</TableCell>
-                                        <TableCell>{p.country}</TableCell>
-                                        <TableCell>{p.city}</TableCell>
-                                        <TableCell>{p.phone}</TableCell>
-                                        {statusFilter === 'active' ? (
+                                        <TableCell className="px-5 font-medium">{p.name}</TableCell>
+                                        <TableCell className="px-5">{p.gender || 'N/A'}</TableCell>
+                                        <TableCell className="px-5">{p.country}</TableCell>
+                                        <TableCell className="px-5">{p.city}</TableCell>
+                                        <TableCell className="px-5">{p.phone}</TableCell>
+                                        {showDispatchedColumn ? (
                                             <TableCell>
                                                 {p.assigned_matchmaker_id ? (
                                                     <div className="text-sm">
@@ -581,43 +683,40 @@ export default function ProspectsDispatch() {
                                                     <span className="text-muted-foreground">{t('staff.notDispatchedLabel')}</span>
                                                 )}
                                             </TableCell>
-                                        ) : (
+                                        ) : showRejectionColumn ? (
                                             <TableCell className="max-w-xs">
                                                 <p className="text-sm text-error truncate" title={p.rejection_reason}>
                                                     {p.rejection_reason || 'N/A'}
                                                 </p>
                                             </TableCell>
-                                        )}
+                                        ) : null}
+                                        <TableCell className="px-5">
+                                            <ProspectTraiteBadge isTraite={Boolean(p.is_traite)} />
+                                        </TableCell>
                                         <TableCell>
                                             <Badge variant={p.profile?.account_status === 'desactivated' ? 'destructive' : 'default'}>
                                                 {p.profile?.account_status === 'desactivated' ? t('staff.desactivated') : t('staff.active')}
                                             </Badge>
                                         </TableCell>
-                                        <TableCell className="hidden xl:table-cell text-sm">{getCommercialCodeDisplay(p)}</TableCell>
-                                        <TableCell>{new Date(p.created_at ?? Date.now()).toLocaleDateString()}</TableCell>
-                                        <TableCell>
-                                            <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-                                                {statusFilter === 'active' ? (
+                                        <TableCell className="hidden xl:table-cell px-5 text-sm">{getCommercialCodeDisplay(p)}</TableCell>
+                                        <TableCell className="px-5">{new Date(p.created_at ?? Date.now()).toLocaleDateString()}</TableCell>
+                                        <TableCell className="px-5">
+                                            <div className="flex gap-2">
+                                                <Button
+                                                    size="sm"
+                                                    className="gap-2 bg-rose-800 text-white hover:bg-rose-900"
+                                                    onClick={() => handleOpenActions(p)}
+                                                >
+                                                    <UserCog className="h-4 w-4" />
+                                                    Gérer le profil
+                                                </Button>
+                                                {statusFilter === 'active' && (
                                                     <>
-                                                        {p.status === 'prospect' && (
-                                                            <Button
-                                                                size="sm"
-                                                                variant="destructive"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    handleReject(p);
-                                                                }}
-                                                            >
-                                                                <XCircle className="w-4 h-4 mr-1" />
-                                                                {t('staff.reject')}
-                                                            </Button>
-                                                        )}
                                                         {p.profile?.account_status === 'desactivated' ? (
                                                             <Button
                                                                 size="sm"
                                                                 variant="default"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
+                                                                onClick={() => {
                                                                     setSelectedProspect(p);
                                                                     setReason('');
                                                                     setActivateDialogOpen(true);
@@ -629,8 +728,7 @@ export default function ProspectsDispatch() {
                                                             <Button
                                                                 size="sm"
                                                                 variant="destructive"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
+                                                                onClick={() => {
                                                                     setSelectedProspect(p);
                                                                     setReason('');
                                                                     setDeactivateDialogOpen(true);
@@ -640,38 +738,77 @@ export default function ProspectsDispatch() {
                                                             </Button>
                                                         )}
                                                     </>
-                                                ) : (
-                                                    <>
-                                                        {canAcceptProspect(p) && (
-                                                            <Button
-                                                                size="sm"
-                                                                variant="default"
-                                                                className="bg-success hover:opacity-90"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    handleAccept(p);
-                                                                }}
-                                                            >
-                                                                <CheckCircle className="w-4 h-4 mr-1" />
-                                                                {t('staff.accept')}
-                                                            </Button>
-                                                        )}
-                                                    </>
                                                 )}
                                             </div>
                                     </TableCell>
                                 </TableRow>
                                 ))
                             )}
-                            {filteredProspects.length === 0 && !searchQuery.trim() && !isLoading && (
+                            {prospectsData.length === 0 && !(initialSearch || '').trim() && !isLoading && (
                                 <TableRow>
-                                    <TableCell colSpan={statusFilter === 'active' ? 9 : 9} className="text-center py-8">
+                                    <TableCell colSpan={12} className="text-center py-8">
                                         <p className="text-muted-foreground">{t('staff.noProspectsAvailable')}</p>
                                     </TableCell>
                                 </TableRow>
                             )}
                         </TableBody>
                     </Table>
+
+                    {hasPagination && (
+                        <div className="mt-4 flex flex-col gap-3 rounded-xl border border-slate-200/80 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="text-sm text-slate-500">
+                                Affichage de {showingStart} à {showingEnd} sur {total} prospects
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={() => handlePageChange(currentPageNum - 1)}
+                                    disabled={currentPageNum === 1}
+                                    className="h-9 w-9"
+                                    aria-label="Previous page"
+                                >
+                                    <ChevronLeft className="h-4 w-4" />
+                                </Button>
+                                <div className="flex items-center gap-1">
+                                    {Array.from({ length: Math.min(5, lastPage) }, (_, i) => {
+                                        let pageNum;
+                                        if (lastPage <= 5) {
+                                            pageNum = i + 1;
+                                        } else if (currentPageNum <= 3) {
+                                            pageNum = i + 1;
+                                        } else if (currentPageNum >= lastPage - 2) {
+                                            pageNum = lastPage - 4 + i;
+                                        } else {
+                                            pageNum = currentPageNum - 2 + i;
+                                        }
+
+                                        return (
+                                            <Button
+                                                key={pageNum}
+                                                variant={currentPageNum === pageNum ? 'default' : 'outline'}
+                                                size="sm"
+                                                onClick={() => handlePageChange(pageNum)}
+                                                className={`h-9 w-9 ${currentPageNum === pageNum ? PRIMARY_BUTTON_CLASS : ''}`}
+                                            >
+                                                {pageNum}
+                                            </Button>
+                                        );
+                                    })}
+                                </div>
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={() => handlePageChange(currentPageNum + 1)}
+                                    disabled={currentPageNum === lastPage}
+                                    className="h-9 w-9"
+                                    aria-label="Next page"
+                                >
+                                    <ChevronRight className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        </div>
+                    )}
                     </CardContent>
                 </Card>
             </div>
@@ -745,7 +882,7 @@ export default function ProspectsDispatch() {
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setDispatchOpen(false)}>{t('common.cancel')}</Button>
-                        <Button onClick={submitDispatch} disabled={
+                        <Button className={PRIMARY_BUTTON_CLASS} onClick={submitDispatch} disabled={
                             selectedProspectIds.length === 0 || 
                             (dispatchType === 'agency' && !selectedAgencyId) || 
                             (dispatchType === 'matchmaker' && !selectedMatchmakerId)
@@ -823,7 +960,7 @@ export default function ProspectsDispatch() {
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setReassignOpen(false)}>{t('common.cancel')}</Button>
-                        <Button onClick={submitReassign} disabled={
+                        <Button className={PRIMARY_BUTTON_CLASS} onClick={submitReassign} disabled={
                             selectedProspectIds.length === 0 || 
                             (reassignType === 'agency' && !selectedReassignAgencyId) || 
                             (reassignType === 'matchmaker' && !selectedReassignMatchmakerId)
@@ -858,6 +995,7 @@ export default function ProspectsDispatch() {
                             {t('common.cancel')}
                         </Button>
                         <Button
+                            className={PRIMARY_BUTTON_CLASS}
                             onClick={() => {
                                 if (!reason.trim()) return;
                                 setSubmitting(true);
@@ -935,181 +1073,7 @@ export default function ProspectsDispatch() {
                 </DialogContent>
             </Dialog>
             
-            {/* Rejection Dialog */}
-            <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>{t('staff.rejectDialog.title')}</DialogTitle>
-                        <DialogDescription>
-                            {t('staff.rejectDialog.description', { name: selectedProspect?.name || t('staff.prospectsDispatch') })}
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="grid gap-4 py-4">
-                        <div className="grid gap-2">
-                            <Label htmlFor="rejection-reason">{t('staff.rejectDialog.rejectionReason')}</Label>
-                            <Textarea
-                                id="rejection-reason"
-                                value={rejectionReason}
-                                onChange={(e) => setRejectionReason(e.target.value)}
-                                placeholder={t('staff.rejectDialog.rejectionReasonPlaceholder')}
-                                rows={4}
-                                required
-                            />
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setRejectDialogOpen(false)}>
-                            {t('common.cancel')}
-                        </Button>
-                        <Button
-                            variant="destructive"
-                            onClick={submitRejection}
-                            disabled={!rejectionReason.trim() || rejecting}
-                        >
-                            {rejecting ? t('staff.rejectDialog.rejecting') : t('staff.rejectDialog.rejectButton')}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-            {/* User Info Modal - Read Only */}
-            <Dialog open={userInfoModalOpen} onOpenChange={setUserInfoModalOpen}>
-                <DialogContent className="w-[95vw] sm:w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-                    {selectedUserForInfo && (
-                        <>
-                            {/* Header Section with Profile Picture */}
-                            <div className="flex flex-col items-center gap-4 pb-6 border-b">
-                                <div className="relative">
-                                    <img
-                                        src={getProfilePicture(selectedUserForInfo)}
-                                        alt={selectedUserForInfo.name}
-                                        className="w-24 h-24 sm:w-32 sm:h-32 rounded-full object-cover"
-                                        onError={(e) => {
-                                            e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedUserForInfo.name)}&background=random`;
-                                        }}
-                                    />
-                                    <div className="absolute bottom-0 right-0 bg-blue-600 rounded-full p-1.5 border-2 border-white">
-                                        <Check className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
-                                    </div>
-                                </div>
-                                <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 w-full px-2 sm:px-0">
-                                    <div className="text-center sm:text-left flex-1">
-                                        <h2 className="text-lg sm:text-xl font-semibold break-words">{selectedUserForInfo.name}</h2>
-                                        <p className="text-xs sm:text-sm text-muted-foreground break-all">{selectedUserForInfo.email}</p>
-                                    </div>
-                                    <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={handleCopyLink}
-                                            className="flex items-center justify-center gap-2 w-full sm:w-auto"
-                                        >
-                                            <Copy className="w-4 h-4" />
-                                            {t('staff.userInfo.copyLink')}
-                                        </Button>
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={handleViewProfile}
-                                            className="flex items-center justify-center gap-2 w-full sm:w-auto"
-                                        >
-                                            {t('staff.userInfo.viewProfile')}
-                                        </Button>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Form Fields Section - Read Only */}
-                            <div className="space-y-6 py-4 px-2 sm:px-0">
-                                {/* Name Fields */}
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="firstName">{t('staff.userInfo.firstName')}</Label>
-                                        <Input
-                                            id="firstName"
-                                            value={(selectedUserForInfo.name || '').split(' ')[0] || ''}
-                                            disabled
-                                            className="bg-muted"
-                                            placeholder={t('staff.userInfo.firstName')}
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="lastName" className="opacity-0">{t('staff.userInfo.lastName')}</Label>
-                                        <Input
-                                            id="lastName"
-                                            value={(selectedUserForInfo.name || '').split(' ').slice(1).join(' ') || ''}
-                                            disabled
-                                            className="bg-muted"
-                                            placeholder={t('staff.userInfo.lastName')}
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* Email Address */}
-                                <div className="space-y-2">
-                                    <Label htmlFor="email">{t('staff.userInfo.email')}</Label>
-                                    <div className="relative">
-                                        <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                                        <Input
-                                            id="email"
-                                            type="email"
-                                            value={selectedUserForInfo.email || ''}
-                                            disabled
-                                            className="pl-10 bg-muted"
-                                            placeholder="Email address"
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* Username */}
-                                <div className="space-y-2">
-                                    <Label htmlFor="username">{t('staff.userInfo.username')}</Label>
-                                    <div className="relative">
-                                        <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-xs sm:text-sm text-muted-foreground whitespace-nowrap">
-                                            untitledui.com/
-                                        </div>
-                                        <Input
-                                            id="username"
-                                            value={selectedUserForInfo.username || ''}
-                                            disabled
-                                            className="pl-[120px] sm:pl-[140px] pr-10 bg-muted text-sm sm:text-base"
-                                            placeholder="username"
-                                        />
-                                        <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                                            <Check className="w-4 h-4 text-blue-600" />
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Profile Photo */}
-                                <div className="space-y-2">
-                                    <Label>{t('profile.profilePicture')}</Label>
-                                    <div className="flex items-center gap-4">
-                                        <img
-                                            src={getProfilePicture(selectedUserForInfo)}
-                                            alt={selectedUserForInfo.name}
-                                            className="w-16 h-16 rounded-full object-cover flex-shrink-0"
-                                            onError={(e) => {
-                                                e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedUserForInfo.name)}&background=random`;
-                                            }}
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Footer Buttons */}
-                            <DialogFooter className="flex justify-end">
-                                <Button
-                                    variant="outline"
-                                    onClick={() => setUserInfoModalOpen(false)}
-                                >
-                                    {t('common.cancel')}
-                                </Button>
-                            </DialogFooter>
-                        </>
-                    )}
-                </DialogContent>
-            </Dialog>
+            <ProspectProfileActionsModals {...prospectProfileActions} />
         </AppLayout>
     );
 }

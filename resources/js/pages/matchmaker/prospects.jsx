@@ -481,6 +481,7 @@ export default function MatchmakerProspects() {
                                                         <Pencil className="w-4 h-4 mr-2" />
                                                         Profil
                                                     </Button>
+                                                    {prospect.assigned_matchmaker_id && (
                                                     <Dialog>
                                                         <DialogTrigger asChild>
                                                             <Button
@@ -743,6 +744,7 @@ export default function MatchmakerProspects() {
                                                 </DialogFooter>
                                             </DialogContent>
                                         </Dialog>
+                                                    )}
                                                 </>
                                             ) : (
                                                 <>

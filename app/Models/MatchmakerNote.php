@@ -7,6 +7,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class MatchmakerNote extends Model
 {
+    protected static function booted(): void
+    {
+        static::created(function (MatchmakerNote $note) {
+            $note->user?->markAsTraiteFromNote();
+        });
+    }
+
     protected $fillable = [
         'user_id',        // Target user (prospect/member/client)
         'author_id',      // The staff who wrote the note (matchmaker/admin/manager)

@@ -36,14 +36,9 @@ class ProfileInsightsController extends Controller
             return 'none';
         }
 
-        // Preserve existing write-access behavior.
+        // Write access: admin, assigned matchmaker, or validating manager.
         if ($this->canWrite($target)) {
             return 'write';
-        }
-
-        // Preserve existing read-only behavior.
-        if ($me->hasRole('admin')) {
-            return 'read';
         }
 
         // Added layer: accepted proposition request grants read-only access.
@@ -81,9 +76,9 @@ class ProfileInsightsController extends Controller
             return false;
         }
 
-        // Admin cannot write (view only)
+        // Admin has the same write rights as an assigned matchmaker
         if ($me->hasRole('admin')) {
-            return false;
+            return true;
         }
 
         // Matchmaker can write if assigned
@@ -107,7 +102,6 @@ class ProfileInsightsController extends Controller
         ]);
 
         $target = User::findOrFail($userId);
-
         if (!$this->canWrite($target)) {
             abort(403);
         }

@@ -27,7 +27,8 @@ class UserController extends Controller
             return 'none';
         }
 
-        $canWrite = ($viewer->hasRole('matchmaker') && $target->assigned_matchmaker_id === $viewer->id)
+        $canWrite = $viewer->hasRole('admin')
+            || ($viewer->hasRole('matchmaker') && $target->assigned_matchmaker_id === $viewer->id)
             || ($viewer->hasRole('manager') && (
                 $target->validated_by_manager_id === $viewer->id
                 || $target->assigned_matchmaker_id === $viewer->id
@@ -35,10 +36,6 @@ class UserController extends Controller
 
         if ($canWrite) {
             return 'write';
-        }
-
-        if ($viewer->hasRole('admin')) {
-            return 'read';
         }
 
         if ($viewer->hasRole('manager')) {

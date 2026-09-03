@@ -1,118 +1,71 @@
-import { Head, router, usePage, useForm } from '@inertiajs/react';
-import { useState, useEffect, useMemo } from 'react';
-import { useTranslation } from 'react-i18next';
-import { useToast } from '@/hooks/use-toast';
-import AppLayout from '@/layouts/app-layout';
+import { ProspectProfileActionsModals } from '@/components/prospect-profile-actions-modals';
+import { ProspectTraiteBadge } from '@/components/prospect-traite-badge';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Textarea } from '@/components/ui/textarea';
-import { LayoutGrid, Table2, Mail, MapPin, CheckCircle, Pencil, XCircle, Search, Copy, Check, Phone, ArrowRightLeft, ChevronLeft, ChevronRight, UserCog, Eye, EyeOff, KeyRound } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { getProspectProfilePicture, useProspectProfileActions } from '@/hooks/use-prospect-profile-actions';
+import AppLayout from '@/layouts/app-layout';
 import { getCommercialCodeDisplay } from '@/lib/heard-about';
-
-const DOCUMENT_TYPE_OPTIONS = [
-    { value: 'cin', label: 'CIN' },
-    { value: 'passport', label: 'Passport' },
-    { value: 'driver_license', label: 'Driver License' },
-];
-
-const getDocumentLabel = (documentType) => {
-    if (documentType === 'passport') return 'Passport';
-    if (documentType === 'driver_license') return 'Driver License';
-    return 'CIN';
-};
-
-const getDocumentRegex = (documentType) => {
-    return /^[A-Za-z0-9-]{5,20}$/;
-};
-
-const getDocumentExample = (documentType) => {
-    return 'Ex: AB12345 or B-123456';
-};
+import { Head, router, usePage } from '@inertiajs/react';
+import { CheckCircle, ChevronLeft, ChevronRight, LayoutGrid, Mail, MapPin, Search, Table2, UserCog } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 export default function AgencyProspects() {
     const { t } = useTranslation();
-    const { showToast } = useToast();
-    const { prospects = [], statusFilter = 'active', commercialOnly = false, scope = 'agency', services = [], matrimonialPacks = [], auth } = usePage().props;
-    const isLoading = prospects === null || prospects === undefined;
-    
+    const {
+        prospects = [],
+        statusFilter = 'active',
+        commercialOnly = false,
+        scope = 'agency',
+        search: initialSearch = '',
+        services = [],
+        matrimonialPacks = [],
+        auth,
+        role: userRole,
+    } = usePage().props;
+    const prospectProfileActions = useProspectProfileActions({ services, matrimonialPacks, auth, userRole });
+    const { handleOpenActions } = prospectProfileActions;
+    const [isLoading, setIsLoading] = useState(false);
+
+    const withLoadingVisit = (options = {}) => {
+        const { onFinish: userOnFinish, ...rest } = options;
+        return {
+            onStart: () => setIsLoading(true),
+            onFinish: () => {
+                setIsLoading(false);
+                userOnFinish?.();
+            },
+            ...rest,
+        };
+    };
+
     // Handle pagination data structure (server or client fallback)
     const DEFAULT_PER_PAGE = 5;
     const isServerPaginated = Array.isArray(prospects?.data);
-    const allProspects = isServerPaginated ? prospects.data : (Array.isArray(prospects) ? prospects : []);
+    const allProspects = isServerPaginated ? prospects.data : Array.isArray(prospects) ? prospects : [];
     const urlPage = Number(new URLSearchParams(window.location.search).get('page')) || 1;
-    const perPage = isServerPaginated ? (prospects?.per_page || DEFAULT_PER_PAGE) : DEFAULT_PER_PAGE;
-    const currentPageNum = isServerPaginated ? (prospects?.current_page || 1) : Math.max(1, urlPage);
-    const lastPage = isServerPaginated
-        ? (prospects?.last_page || 1)
-        : Math.max(1, Math.ceil(allProspects.length / perPage));
+    const perPage = isServerPaginated ? prospects?.per_page || DEFAULT_PER_PAGE : DEFAULT_PER_PAGE;
+    const currentPageNum = isServerPaginated ? prospects?.current_page || 1 : Math.max(1, urlPage);
+    const lastPage = isServerPaginated ? prospects?.last_page || 1 : Math.max(1, Math.ceil(allProspects.length / perPage));
     const startIndex = isServerPaginated ? 0 : (currentPageNum - 1) * perPage;
-    const prospectsData = isServerPaginated
-        ? allProspects
-        : allProspects.slice(startIndex, startIndex + perPage);
-    const pagination = isServerPaginated ? (prospects?.links || null) : null;
+    const prospectsData = isServerPaginated ? allProspects : allProspects.slice(startIndex, startIndex + perPage);
+    const pagination = isServerPaginated ? prospects?.links || null : null;
     const hasPagination = lastPage > 1 || (pagination && pagination.length > 1);
-    
-    const { data, setData, post, processing, errors, reset } = useForm({
-        notes: '',
-        contact_type: '',
-        document_type: 'cin',
-        cin: '',
-        identity_card_front: null,
-        service_id: '',
-        matrimonial_pack_id: '',
-        pack_price: '',
-        pack_advantages: [],
-        payment_mode: '',
-    });
-    const [validatingProspect, setValidatingProspect] = useState(null);
-    const [cinConfirm, setCinConfirm] = useState('');
-    const [cinConfirmError, setCinConfirmError] = useState(null);
-    const [viewMode, setViewMode] = useState('table'); // 'cards' or 'table'
-    
-    // Rejection dialog state
-    const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
-    const [rejectionReason, setRejectionReason] = useState('');
-    const [rejecting, setRejecting] = useState(false);
-    const [selectedProspectForReject, setSelectedProspectForReject] = useState(null);
-    
-    // Acceptance dialog state
-    const [acceptDialogOpen, setAcceptDialogOpen] = useState(false);
-    const [acceptanceReason, setAcceptanceReason] = useState('');
-    const [accepting, setAccepting] = useState(false);
-    const [selectedProspectForAccept, setSelectedProspectForAccept] = useState(null);
-    const [searchQuery, setSearchQuery] = useState('');
-    const [userInfoModalOpen, setUserInfoModalOpen] = useState(false);
-    const [selectedUserForInfo, setSelectedUserForInfo] = useState(null);
-    
-    
-    // Password dialog state
-    const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
-    const [passwordOld, setPasswordOld] = useState('');
-    const [showOldPassword, setShowOldPassword] = useState(false);
-    const [passwordNew, setPasswordNew] = useState('');
-    const [passwordConfirm, setPasswordConfirm] = useState('');
-    const [passwordSubmitting, setPasswordSubmitting] = useState(false);
-    const [passwordErrors, setPasswordErrors] = useState({});
 
-    // Transfer dialog state
-    const [transferDialogOpen, setTransferDialogOpen] = useState(false);
-    const [selectedProspectForTransfer, setSelectedProspectForTransfer] = useState(null);
-    const [matchmakers, setMatchmakers] = useState([]);
-    const [selectedMatchmakerId, setSelectedMatchmakerId] = useState('');
-    const [transferReason, setTransferReason] = useState('');
-    const [loadingMatchmakers, setLoadingMatchmakers] = useState(false);
-    const [transferring, setTransferring] = useState(false);
-    
-    const { role: userRole } = usePage().props; // Get role from shared props
+    const [viewMode, setViewMode] = useState('table'); // 'cards' or 'table'
+    const [searchQuery, setSearchQuery] = useState(initialSearch);
+    const searchDebounceRef = useRef(null);
+    const pendingSearchRef = useRef(null);
+
     const isManager = userRole === 'manager';
+    const showDispatchedTo = userRole === 'admin' || userRole === 'manager';
     const prospectScope = scope === 'mine' ? 'mine' : 'agency';
 
     const buildProspectsUrlParams = (overrides = {}) => {
@@ -130,301 +83,92 @@ export default function AgencyProspects() {
             params.scope = 'mine';
         }
 
+        if (!('search' in overrides)) {
+            const trimmedSearch = searchQuery.trim();
+            if (trimmedSearch) {
+                params.search = trimmedSearch;
+            }
+        }
+
+        if (!('page' in overrides)) {
+            delete params.page;
+        }
+
+        Object.keys(params).forEach((key) => {
+            if (params[key] === undefined || params[key] === null || params[key] === '') {
+                delete params[key];
+            }
+        });
+
         return params;
     };
 
+    const visitProspects = (overrides = {}, visitOptions = {}) => {
+        router.get(
+            '/staff/agency-prospects',
+            buildProspectsUrlParams(overrides),
+            withLoadingVisit({
+                preserveScroll: true,
+                preserveState: true,
+                replace: true,
+                ...visitOptions,
+            }),
+        );
+    };
+
     const switchProspectScope = (newScope) => {
-        const params = buildProspectsUrlParams();
-        if (newScope === 'mine') {
-            params.scope = 'mine';
+        visitProspects(
+            newScope === 'mine' ? { scope: 'mine', page: 1 } : { scope: undefined, page: 1 },
+        );
+    };
+
+    // Sync local search from server when the response matches what we submitted; otherwise refetch.
+    useEffect(() => {
+        const pending = pendingSearchRef.current;
+        if (pending !== null && pending !== initialSearch) {
+            visitProspects({ page: 1, search: pending || undefined }, {
+                onFinish: () => {
+                    pendingSearchRef.current = null;
+                },
+            });
         } else {
-            delete params.scope;
+            setSearchQuery(initialSearch);
         }
-        router.get('/staff/agency-prospects', params, {
-            preserveScroll: true,
+    }, [initialSearch]);
+
+    // Debounced server-side search: visit with search and page=1 after user stops typing
+    useEffect(() => {
+        if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+        const trimmed = searchQuery.trim();
+        searchDebounceRef.current = setTimeout(() => {
+            const url = new URL(window.location.href);
+            const currentSearch = url.searchParams.get('search') ?? '';
+            if (currentSearch === trimmed) return;
+            pendingSearchRef.current = trimmed;
+            visitProspects({ page: 1, search: trimmed || undefined }, {
+                onFinish: () => {
+                    pendingSearchRef.current = null;
+                },
+            });
+        }, 400);
+        return () => {
+            if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+        };
+    }, [searchQuery]);
+
+    // Pagination handlers
+    const handlePageChange = (page) => {
+        visitProspects({ page }, {
             preserveState: true,
+            preserveScroll: false,
             replace: true,
         });
     };
 
-    const currentUser = auth?.user;
-    const userId = currentUser?.id || null;
-    const userAgencyId = currentUser?.agency_id || null;
-    
-    // Check if current user can reject a prospect
-    const canRejectProspect = (prospect) => {        
-        if (!prospect || prospect.status !== 'prospect' || prospect.rejection_reason) {
-            return false;
-        }
-        if (!userRole || !userId) {
-            return false;
-        }
-        // Admin can reject any prospect
-        if (userRole === 'admin') {
-            return true;
-        }
-        // Matchmaker can reject if assigned to them OR if prospect is from their agency and was added by manager
-        if (userRole === 'matchmaker') {
-            if (prospect.assigned_matchmaker_id === userId) {
-                return true;
-            }
-            if (prospect.agency_id === userAgencyId && prospect.assigned_matchmaker_id === null) {
-                return true;
-            }
-        }
-        // Manager can reject if prospect is assigned directly to them (manager acting as matchmaker)
-        // or if prospect is from their agency
-        if (userRole === 'manager') {
-            if (prospect.assigned_matchmaker_id === userId) {
-                return true;
-            }
-            if (prospect.agency_id === userAgencyId) {
-                return true;
-            }
-        }
-        return false;
-    };
-    
-    // Check if current user can validate a prospect
-    const canValidateProspect = (prospect) => {
-        if (!prospect || prospect.status !== 'prospect') {
-            return false;
-        }
-        if (!userRole || !userId) {
-            return false;
-        }
-        // Admin can validate any prospect
-        if (userRole === 'admin') {
-            return true;
-        }
-        // Matchmaker can validate if assigned to them
-        if (userRole === 'matchmaker') {
-            return prospect.assigned_matchmaker_id === userId;
-        }
-        // Manager can validate:
-        // - if prospect is assigned directly to them (manager acting as matchmaker), OR
-        // - if prospect is from their agency and not dispatched to another matchmaker
-        // (backend also enforces that managers cannot validate prospects dispatched to other matchmakers)
-        if (userRole === 'manager') {
-            // If prospect is assigned directly to this manager as matchmaker, allow
-            if (prospect.assigned_matchmaker_id === userId) {
-                return true;
-            }
-            // If prospect is dispatched to a (different) matchmaker, cannot validate
-            if (prospect.assigned_matchmaker_id && prospect.assigned_matchmaker_id !== userId) {
-                return false;
-            }
-            // Otherwise, can validate if from their agency and not dispatched to another matchmaker
-            return prospect.agency_id === userAgencyId;
-        }
-        return false;
-    };
-    
-    // Check if current user can edit a prospect's profile
-    const canEditProspectProfile = (prospect) => {
-        if (!prospect || prospect.status !== 'prospect') {
-            return false;
-        }
-        if (!userRole || !userId) {
-            return false;
-        }
-        // Admin can edit any prospect
-        if (userRole === 'admin') {
-            return true;
-        }
-        // Matchmaker can edit if assigned to them
-        if (userRole === 'matchmaker') {
-            return prospect.assigned_matchmaker_id === userId;
-        }
-        // Manager can edit:
-        // - if prospect is assigned directly to them (manager acting as matchmaker), OR
-        // - if prospect is from their agency and not dispatched to another matchmaker
-        if (userRole === 'manager') {
-            // If prospect is assigned directly to this manager as matchmaker, allow
-            if (prospect.assigned_matchmaker_id === userId) {
-                return true;
-            }
-            // If prospect is dispatched to a (different) matchmaker, cannot edit
-            if (prospect.assigned_matchmaker_id && prospect.assigned_matchmaker_id !== userId) {
-                return false;
-            }
-            // Otherwise, can edit if from their agency and not dispatched to another matchmaker
-            return prospect.agency_id === userAgencyId;
-        }
-        return false;
-    };
-    
-    const handleReject = (prospect) => {
-        setSelectedProspectForReject(prospect);
-        setRejectionReason('');
-        setRejectDialogOpen(true);
-    };
-    
-    const submitRejection = () => {
-        if (!selectedProspectForReject || !rejectionReason.trim()) return;
-        
-        setRejecting(true);
-        router.post(`/staff/prospects/${selectedProspectForReject.id}/reject`, {
-            rejection_reason: rejectionReason
-        }, {
-            onSuccess: () => {
-                setRejectDialogOpen(false);
-                setRejectionReason('');
-                setSelectedProspectForReject(null);
-                setRejecting(false);
-            },
-            onError: () => {
-                setRejecting(false);
-            }
-        });
-    };
-    
-    const handleAccept = (prospect) => {
-        setSelectedProspectForAccept(prospect);
-        setAcceptanceReason('');
-        setAcceptDialogOpen(true);
-    };
-    
-    const submitAcceptance = () => {
-        if (!selectedProspectForAccept || !acceptanceReason.trim()) return;
-        
-        setAccepting(true);
-        router.post(`/staff/prospects/${selectedProspectForAccept.id}/accept`, {
-            acceptance_reason: acceptanceReason
-        }, {
-            onSuccess: () => {
-                setAcceptDialogOpen(false);
-                setAcceptanceReason('');
-                setSelectedProspectForAccept(null);
-                setAccepting(false);
-            },
-            onError: () => {
-                setAccepting(false);
-            }
-        });
-    };
-    
-    // Check if user can accept a rejected prospect (same authorization as reject)
-    const canAcceptProspect = (prospect) => {
-        if (!prospect || !prospect.rejection_reason) return false;
-        if (!userRole || !userId) return false;
-        if (userRole === 'admin') return true;
-        // Matchmaker can accept if assigned to them OR if prospect is from their agency and was added by manager
-        if (userRole === 'matchmaker') {
-            if (prospect.assigned_matchmaker_id === userId) return true;
-            if (prospect.agency_id === userAgencyId && prospect.assigned_matchmaker_id === null) return true;
-        }
-        // Manager can accept if prospect is assigned directly to them (manager acting as matchmaker)
-        // or if prospect is from their agency
-        if (userRole === 'manager') {
-            if (prospect.assigned_matchmaker_id === userId) return true;
-            if (prospect.agency_id === userAgencyId) return true;
-        }
-        return false;
-    };
-    
-    // Check if current user can transfer a prospect/member/client
-    const canTransferUser = (user) => {
-        if (!user || !userRole || !userId) {
-            return false;
-        }
-        // Matchmaker can transfer if user is assigned to them
-        if (userRole === 'matchmaker') {
-            return user.assigned_matchmaker_id === userId;
-        }
-        // Manager can transfer if user is assigned directly to them (acting as matchmaker)
-        // or if user is from their agency
-        if (userRole === 'manager') {
-            if (user.assigned_matchmaker_id === userId) {
-                return true;
-            }
-            return user.agency_id === userAgencyId;
-        }
-        // Admin can transfer anyone
-        if (userRole === 'admin') {
-            return true;
-        }
-        return false;
-    };
-    
-    // Check if user can mark a rejected prospect as "A rappeler" (same authorization as accept)
-    const canMarkAsRappeler = (prospect) => {
-        if (!prospect || !prospect.rejection_reason) return false;
-        if (!userRole || !userId) return false;
-        if (userRole === 'admin') return true;
-        // Matchmaker can mark if assigned to them OR if prospect is from their agency and was added by manager
-        if (userRole === 'matchmaker') {
-            if (prospect.assigned_matchmaker_id === userId) return true;
-            if (prospect.agency_id === userAgencyId && prospect.assigned_matchmaker_id === null) return true;
-        }
-        // Manager can mark if prospect is assigned directly to them (manager acting as matchmaker)
-        // or if prospect is from their agency
-        if (userRole === 'manager') {
-            if (prospect.assigned_matchmaker_id === userId) return true;
-            if (prospect.agency_id === userAgencyId) return true;
-        }
-        return false;
-    };
-    
-    const handleMarkAsRappeler = (prospect) => {
-        router.post(`/staff/prospects/${prospect.id}/rappeler`, {}, {
-            onSuccess: () => {
-                // Success handled by redirect
-            },
-            onError: () => {
-                // Error handled by redirect
-            }
-        });
-    };
-
-    const handleToggleTraite = (prospect) => {
-        router.post(`/staff/prospects/${prospect.id}/toggle-traite`, {}, {
-            preserveScroll: true,
-            onSuccess: () => {
-                router.reload({ only: ['prospects'] });
-            },
-        });
-    };
-    
-    // Filter prospects based on search query (client-side: name, email, username, code commercial)
-    const filteredProspects = useMemo(() => {
-        if (!prospectsData || prospectsData.length === 0) return [];
-        if (!searchQuery.trim()) {
-            return prospectsData;
-        }
-        const query = searchQuery.toLowerCase().trim();
-        return prospectsData.filter(p => {
-            const name = (p.name || '').toLowerCase();
-            const email = (p.email || '').toLowerCase();
-            const username = (p.username || '').toLowerCase();
-            const commercialCode = (p.profile?.heard_about_us === 'commercial_terrain' ? (p.profile?.heard_about_reference || '') : '').toString().toLowerCase();
-            return name.includes(query) || email.includes(query) || username.includes(query) || commercialCode.includes(query);
-        });
-    }, [prospectsData, searchQuery]);
-    
-    // Pagination handlers
-    const handlePageChange = (page) => {
-        const url = new URL(window.location.href);
-        url.searchParams.set('page', page);
-        router.visit(url.toString(), {
-            preserveState: true,
-            preserveScroll: false,
-        });
-    };
-    
-    const showingStart = isServerPaginated ? (prospects?.from ?? 0) : (allProspects.length ? startIndex + 1 : 0);
+    const showingStart = isServerPaginated ? (prospects?.from ?? 0) : allProspects.length ? startIndex + 1 : 0;
     const showingEnd = isServerPaginated ? (prospects?.to ?? 0) : Math.min(startIndex + prospectsData.length, allProspects.length);
     const total = isServerPaginated ? (prospects?.total ?? 0) : allProspects.length;
-    
-    // Helper function to get profile picture URL
-    const getProfilePicture = (prospect) => {
-        if (prospect.profile?.profile_picture_path) {
-            return `/storage/${prospect.profile.profile_picture_path}`;
-        }
-        return `https://ui-avatars.com/api/?name=${encodeURIComponent(prospect.name)}&background=random`;
-    };
 
-    // Helper function to get location
     const getLocation = (prospect) => {
         const city = prospect.city || prospect.profile?.ville_residence || prospect.profile?.pays_residence || '';
         const country = prospect.country || '';
@@ -434,196 +178,23 @@ export default function AgencyProspects() {
         return city || country || 'Other, None';
     };
 
-    // Handle user info modal
-    const handleUserInfoClick = (user) => {
-        setSelectedUserForInfo(user);
-        setUserInfoModalOpen(true);
-    };
-
-    const handleOpenActions = (user) => {
-        setSelectedUserForInfo(user);
-        setUserInfoModalOpen(true);
-    };
-    
-
-    // Handle copy link
-    const handleCopyLink = () => {
-        if (selectedUserForInfo && selectedUserForInfo.username) {
-            const profileUrl = `${window.location.origin}/profile/${selectedUserForInfo.username}`;
-            navigator.clipboard.writeText(profileUrl).then(() => {
-                // You could add a toast notification here
-            });
-        }
-    };
-
-    const openPasswordDialog = async () => {
-        setShowOldPassword(false);
-        setPasswordNew('');
-        setPasswordConfirm('');
-        setPasswordErrors({});
-        if (selectedUserForInfo?.id) {
-            try {
-                const res = await fetch(`/staff/prospects/${selectedUserForInfo.id}/current-password`);
-                const data = await res.json().catch(() => ({}));
-                if (res.ok && data.current_password != null) {
-                    setPasswordOld(data.current_password);
-                } else {
-                    setPasswordOld('');
-                }
-            } catch (_) {
-                setPasswordOld('');
-            }
-        } else {
-            setPasswordOld('');
-        }
-        setPasswordDialogOpen(true);
-    };
-
-    const handleUpdatePassword = () => {
-        setPasswordErrors({});
-        if (!passwordNew.trim()) {
-            setPasswordErrors({ password: ['Le mot de passe est requis.'] });
-            return;
-        }
-        if (passwordNew !== passwordConfirm) {
-            setPasswordErrors({ password: ['Les mots de passe ne correspondent pas.'] });
-            return;
-        }
-        if (passwordNew.length < 8) {
-            setPasswordErrors({ password: ['Le mot de passe doit contenir au moins 8 caractères.'] });
-            return;
-        }
-        if (!selectedUserForInfo?.id) return;
-        setPasswordSubmitting(true);
-        router.put(`/staff/prospects/${selectedUserForInfo.id}/password`, {
-            password: passwordNew,
-            password_confirmation: passwordConfirm,
-        }, {
-            preserveScroll: true,
-            onSuccess: () => {
-                setPasswordDialogOpen(false);
-                setUserInfoModalOpen(false);
-                setPasswordOld('');
-                setShowOldPassword(false);
-                setPasswordNew('');
-                setPasswordConfirm('');
-                setPasswordSubmitting(false);
-                showToast?.('Mot de passe mis à jour', 'Le mot de passe a été modifié avec succès.', 'success');
-            },
-            onError: (errors) => {
-                setPasswordErrors(errors);
-                setPasswordSubmitting(false);
-            },
-        });
-    };
-
-    // Handle view profile
-    const handleViewProfile = () => {
-        if (selectedUserForInfo && selectedUserForInfo.username) {
-            window.open(`/profile/${selectedUserForInfo.username}`, '_blank', 'noopener,noreferrer');
-        }
-    };
-    
-    // Handle transfer click
-    const handleTransferClick = async (user) => {
-        setSelectedProspectForTransfer(user);
-        setSelectedMatchmakerId('');
-        setTransferReason('');
-        setLoadingMatchmakers(true);
-        setTransferDialogOpen(true);
-        
-        try {
-            const response = await fetch('/staff/matchmakers-for-transfer');
-            const data = await response.json();
-            setMatchmakers(data);
-        } catch (error) {
-            console.error('Error fetching matchmakers:', error);
-        } finally {
-            setLoadingMatchmakers(false);
-        }
-    };
-    
-    // Handle transfer submission
-    const handleTransferSubmit = () => {
-        if (!selectedProspectForTransfer || !selectedMatchmakerId) {
-            return;
-        }
-        
-        setTransferring(true);
-        router.post('/staff/transfer-requests', {
-            user_id: selectedProspectForTransfer.id,
-            to_matchmaker_id: selectedMatchmakerId,
-            reason: transferReason,
-        }, {
-            onSuccess: () => {
-                setTransferDialogOpen(false);
-                setSelectedProspectForTransfer(null);
-                setSelectedMatchmakerId('');
-                setTransferReason('');
-                setTransferring(false);
-            },
-            onError: () => {
-                setTransferring(false);
-            }
-        });
-    };    
-    // Pre-fill form when prospect is selected
-    const handleValidateClick = (prospect) => {
-        setValidatingProspect(prospect);
-        setCinConfirm('');
-        setCinConfirmError(null);
-        
-        // Pre-fill from profile if user already provided
-        const profile = prospect.profile;
-        
-        if (profile) {
-            setData('document_type', profile.document_type || 'cin');
-            // Pre-fill CNI if user already provided it (show masked version)
-            if (profile.cin && profile.cin_decrypted) {
-                const decryptedCin = profile.cin_decrypted;
-                const masked = decryptedCin.length > 3 
-                    ? decryptedCin.substring(0, 4) + '****' + decryptedCin.substring(decryptedCin.length - 1)
-                    : '****';
-                setData('cin', decryptedCin);
-            } else {
-                setData('cin', '');
-            }
-            
-            // Other fields
-            setData('notes', profile.notes || '');
-            setData('service_id', profile.service_id || '');
-            setData('matrimonial_pack_id', profile.matrimonial_pack_id || '');
-            setData('pack_price', profile.pack_price || '');
-            setData('pack_advantages', profile.pack_advantages || []);
-            setData('payment_mode', profile.payment_mode || '');
-        }
-    };
-    
     return (
         <AppLayout>
             <Head title="Prospects" />
             <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
                 {isManager && (
                     <div className="flex items-center gap-2">
-                        <Button
-                            variant={prospectScope === 'mine' ? 'default' : 'outline'}
-                            size="sm"
-                            onClick={() => switchProspectScope('mine')}
-                        >
+                        <Button variant={prospectScope === 'mine' ? 'default' : 'outline'} size="sm" onClick={() => switchProspectScope('mine')}>
                             Mes prospects
                         </Button>
-                        <Button
-                            variant={prospectScope === 'agency' ? 'default' : 'outline'}
-                            size="sm"
-                            onClick={() => switchProspectScope('agency')}
-                        >
+                        <Button variant={prospectScope === 'agency' ? 'default' : 'outline'} size="sm" onClick={() => switchProspectScope('agency')}>
                             Prospects d&apos;agence
                         </Button>
                     </div>
                 )}
                 {/* Header with View Toggle and Pagination Info */}
                 <div className="flex flex-col gap-3">
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
                         {/* View Toggle */}
                         <div className="flex items-center gap-2">
                             <Button
@@ -632,7 +203,7 @@ export default function AgencyProspects() {
                                 onClick={() => setViewMode('cards')}
                                 className="flex items-center gap-2"
                             >
-                                <LayoutGrid className="w-4 h-4" />
+                                <LayoutGrid className="h-4 w-4" />
                                 Cards
                             </Button>
                             <Button
@@ -641,13 +212,13 @@ export default function AgencyProspects() {
                                 onClick={() => setViewMode('table')}
                                 className="flex items-center gap-2"
                             >
-                                <Table2 className="w-4 h-4" />
+                                <Table2 className="h-4 w-4" />
                                 Table
                             </Button>
                         </div>
-                        
+
                         {/* Pagination Info */}
-                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 text-sm text-muted-foreground">
+                        <div className="text-muted-foreground flex flex-col items-start gap-2 text-sm sm:flex-row sm:items-center">
                             <div>
                                 Affichage de {showingStart} à {showingEnd} sur {total} prospects
                             </div>
@@ -662,7 +233,7 @@ export default function AgencyProspects() {
                     {/* Search Bar */}
                     <div className="mb-3">
                         <div className="relative">
-                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                            <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 transform" />
                             <Input
                                 type="text"
                                 placeholder="Rechercher par nom, email, username ou code commercial..."
@@ -675,26 +246,35 @@ export default function AgencyProspects() {
                         </div>
                     </div>
 
-                    {filteredProspects.length === 0 && searchQuery.trim() && (
-                        <div className="mb-4 p-4 bg-info-light border border-info rounded-lg">
+                    {prospectsData.length === 0 && (initialSearch || '').trim() && (
+                        <div className="bg-info-light border-info mb-4 rounded-lg border p-4">
                             <p className="text-info-foreground text-sm">
-                                Aucun résultat trouvé pour "{searchQuery}". Veuillez essayer une autre recherche.
+                                Aucun résultat trouvé pour "{initialSearch}". Veuillez essayer une autre recherche.
                             </p>
                         </div>
                     )}
 
                     {/* Filters */}
-                    <div className="flex flex-wrap items-center gap-3 bg-card rounded-lg p-3 border">
+                    <div className="bg-card flex flex-wrap items-center gap-3 rounded-lg border p-3">
                         <div className="flex items-center gap-2">
-                            <Label className="text-sm text-muted-foreground">Status</Label>
-                            <Select value={statusFilter || 'active'} onValueChange={(v) => {
-                                const params = buildProspectsUrlParams({ status_filter: v });
-                                if (v === 'active') {
-                                    delete params.status_filter;
-                                }
-                                router.get('/staff/agency-prospects', params, { preserveScroll: true, preserveState: true, replace: true });
-                            }}>
-                                <SelectTrigger className="h-9 w-[160px]"><SelectValue /></SelectTrigger>
+                            <Label className="text-muted-foreground text-sm">Status</Label>
+                            <Select
+                                value={statusFilter || 'active'}
+                                onValueChange={(v) => {
+                                    const params = buildProspectsUrlParams({ status_filter: v });
+                                    if (v === 'active') {
+                                        delete params.status_filter;
+                                    }
+                                    router.get(
+                                        '/staff/agency-prospects',
+                                        params,
+                                        withLoadingVisit({ preserveScroll: true, preserveState: true, replace: true }),
+                                    );
+                                }}
+                            >
+                                <SelectTrigger className="h-9 w-[160px]">
+                                    <SelectValue />
+                                </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="active">Actifs</SelectItem>
                                     <SelectItem value="rejected">Rejetés</SelectItem>
@@ -704,17 +284,26 @@ export default function AgencyProspects() {
                             </Select>
                         </div>
                         <div className="flex items-center gap-2">
-                            <Label className="text-sm text-muted-foreground">{t('profile.heardAboutCommercialCode')}</Label>
-                            <Select value={commercialOnly ? 'commercial' : 'all'} onValueChange={(v) => {
-                                const params = buildProspectsUrlParams();
-                                if (v === 'commercial') {
-                                    params.commercial_only = 1;
-                                } else {
-                                    delete params.commercial_only;
-                                }
-                                router.get('/staff/agency-prospects', params, { preserveScroll: true, preserveState: true, replace: true });
-                            }}>
-                                <SelectTrigger className="h-9 w-[200px]"><SelectValue /></SelectTrigger>
+                            <Label className="text-muted-foreground text-sm">{t('profile.heardAboutCommercialCode')}</Label>
+                            <Select
+                                value={commercialOnly ? 'commercial' : 'all'}
+                                onValueChange={(v) => {
+                                    const params = buildProspectsUrlParams();
+                                    if (v === 'commercial') {
+                                        params.commercial_only = 1;
+                                    } else {
+                                        delete params.commercial_only;
+                                    }
+                                    router.get(
+                                        '/staff/agency-prospects',
+                                        params,
+                                        withLoadingVisit({ preserveScroll: true, preserveState: true, replace: true }),
+                                    );
+                                }}
+                            >
+                                <SelectTrigger className="h-9 w-[200px]">
+                                    <SelectValue />
+                                </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="all">{t('profile.filterAll')}</SelectItem>
                                     <SelectItem value="commercial">{t('profile.filterCommercialOnly')}</SelectItem>
@@ -735,104 +324,109 @@ export default function AgencyProspects() {
 
                 {/* Cards View */}
                 {viewMode === 'cards' && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                        {isLoading ? (
-                            [1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-                                <Card key={i} className="overflow-hidden">
-                                    <Skeleton className="w-full h-48" />
-                                    <CardContent className="p-4 space-y-3">
-                                        <Skeleton className="h-6 w-3/4" />
-                                        <Skeleton className="h-4 w-full" />
-                                        <Skeleton className="h-4 w-2/3" />
-                                        <Skeleton className="h-10 w-full" />
-                                    </CardContent>
-                                </Card>
-                            ))
-                        ) : (
-                            filteredProspects.map((p) => (
-                            <Card key={p.id} className={`overflow-hidden hover:shadow-lg transition-shadow ${statusFilter === 'rejected' || statusFilter === 'rappeler' ? 'border-error' : ''}`}>
-                                <div className="relative">
-                                    <img
-                                        src={getProfilePicture(p)}
-                                        alt={p.name}
-                                        className={`w-full h-48 object-cover ${statusFilter === 'rejected' || statusFilter === 'rappeler' ? 'opacity-75' : ''}`}
-                                        onError={(e) => {
-                                            e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(p.name)}&background=random`;
-                                        }}
-                                    />
-                                    {/* Overlay Tags */}
-                                    <div className="absolute top-2 right-2 flex gap-2">
-                                        {statusFilter === 'rappeler' || p.to_rappeler ? (
-                                            <Badge className="bg-warning text-warning-foreground text-xs px-2 py-1">
-                                                A rappeler
-                                            </Badge>
-                                        ) : statusFilter === 'rejected' ? (
-                                            <Badge className="bg-error text-error-foreground text-xs px-2 py-1">
-                                                Rejeté
-                                            </Badge>
-                                        ) : (
-                                            <>
-                                                <Badge className="bg-foreground text-background text-xs px-2 py-1">
-                                                    Prospect
-                                                </Badge>
-                                                <Badge className={`text-white text-xs px-2 py-1 flex items-center gap-1 ${
-                                                    p.assigned_matchmaker_id ? 'bg-success' : 
-                                                    p.agency_id ? 'bg-info' : 
-                                                    'bg-muted-foreground'
-                                                }`}>
-                                                    <CheckCircle className="w-3 h-3" />
-                                                    {p.assigned_matchmaker_id ? 'Assigned' : 
-                                                     p.agency_id ? 'Dispatched' : 
-                                                     'Pending'}
-                                                </Badge>
-                                            </>
-                                        )}
-                                    </div>
-                                </div>
-                                <CardContent className="p-4 space-y-3">
-                                    <div>
-                                        <h3 className="font-semibold text-lg">{p.name}</h3>
-                                        {(statusFilter === 'rejected' || statusFilter === 'rappeler') && p.rejection_reason && (
-                                            <p className="text-xs text-error mt-1 line-clamp-2" title={p.rejection_reason}>
-                                                {p.rejection_reason}
-                                            </p>
-                                        )}
-                                    </div>
-                                    
-                                    <div className="flex items-start gap-2 text-sm text-muted-foreground">
-                                        <Mail className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                                        <span className="truncate">{p.email || 'N/A'}</span>
-                                    </div>
-                                    
-                                    <div className="flex items-start gap-2 text-sm text-muted-foreground">
-                                        <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                                        <span className="truncate">{getLocation(p)}</span>
-                                    </div>
-                                    
-                                    <div className="flex items-start gap-2 text-sm text-muted-foreground">
-                                        <span className="truncate">Phone: {p.phone || 'N/A'}</span>
-                                    </div>
-                                    
-                                    {p.assigned_matchmaker_id && (
-                                        <div className="text-sm">
-                                            <span className="text-success font-medium">Matchmaker: {p.assigned_matchmaker?.name || 'Unknown'}</span>
-                                        </div>
-                                    )}
-                                    
-                                    <div className="pt-2">
-                                        <Button
-                                            size="sm"
-                                            className="w-full bg-rose-800 text-white hover:bg-rose-900 gap-2"
-                                            onClick={() => handleOpenActions(p)}
-                                        >
-                                            <UserCog className="w-4 h-4" />
-                                            Gérer le profil
-                                        </Button>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                            ))
-                        )}
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                        {isLoading
+                            ? [1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                                  <Card key={i} className="overflow-hidden">
+                                      <Skeleton className="h-48 w-full" />
+                                      <CardContent className="space-y-3 p-4">
+                                          <Skeleton className="h-6 w-3/4" />
+                                          <Skeleton className="h-4 w-full" />
+                                          <Skeleton className="h-4 w-2/3" />
+                                          <Skeleton className="h-10 w-full" />
+                                      </CardContent>
+                                  </Card>
+                              ))
+                            : prospectsData.map((p) => (
+                                  <Card
+                                      key={p.id}
+                                      className={`overflow-hidden transition-shadow hover:shadow-lg ${statusFilter === 'rejected' || statusFilter === 'rappeler' ? 'border-error' : ''}`}
+                                  >
+                                      <div className="relative">
+                                          <img
+                                              src={getProspectProfilePicture(p)}
+                                              alt={p.name}
+                                              className={`h-48 w-full object-cover ${statusFilter === 'rejected' || statusFilter === 'rappeler' ? 'opacity-75' : ''}`}
+                                              onError={(e) => {
+                                                  e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(p.name)}&background=random`;
+                                              }}
+                                          />
+                                          {/* Overlay Tags */}
+                                          <div className="absolute top-2 right-2 flex gap-2">
+                                              {statusFilter === 'rappeler' || p.to_rappeler ? (
+                                                  <Badge className="bg-warning text-warning-foreground px-2 py-1 text-xs">A rappeler</Badge>
+                                              ) : statusFilter === 'rejected' ? (
+                                                  <Badge className="bg-error text-error-foreground px-2 py-1 text-xs">Rejeté</Badge>
+                                              ) : (
+                                                  <>
+                                                      <Badge className="bg-foreground text-background px-2 py-1 text-xs">Prospect</Badge>
+                                                      {showDispatchedTo && (
+                                                          <Badge
+                                                              className={`flex items-center gap-1 px-2 py-1 text-xs text-white ${
+                                                                  p.assigned_matchmaker_id
+                                                                      ? 'bg-success'
+                                                                      : p.agency_id
+                                                                        ? 'bg-info'
+                                                                        : 'bg-muted-foreground'
+                                                              }`}
+                                                          >
+                                                              <CheckCircle className="h-3 w-3" />
+                                                              {p.assigned_matchmaker_id ? 'Assigned' : p.agency_id ? 'Dispatched' : 'Pending'}
+                                                          </Badge>
+                                                      )}
+                                                  </>
+                                              )}
+                                          </div>
+                                      </div>
+                                      <CardContent className="space-y-3 p-4">
+                                          <div>
+                                              <h3 className="text-lg font-semibold">{p.name}</h3>
+                                              {(statusFilter === 'rejected' || statusFilter === 'rappeler') && p.rejection_reason && (
+                                                  <p className="text-error mt-1 line-clamp-2 text-xs" title={p.rejection_reason}>
+                                                      {p.rejection_reason}
+                                                  </p>
+                                              )}
+                                          </div>
+
+                                          <div className="text-muted-foreground flex items-start gap-2 text-sm">
+                                              <Mail className="mt-0.5 h-4 w-4 flex-shrink-0" />
+                                              <span className="truncate">{p.email || 'N/A'}</span>
+                                          </div>
+
+                                          <div className="text-muted-foreground flex items-start gap-2 text-sm">
+                                              <MapPin className="mt-0.5 h-4 w-4 flex-shrink-0" />
+                                              <span className="truncate">{getLocation(p)}</span>
+                                          </div>
+
+                                          <div className="text-muted-foreground flex items-start gap-2 text-sm">
+                                              <span className="truncate">Phone: {p.phone || 'N/A'}</span>
+                                          </div>
+
+                                          <div className="flex items-center gap-2">
+                                              <ProspectTraiteBadge isTraite={Boolean(p.is_traite)} />
+                                          </div>
+
+                                          {showDispatchedTo && p.assigned_matchmaker_id && (
+                                              <div className="text-sm">
+                                                  <span className="text-success font-medium">
+                                                      Matchmaker: {p.assigned_matchmaker?.name || 'Unknown'}
+                                                  </span>
+                                              </div>
+                                          )}
+
+                                          <div className="pt-2">
+                                              <Button
+                                                  size="sm"
+                                                  className="w-full gap-2 bg-rose-800 text-white hover:bg-rose-900"
+                                                  onClick={() => handleOpenActions(p)}
+                                              >
+                                                  <UserCog className="h-4 w-4" />
+                                                  Gérer le profil
+                                              </Button>
+                                          </div>
+                                      </CardContent>
+                                  </Card>
+                              ))}
                     </div>
                 )}
 
@@ -850,89 +444,137 @@ export default function AgencyProspects() {
                                 <Table className="min-w-[1040px]">
                                     <TableHeader className="bg-slate-50">
                                         <TableRow className="border-b border-slate-200/80">
-                                            <TableHead className="px-5 py-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Name</TableHead>
-                                            <TableHead className="px-5 py-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t('staff.tableHeaders.gender')}</TableHead>
-                                            <TableHead className="px-5 py-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Email</TableHead>
-                                            <TableHead className="hidden md:table-cell px-5 py-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Phone</TableHead>
-                                            <TableHead className="hidden lg:table-cell px-5 py-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500">City</TableHead>
-                                            <TableHead className="hidden lg:table-cell px-5 py-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Country</TableHead>
-                                            <TableHead className="hidden xl:table-cell px-5 py-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t('profile.heardAboutCommercialCode')}</TableHead>
-                                            <TableHead className="px-5 py-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Dispatched To</TableHead>
-                                            <TableHead className="px-5 py-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Actions</TableHead>
+                                            <TableHead className="px-5 py-4 text-[11px] font-semibold tracking-wider text-slate-500 uppercase">
+                                                Name
+                                            </TableHead>
+                                            <TableHead className="px-5 py-4 text-[11px] font-semibold tracking-wider text-slate-500 uppercase">
+                                                {t('staff.tableHeaders.gender')}
+                                            </TableHead>
+                                            <TableHead className="px-5 py-4 text-[11px] font-semibold tracking-wider text-slate-500 uppercase">
+                                                Email
+                                            </TableHead>
+                                            <TableHead className="hidden px-5 py-4 text-[11px] font-semibold tracking-wider text-slate-500 uppercase md:table-cell">
+                                                Phone
+                                            </TableHead>
+                                            <TableHead className="hidden px-5 py-4 text-[11px] font-semibold tracking-wider text-slate-500 uppercase lg:table-cell">
+                                                City
+                                            </TableHead>
+                                            <TableHead className="hidden px-5 py-4 text-[11px] font-semibold tracking-wider text-slate-500 uppercase lg:table-cell">
+                                                Country
+                                            </TableHead>
+                                            <TableHead className="hidden px-5 py-4 text-[11px] font-semibold tracking-wider text-slate-500 uppercase xl:table-cell">
+                                                {t('profile.heardAboutCommercialCode')}
+                                            </TableHead>
+                                            {showDispatchedTo && (
+                                                <TableHead className="px-5 py-4 text-[11px] font-semibold tracking-wider text-slate-500 uppercase">
+                                                    Dispatched To
+                                                </TableHead>
+                                            )}
+                                            <TableHead className="px-5 py-4 text-[11px] font-semibold tracking-wider text-slate-500 uppercase">
+                                                Traitement
+                                            </TableHead>
+                                            <TableHead className="px-5 py-4 text-[11px] font-semibold tracking-wider text-slate-500 uppercase">
+                                                Actions
+                                            </TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody className="divide-y divide-slate-100">
-                                        {isLoading ? (
-                                            [1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-                                                <TableRow key={i} className="h-16">
-                                                    <TableCell className="px-5"><Skeleton className="h-4 w-32" /></TableCell>
-                                                    <TableCell className="px-5"><Skeleton className="h-4 w-20" /></TableCell>
-                                                    <TableCell className="px-5"><Skeleton className="h-4 w-40" /></TableCell>
-                                                    <TableCell className="hidden md:table-cell px-5"><Skeleton className="h-4 w-24" /></TableCell>
-                                                    <TableCell className="hidden lg:table-cell px-5"><Skeleton className="h-4 w-28" /></TableCell>
-                                                    <TableCell className="hidden lg:table-cell px-5"><Skeleton className="h-4 w-24" /></TableCell>
-                                                    <TableCell className="hidden xl:table-cell px-5"><Skeleton className="h-4 w-28" /></TableCell>
-                                                    <TableCell className="px-5"><Skeleton className="h-4 w-32" /></TableCell>
-                                                    <TableCell className="px-5">
-                                                        <div className="flex items-center gap-2">
-                                                            <Skeleton className="h-8 w-20" />
-                                                            <Skeleton className="h-8 w-16" />
-                                                        </div>
-                                                    </TableCell>
-                                                </TableRow>
-                                            ))
-                                        ) : (
-                                            filteredProspects.map((p) => (
-                                            <TableRow 
-                                                key={p.id}
-                                                className="h-16 border-b border-slate-100 hover:bg-slate-50/70"
-                                            >
-                                                <TableCell className="px-5 font-medium text-slate-900">{p.name}</TableCell>
-                                                <TableCell className="px-5 text-slate-600">{p.gender || 'N/A'}</TableCell>
-                                                <TableCell className="px-5 text-slate-600">{p.email || 'N/A'}</TableCell>
-                                                <TableCell className="hidden md:table-cell px-5 text-slate-600">{p.phone || 'N/A'}</TableCell>
-                                                <TableCell className="hidden lg:table-cell px-5 text-slate-600">{p.city || 'N/A'}</TableCell>
-                                                <TableCell className="hidden lg:table-cell px-5 text-slate-600">{p.country || 'N/A'}</TableCell>
-                                                <TableCell className="hidden xl:table-cell px-5 text-slate-600 text-sm">{getCommercialCodeDisplay(p)}</TableCell>
-                                                <TableCell className="px-5">
-                                                    {p.assigned_matchmaker_id ? (
-                                                        <div className="text-sm text-slate-600">
-                                                            <div className="font-medium text-success">Matchmaker: {p.assigned_matchmaker?.name || 'Unknown'}</div>
-                                                            {p.agency_id && (
-                                                                <div className="text-info">Agency: {p.agency?.name || 'Unknown'}</div>
-                                                            )}
-                                                        </div>
-                                                    ) : p.agency_id ? (
-                                                        <span className="text-info text-sm">Agency: {p.agency?.name || 'Unknown'}</span>
-                                                    ) : (
-                                                        <span className="text-muted-foreground text-sm">Not dispatched</span>
-                                                    )}
-                                                </TableCell>
-                                                <TableCell className="px-5">
-                                                    <Button
-                                                        size="sm"
-                                                        className="bg-rose-800 text-white hover:bg-rose-900 gap-2"
-                                                        onClick={() => handleOpenActions(p)}
-                                                    >
-                                                        <UserCog className="w-4 h-4" />
-                                                        Gérer le profil
-                                                    </Button>
-                                                </TableCell>
-                                            </TableRow>
-                                            ))
-                                        )}
+                                        {isLoading
+                                            ? [1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                                                  <TableRow key={i} className="h-16">
+                                                      <TableCell className="px-5">
+                                                          <Skeleton className="h-4 w-32" />
+                                                      </TableCell>
+                                                      <TableCell className="px-5">
+                                                          <Skeleton className="h-4 w-20" />
+                                                      </TableCell>
+                                                      <TableCell className="px-5">
+                                                          <Skeleton className="h-4 w-40" />
+                                                      </TableCell>
+                                                      <TableCell className="hidden px-5 md:table-cell">
+                                                          <Skeleton className="h-4 w-24" />
+                                                      </TableCell>
+                                                      <TableCell className="hidden px-5 lg:table-cell">
+                                                          <Skeleton className="h-4 w-28" />
+                                                      </TableCell>
+                                                      <TableCell className="hidden px-5 lg:table-cell">
+                                                          <Skeleton className="h-4 w-24" />
+                                                      </TableCell>
+                                                      <TableCell className="hidden px-5 xl:table-cell">
+                                                          <Skeleton className="h-4 w-28" />
+                                                      </TableCell>
+                                                      {showDispatchedTo && (
+                                                          <TableCell className="px-5">
+                                                              <Skeleton className="h-4 w-32" />
+                                                          </TableCell>
+                                                      )}
+                                                      <TableCell className="px-5">
+                                                          <Skeleton className="h-6 w-20" />
+                                                      </TableCell>
+                                                      <TableCell className="px-5">
+                                                          <div className="flex items-center gap-2">
+                                                              <Skeleton className="h-8 w-20" />
+                                                              <Skeleton className="h-8 w-16" />
+                                                          </div>
+                                                      </TableCell>
+                                                  </TableRow>
+                                              ))
+                                            : prospectsData.map((p) => (
+                                                  <TableRow key={p.id} className="h-16 border-b border-slate-100 hover:bg-slate-50/70">
+                                                      <TableCell className="px-5 font-medium text-slate-900">{p.name}</TableCell>
+                                                      <TableCell className="px-5 text-slate-600">{p.gender || 'N/A'}</TableCell>
+                                                      <TableCell className="px-5 text-slate-600">{p.email || 'N/A'}</TableCell>
+                                                      <TableCell className="hidden px-5 text-slate-600 md:table-cell">{p.phone || 'N/A'}</TableCell>
+                                                      <TableCell className="hidden px-5 text-slate-600 lg:table-cell">{p.city || 'N/A'}</TableCell>
+                                                      <TableCell className="hidden px-5 text-slate-600 lg:table-cell">{p.country || 'N/A'}</TableCell>
+                                                      <TableCell className="hidden px-5 text-sm text-slate-600 xl:table-cell">
+                                                          {getCommercialCodeDisplay(p)}
+                                                      </TableCell>
+                                                      {showDispatchedTo && (
+                                                          <TableCell className="px-5">
+                                                              {p.assigned_matchmaker_id ? (
+                                                                  <div className="text-sm text-slate-600">
+                                                                      <div className="text-success font-medium">
+                                                                          Matchmaker: {p.assigned_matchmaker?.name || 'Unknown'}
+                                                                      </div>
+                                                                      {p.agency_id && (
+                                                                          <div className="text-info">Agency: {p.agency?.name || 'Unknown'}</div>
+                                                                      )}
+                                                                  </div>
+                                                              ) : p.agency_id ? (
+                                                                  <span className="text-info text-sm">Agency: {p.agency?.name || 'Unknown'}</span>
+                                                              ) : (
+                                                                  <span className="text-muted-foreground text-sm">Not dispatched</span>
+                                                              )}
+                                                          </TableCell>
+                                                      )}
+                                                      <TableCell className="px-5">
+                                                          <ProspectTraiteBadge isTraite={Boolean(p.is_traite)} />
+                                                      </TableCell>
+                                                      <TableCell className="px-5">
+                                                          <Button
+                                                              size="sm"
+                                                              className="gap-2 bg-rose-800 text-white hover:bg-rose-900"
+                                                              onClick={() => handleOpenActions(p)}
+                                                          >
+                                                              <UserCog className="h-4 w-4" />
+                                                              Gérer le profil
+                                                          </Button>
+                                                      </TableCell>
+                                                  </TableRow>
+                                              ))}
                                     </TableBody>
                                 </Table>
                             </div>
-                            
-                            {filteredProspects.length === 0 && !searchQuery.trim() && !isLoading && (
+
+                            {prospectsData.length === 0 && !(initialSearch || '').trim() && !isLoading && (
                                 <div className="border-t border-slate-100 px-6 py-10 text-center">
                                     <p className="text-sm text-slate-500">
-                                        {statusFilter === 'rejected' 
+                                        {statusFilter === 'rejected'
                                             ? 'Aucun prospect rejeté pour le moment.'
                                             : statusFilter === 'rappeler'
-                                            ? 'Aucun prospect marqué comme "A rappeler" pour le moment.'
-                                            : 'Aucun prospect assigné à votre agence pour le moment.'}
+                                              ? 'Aucun prospect marqué comme "A rappeler" pour le moment.'
+                                              : 'Aucun prospect assigné à votre agence pour le moment.'}
                                     </p>
                                 </div>
                             )}
@@ -969,7 +611,7 @@ export default function AgencyProspects() {
                                     } else {
                                         pageNum = currentPageNum - 2 + i;
                                     }
-                                    
+
                                     return (
                                         <Button
                                             key={pageNum}
@@ -997,689 +639,7 @@ export default function AgencyProspects() {
                     </div>
                 )}
             </div>
-            <Dialog open={!!validatingProspect} onOpenChange={(open) => { if (!open) { setValidatingProspect(null); setCinConfirm(''); setCinConfirmError(null); reset(); } }}>
-                <DialogContent className="sm:w-[500px]   sm:max-h-[90vh] overflow-y-auto">
-                    <DialogHeader>
-                        <DialogTitle>Validate Prospect</DialogTitle>
-                        <DialogDescription>
-                            Complete validation for {validatingProspect?.name}
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="grid gap-4 py-2">
-                        <div className="grid gap-2">
-                            <Label htmlFor="document_type">Document Type</Label>
-                            <Select
-                                value={data.document_type || 'cin'}
-                                onValueChange={(value) => setData('document_type', value)}
-                            >
-                                <SelectTrigger className="h-9 w-full"><SelectValue placeholder="Select document type" /></SelectTrigger>
-                                <SelectContent>
-                                    {DOCUMENT_TYPE_OPTIONS.map((option) => (
-                                        <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="cin">
-                                {getDocumentLabel(data.document_type)} {!validatingProspect?.profile?.cin && '*'}
-                                {validatingProspect?.profile?.cin && (
-                                    <span className="text-xs text-muted-foreground ml-2">(Déjà rempli par le prospect)</span>
-                                )}
-                            </Label>
-                            {validatingProspect?.profile?.cin ? (
-                                <Input 
-                                    id="cin" 
-                                    value={data.cin} 
-                                    onChange={(e) => setData('cin', e.target.value)}
-                                />
-                            ) : (
-                                <Input 
-                                    id="cin" 
-                                    value={data.cin} 
-                                    onChange={(e) => {
-                                        setData('cin', e.target.value);
-                                        setCinConfirmError(null);
-                                    }} 
-                                    placeholder={getDocumentExample(data.document_type)}
-                                    autoComplete="off"
-                                />
-                            )}
-                            {errors.cin && <p className="text-error text-sm">{errors.cin}</p>}
-                        </div>
-                        {!validatingProspect?.profile?.cin && (
-                            <div className="grid gap-2">
-                                <Label htmlFor="cin_confirm">
-                                    Confirmer {getDocumentLabel(data.document_type)} *
-                                </Label>
-                                <Input
-                                    id="cin_confirm"
-                                    value={cinConfirm}
-                                    onChange={(e) => {
-                                        setCinConfirm(e.target.value);
-                                        setCinConfirmError(null);
-                                    }}
-                                    placeholder={getDocumentExample(data.document_type)}
-                                    autoComplete="off"
-                                />
-                                {cinConfirmError && <p className="text-error text-sm">{cinConfirmError}</p>}
-                            </div>
-                        )}
-                        <div className="grid gap-2">
-                            <Label htmlFor="front">
-                                Identity Card Front {!validatingProspect?.profile?.identity_card_front_path && '*'}
-                                {validatingProspect?.profile?.identity_card_front_path && (
-                                    <span className="text-xs text-muted-foreground ml-2">(Déjà téléchargée - vous pouvez la remplacer)</span>
-                                )}
-                            </Label>
-                            {validatingProspect?.profile?.identity_card_front_path ? (
-                                <div className="space-y-2">
-                                    <div className="relative rounded-lg border-2 border-border overflow-hidden bg-muted">
-                                        {data.identity_card_front ? (
-                                            <img 
-                                                src={URL.createObjectURL(data.identity_card_front)}
-                                                alt="Nouvelle CNI Front Preview"
-                                                className="w-full h-auto max-h-48 object-cover"
-                                            />
-                                        ) : (
-                                            <img 
-                                                src={`/storage/${validatingProspect.profile.identity_card_front_path}`}
-                                                alt="CNI Front Preview"
-                                                className="w-full h-auto max-h-48 object-cover"
-                                                onError={(e) => {
-                                                    e.target.onerror = null;
-                                                    e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="150"%3E%3Crect fill="%23e5e7eb" width="200" height="150"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dominant-baseline="middle" fill="%239ca3af" font-family="Arial" font-size="14"%3EImage non disponible%3C/text%3E%3C/svg%3E';
-                                                }}
-                                            />
-                                        )}
-                                    </div>
-                                    {!data.identity_card_front && (
-                                        <a 
-                                            href={`/storage/${validatingProspect.profile.identity_card_front_path}`}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-xs text-primary hover:underline inline-block"
-                                        >
-                                            Ouvrir dans un nouvel onglet
-                                        </a>
-                                    )}
-                                    {data.identity_card_front && (
-                                        <p className="text-xs text-success">✓ Nouvelle image sélectionnée: {data.identity_card_front.name}</p>
-                                    )}
-                                    <Input 
-                                        id="front" 
-                                        type="file" 
-                                        accept="image/*" 
-                                        onChange={(e) => e.target.files?.[0] && setData('identity_card_front', e.target.files[0])} 
-                                        className="mt-2"
-                                    />
-                                    {data.identity_card_front && (
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => setData('identity_card_front', null)}
-                                            className="w-full"
-                                        >
-                                            Annuler le remplacement
-                                        </Button>
-                                    )}
-                                </div>
-                            ) : (
-                                <Input 
-                                    id="front" 
-                                    type="file" 
-                                    accept="image/*" 
-                                    onChange={(e) => e.target.files?.[0] && setData('identity_card_front', e.target.files[0])} 
-                                />
-                            )}
-                            {errors.identity_card_front && <p className="text-error text-sm">{errors.identity_card_front}</p>}
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="service">Service</Label>
-                            <Select value={data.service_id} onValueChange={(v) => setData('service_id', v)}>
-                                <SelectTrigger className="h-9 w-full"><SelectValue placeholder="Choose a service" /></SelectTrigger>
-                                <SelectContent>
-                                    {services.map((s) => (
-                                        <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            
-                            {errors.service_id && <p className="text-error text-sm">{errors.service_id}</p>}
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="matrimonial_pack">Matrimonial Pack</Label>
-                            <Select value={data.matrimonial_pack_id} onValueChange={(v) => setData('matrimonial_pack_id', v)}>
-                                <SelectTrigger className="h-9 w-full"><SelectValue placeholder="Choose a pack" /></SelectTrigger>
-                                <SelectContent>
-                                    {matrimonialPacks.map((pack) => (
-                                        <SelectItem key={pack.id} value={String(pack.id)}>{pack.name} - {pack.duration} mois</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            {errors.matrimonial_pack_id && <p className="text-error text-sm">{errors.matrimonial_pack_id}</p>}
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="pack_price">Pack Price (MAD)</Label>
-                            <Input id="pack_price" type="number" value={data.pack_price} onChange={(e) => setData('pack_price', e.target.value)} placeholder="Enter price" />
-                            {errors.pack_price && <p className="text-error text-sm">{errors.pack_price}</p>}
-                        </div>
-                        <div className="grid gap-2">
-                            <Label>Pack Advantages</Label>
-                            <div className="grid gap-2 max-h-40 overflow-y-auto border rounded p-2">
-                                {[
-                                    'Suivi et accompagnement personnalisé',
-                                    'Suivi et accompagnement approfondi',
-                                    'Suivi et accompagnement premium',
-                                    'Suivi et accompagnement exclusif avec assistance personnalisée',
-                                    'Rendez-vous avec des profils compatibles',
-                                    'Rendez-vous avec des profils correspondant à vos attentes',
-                                    'Rendez-vous avec des profils soigneusement sélectionnés',
-                                    'Rendez-vous illimités avec des profils rigoureusement sélectionnés',
-                                    'Formations pré-mariage avec le profil choisi',
-                                    'Formations pré-mariage avancées avec le profil choisi',
-                                    'Accès prioritaire aux nouveaux profils',
-                                    'Accès prioritaire aux profils VIP',
-                                    'Réduction à vie sur les séances de conseil conjugal et coaching familial (-10% à -25%)'
-                                ].map((advantage) => (
-                                    <label key={advantage} className="flex items-center gap-2">
-                                        <input
-                                            type="checkbox"
-                                            checked={data.pack_advantages.includes(advantage)}
-                                            onChange={(e) => {
-                                                if (e.target.checked) {
-                                                    setData('pack_advantages', [...data.pack_advantages, advantage]);
-                                                } else {
-                                                    setData('pack_advantages', data.pack_advantages.filter(a => a !== advantage));
-                                                }
-                                            }}
-                                        />
-                                        <span className="text-sm">{advantage}</span>
-                                    </label>
-                                ))}
-                            </div>
-                            {errors.pack_advantages && <p className="text-error text-sm">{errors.pack_advantages}</p>}
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="payment_mode">Mode de Paiement</Label>
-                            <Select value={data.payment_mode} onValueChange={(v) => setData('payment_mode', v)}>
-                                <SelectTrigger className="h-9 w-full"><SelectValue placeholder="Choisir un mode de paiement" /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="Virement">Virement</SelectItem>
-                                    <SelectItem value="Caisse agence">Caisse agence</SelectItem>
-                                    <SelectItem value="Chèque">Chèque</SelectItem>
-                                    <SelectItem value="CMI">CMI</SelectItem>
-                                    <SelectItem value="TPE">TPE</SelectItem>
-                                    <SelectItem value="Avance">Avance</SelectItem>
-                                    <SelectItem value="Reliquat">Reliquat</SelectItem>
-                                    <SelectItem value="RDV">RDV</SelectItem>
-                                </SelectContent>
-                            </Select>
-                            {errors.payment_mode && <p className="text-red-500 text-sm">{errors.payment_mode}</p>}
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="notes">Notes</Label>
-                            <Textarea id="notes" value={data.notes} onChange={(e) => setData('notes', e.target.value)} placeholder="Add your notes about this prospect..." />
-                            {errors.notes && <p className="text-red-500 text-sm">{errors.notes}</p>}
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="contact_type">Type de contact</Label>
-                            <Select value={data.contact_type} onValueChange={(v) => setData('contact_type', v)}>
-                                <SelectTrigger className="h-9 w-full">
-                                    <SelectValue placeholder="Sélectionnez le type de contact (optionnel)" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="distance">À distance</SelectItem>
-                                    <SelectItem value="presentiel">Présentiel</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => { setValidatingProspect(null); setCinConfirm(''); setCinConfirmError(null); reset(); }}>Cancel</Button>
-                        <Button
-                                onClick={() => {
-                                    // Check if CNI and front are needed
-                                    const hasExistingCin = validatingProspect?.profile?.cin;
-                                    const hasExistingFront = validatingProspect?.profile?.identity_card_front_path;
-                                    const needsCin = !hasExistingCin;
-                                    const needsFront = !hasExistingFront;
-                                    const documentRegex = getDocumentRegex(data.document_type);
-                                    
-                                    // Basic validation
-                                    // Note: identity_card_front is only required if user didn't upload one
-                                    // If user uploaded one, matchmaker can optionally replace it
-                                    if (
-                                        (needsCin && (!data.cin || !documentRegex.test(data.cin.trim()))) ||
-                                        (needsFront && !data.identity_card_front) ||
-                                        !data.service_id ||
-                                        !data.matrimonial_pack_id ||
-                                        !data.pack_price ||
-                                        !data.payment_mode ||
-                                        data.pack_advantages.length === 0
-                                    ) {
-                                        showToast('Champs requis', 'Please fill in all required fields', 'warning');
-                                        return;
-                                    }
-
-                                    if (needsCin) {
-                                        if (!cinConfirm || cinConfirm.trim() === '') {
-                                            setCinConfirmError(`Confirmation du ${getDocumentLabel(data.document_type)} requise`);
-                                            return;
-                                        }
-                                        if (data.cin.trim().toUpperCase() !== cinConfirm.trim().toUpperCase()) {
-                                            setCinConfirmError(`Les numéros ${getDocumentLabel(data.document_type)} ne correspondent pas`);
-                                            return;
-                                        }
-                                        setCinConfirmError(null);
-                                    }
-
-                                    // Use useForm's post method instead of manual FormData
-                                    post(`/staff/prospects/${validatingProspect?.id}/validate`, {
-                                        forceFormData: true,
-                                        onError: (err) => {
-                                            console.error('Validation error:', err);
-                                            showToast('Erreur de validation', 'Validation failed: ' + (err.message || 'Please check all fields'), 'error');
-                                        },
-                                        onSuccess: () => { 
-                                            setValidatingProspect(null);
-                                            setCinConfirm('');
-                                            setCinConfirmError(null);
-                                            reset(); 
-                                        },
-                                    });
-                                }}
-                            disabled={processing}
-                        >
-                            {validatingProspect?.status === 'prospect' ? 'Validate & Assign' : 'Update Validation Info'}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-            
-            {/* Rejection Dialog */}
-            <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Rejeter le prospect</DialogTitle>
-                        <DialogDescription>
-                            Veuillez fournir une raison pour le rejet de {selectedProspectForReject?.name || 'ce prospect'}
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="grid gap-4 py-4">
-                        <div className="grid gap-2">
-                            <Label htmlFor="rejection-reason">Raison du rejet *</Label>
-                            <Textarea
-                                id="rejection-reason"
-                                value={rejectionReason}
-                                onChange={(e) => setRejectionReason(e.target.value)}
-                                placeholder="Expliquez pourquoi vous rejetez ce prospect..."
-                                rows={4}
-                                required
-                            />
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setRejectDialogOpen(false)}>
-                            Annuler
-                        </Button>
-                        <Button
-                            variant="destructive"
-                            onClick={submitRejection}
-                            disabled={!rejectionReason.trim() || rejecting}
-                        >
-                            {rejecting ? 'Envoi...' : 'Rejeter'}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-            
-            {/* Acceptance Dialog */}
-            <Dialog open={acceptDialogOpen} onOpenChange={setAcceptDialogOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Accepter le prospect</DialogTitle>
-                        <DialogDescription>
-                            Veuillez fournir une raison pour l'acceptation de {selectedProspectForAccept?.name || 'ce prospect'}
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="grid gap-4 py-4">
-                        {selectedProspectForAccept?.rejection_reason && (
-                            <div className="bg-error-light p-3 rounded-lg border border-error">
-                                <p className="text-sm font-semibold mb-2">Raison du rejet précédent:</p>
-                                <p className="text-sm text-error">{selectedProspectForAccept.rejection_reason}</p>
-                            </div>
-                        )}
-                        <div className="grid gap-2">
-                            <Label htmlFor="acceptance-reason">Raison de l'acceptation *</Label>
-                            <Textarea
-                                id="acceptance-reason"
-                                value={acceptanceReason}
-                                onChange={(e) => setAcceptanceReason(e.target.value)}
-                                placeholder="Expliquez pourquoi vous acceptez ce prospect..."
-                                rows={4}
-                                required
-                            />
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setAcceptDialogOpen(false)}>
-                            Annuler
-                        </Button>
-                        <Button
-                            variant="default"
-                            onClick={submitAcceptance}
-                            disabled={!acceptanceReason.trim() || accepting}
-                            className="bg-success hover:opacity-90"
-                        >
-                            {accepting ? 'Envoi...' : 'Accepter'}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-            {/* User Actions Modal */}
-            <Dialog open={userInfoModalOpen} onOpenChange={setUserInfoModalOpen}>
-                <DialogContent className="w-[95vw] sm:w-full sm:max-w-md max-h-[90vh] overflow-y-auto rounded-2xl border border-slate-200/70 bg-white p-5 sm:p-6 shadow-2xl">
-                    {selectedUserForInfo && (
-                        <>
-                            <div className="flex items-center justify-between">
-                                <DialogTitle className="text-lg font-semibold text-slate-900">
-                                    Gestion du Profil
-                                </DialogTitle>
-                            </div>
-                            <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-                                <div className="relative">
-                                    <img
-                                        src={getProfilePicture(selectedUserForInfo)}
-                                        alt={selectedUserForInfo.name}
-                                        className="h-12 w-12 rounded-full object-cover"
-                                        onError={(e) => {
-                                            e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedUserForInfo.name)}&background=random`;
-                                        }}
-                                    />
-                                    <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white bg-emerald-500" />
-                                </div>
-                                <div>
-                                    <div className="text-sm font-semibold text-slate-900">{selectedUserForInfo.name}</div>
-                                    <div className="text-xs text-muted-foreground"><span  className='text-md font-bold'>Email : </span>{selectedUserForInfo.email}</div>
-                                </div>
-                            </div>
-
-                            <div className="mt-4 space-y-2">
-                                <button
-                                    type="button"
-                                    className="flex w-full items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/70 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-100"
-                                    onClick={() => {
-                                        setUserInfoModalOpen(false);
-                                        handleViewProfile();
-                                    }}
-                                    disabled={!selectedUserForInfo?.username}
-                                >
-                                    <Eye className="h-4 w-4 text-rose-700" />
-                                    Voir les détails
-                                </button>
-                                {canEditProspectProfile(selectedUserForInfo) && (
-                                    <button
-                                        type="button"
-                                        className="flex w-full items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/70 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-100"
-                                        onClick={() => {
-                                            setUserInfoModalOpen(false);
-                                            router.visit(`/staff/prospects/${selectedUserForInfo.id}/profile/edit`);
-                                        }}
-                                    >
-                                        <Pencil className="h-4 w-4 text-rose-700" />
-                                        Éditer le profil
-                                    </button>
-                                )}
-                                <button
-                                    type="button"
-                                    className="flex w-full items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/70 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-100"
-                                    onClick={() => {
-                                        setUserInfoModalOpen(false);
-                                        handleToggleTraite(selectedUserForInfo);
-                                    }}
-                                >
-                                    <Check className="h-4 w-4 text-rose-700" />
-                                    {selectedUserForInfo.is_traite ? 'Marqué comme traité' : 'Marquer traité'}
-                                </button>
-                                {canValidateProspect(selectedUserForInfo) && (
-                                    <button
-                                        type="button"
-                                        className="flex w-full items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/70 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-100"
-                                        onClick={() => {
-                                            setUserInfoModalOpen(false);
-                                            handleValidateClick(selectedUserForInfo);
-                                        }}
-                                    >
-                                        <CheckCircle className="h-4 w-4 text-rose-700" />
-                                        Valider
-                                    </button>
-                                )}
-                                {canRejectProspect(selectedUserForInfo) && (
-                                    <button
-                                        type="button"
-                                        className="flex w-full items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/70 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-100"
-                                        onClick={() => {
-                                            setUserInfoModalOpen(false);
-                                            handleReject(selectedUserForInfo);
-                                        }}
-                                    >
-                                        <XCircle className="h-4 w-4 text-rose-700" />
-                                        Rejeter
-                                    </button>
-                                )}
-                                {canAcceptProspect(selectedUserForInfo) && (
-                                    <button
-                                        type="button"
-                                        className="flex w-full items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/70 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-100"
-                                        onClick={() => {
-                                            setUserInfoModalOpen(false);
-                                            handleAccept(selectedUserForInfo);
-                                        }}
-                                    >
-                                        <CheckCircle className="h-4 w-4 text-rose-700" />
-                                        Réactiver le prospect
-                                    </button>
-                                )}
-                                {canMarkAsRappeler(selectedUserForInfo) && !selectedUserForInfo.to_rappeler && (
-                                    <button
-                                        type="button"
-                                        className="flex w-full items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/70 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-100"
-                                        onClick={() => {
-                                            setUserInfoModalOpen(false);
-                                            handleMarkAsRappeler(selectedUserForInfo);
-                                        }}
-                                    >
-                                        <Phone className="h-4 w-4 text-rose-700" />
-                                        Rappeler
-                                    </button>
-                                )}
-                                {canTransferUser(selectedUserForInfo) && (
-                                    <button
-                                        type="button"
-                                        className="flex w-full items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/70 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-100"
-                                        onClick={() => {
-                                            setUserInfoModalOpen(false);
-                                            handleTransferClick(selectedUserForInfo);
-                                        }}
-                                    >
-                                        <ArrowRightLeft className="h-4 w-4 text-rose-700" />
-                                        Transférer le dossier
-                                    </button>
-                                )}
-                                <button
-                                    type="button"
-                                    className="flex w-full items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/70 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-100"
-                                    onClick={() => {
-                                        openPasswordDialog();
-                                    }}
-                                >
-                                    <KeyRound className="h-4 w-4 text-rose-700" />
-                                    Changer le mot de passe
-                                </button>
-                                <button
-                                    type="button"
-                                    className="flex w-full items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/70 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-100"
-                                    onClick={() => {
-                                        setUserInfoModalOpen(false);
-                                        handleCopyLink();
-                                    }}
-                                    disabled={!selectedUserForInfo?.username}
-                                >
-                                    <Copy className="h-4 w-4 text-rose-700" />
-                                    Copier le lien
-                                </button>
-                            </div>
-
-                            <DialogFooter className="flex justify-end">
-                                <Button variant="outline" onClick={() => setUserInfoModalOpen(false)}>
-                                    {t('common.cancel')}
-                                </Button>
-                            </DialogFooter>
-                        </>
-                    )}
-                </DialogContent>
-            </Dialog>
-
-            {/* Password update Dialog */}
-            <Dialog open={passwordDialogOpen} onOpenChange={(open) => { setPasswordDialogOpen(open); if (!open) { setPasswordOld(''); setShowOldPassword(false); setPasswordNew(''); setPasswordConfirm(''); setPasswordErrors({}); } }}>
-                <DialogContent className="w-[95vw] sm:w-full sm:max-w-md rounded-2xl border border-slate-200/70 bg-white p-5 sm:p-6 shadow-2xl">
-                    <DialogHeader>
-                        <DialogTitle className="text-lg font-semibold text-slate-900">Changer le mot de passe</DialogTitle>
-                        <DialogDescription className="text-sm text-slate-500">
-                            Le mot de passe actuel est affiché ci-dessous si disponible. Saisissez le nouveau mot de passe (l'ancien n'est pas requis).
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="grid gap-4 py-4">
-                        <div className="grid gap-2">
-                            <Label htmlFor="password-old">Ancien mot de passe (affiché à titre informatif)</Label>
-                            <div className="relative">
-                                <Input
-                                    id="password-old"
-                                    type={showOldPassword ? 'text' : 'password'}
-                                    value={passwordOld}
-                                    readOnly
-                                    placeholder={passwordOld ? undefined : "Non disponible"}
-                                    className="rounded-xl border-slate-200 pr-10 bg-slate-50"
-                                    autoComplete="off"
-                                />
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    className="absolute top-0 right-0 h-full px-3 py-2 hover:bg-transparent rounded-l-none rounded-r-xl"
-                                    onClick={() => setShowOldPassword(!showOldPassword)}
-                                    disabled={passwordSubmitting}
-                                    aria-label={showOldPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
-                                >
-                                    {showOldPassword ? <EyeOff className="h-4 w-4 text-slate-500" /> : <Eye className="h-4 w-4 text-slate-500" />}
-                                </Button>
-                            </div>
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="password-new">Nouveau mot de passe</Label>
-                            <Input
-                                id="password-new"
-                                type="password"
-                                value={passwordNew}
-                                onChange={(e) => setPasswordNew(e.target.value)}
-                                placeholder="••••••••"
-                                className="rounded-xl border-slate-200"
-                                autoComplete="new-password"
-                            />
-                            {passwordErrors?.password && (
-                                <p className="text-xs text-red-600">{Array.isArray(passwordErrors.password) ? passwordErrors.password[0] : passwordErrors.password}</p>
-                            )}
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="password-confirm">Confirmer le mot de passe</Label>
-                            <Input
-                                id="password-confirm"
-                                type="password"
-                                value={passwordConfirm}
-                                onChange={(e) => setPasswordConfirm(e.target.value)}
-                                placeholder="••••••••"
-                                className="rounded-xl border-slate-200"
-                                autoComplete="new-password"
-                            />
-                        </div>
-                    </div>
-                    <DialogFooter className="flex justify-end gap-2">
-                        <Button
-                            variant="outline"
-                            onClick={() => { setPasswordDialogOpen(false); setPasswordOld(''); setShowOldPassword(false); setPasswordNew(''); setPasswordConfirm(''); setPasswordErrors({}); }}
-                            className="rounded-xl"
-                        >
-                            {t('common.cancel')}
-                        </Button>
-                        <Button
-                            onClick={handleUpdatePassword}
-                            disabled={passwordSubmitting || !passwordNew || !passwordConfirm}
-                            className="rounded-xl bg-rose-700 text-white hover:bg-rose-800"
-                        >
-                            {passwordSubmitting ? 'Enregistrement...' : 'Mettre à jour le mot de passe'}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-            
-            {/* Transfer Dialog */}
-            <Dialog open={transferDialogOpen} onOpenChange={setTransferDialogOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Transférer {selectedProspectForTransfer?.name || 'l\'utilisateur'}</DialogTitle>
-                        <DialogDescription>
-                            Sélectionnez le matchmaker vers lequel vous souhaitez transférer cet utilisateur
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="grid gap-4 py-4">
-                        <div className="grid gap-2">
-                            <Label htmlFor="matchmaker">Matchmaker *</Label>
-                            {loadingMatchmakers ? (
-                                <div className="text-sm text-muted-foreground">Chargement des matchmakers...</div>
-                            ) : (
-                                <Select value={selectedMatchmakerId} onValueChange={setSelectedMatchmakerId}>
-                                    <SelectTrigger className="h-9 w-full">
-                                        <SelectValue placeholder="Sélectionnez un matchmaker" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {matchmakers.map((matchmaker) => (
-                                            <SelectItem key={matchmaker.id} value={String(matchmaker.id)}>
-                                                {matchmaker.name} {matchmaker.agency ? `(${matchmaker.agency.name})` : ''}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            )}
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="transfer-reason">Raison du transfert (optionnel)</Label>
-                            <Textarea
-                                id="transfer-reason"
-                                value={transferReason}
-                                onChange={(e) => setTransferReason(e.target.value)}
-                                placeholder="Expliquez pourquoi vous souhaitez transférer cet utilisateur..."
-                                rows={4}
-                            />
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setTransferDialogOpen(false)}>
-                            Annuler
-                        </Button>
-                        <Button
-                            onClick={handleTransferSubmit}
-                            disabled={!selectedMatchmakerId || transferring || loadingMatchmakers}
-                        >
-                            {transferring ? 'Envoi...' : 'Transférer'}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+            <ProspectProfileActionsModals {...prospectProfileActions} />
         </AppLayout>
     );
 }
-
-

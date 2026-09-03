@@ -154,10 +154,14 @@ export default function UserProfile({
     const [commentaire, setCommentaire] = useState('');
 
     // Photo deletion state
+    const viewerRoles = auth?.user?.roles?.map((r) => r.name) || [];
+    const viewerIsAdmin = viewerRoles.includes('admin');
+    const viewerIsMatchmaker = viewerRoles.includes('matchmaker');
+    const viewerIsManager = viewerRoles.includes('manager');
+    const viewerIsStaff = viewerIsAdmin || viewerIsMatchmaker || viewerIsManager;
     const viewerRole = auth?.user?.roles?.[0]?.name || 'user';
-    const viewerIsMatchmaker = viewerRole === 'matchmaker';
     const staffCanViewMemberInsights =
-        viewerRole === 'matchmaker' || viewerRole === 'admin' || viewerRole === 'manager';
+        viewerIsMatchmaker || viewerIsAdmin || viewerIsManager;
 
     const matchmakingUserA = useMemo(
         () =>
@@ -375,38 +379,39 @@ export default function UserProfile({
     };
 
     const canManage =
-        viewerRole === 'admin' ||
-        (viewerRole === 'matchmaker' && user?.assigned_matchmaker_id === auth?.user?.id) ||
-        (viewerRole === 'manager' &&
+        viewerIsAdmin ||
+        (viewerIsMatchmaker && user?.assigned_matchmaker_id === auth?.user?.id) ||
+        (viewerIsManager &&
             (user?.validated_by_manager_id === auth?.user?.id ||
                 // Manager can view if prospect was validated by a matchmaker from their agency
                 isMatchmakerFromManagerAgency()));
 
-    // Write permissions: assigned matchmaker OR manager who validated the prospect (NOT admin)
+    // Write permissions: admin, assigned matchmaker, or manager who validated the prospect
     const isAssignedToViewer =
         user?.assigned_matchmaker_id != null &&
         (Number(user?.assigned_matchmaker_id) === Number(auth?.user?.id) ||
          String(user?.assigned_matchmaker_id) === String(auth?.user?.id));
 
     const canWrite =
-        ((viewerRole === 'matchmaker' || viewerRole === 'manager') && isAssignedToViewer) ||
-        (viewerRole === 'manager' && user?.validated_by_manager_id === auth?.user?.id);
+        viewerIsAdmin ||
+        ((viewerIsMatchmaker || viewerIsManager) && isAssignedToViewer) ||
+        (viewerIsManager && user?.validated_by_manager_id === auth?.user?.id);
 
     // Any staff can activate a deactivated member/client account
     const canActivateAccount =
         userRole === 'user' &&
-        ['admin', 'manager', 'matchmaker'].includes(viewerRole) &&
+        viewerIsStaff &&
         user?.profile?.account_status === 'desactivated';
 
     const canCancelMatch =
         memberRdv?.exists &&
         memberRdv?.status === 'reussi' &&
-        (viewerRole === 'admin' ||
+        (viewerIsAdmin ||
             Number(memberRdv?.matchmaker_id) === Number(auth?.user?.id));
 
     const canRestoreMatch =
         memberFailedRdv?.exists &&
-        (viewerRole === 'admin' ||
+        (viewerIsAdmin ||
             Number(memberFailedRdv?.matchmaker_id) === Number(auth?.user?.id));
 
     // Evaluation permissions come from backend access level only.
@@ -417,15 +422,15 @@ export default function UserProfile({
     // Visibility for photos: user themselves, assigned matchmaker, or manager of their agency
     const canViewPhotos =
         isOwnProfile ||
-        viewerRole === 'admin' ||
-        (viewerRole === 'matchmaker' && user?.assigned_matchmaker_id === auth?.user?.id) ||
-        (viewerRole === 'manager' && user?.agency_id && user?.agency_id === auth?.user?.agency_id);
+        viewerIsAdmin ||
+        (viewerIsMatchmaker && user?.assigned_matchmaker_id === auth?.user?.id) ||
+        (viewerIsManager && user?.agency_id && user?.agency_id === auth?.user?.agency_id);
 
     // Can delete photos: user can delete their own, matchmaker can delete assigned user's photos
     const canDeletePhotos =
         isOwnProfile ||
-        (viewerRole === 'matchmaker' && user?.assigned_matchmaker_id === auth?.user?.id) ||
-        (viewerRole === 'admin');
+        (viewerIsMatchmaker && user?.assigned_matchmaker_id === auth?.user?.id) ||
+        viewerIsAdmin;
 
     // Photo deletion state
     const [photoToDelete, setPhotoToDelete] = useState(null);
@@ -882,16 +887,16 @@ export default function UserProfile({
     const isStaffViewingUserWithActions =
         userRole === 'user' &&
         (
-            viewerRole === 'admin' ||
+            viewerIsAdmin ||
             canActivateAccount ||
             // Assigned matchmaker
-            (viewerRole === 'matchmaker' &&
+            (viewerIsMatchmaker &&
              user?.assigned_matchmaker_id != null &&
              (Number(user?.assigned_matchmaker_id) === Number(auth?.user?.id) ||
               String(user?.assigned_matchmaker_id) === String(auth?.user?.id)))
             ||
             // Manager: user assigned directly to them OR validated by them
-            (viewerRole === 'manager' &&
+            (viewerIsManager &&
              (
                  (user?.assigned_matchmaker_id != null &&
                   (Number(user?.assigned_matchmaker_id) === Number(auth?.user?.id) ||
@@ -907,21 +912,21 @@ export default function UserProfile({
     // assigned matchmaker/manager, agency manager, and admin.
     const canSeeFullProfileCard =
         isOwnProfile ||
-        viewerRole === 'admin' ||
+        viewerIsAdmin ||
         isStaffViewingUserWithActions ||
-        (viewerRole === 'manager' && isMatchmakerFromManagerAgency());
+        (viewerIsManager && isMatchmakerFromManagerAgency());
 
     const canSeeMemberPhone = canSeeFullProfileCard;
 
     const viewerIsManagerOfSubjectAgency =
-        viewerRole === 'manager' &&
+        viewerIsManager &&
         auth?.user?.agency_id &&
         user?.agency_id &&
         auth.user.agency_id === user.agency_id;
 
     const canSeePerformance =
         staffPerformance !== null && (
-            viewerRole === 'admin' ||
+            viewerIsAdmin ||
             isOwnProfile ||
             viewerIsManagerOfSubjectAgency
         );
@@ -1200,7 +1205,7 @@ export default function UserProfile({
                                                 </span>
                                             )}
                                         </div>
-                                        {userRole === 'matchmaker' && !isOwnProfile && viewerRole !== 'user' && (
+                                        {userRole === 'matchmaker' && !isOwnProfile && viewerIsStaff && (
                                             <Button
                                                 className="mt-5 w-full gap-2 rounded-lg bg-[#8B2635] text-white hover:bg-[#721f2b]"
                                                 onClick={() => router.visit('/appointment-request')}
@@ -1209,7 +1214,7 @@ export default function UserProfile({
                                                 Book {user?.name?.split(' ')[0]}
                                             </Button>
                                         )}
-                                        {userRole === 'matchmaker' && !isOwnProfile && viewerRole === 'user' && (
+                                        {userRole === 'matchmaker' && !isOwnProfile && !viewerIsStaff && (
                                             <Button
                                                 className="mt-5 w-full gap-2 rounded-lg bg-[#8B2635] text-white hover:bg-[#721f2b]"
                                                 onClick={() => {
@@ -1660,7 +1665,7 @@ export default function UserProfile({
                                     {/* Action Buttons */}
                                     <div className="mt-4 flex gap-3">
                                         {/* Matchmaker selection buttons - users viewing a matchmaker profile */}
-                                        {viewerRole === 'user' && userRole === 'matchmaker' && !isOwnProfile && (
+                                        {!viewerIsStaff && userRole === 'matchmaker' && !isOwnProfile && (
                                             <>
                                                 {/* Case 1: No matchmaker assigned - Show "Select Matchmaker" */}
                                                 {!assignedMatchmakerId && (

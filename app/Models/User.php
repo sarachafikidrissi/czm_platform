@@ -226,4 +226,16 @@ class User extends Authenticatable
     {
         return $this->hasOne(UserAssignment::class, 'user_id')->whereNull('unassigned_at');
     }
+
+    /**
+     * Mark as traité when staff adds a note (one-way, idempotent).
+     */
+    public function markAsTraiteFromNote(): void
+    {
+        if ($this->is_traite) {
+            return;
+        }
+
+        $this->update(['is_traite' => true]);
+    }
 }

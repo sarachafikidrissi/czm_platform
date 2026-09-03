@@ -20,6 +20,7 @@ use App\Services\MatchmakingResultsPayloadService;
 use App\Services\MatchmakingService;
 use App\Services\StatsService;
 use App\Services\UserActivityService;
+use App\Support\ProspectListSearch;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Crypt;
@@ -143,7 +144,7 @@ class MatchmakerController extends Controller
             });
         }
 
-        $prospects = $query->orderBy('created_at', 'desc')->get(['id', 'name', 'username', 'email', 'phone', 'country', 'city', 'status', 'agency_id', 'assigned_matchmaker_id', 'rejection_reason', 'rejected_by', 'rejected_at', 'is_traite', 'created_at']);
+        $prospects = $query->orderBy('is_traite')->orderBy('created_at', 'desc')->get(['id', 'name', 'username', 'email', 'phone', 'country', 'city', 'status', 'agency_id', 'assigned_matchmaker_id', 'rejection_reason', 'rejected_by', 'rejected_at', 'is_traite', 'created_at']);
         $prospects->load(['profile', 'assignedMatchmaker', 'agency']);
 
         $services = [];
@@ -182,6 +183,13 @@ class MatchmakerController extends Controller
     {
         $prospect = User::findOrFail($id);
         $profile = $prospect->profile;
+
+        // Business-rule precondition (all roles including admin): must be assigned first.
+        if (! $prospect->assigned_matchmaker_id) {
+            return response()->json([
+                'message' => 'Ce prospect doit d\'abord être affecté à un conseiller avant de pouvoir être validé.',
+            ], 422);
+        }
 
         // Check if user already provided CNI and front
         // Note: cin is encrypted, so we check if it exists (not null/empty)
@@ -249,21 +257,25 @@ class MatchmakerController extends Controller
         // Check if matchmaker can validate this prospect
         $me = Auth::user();
         if ($me) {
-            $roleName = \Illuminate\Support\Facades\DB::table('model_has_roles')
-                ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
-                ->where('model_has_roles.model_id', $me->id)
-                ->value('roles.name');
+            if ($me->hasRole('admin')) {
+                // Admin can validate any prospect
+            } else {
+                $roleName = \Illuminate\Support\Facades\DB::table('model_has_roles')
+                    ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+                    ->where('model_has_roles.model_id', $me->id)
+                    ->value('roles.name');
 
-            if ($roleName === 'matchmaker') {
-                // Matchmaker can only validate prospects assigned to them
-                if ($prospect->assigned_matchmaker_id !== $me->id) {
-                    return redirect()->back()->with('error', 'You can only validate prospects assigned to you.');
-                }
-            } elseif ($roleName === 'manager') {
-                // Manager can validate prospects that are NOT dispatched to matchmakers
-                // (i.e., assigned_matchmaker_id is null) OR assigned to them
-                if ($prospect->assigned_matchmaker_id !== null && $prospect->assigned_matchmaker_id !== $me->id) {
-                    return redirect()->back()->with('error', 'You cannot validate prospects that are dispatched to matchmakers.');
+                if ($roleName === 'matchmaker') {
+                    // Matchmaker can only validate prospects assigned to them
+                    if ($prospect->assigned_matchmaker_id !== $me->id) {
+                        return redirect()->back()->with('error', 'You can only validate prospects assigned to you.');
+                    }
+                } elseif ($roleName === 'manager') {
+                    // Manager can validate prospects that are NOT dispatched to matchmakers
+                    // (i.e., assigned_matchmaker_id is null) OR assigned to them
+                    if ($prospect->assigned_matchmaker_id !== null && $prospect->assigned_matchmaker_id !== $me->id) {
+                        return redirect()->back()->with('error', 'You cannot validate prospects that are dispatched to matchmakers.');
+                    }
                 }
             }
         }
@@ -349,6 +361,10 @@ class MatchmakerController extends Controller
                     // Manager becomes the assigned matchmaker
                     $assignedId = $actor->id;
                 }
+            } elseif ($actorRole === 'admin') {
+                // Preserve existing assignment fields; admin must not null them out
+                $assignedId = $prospect->assigned_matchmaker_id;
+                $validatedByManagerId = $prospect->validated_by_manager_id;
             }
         }
 
@@ -375,6 +391,8 @@ class MatchmakerController extends Controller
                 ];
             }
         }
+
+        $noteContent = $request->filled('notes') ? trim($request->notes) : '';
 
         DB::transaction(function () use ($prospect, $assignedId, $oldAssignedId, $validatedByManagerId, $history) {
             $prospect->update([
@@ -416,8 +434,7 @@ class MatchmakerController extends Controller
         }
 
         // Save notes to MatchmakerNote table if provided
-        if ($request->filled('notes') && trim($request->notes) !== '') {
-            $noteContent = trim($request->notes);
+        if ($noteContent !== '') {
             MatchmakerNote::create([
                 'user_id' => $prospect->id,
                 'author_id' => Auth::id(),
@@ -937,6 +954,8 @@ class MatchmakerController extends Controller
             });
         }
 
+        $search = ProspectListSearch::apply($query, $request->string('search')->toString());
+
         $prospects = $query->with([
             'profile',
             'profile.matrimonialPack',
@@ -1036,6 +1055,7 @@ class MatchmakerController extends Controller
             'commercialOnly' => $commercialOnly,
             'scope' => ($roleName === 'manager' && $scope === 'mine') ? 'mine' : 'agency',
             'assignedMatchmaker' => $me,
+            'search' => $search,
             'services' => $services,
             'matrimonialPacks' => $matrimonialPacks,
         ]);
@@ -1633,8 +1653,11 @@ class MatchmakerController extends Controller
             });
         }
 
+        $search = ProspectListSearch::apply($query, $request->string('search')->toString());
+
         $prospects = $query->select(['id', 'name', 'username', 'email', 'phone', 'country', 'city', 'gender', 'status', 'agency_id', 'assigned_matchmaker_id', 'rejection_reason', 'rejected_by', 'rejected_at', 'to_rappeler', 'is_traite', 'created_at'])
             ->with(['profile', 'assignedMatchmaker', 'agency'])
+            ->orderBy('is_traite')
             ->orderBy('created_at', 'desc')
             ->paginate(5)
             ->withQueryString();
@@ -1689,6 +1712,7 @@ class MatchmakerController extends Controller
             'commercialOnly' => $commercialOnly,
             'scope' => ($roleName === 'manager' && $scope === 'mine') ? 'mine' : 'agency',
             'agencyId' => $me?->agency_id,
+            'search' => $search,
             'services' => $services,
             'matrimonialPacks' => $matrimonialPacks,
         ]);
@@ -2159,7 +2183,9 @@ class MatchmakerController extends Controller
         $profile = $prospect->profile;
 
         // Check authorization
-        if ($roleName === 'matchmaker') {
+        if ($me->hasRole('admin')) {
+            // Admin can edit any prospect profile
+        } elseif ($roleName === 'matchmaker') {
             // Matchmaker can edit if:
             // 1. Prospect/member/client is assigned to them, OR
             // 2. User is a member/client with incomplete profile and was approved by them
@@ -2203,9 +2229,6 @@ class MatchmakerController extends Controller
             if (! $canEdit) {
                 abort(403, 'You can only edit prospects that are not dispatched (from your agency), prospects assigned to you, or members/clients with incomplete profiles that you validated.');
             }
-        } elseif ($roleName === 'admin') {
-            // Admin should not be able to edit profiles through this route
-            abort(403, 'Admins cannot edit profiles through this route.');
         }
 
         // Format profile data for frontend (similar to ProfileController)
@@ -2345,7 +2368,9 @@ class MatchmakerController extends Controller
         $prospect = User::findOrFail($id);
 
         // Check authorization
-        if ($roleName === 'matchmaker') {
+        if ($me->hasRole('admin')) {
+            // Admin can update any prospect profile
+        } elseif ($roleName === 'matchmaker') {
             // Matchmaker can only update prospects assigned to them
             if ($prospect->assigned_matchmaker_id !== $me->id) {
                 abort(403, 'You can only update prospects assigned to you.');
