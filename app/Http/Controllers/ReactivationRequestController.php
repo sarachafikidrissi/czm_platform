@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\ReactivationRequest;
 use App\Models\User;
+use App\Services\UserActivityService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -138,6 +139,20 @@ class ReactivationRequestController extends Controller
                 'activation_reason' => 'Réactivé via demande de réactivation - ' . ($request->review_notes ?? 'Approuvé'),
                 'deactivation_reason' => null,
             ]);
+
+            $reviewNotes = trim((string) ($request->review_notes ?? ''));
+            $reason = $reviewNotes !== '' ? $reviewNotes : trim((string) $reactivationRequest->reason);
+            if ($reason === '') {
+                $reason = 'Approuvé';
+            }
+
+            UserActivityService::log(
+                $reactivationRequest->user_id,
+                $me->id,
+                'status_change',
+                'Compte activé. '.$reason,
+                []
+            );
         }
 
         // Update request status

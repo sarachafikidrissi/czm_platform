@@ -153,6 +153,29 @@ class ProspectListSearchTest extends TestCase
             );
     }
 
+    public function test_matchmaker_rejected_list_includes_prospects_rejected_by_someone_else(): void
+    {
+        $prospect = User::factory()->create([
+            'name' => 'Rejected By Admin',
+            'status' => 'prospect',
+            'assigned_matchmaker_id' => $this->matchmaker->id,
+            'agency_id' => $this->agency->id,
+            'rejection_reason' => 'test',
+            'rejected_by' => $this->admin->id,
+            'rejected_at' => now(),
+        ]);
+        $prospect->assignRole('user');
+
+        $this->actingAs($this->matchmaker)
+            ->get(route('staff.agency-prospects', ['status_filter' => 'rejected']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('prospects.data', 1)
+                ->where('prospects.data.0.id', $prospect->id)
+            );
+    }
+
+
     public function test_admin_prospects_search_finds_record_beyond_first_page(): void
     {
         $older = now()->subDays(10);

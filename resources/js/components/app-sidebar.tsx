@@ -21,7 +21,7 @@ const getMainNavItems = (t: TFunction, role: string): NavItem[] => [
         title: t('navigation.newsFeed', { defaultValue: 'Fil d\'actualité' }),
         url: '/staff/news-feed',
         icon: Newspaper,
-        roles: ['admin', 'matchmaker', 'manager'],
+        roles: ['user', 'admin', 'matchmaker', 'manager'],
     },
     {
         title: t('navigation.myProfile'),
@@ -386,8 +386,14 @@ export function AppSidebar() {
         return updatedItem;
     });
     
-    const navitems = filterNavItemsByRole(processedNavItems, role);
-    
+    const accountStatus = (props as { auth?: { user?: { profile?: { account_status?: string } } } })?.auth?.user?.profile?.account_status;
+    const navitems = filterNavItemsByRole(processedNavItems, role).filter((item) => {
+        if (item.url === '/staff/news-feed' && role === 'user' && accountStatus === 'desactivated') {
+            return false;
+        }
+        return true;
+    });
+
     // Determine sidebar side based on language (RTL for Arabic)
     const sidebarSide = i18n.language === 'ar' ? 'right' : 'left';
 

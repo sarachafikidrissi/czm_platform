@@ -1,11 +1,14 @@
 import { ProspectProfileActionsModals } from '@/components/prospect-profile-actions-modals';
 import { ProspectTraiteBadge } from '@/components/prospect-traite-badge';
+import { UntreatedProspectsBanner, UntreatedProspectsClearPill } from '@/components/untreated-prospects-banner';
+import { withUntreatedCount } from '@/components/untreated-prospect-badge';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -14,7 +17,7 @@ import AppLayout from '@/layouts/app-layout';
 import { getCommercialCodeDisplay } from '@/lib/heard-about';
 import { Head, router, usePage } from '@inertiajs/react';
 import { CheckCircle, ChevronLeft, ChevronRight, LayoutGrid, Mail, MapPin, Search, Table2, UserCog } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 export default function AgencyProspects() {
@@ -27,6 +30,11 @@ export default function AgencyProspects() {
         search: initialSearch = '',
         services = [],
         matrimonialPacks = [],
+        matchmaker_id = null,
+        filterMatchmakers = [],
+        untreatedSummary = { count: 0, oldest_days: null, overdue_48h_count: 0 },
+        untreatedUnassigned = 0,
+        untreatedByStaff = [],
         auth,
         role: userRole,
     } = usePage().props;
@@ -83,6 +91,10 @@ export default function AgencyProspects() {
             params.scope = 'mine';
         }
 
+        if (!('matchmaker_id' in overrides) && isManager && prospectScope === 'agency' && matchmaker_id) {
+            params.matchmaker_id = matchmaker_id;
+        }
+
         if (!('search' in overrides)) {
             const trimmedSearch = searchQuery.trim();
             if (trimmedSearch) {
@@ -118,9 +130,30 @@ export default function AgencyProspects() {
 
     const switchProspectScope = (newScope) => {
         visitProspects(
-            newScope === 'mine' ? { scope: 'mine', page: 1 } : { scope: undefined, page: 1 },
+            newScope === 'mine'
+                ? { scope: 'mine', page: 1, matchmaker_id: undefined }
+                : { scope: undefined, page: 1, matchmaker_id: undefined },
         );
     };
+
+    const staffFilterOptions = useMemo(() => {
+        const counts = Object.fromEntries((untreatedByStaff || []).map((member) => [String(member.id), member.count]));
+        const conseillers = (filterMatchmakers || []).filter((m) => m.role !== 'manager');
+        const mgrs = (filterMatchmakers || []).filter((m) => m.role === 'manager');
+
+        return [
+            ...conseillers.map((m) => ({
+                value: String(m.id),
+                label: withUntreatedCount(`${m.name} [MM]`, counts[String(m.id)] ?? 0),
+            })),
+            ...mgrs.map((m) => ({
+                value: String(m.id),
+                label: withUntreatedCount(`${m.name} [MGR]`, counts[String(m.id)] ?? 0),
+            })),
+        ];
+    }, [filterMatchmakers, untreatedByStaff]);
+
+    const agencyUntreatedTotal = (untreatedByStaff || []).reduce((sum, member) => sum + (Number(member.count) || 0), 0) + (Number(untreatedUnassigned) || 0);
 
     // Sync local search from server when the response matches what we submitted; otherwise refetch.
     useEffect(() => {
@@ -165,6 +198,10 @@ export default function AgencyProspects() {
         });
     };
 
+    const filterToUntreated = () => {
+        visitProspects({ status_filter: 'non_traite', page: 1 });
+    };
+
     const showingStart = isServerPaginated ? (prospects?.from ?? 0) : allProspects.length ? startIndex + 1 : 0;
     const showingEnd = isServerPaginated ? (prospects?.to ?? 0) : Math.min(startIndex + prospectsData.length, allProspects.length);
     const total = isServerPaginated ? (prospects?.total ?? 0) : allProspects.length;
@@ -192,6 +229,10 @@ export default function AgencyProspects() {
                         </Button>
                     </div>
                 )}
+                <UntreatedProspectsBanner
+                    summary={untreatedSummary}
+                    onFilterUntreated={filterToUntreated}
+                />
                 {/* Header with View Toggle and Pagination Info */}
                 <div className="flex flex-col gap-3">
                     <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
@@ -219,6 +260,7 @@ export default function AgencyProspects() {
 
                         {/* Pagination Info */}
                         <div className="text-muted-foreground flex flex-col items-start gap-2 text-sm sm:flex-row sm:items-center">
+                            <UntreatedProspectsClearPill summary={untreatedSummary} />
                             <div>
                                 Affichage de {showingStart} à {showingEnd} sur {total} prospects
                             </div>
@@ -277,12 +319,42 @@ export default function AgencyProspects() {
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="active">Actifs</SelectItem>
+                                    <SelectItem value="non_traite">Non traités</SelectItem>
                                     <SelectItem value="rejected">Rejetés</SelectItem>
                                     <SelectItem value="rappeler">A rappeler</SelectItem>
                                     <SelectItem value="traite">Traité</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
+                        {isManager && prospectScope === 'agency' && (
+                            <div className="flex items-center gap-2">
+                                <Label className="text-muted-foreground text-sm">Conseiller</Label>
+                                <div className="w-[240px]">
+                                    <SearchableSelect
+                                        options={[
+                                            {
+                                                value: '',
+                                                label: withUntreatedCount('Tous les conseillers', agencyUntreatedTotal),
+                                            },
+                                            ...staffFilterOptions,
+                                        ]}
+                                        value={matchmaker_id ? String(matchmaker_id) : ''}
+                                        onValueChange={(value) =>
+                                            visitProspects({
+                                                matchmaker_id: value || undefined,
+                                                page: 1,
+                                            })
+                                        }
+                                        placeholder="Tous les conseillers"
+                                    />
+                                </div>
+                                {!matchmaker_id && untreatedUnassigned > 0 && (
+                                    <span className="text-muted-foreground text-xs">
+                                        dont {untreatedUnassigned} non assigné{untreatedUnassigned === 1 ? '' : 's'}
+                                    </span>
+                                )}
+                            </div>
+                        )}
                         <div className="flex items-center gap-2">
                             <Label className="text-muted-foreground text-sm">{t('profile.heardAboutCommercialCode')}</Label>
                             <Select
@@ -355,7 +427,9 @@ export default function AgencyProspects() {
                                           <div className="absolute top-2 right-2 flex gap-2">
                                               {statusFilter === 'rappeler' || p.to_rappeler ? (
                                                   <Badge className="bg-warning text-warning-foreground px-2 py-1 text-xs">A rappeler</Badge>
-                                              ) : statusFilter === 'rejected' ? (
+                                              ) : p.profile?.account_status === 'desactivated' ? (
+                                                  <Badge variant="destructive" className="px-2 py-1 text-xs">Désactivé</Badge>
+                                              ) : p.rejection_reason ? (
                                                   <Badge className="bg-error text-error-foreground px-2 py-1 text-xs">Rejeté</Badge>
                                               ) : (
                                                   <>
@@ -381,7 +455,7 @@ export default function AgencyProspects() {
                                       <CardContent className="space-y-3 p-4">
                                           <div>
                                               <h3 className="text-lg font-semibold">{p.name}</h3>
-                                              {(statusFilter === 'rejected' || statusFilter === 'rappeler') && p.rejection_reason && (
+                                              {p.rejection_reason && (
                                                   <p className="text-error mt-1 line-clamp-2 text-xs" title={p.rejection_reason}>
                                                       {p.rejection_reason}
                                                   </p>
@@ -549,7 +623,14 @@ export default function AgencyProspects() {
                                                           </TableCell>
                                                       )}
                                                       <TableCell className="px-5">
-                                                          <ProspectTraiteBadge isTraite={Boolean(p.is_traite)} />
+                                                          <div className="flex flex-wrap items-center gap-1.5">
+                                                              <ProspectTraiteBadge isTraite={Boolean(p.is_traite)} />
+                                                              {p.profile?.account_status === 'desactivated' ? (
+                                                                  <Badge variant="destructive" className="text-xs">Désactivé</Badge>
+                                                              ) : p.rejection_reason ? (
+                                                                  <Badge className="bg-error text-error-foreground text-xs">Rejeté</Badge>
+                                                              ) : null}
+                                                          </div>
                                                       </TableCell>
                                                       <TableCell className="px-5">
                                                           <Button

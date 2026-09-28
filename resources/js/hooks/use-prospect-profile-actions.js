@@ -163,16 +163,10 @@ export function useProspectProfileActions({ services = [], matrimonialPacks = []
 
     const canAcceptProspect = (prospect) => {
         if (!prospect || !prospect.rejection_reason) return false;
-        if (!userRole || !userId) return false;
+        if (!userRole) return false;
+        // Mirror server rule: any admin, matchmaker, or manager (no assignment/agency gate).
         if (userRole === 'admin') return true;
-        if (userRole === 'matchmaker') {
-            if (prospect.assigned_matchmaker_id === userId) return true;
-            if (prospect.agency_id === userAgencyId && prospect.assigned_matchmaker_id === null) return true;
-        }
-        if (userRole === 'manager') {
-            if (prospect.assigned_matchmaker_id === userId) return true;
-            if (prospect.agency_id === userAgencyId) return true;
-        }
+        if (userRole === 'matchmaker' || userRole === 'manager') return true;
         return false;
     };
 
@@ -191,6 +185,28 @@ export function useProspectProfileActions({ services = [], matrimonialPacks = []
         }
         if (userRole === 'admin') {
             return true;
+        }
+        return false;
+    };
+
+    const idsMatch = (left, right) => left != null && right != null && Number(left) === Number(right);
+
+    const canDeactivateAccount = (prospect) => {
+        if (!prospect || prospect.profile?.account_status === 'desactivated') {
+            return false;
+        }
+        if (!userRole) {
+            return false;
+        }
+        if (userRole === 'admin') {
+            return true;
+        }
+        if (userRole === 'matchmaker') {
+            return idsMatch(prospect.assigned_matchmaker_id, userId);
+        }
+        if (userRole === 'manager') {
+            return idsMatch(prospect.assigned_matchmaker_id, userId)
+                || idsMatch(prospect.validated_by_manager_id, userId);
         }
         return false;
     };
@@ -282,7 +298,17 @@ export function useProspectProfileActions({ services = [], matrimonialPacks = []
             {
                 preserveScroll: true,
                 onSuccess: () => {
-                    router.reload({ only: ['prospects'] });
+                    router.reload({
+                        only: [
+                            'prospects',
+                            'untreatedCount',
+                            'untreatedSummary',
+                            'untreatedUnassigned',
+                            'untreatedUnassigned',
+                            'untreatedByStaff',
+                            'untreatedByAgency',
+                        ],
+                    });
                 },
             },
         );
@@ -573,6 +599,7 @@ export function useProspectProfileActions({ services = [], matrimonialPacks = []
         canEditProspectProfile,
         canAcceptProspect,
         canTransferUser,
+        canDeactivateAccount,
         canMarkAsRappeler,
         handleOpenActions,
         handleReject,

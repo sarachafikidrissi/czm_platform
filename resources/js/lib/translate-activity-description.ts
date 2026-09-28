@@ -40,8 +40,21 @@ export function translateActivityDescription(description: string | undefined | n
     const prospectAssign = d.match(/^Prospect assigné à (.+) \(marieuse\)\.$/);
     if (prospectAssign) return t('activityHistory.desc.prospectAssigned', { name: prospectAssign[1] });
 
+    const prospectReassignReactivation = d.match(/^Prospect réassigné à (.+) \(réactivation\)\.$/);
+    if (prospectReassignReactivation) {
+        return t('activityHistory.desc.prospectReassignedOnReactivation', { name: prospectReassignReactivation[1] });
+    }
+
     const prospectReassign = d.match(/^Prospect réassigné à (.+) \(marieuse\)\.$/);
     if (prospectReassign) return t('activityHistory.desc.prospectReassigned', { name: prospectReassign[1] });
+
+    const prospectReactivated = d.match(/^Prospect réactivé\.\s*(.*)$/);
+    if (prospectReactivated) {
+        const reason = prospectReactivated[1]?.trim();
+        return reason
+            ? t('activityHistory.desc.prospectReactivatedWithReason', { reason })
+            : t('activityHistory.desc.prospectReactivated');
+    }
 
     const acc = d.match(/^Compte activé\.\s*(.*)$/);
     if (acc) {

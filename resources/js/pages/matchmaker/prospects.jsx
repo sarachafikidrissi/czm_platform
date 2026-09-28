@@ -146,17 +146,12 @@ export default function MatchmakerProspects() {
         });
     };
     
-    // Check if user can accept a rejected prospect (same authorization as reject)
+    // Mirror server rule: any admin, matchmaker, or manager (no assignment/agency gate).
     const canAcceptProspect = (prospect) => {
         if (!prospect || !prospect.rejection_reason) return false;
-        if (!userRole || !userId) return false;
+        if (!userRole) return false;
         if (userRole === 'admin') return true;
-        // Matchmaker can accept if assigned to them OR if prospect is from their agency and was added by manager
-        if (userRole === 'matchmaker') {
-            if (prospect.assigned_matchmaker_id === userId) return true;
-            if (prospect.agency_id === userAgencyId && prospect.assigned_matchmaker_id === null) return true;
-        }
-        if (userRole === 'manager' && prospect.agency_id === userAgencyId) return true;
+        if (userRole === 'matchmaker' || userRole === 'manager') return true;
         return false;
     };
 
@@ -429,20 +424,22 @@ export default function MatchmakerProspects() {
                                     <TableCell>{prospect.phone}</TableCell>
                                     <TableCell className="hidden xl:table-cell text-sm">{getCommercialCodeDisplay(prospect)}</TableCell>
                                     <TableCell>
-                                        {statusFilter === 'rejected' ? (
+                                        {prospect.profile?.account_status === 'desactivated' ? (
+                                            <Badge variant="destructive">
+                                                Désactivé
+                                            </Badge>
+                                        ) : prospect.rejection_reason ? (
                                             <Badge className="bg-error text-error-foreground">
                                                 Rejeté
                                             </Badge>
+                                        ) : prospect.profile?.is_completed == 1 ? (
+                                            <Badge className="bg-success text-success-foreground">
+                                                Profile Complete
+                                            </Badge>
                                         ) : (
-                                            prospect.profile.is_completed == 1 ? (
-                                                <Badge className="bg-success text-success-foreground">
-                                                    Profile Complete
-                                                </Badge>
-                                            ) : (
-                                                <Badge className="bg-warning-light text-warning-foreground">
-                                                    Profile Incomplete
-                                                </Badge>
-                                            )
+                                            <Badge className="bg-warning-light text-warning-foreground">
+                                                Profile Incomplete
+                                            </Badge>
                                         )}
                                     </TableCell>
                                     {statusFilter === 'rejected' && (

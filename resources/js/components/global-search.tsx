@@ -22,6 +22,7 @@ interface SearchUser {
     } | null;
     role?: string | null;
     account_status?: string;
+    is_rejected?: boolean | null;
 }
 
 interface GlobalSearchProps {
@@ -318,11 +319,15 @@ export function GlobalSearch({ role }: GlobalSearchProps) {
                                                                 {user.status}
                                                             </span>
                                                         )}
-                                                        {user.account_status === 'desactivated' && (
+                                                        {user.account_status === 'desactivated' ? (
                                                             <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-500/20 text-red-600">
                                                                 Désactivé
                                                             </span>
-                                                        )}
+                                                        ) : user.is_rejected ? (
+                                                            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-error text-error-foreground">
+                                                                Rejeté
+                                                            </span>
+                                                        ) : null}
                                                     </div>
                                                     <p className="text-sm text-gray-600 truncate">
                                                         @{user.username}

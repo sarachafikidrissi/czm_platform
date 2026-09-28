@@ -165,7 +165,7 @@ class UserController extends Controller
             }
         }
 
-        $user = User::with([
+        $profileRelations = [
             'profile.matrimonialPack',
             'agency',
             'roles',
@@ -176,9 +176,16 @@ class UserController extends Controller
                     ->orderBy('created_at', 'desc');
             },
             'photos',
-        ])
-            ->where('username', $username)
-            ->firstOrFail();
+        ];
+
+        $user = User::with($profileRelations)->where('username', $username)->first();
+        if (! $user && ctype_digit((string) $username)) {
+            $user = User::with($profileRelations)->find((int) $username);
+        }
+
+        if (! $user) {
+            abort(404);
+        }
 
         // Check if the profile being viewed belongs to a desactivated account (if viewer is a regular user)
         if ($currentUser && $currentUser->hasRole('user')) {

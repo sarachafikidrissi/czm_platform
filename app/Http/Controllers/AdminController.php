@@ -11,6 +11,8 @@ use App\Models\UserAssignment;
 use App\Services\StatsService;
 use App\Services\UserActivityService;
 use App\Support\ProspectListSearch;
+use App\Support\UsernameGenerator;
+use App\Support\UntreatedProspectStats;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -107,6 +109,8 @@ class AdminController extends Controller
             $query->where('to_rappeler', true)->whereNotNull('rejection_reason');
         } elseif ($statusFilter === 'traite') {
             $query->where('is_traite', true)->whereNull('rejection_reason');
+        } elseif ($statusFilter === 'non_traite') {
+            UntreatedProspectStats::constrainToUntreated($query);
         } else {
             // Default to active (non-rejected) prospects
             $query->whereNull('rejection_reason');
@@ -181,6 +185,8 @@ class AdminController extends Controller
             ? MatrimonialPack::query()->get(['id', 'name', 'duration'])
             : collect();
 
+        $untreatedStats = UntreatedProspectStats::forAdmin($agencyIdFilter, $matchmakerIdFilter);
+
         return Inertia::render('admin/prospects-dispatch', [
             'prospects' => $prospects,
             'agencies' => $agencies,
@@ -195,6 +201,11 @@ class AdminController extends Controller
             'services' => $services,
             'matrimonialPacks' => $matrimonialPacks,
             'filters' => [ 'country' => $country ?: null, 'city' => $city ?: null, 'dispatch' => $dispatch ?: 'all' ],
+            'untreatedCount' => $untreatedStats['untreatedCount'],
+            'untreatedSummary' => $untreatedStats['untreatedSummary'],
+            'untreatedUnassigned' => $untreatedStats['untreatedUnassigned'],
+            'untreatedByAgency' => $untreatedStats['untreatedByAgency'],
+            'untreatedByStaff' => $untreatedStats['untreatedByStaff'],
         ]);
     }
 
@@ -518,15 +529,7 @@ class AdminController extends Controller
         // For matchmakers: No restriction - multiple matchmakers can be assigned to the same agency
         // Matchmakers can be assigned to any agency (no validation needed)
         
-        // Generate unique username
-        $baseUsername = \Illuminate\Support\Str::slug($request->name);
-        $username = $baseUsername;
-        $counter = 1;
-        
-        while (User::where('username', $username)->exists()) {
-            $username = $baseUsername . $counter;
-            $counter++;
-        }
+        $username = UsernameGenerator::fromName($request->name, $request->email);
         
         $user = User::create([
             'name' => $request->name,
@@ -870,6 +873,8 @@ class AdminController extends Controller
             $query->where('to_rappeler', true)->whereNotNull('rejection_reason');
         } elseif ($statusFilter === 'traite') {
             $query->where('is_traite', true)->whereNull('rejection_reason');
+        } elseif ($statusFilter === 'non_traite') {
+            UntreatedProspectStats::constrainToUntreated($query);
         } else {
             // Default to active (non-rejected) prospects
             $query->whereNull('rejection_reason');
@@ -905,6 +910,11 @@ class AdminController extends Controller
             fn (User $u) => $u->hasRole('matchmaker') && ! in_array($u->id, $managerIds, true)
         )->values();
 
+        $untreatedStats = UntreatedProspectStats::forStaffList($me, 'manager', 'agency', $matchmakerIdFilter);
+        if (! $matchmakerIdFilter) {
+            $untreatedStats['untreatedCount'] = $untreatedStats['untreatedUnassigned'];
+        }
+
         return Inertia::render('manager/prospects-dispatch', [
             'prospects' => $prospects,
             'matchmakers' => $matchmakers,
@@ -914,6 +924,9 @@ class AdminController extends Controller
             'statusFilter' => $statusFilter ?: 'active',
             'commercialOnly' => $commercialOnly,
             'search' => $search,
+            'untreatedCount' => $untreatedStats['untreatedCount'],
+            'untreatedUnassigned' => $untreatedStats['untreatedUnassigned'],
+            'untreatedByStaff' => $untreatedStats['untreatedByStaff'],
         ]);
     }
 
@@ -1219,9 +1232,12 @@ class AdminController extends Controller
             return redirect()->back()->with('error', 'A user with this email already exists. Please use a different email or contact the existing user.');
         }
 
+        $username = UsernameGenerator::fromName($appointmentRequest->name, $appointmentRequest->email);
+
         // Create new user
         $user = User::create([
             'name' => $appointmentRequest->name,
+            'username' => $username,
             'email' => $appointmentRequest->email,
             'phone' => $appointmentRequest->phone,
             'city' => $appointmentRequest->city,

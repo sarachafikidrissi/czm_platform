@@ -249,6 +249,33 @@ class AccountActivationReassignmentTest extends TestCase
             ]);
     }
 
+    public function test_assigned_matchmaker_can_deactivate_member_without_profile(): void
+    {
+        $memberWithoutProfile = User::factory()->create([
+            'status' => 'member',
+            'assigned_matchmaker_id' => $this->originalMatchmaker->id,
+            'agency_id' => $this->agency->id,
+        ]);
+        $memberWithoutProfile->assignRole('user');
+
+        $this->assertDatabaseMissing('profiles', [
+            'user_id' => $memberWithoutProfile->id,
+        ]);
+
+        $this->actingAs($this->originalMatchmaker)
+            ->post(route('staff.users.deactivate', $memberWithoutProfile->id), [
+                'reason' => 'Absent',
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('success');
+
+        $this->assertDatabaseHas('profiles', [
+            'user_id' => $memberWithoutProfile->id,
+            'account_status' => 'desactivated',
+            'deactivation_reason' => 'Absent',
+        ]);
+    }
+
     public function test_non_assigned_matchmaker_cannot_deactivate_member(): void
     {
         Profile::where('user_id', $this->member->id)->update([

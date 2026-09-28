@@ -915,6 +915,11 @@ export default function ValidatedProspects() {
                                             <Badge className={`${getStatusInfo(u.status).className} text-xs px-2 py-1`}>
                                                 {getStatusInfo(u.status).label}
                                             </Badge>
+                                            {u.profile?.account_status === 'desactivated' ? (
+                                                <Badge variant="destructive" className="text-xs px-2 py-1">Désactivé</Badge>
+                                            ) : u.rejection_reason ? (
+                                                <Badge className="bg-error text-error-foreground text-xs px-2 py-1">Rejeté</Badge>
+                                            ) : null}
                                             {!!u.to_rappeler && (
                                                 <Badge className="bg-warning text-warning-foreground text-xs px-2 py-1">
                                                     A rappeler
@@ -1107,8 +1112,7 @@ export default function ValidatedProspects() {
                                             <TableHead className="hidden xl:table-cell px-5 py-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t('profile.heardAboutCommercialCode')}</TableHead>
                                             <TableHead className="px-5 py-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Step</TableHead>
                                             <TableHead className="px-5 py-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Status</TableHead>
-                                            {/* <TableHead className="px-5 py-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Expiring</TableHead> */}
-                                            {/* <TableHead className="px-5 py-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Account Status</TableHead> */}
+                                            <TableHead className="px-5 py-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t('staff.tableHeaders.accountStatus')}</TableHead>
                                             <TableHead className="px-5 py-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Actions</TableHead>
                                         </TableRow>
                                     </TableHeader>
@@ -1167,32 +1171,15 @@ export default function ValidatedProspects() {
                                                         )}
                                                     </div>
                                                 </TableCell>
-                                                {/* <TableCell className="px-5">
-                                                    {u.expiring_in_3_days ? (
-                                                        <div className="flex flex-col gap-1">
-                                                            <Badge className="bg-warning text-warning-foreground w-fit text-xs">
-                                                                Expire dans 3 jours
-                                                            </Badge>
-                                                            {u.expiration_date && (
-                                                                <span className="text-xs text-muted-foreground">
-                                                                    {u.expiration_date}
-                                                                </span>
-                                                            )}
-                                                            {u.expiring_pack_name && (
-                                                                <span className="text-xs text-muted-foreground">
-                                                                    {u.expiring_pack_name}
-                                                                </span>
-                                                            )}
-                                                        </div>
+                                                <TableCell className="px-5">
+                                                    {u.profile?.account_status === 'desactivated' ? (
+                                                        <Badge variant="destructive">Désactivé</Badge>
+                                                    ) : u.rejection_reason ? (
+                                                        <Badge className="bg-error text-error-foreground">Rejeté</Badge>
                                                     ) : (
-                                                        <span className="text-muted-foreground text-xs">-</span>
+                                                        <Badge variant="default">Actif</Badge>
                                                     )}
-                                                </TableCell> */}
-                                                {/* <TableCell className="px-5">
-                                                    <Badge variant={u.profile?.account_status === 'desactivated' ? 'destructive' : 'default'}>
-                                                        {u.profile?.account_status === 'desactivated' ? 'Désactivé' : 'Actif'}
-                                                    </Badge>
-                                                </TableCell> */}
+                                                </TableCell>
                                                 <TableCell className="px-5">
                                                     <Button
                                                         size="sm"

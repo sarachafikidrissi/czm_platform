@@ -103,6 +103,7 @@ export default function StaffNewsFeed({ feed, statistics }) {
 
     const { props } = usePage();
     const role = props?.role || '';
+    const canPublish = role === 'admin' || role === 'manager' || role === 'matchmaker';
 
     return (
         <AppLayout>
@@ -114,6 +115,8 @@ export default function StaffNewsFeed({ feed, statistics }) {
                         <h1 className="text-2xl font-bold text-[#890505]">Fil d'actualité</h1>
                     </div>
 
+                    {canPublish && (
+                    <>
                     {/* Instruction text */}
                     <p className="text-sm text-muted-foreground">
                         Ajouter hashtag #centrezawajmaroc pour publier sur votre profil public
@@ -315,6 +318,8 @@ export default function StaffNewsFeed({ feed, statistics }) {
                             </form>
                         </CardContent>
                     </Card>
+                    </>
+                    )}
 
                     {/* Unified Feed (posts + activities) */}
                     <div className="space-y-4">
@@ -346,10 +351,11 @@ export default function StaffNewsFeed({ feed, statistics }) {
                     </div>
                 </div>
 
-                {/* Right Sidebar - Statistics */}
+                {canPublish && (
                 <div className="w-full lg:w-80 space-y-4">
                     <NewsFeedSidebar statistics={statistics} role={role} />
                 </div>
+                )}
             </div>
         </AppLayout>
     );

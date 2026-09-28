@@ -128,6 +128,7 @@ class SearchController extends Controller
                 'role' => $isStaffMember ? ($userRoles[0] ?? null) : null,
                 'document_type' => $user->profile?->document_type ?? 'cin',
                 'account_status' => $user->profile?->account_status ?? 'active',
+                'is_rejected' => $isStaffMember ? null : filled($user->rejection_reason),
             ];
         });
 

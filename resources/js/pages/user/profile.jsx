@@ -71,7 +71,7 @@ export default function UserProfile({
     const roleLabel =
         userRole === 'manager' ? 'Manager' :
         userRole === 'admin' ? 'Admin' :
-        userRole === 'matchmaker' ? 'Conseiller' :
+        userRole === 'matchmaker' ? 'Matchmaker' :
         null;
 
     const isStaffProfileCard = userRole === 'matchmaker' || userRole === 'manager' || userRole === 'admin';
@@ -403,6 +403,13 @@ export default function UserProfile({
         viewerIsStaff &&
         user?.profile?.account_status === 'desactivated';
 
+    // Any staff can reactivate a rejected prospect (mirrors server accept rule)
+    const canReactivateRejectedProspect =
+        userRole === 'user' &&
+        viewerIsStaff &&
+        user?.status === 'prospect' &&
+        Boolean(user?.rejection_reason);
+
     const canCancelMatch =
         memberRdv?.exists &&
         memberRdv?.status === 'reussi' &&
@@ -702,8 +709,29 @@ export default function UserProfile({
         });
     };
 
+    // Handle reactivate rejected prospect
+    const handleReactivateProspect = () => {
+        if (!statusReason.trim()) {
+            return;
+        }
+
+        router.post(`/staff/prospects/${user.id}/accept`, {
+            acceptance_reason: statusReason,
+        }, {
+            onSuccess: () => {
+                setReactivateProspectDialogOpen(false);
+                setStatusReason('');
+                router.reload();
+            },
+        });
+    };
+
     // Handle deactivate account
     const handleDeactivateAccount = () => {
+        if (!statusReason.trim()) {
+            return;
+        }
+
         router.post(`/staff/users/${user.id}/deactivate`, {
             reason: statusReason,
         }, {
@@ -878,17 +906,20 @@ export default function UserProfile({
     // Activate/Deactivate dialog state
     const [activateDialogOpen, setActivateDialogOpen] = useState(false);
     const [deactivateDialogOpen, setDeactivateDialogOpen] = useState(false);
+    const [reactivateProspectDialogOpen, setReactivateProspectDialogOpen] = useState(false);
     const [statusReason, setStatusReason] = useState('');
 
     // Check if current staff can see user action tabs (icon bar + tab content)
     // - Admin viewing any member profile
     // - Assigned matchmaker viewing their assigned user
     // - Manager viewing a user assigned to them OR validated by them
+    // - Any staff viewing a deactivated account (activate) or rejected prospect (reactivate)
     const isStaffViewingUserWithActions =
         userRole === 'user' &&
         (
             viewerIsAdmin ||
             canActivateAccount ||
+            canReactivateRejectedProspect ||
             // Assigned matchmaker
             (viewerIsMatchmaker &&
              user?.assigned_matchmaker_id != null &&
@@ -1861,18 +1892,24 @@ export default function UserProfile({
                                                                     );
                                                                 })()}
                                                             </div>
-                                                            {user?.profile?.account_status && (
+                                                            {(user?.profile?.account_status || user?.rejection_reason) && (
                                                                 <div>
                                                                     <p className="text-sm font-medium text-gray-600 mb-2">Statut du compte</p>
-                                                                    <Badge className={user.profile.account_status === 'active' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}>
-                                                                        {user.profile.account_status === 'active' ? 'Actif' : 'Désactivé'}
-                                                                    </Badge>
+                                                                    {user?.profile?.account_status === 'desactivated' ? (
+                                                                        <Badge className="bg-red-500 text-white">Désactivé</Badge>
+                                                                    ) : user?.rejection_reason ? (
+                                                                        <Badge className="bg-red-500 text-white">Rejeté</Badge>
+                                                                    ) : (
+                                                                        <Badge className={user.profile.account_status === 'active' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}>
+                                                                            {user.profile.account_status === 'active' ? 'Actif' : 'Désactivé'}
+                                                                        </Badge>
+                                                                    )}
                                                                 </div>
                                                             )}
                                                         </div>
 
                                                         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                                                            {(user?.status === 'member' || user?.status === 'client_expire') && !user?.has_bill && (
+                                                            {canWrite && (user?.status === 'member' || user?.status === 'client_expire') && !user?.has_bill && (
                                                                 <Button
                                                                     variant="default"
                                                                     size="sm"
@@ -1883,7 +1920,7 @@ export default function UserProfile({
                                                                     Abonnement
                                                                 </Button>
                                                             )}
-                                                            {(user?.status === 'member' || user?.status === 'client_expire') && user?.has_bill && (
+                                                            {canWrite && (user?.status === 'member' || user?.status === 'client_expire') && user?.has_bill && (
                                                                 <Button
                                                                     variant="default"
                                                                     size="sm"
@@ -1919,7 +1956,7 @@ export default function UserProfile({
                                                                     Historique d'activité
                                                                 </Button>
                                                             )}
-                                                            {user?.status === 'client_expire' && !user?.to_rappeler && (
+                                                            {canWrite && user?.status === 'client_expire' && !user?.to_rappeler && (
                                                                 <Button
                                                                     variant="default"
                                                                     size="sm"
@@ -1958,6 +1995,20 @@ export default function UserProfile({
                                                                     Activer le compte
                                                                 </Button>
                                                             )}
+                                                            {canReactivateRejectedProspect && (
+                                                                <Button
+                                                                    variant="default"
+                                                                    size="sm"
+                                                                    className="bg-green-600 hover:bg-green-700"
+                                                                    onClick={() => {
+                                                                        setStatusReason('');
+                                                                        setReactivateProspectDialogOpen(true);
+                                                                    }}
+                                                                >
+                                                                    <CheckCircle className="w-4 h-4 mr-2" />
+                                                                    Réactiver le prospect
+                                                                </Button>
+                                                            )}
                                                             {canWrite && user?.profile?.account_status !== 'desactivated' && (
                                                                 <Button
                                                                     variant="destructive"
@@ -1973,9 +2024,7 @@ export default function UserProfile({
                                                             )}
                                                             {(!canWrite &&
                                                               !canActivateAccount &&
-                                                              !((user?.status === 'member' || user?.status === 'client_expire') && !user?.has_bill) &&
-                                                              !((user?.status === 'member' || user?.status === 'client_expire') && user?.has_bill) &&
-                                                              !(user?.status === 'client_expire' && !user?.to_rappeler)) && (
+                                                              !canReactivateRejectedProspect) && (
                                                                 <p className="text-gray-500 text-sm">Aucune action disponible pour ce membre.</p>
                                                             )}
                                                         </div>
@@ -4003,6 +4052,52 @@ export default function UserProfile({
                 </DialogContent>
             </Dialog>
 
+            {/* Reactivate Rejected Prospect Dialog */}
+            <Dialog open={reactivateProspectDialogOpen} onOpenChange={setReactivateProspectDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Réactiver le prospect</DialogTitle>
+                        <DialogDescription>
+                            Vous êtes sur le point de réactiver le prospect {user?.name}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                        {user?.rejection_reason && (
+                            <div className="rounded-md bg-red-50 p-3">
+                                <p className="text-sm font-semibold mb-1">Raison du rejet précédent:</p>
+                                <p className="text-sm text-red-700">{user.rejection_reason}</p>
+                            </div>
+                        )}
+                        <div className="space-y-2">
+                            <Label>Raison de l'acceptation *</Label>
+                            <textarea
+                                className="w-full min-h-[100px] rounded-md border border-gray-300 px-3 py-2"
+                                value={statusReason}
+                                onChange={(e) => setStatusReason(e.target.value)}
+                                placeholder="Expliquez pourquoi vous réactivez ce prospect..."
+                                required
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => setReactivateProspectDialogOpen(false)}
+                        >
+                            Annuler
+                        </Button>
+                        <Button
+                            onClick={handleReactivateProspect}
+                            className="bg-green-600 hover:bg-green-700"
+                            disabled={!statusReason.trim()}
+                        >
+                            <CheckCircle className="w-4 h-4 mr-2" />
+                            Réactiver
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
             {/* Deactivate Account Dialog */}
             <Dialog open={deactivateDialogOpen} onOpenChange={setDeactivateDialogOpen}>
                 <DialogContent>
@@ -4014,7 +4109,7 @@ export default function UserProfile({
                     </DialogHeader>
                     <div className="space-y-4">
                         <div className="space-y-2">
-                            <Label>Raison (optionnel)</Label>
+                            <Label>Raison *</Label>
                             <textarea
                                 className="w-full min-h-[100px] rounded-md border border-gray-300 px-3 py-2"
                                 value={statusReason}
@@ -4033,6 +4128,7 @@ export default function UserProfile({
                         <Button
                             onClick={handleDeactivateAccount}
                             variant="destructive"
+                            disabled={!statusReason.trim()}
                         >
                             <X className="w-4 h-4 mr-2" />
                             Désactiver

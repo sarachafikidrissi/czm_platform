@@ -16,11 +16,14 @@ use App\Models\TransferRequest;
 use App\Models\User;
 use App\Models\UserAssignment;
 use App\Models\UserPhoto;
+use App\Models\UserSubscription;
 use App\Services\MatchmakingResultsPayloadService;
 use App\Services\MatchmakingService;
 use App\Services\StatsService;
 use App\Services\UserActivityService;
 use App\Support\ProspectListSearch;
+use App\Support\UsernameGenerator;
+use App\Support\UntreatedProspectStats;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Crypt;
@@ -111,14 +114,12 @@ class MatchmakerController extends Controller
         // Filter by rejection status (after role-based filtering)
         if ($statusFilter === 'rejected') {
             $query->whereNotNull('rejection_reason');
-            // For matchmakers, only show prospects they rejected
-            if ($roleName === 'matchmaker') {
-                $query->where('rejected_by', $me->id);
-            }
         } elseif ($statusFilter === 'traite') {
             // Show only treated prospects (but still active, not rejected)
             $query->where('is_traite', true);
             $query->whereNull('rejection_reason');
+        } elseif ($statusFilter === 'non_traite') {
+            UntreatedProspectStats::constrainToUntreated($query);
         } else {
             // Default to active (non-rejected) prospects - show ALL active prospects regardless of is_traite
             // is_traite is just a marker to show if matchmaker has seen/contacted, not a filter
@@ -556,36 +557,63 @@ class MatchmakerController extends Controller
             ->where('model_has_roles.model_id', $me->id)
             ->value('roles.name');
 
-        // Check authorization: admin, assigned matchmaker, or manager assigned to the prospect
-        $canAccept = false;
-
-        if ($roleName === 'admin') {
-            $canAccept = true;
-        } elseif ($roleName === 'matchmaker') {
-            // Matchmaker can accept if they are assigned to the prospect
-            if ($prospect->assigned_matchmaker_id === $me->id) {
-                $canAccept = true;
-            }
-        } elseif ($roleName === 'manager') {
-            // Manager can accept if the prospect is assigned to them
-            if ($prospect->assigned_matchmaker_id === $me->id) {
-                $canAccept = true;
-            }
-        }
-
-        if (! $canAccept) {
+        // Same server rule as account reactivation: any matchmaker, manager, or admin
+        // (no assignment / agency check).
+        if (! in_array($roleName, ['matchmaker', 'manager', 'admin'], true)) {
             abort(403, 'Vous n\'êtes pas autorisé à accepter ce prospect.');
         }
 
-        // Clear rejection information and store acceptance reason
-        $prospect->update([
-            'rejection_reason' => null,
-            'rejected_by' => null,
-            'rejected_at' => null,
-            'acceptance_reason' => $request->acceptance_reason,
-            'accepted_by' => $me->id,
-            'accepted_at' => now(),
-        ]);
+        $previousMatchmakerId = $prospect->assigned_matchmaker_id;
+        $shouldReassign = in_array($roleName, ['matchmaker', 'manager'], true);
+
+        DB::transaction(function () use ($request, $me, $prospect, $shouldReassign, $previousMatchmakerId) {
+            $prospectUpdates = [
+                'rejection_reason' => null,
+                'rejected_by' => null,
+                'rejected_at' => null,
+                'acceptance_reason' => $request->acceptance_reason,
+                'accepted_by' => $me->id,
+                'accepted_at' => now(),
+            ];
+
+            // Mirror AccountStatusController::activateMemberClient reassignment ("take the file").
+            if ($shouldReassign) {
+                $prospectUpdates['assigned_matchmaker_id'] = $me->id;
+                if ($me->agency_id) {
+                    $prospectUpdates['agency_id'] = $me->agency_id;
+                }
+            }
+
+            $prospect->update($prospectUpdates);
+
+            UserActivityService::log(
+                $prospect->id,
+                $me->id,
+                'status_change',
+                'Prospect réactivé. '.$request->acceptance_reason,
+                []
+            );
+
+            if ($shouldReassign) {
+                UserSubscription::where('user_id', $prospect->id)
+                    ->where('status', 'active')
+                    ->update(['assigned_matchmaker_id' => $me->id]);
+
+                UserAssignment::recordAssignment($prospect->id, $me->id, $me->id, 'activation_reassign');
+
+                UserActivityService::log(
+                    $prospect->id,
+                    $me->id,
+                    'matchmaker_assigned',
+                    "Prospect réassigné à {$me->name} (réactivation).",
+                    [
+                        'previous_matchmaker_id' => $previousMatchmakerId,
+                        'new_matchmaker_id' => $me->id,
+                        'agency_id' => $me->agency_id,
+                    ]
+                );
+            }
+        });
 
         return redirect()->back()->with('success', 'Prospect accepté et restauré avec succès.');
     }
@@ -1556,6 +1584,7 @@ class MatchmakerController extends Controller
 
         $statusFilter = $request->string('status_filter')->toString(); // active | rejected | rappeler
         $scope = $request->string('scope')->toString(); // agency (default) | mine (manager personal caseload)
+        $effectiveScope = ($roleName === 'manager' && $scope === 'mine') ? 'mine' : 'agency';
         $query = User::role('user')
             ->where('status', 'prospect')
             ->with(['profile', 'assignedMatchmaker', 'agency']);
@@ -1610,25 +1639,34 @@ class MatchmakerController extends Controller
             });
         }
 
+        $matchmakerIdFilter = null;
+        if ($roleName === 'manager' && $effectiveScope === 'agency' && $request->filled('matchmaker_id')) {
+            $requestedMatchmakerId = (int) $request->integer('matchmaker_id');
+            $allowedStaffIds = collect(StatsService::getMatchmakerList((int) $me->agency_id))
+                ->reject(fn (array $member) => $member['role'] === 'manager' && (int) $member['id'] !== (int) $me->id)
+                ->pluck('id')
+                ->all();
+            if (in_array($requestedMatchmakerId, $allowedStaffIds, true)) {
+                $matchmakerIdFilter = $requestedMatchmakerId;
+                $query->where('assigned_matchmaker_id', $matchmakerIdFilter);
+            }
+        }
+
+        $untreatedStats = UntreatedProspectStats::forStaffList($me, (string) $roleName, $effectiveScope, $matchmakerIdFilter);
+
         // Filter by rejection status (after role-based filtering)
         if ($statusFilter === 'rejected') {
             $query->whereNotNull('rejection_reason');
-            // For matchmakers, only show prospects they rejected
-            if ($roleName === 'matchmaker') {
-                $query->where('rejected_by', $me->id);
-            }
         } elseif ($statusFilter === 'rappeler') {
             // Show only prospects marked as "A rappeler"
             $query->where('to_rappeler', true);
             $query->whereNotNull('rejection_reason');
-            // For matchmakers, only show prospects they rejected
-            if ($roleName === 'matchmaker') {
-                $query->where('rejected_by', $me->id);
-            }
         } elseif ($statusFilter === 'traite') {
             // Show only treated prospects (but still active, not rejected)
             $query->where('is_traite', true);
             $query->whereNull('rejection_reason');
+        } elseif ($statusFilter === 'non_traite') {
+            UntreatedProspectStats::constrainToUntreated($query);
         } else {
             // Default to active (non-rejected) prospects - show ALL active prospects regardless of is_traite
             // is_traite is just a marker to show if matchmaker has seen/contacted, not a filter
@@ -1706,15 +1744,29 @@ class MatchmakerController extends Controller
             $matrimonialPacks = \App\Models\MatrimonialPack::all(['id', 'name', 'duration']);
         }
 
+        $filterMatchmakers = [];
+        if ($roleName === 'manager' && $effectiveScope === 'agency') {
+            $filterMatchmakers = collect(StatsService::getMatchmakerList((int) $me->agency_id))
+                ->reject(fn (array $member) => $member['role'] === 'manager' && (int) $member['id'] !== (int) $me->id)
+                ->values()
+                ->all();
+        }
+
         return Inertia::render('matchmaker/agency-prospects', [
             'prospects' => $prospects,
             'statusFilter' => $statusFilter ?: 'active',
             'commercialOnly' => $commercialOnly,
-            'scope' => ($roleName === 'manager' && $scope === 'mine') ? 'mine' : 'agency',
+            'scope' => $effectiveScope,
             'agencyId' => $me?->agency_id,
+            'matchmaker_id' => $matchmakerIdFilter,
+            'filterMatchmakers' => $filterMatchmakers,
             'search' => $search,
             'services' => $services,
             'matrimonialPacks' => $matrimonialPacks,
+            'untreatedCount' => $untreatedStats['untreatedCount'],
+            'untreatedSummary' => $untreatedStats['untreatedSummary'],
+            'untreatedUnassigned' => $untreatedStats['untreatedUnassigned'],
+            'untreatedByStaff' => $untreatedStats['untreatedByStaff'],
         ]);
     }
 
@@ -2080,15 +2132,7 @@ class MatchmakerController extends Controller
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
 
-        // Generate unique username
-        $baseUsername = Str::slug($request->name);
-        $username = $baseUsername;
-        $counter = 1;
-
-        while (User::where('username', $username)->exists()) {
-            $username = $baseUsername.$counter;
-            $counter++;
-        }
+        $username = UsernameGenerator::fromName($request->name, $request->email);
 
         $password = $request->password;
 

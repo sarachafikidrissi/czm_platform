@@ -16,6 +16,7 @@ import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getCommercialCodeDisplay } from '@/lib/heard-about';
 import { ProspectTraiteBadge } from '@/components/prospect-traite-badge';
+import { UntreatedProspectBadge, withUntreatedCount } from '@/components/untreated-prospect-badge';
 
 const TABLE_HEAD_CLASS = 'px-5 py-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500';
 const PRIMARY_BUTTON_CLASS = 'bg-rose-800 text-white hover:bg-rose-900';
@@ -31,6 +32,9 @@ export default function ManagerProspectsDispatch() {
         statusFilter = 'active',
         commercialOnly = false,
         search: initialSearch = '',
+        untreatedCount = 0,
+        untreatedUnassigned = 0,
+        untreatedByStaff = [],
     } = usePage().props;
     const assignees = [...matchmakers, ...managers];
     const [isLoading, setIsLoading] = useState(false);
@@ -149,14 +153,21 @@ export default function ManagerProspectsDispatch() {
     }, [searchQuery]);
 
     const matchmakerFilterOptions = useMemo(() => {
+        const counts = Object.fromEntries((untreatedByStaff || []).map((member) => [String(member.id), member.count]));
         const conseillers = filterMatchmakers.filter((m) => m.role !== 'manager');
         const mgrs = filterMatchmakers.filter((m) => m.role === 'manager');
 
         return [
-            ...conseillers.map((m) => ({ value: String(m.id), label: `${m.name} [MM]` })),
-            ...mgrs.map((m) => ({ value: String(m.id), label: `${m.name} [MGR]` })),
+            ...conseillers.map((m) => ({
+                value: String(m.id),
+                label: withUntreatedCount(`${m.name} [MM]`, counts[String(m.id)] ?? 0),
+            })),
+            ...mgrs.map((m) => ({
+                value: String(m.id),
+                label: withUntreatedCount(`${m.name} [MGR]`, counts[String(m.id)] ?? 0),
+            })),
         ];
-    }, [filterMatchmakers]);
+    }, [filterMatchmakers, untreatedByStaff]);
 
     const handleToggleAll = (checked) => {
         setSelectAll(checked);
@@ -245,11 +256,14 @@ export default function ManagerProspectsDispatch() {
             <Head title={t('staff.prospectsDispatch')} />
             <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
                 <Card>
-                    <CardHeader>
-                        <CardTitle>{t('staff.prospectsDispatch')}</CardTitle>
-                        <p className="text-sm text-muted-foreground">
-                            Dispatch prospects received by admin to matchmakers in your agency
-                        </p>
+                    <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <CardTitle>{t('staff.prospectsDispatch')}</CardTitle>
+                            <p className="text-sm text-muted-foreground">
+                                Dispatch prospects received by admin to matchmakers in your agency
+                            </p>
+                        </div>
+                        <UntreatedProspectBadge count={untreatedCount} />
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div className="relative">
@@ -295,7 +309,7 @@ export default function ManagerProspectsDispatch() {
                             <div className="w-56">
                                 <Label className="mb-2 block">{t('staff.matchmaker')}</Label>
                                 <SearchableSelect
-                                    options={[{ value: '', label: 'Tous les conseillers / managers' }, ...matchmakerFilterOptions]}
+                                    options={[{ value: '', label: withUntreatedCount('Non assignés', untreatedUnassigned) }, ...matchmakerFilterOptions]}
                                     value={matchmaker_id ? String(matchmaker_id) : ''}
                                     onValueChange={(value) => visitList({ matchmaker_id: value || undefined })}
                                     placeholder="Tous les conseillers / managers"
@@ -326,6 +340,7 @@ export default function ManagerProspectsDispatch() {
                                         <TableHead className={`hidden lg:table-cell ${TABLE_HEAD_CLASS}`}>{t('staff.tableHeaders.country')}</TableHead>
                                         <TableHead className={`hidden xl:table-cell ${TABLE_HEAD_CLASS}`}>{t('profile.heardAboutCommercialCode')}</TableHead>
                                         <TableHead className={TABLE_HEAD_CLASS}>Traitement</TableHead>
+                                        <TableHead className={TABLE_HEAD_CLASS}>{t('staff.tableHeaders.accountStatus')}</TableHead>
                                         <TableHead className={TABLE_HEAD_CLASS}>{t('common.status')}</TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -342,11 +357,12 @@ export default function ManagerProspectsDispatch() {
                                                 <TableCell className="hidden px-5 xl:table-cell"><Skeleton className="h-4 w-28" /></TableCell>
                                                 <TableCell className="px-5"><Skeleton className="h-6 w-20" /></TableCell>
                                                 <TableCell className="px-5"><Skeleton className="h-6 w-20" /></TableCell>
+                                                <TableCell className="px-5"><Skeleton className="h-6 w-20" /></TableCell>
                                             </TableRow>
                                         ))
                                     ) : prospectsData.length === 0 ? (
                                         <TableRow>
-                                            <TableCell colSpan={9} className="px-5 py-8 text-center text-muted-foreground">
+                                            <TableCell colSpan={10} className="px-5 py-8 text-center text-muted-foreground">
                                                 {(initialSearch || '').trim()
                                                     ? 'No prospects found matching your search.'
                                                     : statusFilter === 'rejected'
@@ -379,6 +395,15 @@ export default function ManagerProspectsDispatch() {
                                                 <TableCell className="hidden px-5 text-sm xl:table-cell">{getCommercialCodeDisplay(p)}</TableCell>
                                                 <TableCell className="px-5">
                                                     <ProspectTraiteBadge isTraite={Boolean(p.is_traite)} />
+                                                </TableCell>
+                                                <TableCell className="px-5">
+                                                    {p.profile?.account_status === 'desactivated' ? (
+                                                        <Badge variant="destructive">{t('staff.desactivated')}</Badge>
+                                                    ) : p.rejection_reason ? (
+                                                        <Badge className="bg-error text-error-foreground">Rejeté</Badge>
+                                                    ) : (
+                                                        <Badge variant="default">{t('staff.active')}</Badge>
+                                                    )}
                                                 </TableCell>
                                                 <TableCell className="px-5">
                                                     {p.assigned_matchmaker_id ? (

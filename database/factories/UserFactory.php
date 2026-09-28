@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Support\UsernameGenerator;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -23,9 +24,13 @@ class UserFactory extends Factory
      */
     public function definition(): array
     {
+        $name = fake()->name();
+        $email = fake()->unique()->safeEmail();
+
         return [
-            'name' => fake()->name(),
-            'email' => fake()->unique()->safeEmail(),
+            'name' => $name,
+            'username' => UsernameGenerator::fromName($name, $email),
+            'email' => $email,
             'phone' => fake()->unique()->numerify('06########'),
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),

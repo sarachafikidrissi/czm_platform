@@ -543,8 +543,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('/posts/{post}', [\App\Http\Controllers\PostController::class, 'destroy'])->name('posts.destroy');
     });
 
-    // News feed (posts + activity feed) – visible to all authenticated users
-    Route::middleware(['auth', 'role:admin|manager|matchmaker'])->group(function () {
+    // News feed (posts + activity feed) – staff, and members whose accounts are still on
+    Route::middleware(['auth', 'role:user|admin|manager|matchmaker'])->group(function () {
         Route::get('/staff/news-feed', [\App\Http\Controllers\PostController::class, 'staffNewsFeed'])->name('staff.news-feed');
     });
 

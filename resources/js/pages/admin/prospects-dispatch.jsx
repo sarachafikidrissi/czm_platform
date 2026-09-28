@@ -5,6 +5,8 @@ import axios from 'axios';
 import AppLayout from '@/layouts/app-layout';
 import { ProspectProfileActionsModals } from '@/components/prospect-profile-actions-modals';
 import { ProspectTraiteBadge } from '@/components/prospect-traite-badge';
+import { UntreatedProspectsBanner, UntreatedProspectsClearPill } from '@/components/untreated-prospects-banner';
+import { withUntreatedCount } from '@/components/untreated-prospect-badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -40,6 +42,9 @@ export default function ProspectsDispatch() {
         search: initialSearch = '',
         services = [],
         matrimonialPacks = [],
+        untreatedSummary = { count: 0, oldest_days: null, overdue_48h_count: 0 },
+        untreatedByAgency = [],
+        untreatedByStaff = [],
         auth,
         role: userRole,
     } = usePage().props;
@@ -53,7 +58,7 @@ export default function ProspectsDispatch() {
         ...options,
     });
 
-    const showDispatchedColumn = statusFilter === 'active' || statusFilter === 'traite';
+    const showDispatchedColumn = statusFilter === 'active' || statusFilter === 'traite' || statusFilter === 'non_traite';
     const showRejectionColumn = statusFilter === 'rejected' || statusFilter === 'rappeler';
 
     const DEFAULT_PER_PAGE = 5;
@@ -239,6 +244,10 @@ export default function ProspectsDispatch() {
         visitProspects({ page });
     };
 
+    const filterToUntreated = () => {
+        visitProspects({ status_filter: 'non_traite', page: 1 });
+    };
+
     useEffect(() => {
         if (lastSubmittedSearchRef.current === null || lastSubmittedSearchRef.current === initialSearch) {
             setSearchQuery(initialSearch);
@@ -273,9 +282,22 @@ export default function ProspectsDispatch() {
         };
     }, [searchQuery]);
 
+    const agencyCounts = useMemo(
+        () => Object.fromEntries((untreatedByAgency || []).map((agency) => [String(agency.id), agency.count])),
+        [untreatedByAgency],
+    );
+
+    const staffCounts = useMemo(
+        () => Object.fromEntries((untreatedByStaff || []).map((member) => [String(member.id), member.count])),
+        [untreatedByStaff],
+    );
+
     const agencyOptions = useMemo(
-        () => agencies.map((agency) => ({ value: String(agency.id), label: agency.name })),
-        [agencies],
+        () => agencies.map((agency) => ({
+            value: String(agency.id),
+            label: withUntreatedCount(agency.name, agencyCounts[String(agency.id)] ?? 0),
+        })),
+        [agencies, agencyCounts],
     );
 
     const filteredFilterMatchmakers = useMemo(() => {
@@ -290,10 +312,16 @@ export default function ProspectsDispatch() {
         const mgrs = filteredFilterMatchmakers.filter((m) => m.role === 'manager');
 
         return [
-            ...conseillers.map((m) => ({ value: String(m.id), label: `${m.name} [MM]` })),
-            ...mgrs.map((m) => ({ value: String(m.id), label: `${m.name} [MGR]` })),
+            ...conseillers.map((m) => ({
+                value: String(m.id),
+                label: withUntreatedCount(`${m.name} [MM]`, staffCounts[String(m.id)] ?? 0),
+            })),
+            ...mgrs.map((m) => ({
+                value: String(m.id),
+                label: withUntreatedCount(`${m.name} [MGR]`, staffCounts[String(m.id)] ?? 0),
+            })),
         ];
-    }, [filteredFilterMatchmakers]);
+    }, [filteredFilterMatchmakers, staffCounts]);
 
     // Helper function to check if a prospect is dispatched
     const isDispatched = (prospect) => {
@@ -438,6 +466,10 @@ export default function ProspectsDispatch() {
                         <CardTitle>{t('staff.prospectsDispatch')}</CardTitle>
                     </CardHeader>
                     <CardContent>
+                        <UntreatedProspectsBanner
+                            summary={untreatedSummary}
+                            onFilterUntreated={filterToUntreated}
+                        />
                         <div className="flex flex-wrap items-end gap-4 mb-4">
                             <div className="grid gap-2 w-[220px]">
                                 <Label>{t('staff.country')}</Label>
@@ -509,6 +541,7 @@ export default function ProspectsDispatch() {
                                     <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="active">{t('staff.userInfo.activeStatus')}</SelectItem>
+                                        <SelectItem value="non_traite">Non traités</SelectItem>
                                         <SelectItem value="rejected">{t('staff.userInfo.rejectedStatus')}</SelectItem>
                                         <SelectItem value="rappeler">A rappeler</SelectItem>
                                         <SelectItem value="traite">Traité</SelectItem>
@@ -694,9 +727,13 @@ export default function ProspectsDispatch() {
                                             <ProspectTraiteBadge isTraite={Boolean(p.is_traite)} />
                                         </TableCell>
                                         <TableCell>
-                                            <Badge variant={p.profile?.account_status === 'desactivated' ? 'destructive' : 'default'}>
-                                                {p.profile?.account_status === 'desactivated' ? t('staff.desactivated') : t('staff.active')}
-                                            </Badge>
+                                            {p.profile?.account_status === 'desactivated' ? (
+                                                <Badge variant="destructive">{t('staff.desactivated')}</Badge>
+                                            ) : p.rejection_reason ? (
+                                                <Badge className="bg-error text-error-foreground">Rejeté</Badge>
+                                            ) : (
+                                                <Badge variant="default">{t('staff.active')}</Badge>
+                                            )}
                                         </TableCell>
                                         <TableCell className="hidden xl:table-cell px-5 text-sm">{getCommercialCodeDisplay(p)}</TableCell>
                                         <TableCell className="px-5">{new Date(p.created_at ?? Date.now()).toLocaleDateString()}</TableCell>
@@ -754,11 +791,12 @@ export default function ProspectsDispatch() {
                         </TableBody>
                     </Table>
 
-                    {hasPagination && (
-                        <div className="mt-4 flex flex-col gap-3 rounded-xl border border-slate-200/80 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                            <div className="text-sm text-slate-500">
-                                Affichage de {showingStart} à {showingEnd} sur {total} prospects
+                    <div className="mt-4 flex flex-col gap-3 rounded-xl border border-slate-200/80 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="text-sm text-slate-500 flex flex-wrap items-center gap-2">
+                                <UntreatedProspectsClearPill summary={untreatedSummary} />
+                                <span>Affichage de {showingStart} à {showingEnd} sur {total} prospects</span>
                             </div>
+                            {hasPagination && (
                             <div className="flex items-center gap-2">
                                 <Button
                                     variant="outline"
@@ -807,8 +845,8 @@ export default function ProspectsDispatch() {
                                     <ChevronRight className="h-4 w-4" />
                                 </Button>
                             </div>
+                            )}
                         </div>
-                    )}
                     </CardContent>
                 </Card>
             </div>

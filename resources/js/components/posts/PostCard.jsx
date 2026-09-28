@@ -4,12 +4,18 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Textarea } from '@/components/ui/textarea';
 import { Link, router, usePage } from '@inertiajs/react';
 import { ChevronLeft, ChevronRight, Heart, MessageCircle, Trash2, Edit2, X, Send } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 export default function PostCard({ post, activity }) {
     const isActivity = Boolean(activity);
     const { auth } = usePage().props;
     const isMatchmaker = auth?.user?.roles?.[0]?.name === 'matchmaker';
+    const isAdmin = auth?.user?.roles?.some((role) => role.name === 'admin');
+    const canDeleteOtherComment = (commentUserId, commentUser) => {
+        if (Number(auth?.user?.id) === Number(commentUserId)) return false;
+        if (isAdmin) return true;
+        return isMatchmaker && commentUser?.roles?.[0]?.name === 'user';
+    };
     const [showComments, setShowComments] = useState(true);
     const [newComment, setNewComment] = useState('');
     const [isLiking, setIsLiking] = useState(false);
@@ -29,6 +35,9 @@ export default function PostCard({ post, activity }) {
     const [commentToDelete, setCommentToDelete] = useState(null);
     const [showLikersModal, setShowLikersModal] = useState(false);
     const [showCommentsModal, setShowCommentsModal] = useState(false);
+    const pendingServerDeletes = useRef([]);
+
+    const isTempCommentId = (id) => typeof id === 'number' && id > 1000000000000;
 
     const displayUser = isActivity ? activity.actor : post?.user;
     const displayContent = isActivity ? activity.description : (post?.content ?? '');
@@ -41,6 +50,41 @@ export default function PostCard({ post, activity }) {
     // Sync comments when post data updates from server (after Inertia reloads)
     useEffect(() => {
         if (!post?.id || !post?.comments) return;
+
+        const remainingDeletes = [];
+        const deletingIds = new Set();
+        const sameUser = (userId) => Number(userId) === Number(auth?.user?.id);
+        for (const pending of pendingServerDeletes.current) {
+            let realId = null;
+            if (pending.isReply) {
+                for (const comment of post.comments) {
+                    const reply = (comment.replies || []).find(
+                        (item) => !isTempCommentId(item.id) && sameUser(item.user_id) && item.content === pending.content,
+                    );
+                    if (reply) {
+                        realId = reply.id;
+                        break;
+                    }
+                }
+            } else {
+                const match = [...post.comments].reverse().find(
+                    (item) => !isTempCommentId(item.id) && sameUser(item.user_id) && item.content === pending.content,
+                );
+                realId = match?.id ?? null;
+            }
+
+            if (realId) {
+                deletingIds.add(realId);
+                router.delete(`/posts/comments/${realId}`, {
+                    preserveScroll: true,
+                    only: ['feed', 'posts', 'recentPosts'],
+                });
+            } else {
+                remainingDeletes.push(pending);
+            }
+        }
+        pendingServerDeletes.current = remainingDeletes;
+
         setComments(prevComments => {
                 // Create a hash of comment IDs to detect real changes
                 const newCommentIds = post.comments.map(c => c.id).sort().join(',');
@@ -59,7 +103,12 @@ export default function PostCard({ post, activity }) {
                 // 1. The IDs are different (new comment/reply from server or structure changed)
                 // 2. OR the current comments/replies have temporary IDs (need to replace with real IDs)
                 if (newCommentIds !== currentCommentIds || hasTempIds) {
-                    return post.comments;
+                    return post.comments
+                        .filter((comment) => !deletingIds.has(comment.id))
+                        .map((comment) => ({
+                            ...comment,
+                            replies: (comment.replies || []).filter((reply) => !deletingIds.has(reply.id)),
+                        }));
                 }
                 return prevComments; // Keep current state if no meaningful change
             });
@@ -131,7 +180,7 @@ export default function PostCard({ post, activity }) {
             },
             {
                 preserveScroll: true,
-                only: ['posts'], // Allow Inertia to update posts data (will trigger useEffect to sync)
+                only: ['posts', 'feed', 'recentPosts'],
                 onFinish: () => {
                     setIsCommenting(false);
                     // useEffect will sync the comment with real ID from server
@@ -186,7 +235,7 @@ export default function PostCard({ post, activity }) {
             },
             {
                 preserveScroll: true,
-                only: ['posts'], // Allow Inertia to update posts data (will trigger useEffect to sync)
+                only: ['posts', 'feed', 'recentPosts'],
                 onFinish: () => {
                     setIsReplying(false);
                     // useEffect will sync the reply with real ID from server
@@ -356,12 +405,17 @@ export default function PostCard({ post, activity }) {
 
         setCommentToDelete(null);
 
+        if (isTempCommentId(commentId)) {
+            pendingServerDeletes.current.push({
+                content: deletedComment?.content,
+                isReply,
+            });
+            return;
+        }
+
         router.delete(`/posts/comments/${commentId}`, {
             preserveScroll: true,
             only: [],
-            onSuccess: () => {
-                // Success - state already updated
-            },
             onError: () => {
                 // Revert on error
                 if (isReply && deletedComment) {
@@ -688,7 +742,7 @@ export default function PostCard({ post, activity }) {
                                                                     </button>
                                                                 </>
                                                             )}
-                                                            {auth.user.id !== comment.user_id && isMatchmaker && comment.user?.roles?.[0]?.name === 'user' && (
+                                                            {canDeleteOtherComment(comment.user_id, comment.user) && (
                                                                 <button 
                                                                     className="hover:text-destructive"
                                                                     onClick={() => setCommentToDelete(comment.id)}
@@ -789,7 +843,7 @@ export default function PostCard({ post, activity }) {
                                                                                 </button>
                                                                             </>
                                                                         )}
-                                                                        {auth.user.id !== reply.user_id && isMatchmaker && reply.user?.roles?.[0]?.name === 'user' && (
+                                                                        {canDeleteOtherComment(reply.user_id, reply.user) && (
                                                                             <button 
                                                                                 className="hover:text-destructive"
                                                                                 onClick={() => setCommentToDelete(reply.id)}

@@ -66,15 +66,17 @@ class AccountStatusController extends Controller
         }
 
         $user = User::findOrFail($userId);
-        
-        // Admin can deactivate any user (prospect, member, client, client_expire)
-        $profile = $user->profile ?? $user->profile()->create([]);
-        
-        $profile->update([
-            'account_status' => 'desactivated',
-            'deactivation_reason' => $request->reason,
-            'activation_reason' => null, // Clear activation reason when deactivating
-        ]);
+
+        // Admin can deactivate any user (prospect, member, client, client_expire).
+        // profile() uses withDefault(), so a missing row is still truthy and update() would no-op.
+        Profile::updateOrCreate(
+            ['user_id' => $user->id],
+            [
+                'account_status' => 'desactivated',
+                'deactivation_reason' => $request->reason,
+                'activation_reason' => null,
+            ]
+        );
 
         Activity::record('member.deactivated', $me->id, $user->fresh(), [
             'reason' => $request->reason,
@@ -185,11 +187,11 @@ class AccountStatusController extends Controller
         }
 
         $user = User::findOrFail($userId);
-        
-        // Check if user is a member or client (for matchmakers and managers)
-        // Admin can deactivate any user
+
+        // Matchmakers and managers may deactivate members, clients, and prospects.
+        // Admin can deactivate any user.
         if (in_array($roleName, ['matchmaker', 'manager'])) {
-            if (!in_array($user->status, ['member', 'client', 'client_expire'])) {
+            if (!in_array($user->status, ['member', 'client', 'client_expire', 'prospect'])) {
                 return redirect()->back()->with('error', 'Can only deactivate member or client accounts.');
             }
 
@@ -213,13 +215,15 @@ class AccountStatusController extends Controller
             }
         }
 
-        $profile = $user->profile ?? $user->profile()->create([]);
-        
-        $profile->update([
-            'account_status' => 'desactivated',
-            'deactivation_reason' => $request->reason,
-            'activation_reason' => null,
-        ]);
+        // profile() uses withDefault(), so a missing row is still truthy and update() would no-op.
+        Profile::updateOrCreate(
+            ['user_id' => $user->id],
+            [
+                'account_status' => 'desactivated',
+                'deactivation_reason' => $request->reason,
+                'activation_reason' => null,
+            ]
+        );
 
         Activity::record('member.deactivated', $me->id, $user->fresh(), [
             'reason' => $request->reason,

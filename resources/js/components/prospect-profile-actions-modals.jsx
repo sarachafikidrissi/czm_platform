@@ -26,6 +26,7 @@ import {
     RefreshCw,
     XCircle,
 } from 'lucide-react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 const PACK_ADVANTAGES = [
@@ -98,6 +99,7 @@ export function ProspectProfileActionsModals({
     canEditProspectProfile,
     canAcceptProspect,
     canTransferUser,
+    canDeactivateAccount,
     canMarkAsRappeler,
     handleReject,
     submitRejection,
@@ -118,6 +120,10 @@ export function ProspectProfileActionsModals({
     closePasswordDialog,
 }) {
     const { t } = useTranslation();
+    const [deactivateDialogOpen, setDeactivateDialogOpen] = useState(false);
+    const [deactivationReason, setDeactivationReason] = useState('');
+    const [deactivating, setDeactivating] = useState(false);
+    const [prospectToDeactivate, setProspectToDeactivate] = useState(null);
 
     return (
         <>
@@ -600,6 +606,21 @@ export function ProspectProfileActionsModals({
                                     <Copy className="h-4 w-4 text-rose-700" />
                                     Copier le lien
                                 </button>
+                                {canDeactivateAccount?.(selectedUserForInfo) && (
+                                    <button
+                                        type="button"
+                                        className="flex w-full items-center gap-3 rounded-xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700 hover:bg-rose-100"
+                                        onClick={() => {
+                                            setProspectToDeactivate(selectedUserForInfo);
+                                            setDeactivationReason('');
+                                            setUserInfoModalOpen(false);
+                                            setDeactivateDialogOpen(true);
+                                        }}
+                                    >
+                                        <XCircle className="h-4 w-4" />
+                                        Désactiver le compte
+                                    </button>
+                                )}
                             </div>
 
                             <DialogFooter className="flex justify-end">
@@ -609,6 +630,57 @@ export function ProspectProfileActionsModals({
                             </DialogFooter>
                         </>
                     )}
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={deactivateDialogOpen} onOpenChange={setDeactivateDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Désactiver le compte</DialogTitle>
+                        <DialogDescription>
+                            Vous êtes sur le point de désactiver le compte de {prospectToDeactivate?.name}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                            <Label htmlFor="prospect-deactivation-reason">Raison *</Label>
+                            <Textarea
+                                id="prospect-deactivation-reason"
+                                value={deactivationReason}
+                                onChange={(e) => setDeactivationReason(e.target.value)}
+                                placeholder="Raison de la désactivation..."
+                                rows={4}
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setDeactivateDialogOpen(false)}>
+                            Annuler
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            disabled={!deactivationReason.trim() || deactivating}
+                            onClick={() => {
+                                if (!prospectToDeactivate || !deactivationReason.trim()) return;
+                                setDeactivating(true);
+                                router.post(`/staff/users/${prospectToDeactivate.id}/deactivate`, {
+                                    reason: deactivationReason,
+                                }, {
+                                    onSuccess: () => {
+                                        setDeactivateDialogOpen(false);
+                                        setDeactivationReason('');
+                                        setProspectToDeactivate(null);
+                                        setDeactivating(false);
+                                    },
+                                    onError: () => {
+                                        setDeactivating(false);
+                                    },
+                                });
+                            }}
+                        >
+                            {deactivating ? 'Désactivation...' : 'Désactiver'}
+                        </Button>
+                    </DialogFooter>
                 </DialogContent>
             </Dialog>
 
