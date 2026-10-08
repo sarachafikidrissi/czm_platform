@@ -312,7 +312,7 @@ export default function ManagerProspectsDispatch() {
                                     options={[{ value: '', label: withUntreatedCount('Non assignés', untreatedUnassigned) }, ...matchmakerFilterOptions]}
                                     value={matchmaker_id ? String(matchmaker_id) : ''}
                                     onValueChange={(value) => visitList({ matchmaker_id: value || undefined })}
-                                    placeholder="Tous les conseillers / managers"
+                                    placeholder="Tous les matchmakers / managers"
                                 />
                             </div>
                             <div className="ml-auto">
@@ -512,7 +512,7 @@ export default function ManagerProspectsDispatch() {
                                         <SelectContent>
                                             {matchmakers.length > 0 && (
                                                 <SelectGroup>
-                                                    <SelectLabel>Conseillers</SelectLabel>
+                                                    <SelectLabel>Matchmakers</SelectLabel>
                                                     {matchmakers.map((m) => (
                                                         <SelectItem key={m.id} value={String(m.id)}>
                                                             {m.name} ({m.email}) <Badge variant="outline" className="ml-1 px-1 py-0 text-[10px]">MM</Badge>

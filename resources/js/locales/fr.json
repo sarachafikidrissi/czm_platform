@@ -782,7 +782,7 @@
             "confirmMarkPaid": "Marquer la commission comme payée pour cet objectif ?",
             "perUserObjective": "Objectif personnel",
             "agencyObjectiveBadge": "Objectif d'agence",
-            "aggregatedObjectiveBadge": "Objectif agrégé (conseillers + managers)"
+            "aggregatedObjectiveBadge": "Objectif agrégé (matchmakers + managers)"
         },
         "agencies": {
             "title": "Gérer les Agences",
@@ -1221,7 +1221,7 @@
             "propositionAccepted": "Proposition acceptée.",
             "propositionRefused": "Proposition refusée.",
             "propositionExpired": "Proposition expirée (délai dépassé).",
-            "propositionCancelled": "Proposition annulée par le conseiller.",
+            "propositionCancelled": "Proposition annulée par le matchmaker.",
             "propositionSent": "Proposition envoyée avec {{name}}.",
             "propositionSentWithMessage": "Proposition envoyée avec {{name}}. Message : {{message}}",
             "subscriptionAdded": "Abonnement ajouté : {{pack}}, {{months}} mois.",
@@ -1256,7 +1256,7 @@
     "kpi": {
         "sectionTitle": "Mes KPIs",
         "sectionTitlePersonal": "Ma performance",
-        "sectionSubtitlePersonal": "En tant que conseiller",
+        "sectionSubtitlePersonal": "En tant que matchmaker",
         "sectionTitleAgency": "Mon agence",
         "sectionTitlePlatform": "Vue plateforme",
         "noActivity": "Aucune activité en {{month}} {{year}}",
@@ -1267,7 +1267,7 @@
         "resetFilters": "Réinitialiser les filtres",
         "filterActive": "Filtre actif",
         "allAgencies": "Toutes les agences",
-        "allMatchmakers": "Tous les conseillers",
+        "allMatchmakers": "Tous les matchmakers",
         "filterBy": "Affichage",
         "prospects": "Prospects",
         "membres": "Membres",
@@ -1284,6 +1284,6 @@
         "matchTooltip": "RDV marqué réussi — les deux personnes se sont rencontrées avec succès.",
         "deltaTooltip": "Variation par rapport au mois précédent",
         "vsTarget": "vs objectif",
-        "transferTooltip": "Les statistiques reflètent le conseiller actuellement assigné."
+        "transferTooltip": "Les statistiques reflètent le matchmaker actuellement assigné."
     }
 }

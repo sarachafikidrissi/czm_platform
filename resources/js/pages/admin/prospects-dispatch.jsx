@@ -587,14 +587,14 @@ export default function ProspectsDispatch() {
                             <div className="w-[240px]">
                                 <Label className="mb-2 block">{t('staff.matchmaker')}</Label>
                                 <SearchableSelect
-                                    options={[{ value: '', label: 'Tous les conseillers / managers' }, ...matchmakerFilterOptions]}
+                                    options={[{ value: '', label: 'Tous les matchmakers / managers' }, ...matchmakerFilterOptions]}
                                     value={matchmaker_id ? String(matchmaker_id) : ''}
                                     onValueChange={(value) =>
                                         visitProspects({
                                             matchmaker_id: value || undefined,
                                         })
                                     }
-                                    placeholder="Tous les conseillers / managers"
+                                    placeholder="Tous les matchmakers / managers"
                                 />
                             </div>
                             <Button variant="outline" onClick={() => {
@@ -895,7 +895,7 @@ export default function ProspectsDispatch() {
                                     <SelectContent>
                                         {matchmakers.length > 0 && (
                                             <SelectGroup>
-                                                <SelectLabel>Conseillers</SelectLabel>
+                                                <SelectLabel>Matchmakers</SelectLabel>
                                                 {matchmakers.map((m) => (
                                                     <SelectItem key={m.id} value={m.id.toString()}>
                                                         {m.name} ({m.agency?.name || t('staff.noAgency')}) <Badge variant="outline" className="ml-1 text-[10px] px-1 py-0">MM</Badge>
@@ -973,7 +973,7 @@ export default function ProspectsDispatch() {
                                     <SelectContent>
                                         {matchmakers.length > 0 && (
                                             <SelectGroup>
-                                                <SelectLabel>Conseillers</SelectLabel>
+                                                <SelectLabel>Matchmakers</SelectLabel>
                                                 {matchmakers.map((m) => (
                                                     <SelectItem key={m.id} value={m.id.toString()}>
                                                         {m.name} ({m.agency?.name || t('staff.noAgency')}) <Badge variant="outline" className="ml-1 text-[10px] px-1 py-0">MM</Badge>

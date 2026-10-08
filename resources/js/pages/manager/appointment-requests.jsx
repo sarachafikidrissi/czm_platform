@@ -277,7 +277,7 @@ export default function AppointmentRequests() {
                                 <SelectContent>
                                     {matchmakers.length > 0 && (
                                         <SelectGroup>
-                                            <SelectLabel>Conseillers</SelectLabel>
+                                            <SelectLabel>Matchmakers</SelectLabel>
                                             {matchmakers.map((matchmaker) => (
                                                 <SelectItem key={matchmaker.id} value={matchmaker.id.toString()}>
                                                     {matchmaker.name} {matchmaker.email ? `(${matchmaker.email})` : ''} <Badge variant="outline" className="ml-1 text-[10px] px-1 py-0">MM</Badge>

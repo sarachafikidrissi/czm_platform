@@ -66,7 +66,7 @@ export default function MesCommandes() {
                                     <div className="grid grid-cols-[minmax(120px,1fr)_minmax(100px,0.9fr)_minmax(90px,0.8fr)_minmax(90px,0.8fr)_minmax(70px,0.5fr)_minmax(110px,0.8fr)_minmax(90px,0.7fr)_minmax(90px,0.7fr)] gap-3 border-b bg-rose-50/60 px-5 py-3 text-xs font-semibold uppercase tracking-wide text-rose-900">
                                         <div>{t('orders.orderNumber')}</div>
                                         <div>{t('orders.pack')}</div>
-                                        <div>Conseiller</div>
+                                        <div>Matchmaker</div>
                                         <div>Agence</div>
                                         <div>Durée</div>
                                         <div>Validité</div>

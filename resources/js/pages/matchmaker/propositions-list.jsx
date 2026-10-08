@@ -136,7 +136,7 @@ export default function PropositionsList() {
                         {showMatchmakerFilter && (
                             <div className="w-56">
                                 <SearchableSelect
-                                    options={[{ value: '', label: 'Tous les conseillers / managers' }, ...matchmakerOptions]}
+                                    options={[{ value: '', label: 'Tous les matchmakers / managers' }, ...matchmakerOptions]}
                                     value={matchmaker_id ? String(matchmaker_id) : ''}
                                     onValueChange={(value) =>
                                         visitList({
@@ -144,7 +144,7 @@ export default function PropositionsList() {
                                             page: undefined,
                                         })
                                     }
-                                    placeholder="Tous les conseillers / managers"
+                                    placeholder="Tous les matchmakers / managers"
                                 />
                             </div>
                         )}

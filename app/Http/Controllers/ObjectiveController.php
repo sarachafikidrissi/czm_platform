@@ -253,7 +253,7 @@ class ObjectiveController extends Controller
             'staff' => $staffForObjectives->map(fn (User $u) => [
                 'id' => $u->id,
                 'name' => $u->name,
-                'role' => $u->hasRole('manager') ? 'Manager' : 'Conseiller',
+                'role' => $u->hasRole('manager') ? 'Manager' : 'Matchmaker',
                 'agency' => $agencyNames[$u->agency_id] ?? '—',
             ])->values()->all(),
             'existingObjectives' => $existingObjectives,
@@ -765,8 +765,8 @@ class ObjectiveController extends Controller
         return match ($roleName) {
             'admin' => 'admin',
             'manager' => 'manager',
-            'matchmaker' => 'conseiller',
-            default => 'conseiller',
+            'matchmaker' => 'matchmaker',
+            default => 'matchmaker',
         };
     }
 
@@ -794,7 +794,7 @@ class ObjectiveController extends Controller
         if ($userId) {
             $user = $users->firstWhere('id', $userId) ?? User::with('roles')->find($userId);
             if ($user) {
-                $roleLabel = $user->hasRole('manager') ? 'Manager' : 'Conseiller';
+                $roleLabel = $user->hasRole('manager') ? 'Manager' : 'Matchmaker';
 
                 return $user->name.' · '.$roleLabel;
             }
@@ -807,11 +807,11 @@ class ObjectiveController extends Controller
         }
 
         if ($scopeType === 'all') {
-            return 'Tous les conseillers · Toutes les agences';
+            return 'Tous les matchmakers · Toutes les agences';
         }
 
         if ($scopeType === 'self' && $roleName === 'matchmaker') {
-            return $me->name.' · Conseiller';
+            return $me->name.' · Matchmaker';
         }
 
         if ($scopeType === 'agency' && $roleName === 'manager' && $me->agency_id) {

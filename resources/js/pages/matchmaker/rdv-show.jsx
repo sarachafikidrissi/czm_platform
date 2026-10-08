@@ -236,7 +236,7 @@ function MatchmakerContactBar({ matchmaker }) {
         return (
             <Card className="border border-rose-100/60 bg-rose-50/20 shadow-sm">
                 <CardContent className="py-4 text-sm text-muted-foreground">
-                    Aucun conseiller assigné.
+                    Aucun matchmaker assigné.
                 </CardContent>
             </Card>
         );
@@ -248,7 +248,7 @@ function MatchmakerContactBar({ matchmaker }) {
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div className="min-w-0">
                         <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                            Conseiller responsable
+                            Matchmaker responsable
                         </p>
                         <p className="mt-1 text-base font-semibold text-slate-900">{matchmaker.name}</p>
                         {matchmaker.agency?.name && (
@@ -532,7 +532,7 @@ export default function RdvShow({ rdv, canUpdateStatus, viewerRole = 'matchmaker
                                     }
                                 />
                                 <FeedbackSection
-                                    title="Feedback de votre conseiller"
+                                    title="Feedback de votre matchmaker"
                                     feedbacks={feedbacks.matchmaker ?? []}
                                 />
                             </div>
@@ -552,8 +552,8 @@ export default function RdvShow({ rdv, canUpdateStatus, viewerRole = 'matchmaker
                                     <FeedbackSection
                                         title={
                                             rdv.matchmaker?.name
-                                                ? `Feedback du conseiller — ${rdv.matchmaker.name}`
-                                                : 'Feedback du conseiller'
+                                                ? `Feedback du matchmaker — ${rdv.matchmaker.name}`
+                                                : 'Feedback du matchmaker'
                                         }
                                         feedbacks={feedbacks.matchmaker ?? []}
                                     />

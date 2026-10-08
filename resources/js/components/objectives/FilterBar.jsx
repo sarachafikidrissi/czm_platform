@@ -7,7 +7,7 @@ import { FieldSelect } from './controls';
  * the page component performs the Inertia navigation.
  *
  * Props:
- *   role      'admin' | 'manager' | 'conseiller'
+ *   role      'admin' | 'manager' | 'matchmaker'
  *   filters   { agency, user, month, year }   (current values)
  *   defaults  { agency, user, month, year }   (server defaults — used for "active" + dirty)
  *   options   { agencies: Option[], users: Option[], months: Option[], years: Option[] }
@@ -50,7 +50,7 @@ export default function FilterBar({ role, filters, defaults, options, onChange, 
                 >
                   <option value="">Tous les utilisateurs</option>
                   {(options.matchmakers ?? []).length > 0 && (
-                    <optgroup label="Conseillers">
+                    <optgroup label="Matchmakers">
                       {(options.matchmakers ?? []).map((o) => (
                         <option key={o.value} value={o.value}>{o.label}</option>
                       ))}

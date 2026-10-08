@@ -328,13 +328,13 @@ export default function AgencyProspects() {
                         </div>
                         {isManager && prospectScope === 'agency' && (
                             <div className="flex items-center gap-2">
-                                <Label className="text-muted-foreground text-sm">Conseiller</Label>
+                                <Label className="text-muted-foreground text-sm">Matchmaker</Label>
                                 <div className="w-[240px]">
                                     <SearchableSelect
                                         options={[
                                             {
                                                 value: '',
-                                                label: withUntreatedCount('Tous les conseillers', agencyUntreatedTotal),
+                                                label: withUntreatedCount('Tous les matchmakers', agencyUntreatedTotal),
                                             },
                                             ...staffFilterOptions,
                                         ]}
@@ -345,7 +345,7 @@ export default function AgencyProspects() {
                                                 page: 1,
                                             })
                                         }
-                                        placeholder="Tous les conseillers"
+                                        placeholder="Tous les matchmakers"
                                     />
                                 </div>
                                 {!matchmaker_id && untreatedUnassigned > 0 && (

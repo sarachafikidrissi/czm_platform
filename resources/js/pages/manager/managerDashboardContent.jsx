@@ -52,7 +52,7 @@ export default function ManagerDashboardContent({ stats = { prospectsReceived: 0
                     <div className="flex items-center justify-between mb-4">
                         <div>
                             <h2 className="text-lg font-semibold text-foreground">Ma performance</h2>
-                            <p className="text-xs text-muted-foreground mt-0.5">En tant que conseiller</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">En tant que matchmaker</p>
                         </div>
                         <MonthSelector month={month} year={year} />
                     </div>
@@ -86,10 +86,10 @@ export default function ManagerDashboardContent({ stats = { prospectsReceived: 0
                             {/* Matchmaker filter dropdown */}
                             <div className="w-52">
                                 <SearchableSelect
-                                    options={[{ value: '', label: 'Tous les conseillers' }, ...mmOptions]}
+                                    options={[{ value: '', label: 'Tous les matchmakers' }, ...mmOptions]}
                                     value={activeMatchmakerId ? String(activeMatchmakerId) : ''}
                                     onValueChange={handleMatchmakerFilter}
-                                    placeholder="Tous les conseillers"
+                                    placeholder="Tous les matchmakers"
                                 />
                             </div>
                             <MonthSelector

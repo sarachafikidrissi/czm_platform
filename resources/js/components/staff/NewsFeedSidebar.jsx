@@ -250,7 +250,7 @@ export default function NewsFeedSidebar({ statistics, role }) {
                             {noObjective.length > 0 && (
                                 <>
                                     <p className="text-muted-foreground pt-1 text-[11px] font-medium uppercase tracking-wider">
-                                        {noObjective.length} conseiller{noObjective.length > 1 ? 's' : ''} sans objectif ce mois
+                                        {noObjective.length} matchmaker{noObjective.length > 1 ? 's' : ''} sans objectif ce mois
                                     </p>
                                     {noObjective.map((member) => (
                                         <div key={member.id} className="flex items-center justify-between gap-3 text-sm">

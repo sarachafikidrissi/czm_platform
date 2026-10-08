@@ -790,7 +790,7 @@ export function ProspectProfileActionsModals({
                                     <div className="flex w-full items-center justify-between gap-4">
                                         <div>
                                             <AlertTitle className="text-amber-800">
-                                                Impossible de charger la liste des conseillers.
+                                                Impossible de charger la liste des matchmakers.
                                             </AlertTitle>
                                         </div>
                                         <Button
@@ -808,7 +808,7 @@ export function ProspectProfileActionsModals({
                                 </Alert>
                             ) : matchmakers.length === 0 ? (
                                 <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
-                                    Aucun conseiller disponible pour le transfert.
+                                    Aucun matchmaker disponible pour le transfert.
                                 </div>
                             ) : (
                                 <Select value={selectedMatchmakerId} onValueChange={setSelectedMatchmakerId}>

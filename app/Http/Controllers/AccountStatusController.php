@@ -107,10 +107,10 @@ class AccountStatusController extends Controller
 
         $user = User::findOrFail($userId);
 
-        // Check if user is a member or client (for matchmakers and managers)
-        // Admin can activate any user
+        // Matchmakers and managers may activate deactivated members, clients, and prospects.
+        // Admin can activate any user.
         if (in_array($roleName, ['matchmaker', 'manager'])) {
-            if (!in_array($user->status, ['member', 'client', 'client_expire'])) {
+            if (!in_array($user->status, ['member', 'client', 'client_expire', 'prospect'])) {
                 return redirect()->back()->with('error', 'Can only activate member or client accounts.');
             }
 

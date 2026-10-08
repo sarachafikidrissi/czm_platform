@@ -322,7 +322,7 @@ export default function MatchmakerStatistics() {
                                                 <SelectItem value="">{t('statistics.allMatchmakers')}</SelectItem>
                                                 {conseillerStaff.length > 0 && (
                                                     <SelectGroup>
-                                                        <SelectLabel>Conseillers</SelectLabel>
+                                                        <SelectLabel>Matchmakers</SelectLabel>
                                                         {conseillerStaff.map((mm) => (
                                                             <SelectItem key={mm.id} value={mm.id.toString()}>
                                                                 {mm.name} <Badge variant="outline" className="ml-1 text-[10px] px-1 py-0">MM</Badge>

@@ -124,7 +124,7 @@ export default function EditObjectivesModal({
             />
 
             <div className="flex-1 overflow-y-auto px-5 py-4">
-                <p className="text-[12px] font-semibold text-neutral-700 mb-2">Sélectionner les conseillers / managers</p>
+                <p className="text-[12px] font-semibold text-neutral-700 mb-2">Sélectionner les matchmakers / managers</p>
                 <div className="border border-neutral-200 rounded-lg overflow-hidden">
                     <div className="overflow-y-auto divide-y divide-neutral-100" style={{ maxHeight: 180 }}>
                         {staff.map((s) => {

@@ -59,7 +59,7 @@ function MatchmakerContactBar({ matchmaker }) {
     if (!matchmaker) {
         return (
             <Card className="border border-rose-100/60 bg-rose-50/20 shadow-sm">
-                <CardContent className="py-4 text-sm text-muted-foreground">Aucun conseiller assigné.</CardContent>
+                <CardContent className="py-4 text-sm text-muted-foreground">Aucun matchmaker assigné.</CardContent>
             </Card>
         );
     }
@@ -70,7 +70,7 @@ function MatchmakerContactBar({ matchmaker }) {
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div className="min-w-0">
                         <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                            Conseiller responsable
+                            Matchmaker responsable
                         </p>
                         <p className="mt-1 text-base font-semibold text-slate-900">{matchmaker.name}</p>
                         {matchmaker.agency?.name && (
@@ -453,7 +453,7 @@ export default function PropositionShow({ proposition: initialProposition, viewe
 
                         <Card className="border border-rose-100/60 bg-rose-50/20 shadow-sm">
                             <CardHeader className="pb-2">
-                                <CardTitle className="text-base font-semibold text-rose-900">Actions conseiller</CardTitle>
+                                <CardTitle className="text-base font-semibold text-rose-900">Actions matchmaker</CardTitle>
                             </CardHeader>
                             <CardContent className="flex flex-wrap gap-2">
                                 {proposition.can_cancel && (

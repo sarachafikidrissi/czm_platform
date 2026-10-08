@@ -33,7 +33,7 @@ use Illuminate\Support\Facades\Cache;
  *    old matchmaker's monthly new count decreases and the new matchmaker is credited
  *    from the transfer date (new open row). "total_active" reflects current
  *    assigned_matchmaker_id (live workload today).
- *    A UI tooltip reads: "Les statistiques reflètent le conseiller actuellement assigné."
+ *    A UI tooltip reads: "Les statistiques reflètent le matchmaker actuellement assigné."
  *
  * 4. MEMBER VALIDATION (new_this_month vs total_active)
  *    Both numbers count users whose current status is still 'member'.

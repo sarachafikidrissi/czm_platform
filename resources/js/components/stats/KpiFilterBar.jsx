@@ -76,10 +76,10 @@ export default function KpiFilterBar({
                 {/* Matchmaker filter — cascades from agency */}
                 <div className="w-52">
                     <SearchableSelect
-                        options={[{ value: '', label: 'Tous les conseillers / managers' }, ...mmOptions]}
+                        options={[{ value: '', label: 'Tous les matchmakers / managers' }, ...mmOptions]}
                         value={matchmakerId ? String(matchmakerId) : ''}
                         onValueChange={handleMatchmakerChange}
-                        placeholder="Tous les conseillers / managers"
+                        placeholder="Tous les matchmakers / managers"
                         disabled={mmOptions.length === 0}
                     />
                 </div>

@@ -1497,7 +1497,7 @@ export default function UserProfile({
                                                     <div className="flex min-w-0 flex-1 items-center gap-3">
                                                         <UserCheck className="h-5 w-5 shrink-0 text-rose-400" />
                                                         <div className="min-w-0">
-                                                            <p className="text-xs font-medium uppercase tracking-wider text-gray-400">Conseiller</p>
+                                                            <p className="text-xs font-medium uppercase tracking-wider text-gray-400">Matchmaker</p>
                                                             <p className="truncate text-sm font-semibold text-gray-900">{user?.assignedMatchmaker?.name || user?.assigned_matchmaker?.name}</p>
                                                         </div>
                                                     </div>
@@ -3015,7 +3015,7 @@ export default function UserProfile({
                                                         Proposition en attente
                                                     </h3>
                                                     <p className="mb-4 text-center text-sm text-muted-foreground">
-                                                        Votre conseiller vous a proposé un profil. Consultez la proposition et
+                                                        Votre matchmaker vous a proposé un profil. Consultez la proposition et
                                                         répondez depuis la page dédiée.
                                                     </p>
                                                     <div className="flex justify-center">

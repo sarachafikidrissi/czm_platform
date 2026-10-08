@@ -55,7 +55,7 @@ class ValidateProspectTest extends TestCase
             ->postJson(route('staff.prospects.validate', $prospect->id), $this->validPayload())
             ->assertStatus(422)
             ->assertJson([
-                'message' => 'Ce prospect doit d\'abord être affecté à un conseiller avant de pouvoir être validé.',
+                'message' => 'Ce prospect doit d\'abord être affecté à un matchmaker avant de pouvoir être validé.',
             ]);
 
         $this->assertProspectUnchanged($prospect);
@@ -69,7 +69,7 @@ class ValidateProspectTest extends TestCase
             ->postJson(route('staff.prospects.validate', $prospect->id), $this->validPayload())
             ->assertStatus(422)
             ->assertJson([
-                'message' => 'Ce prospect doit d\'abord être affecté à un conseiller avant de pouvoir être validé.',
+                'message' => 'Ce prospect doit d\'abord être affecté à un matchmaker avant de pouvoir être validé.',
             ]);
 
         $this->assertProspectUnchanged($prospect);
@@ -83,7 +83,7 @@ class ValidateProspectTest extends TestCase
             ->postJson(route('staff.prospects.validate', $prospect->id), $this->validPayload())
             ->assertStatus(422)
             ->assertJson([
-                'message' => 'Ce prospect doit d\'abord être affecté à un conseiller avant de pouvoir être validé.',
+                'message' => 'Ce prospect doit d\'abord être affecté à un matchmaker avant de pouvoir être validé.',
             ]);
 
         $this->assertProspectUnchanged($prospect);

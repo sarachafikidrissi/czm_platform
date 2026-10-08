@@ -188,7 +188,7 @@ class MatchmakerController extends Controller
         // Business-rule precondition (all roles including admin): must be assigned first.
         if (! $prospect->assigned_matchmaker_id) {
             return response()->json([
-                'message' => 'Ce prospect doit d\'abord être affecté à un conseiller avant de pouvoir être validé.',
+                'message' => 'Ce prospect doit d\'abord être affecté à un matchmaker avant de pouvoir être validé.',
             ], 422);
         }
 
