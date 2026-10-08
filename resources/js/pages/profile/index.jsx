@@ -51,6 +51,7 @@ export default function Profile({ auth, profile, isValidated = false }) {
         ageMinimum: profile?.ageMinimum || '',
         ageMaximum: profile?.ageMaximum || '',
         situationMatrimonialeRecherche: profile?.situationMatrimonialeRecherche || '',
+        rechercheEnfants: profile?.rechercheEnfants || '',
         paysRecherche: profile?.paysRecherche || 'maroc',
         villesRecherche: profile?.villesRecherche || [],
         niveauEtudesRecherche: profile?.niveauEtudesRecherche || '',
@@ -86,14 +87,20 @@ export default function Profile({ auth, profile, isValidated = false }) {
                 if (!formData.etatMatrimonial || !formData.logement) return false;
                 if (!formData.heardAboutUs) return false;
                 if (formData.heardAboutUs === 'pub' && !formData.heardAboutReference) return false;
-                if (formData.etatMatrimonial === 'divorce' && formData.hasChildren === true) {
+                if ((formData.etatMatrimonial === 'divorce' || formData.etatMatrimonial === 'veuf') && formData.hasChildren === true) {
                     if (!formData.childrenCount || !formData.childrenGuardian) return false;
                 }
                 return true;
             case 3:
+                const soughtSituations = Array.isArray(formData.situationMatrimonialeRecherche)
+                    ? formData.situationMatrimonialeRecherche
+                    : formData.situationMatrimonialeRecherche
+                      ? [formData.situationMatrimonialeRecherche]
+                      : [];
                 const ageValid = formData.ageMinimum && formData.ageMaximum && 
                     parseInt(formData.ageMaximum) > parseInt(formData.ageMinimum);
-                return ageValid && formData.situationMatrimonialeRecherche;
+                const childrenPreferenceValid = !(soughtSituations.includes('divorce') || soughtSituations.includes('veuf')) || !!formData.rechercheEnfants;
+                return ageValid && formData.situationMatrimonialeRecherche && childrenPreferenceValid;
             case 4:
                 return true; // Photo is optional for validation
             default:

@@ -3,16 +3,14 @@
 namespace Tests\Feature;
 
 use App\Models\Agency;
+use App\Models\Profile;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class ProspectListSearchTest extends TestCase
 {
-    use RefreshDatabase;
-
     private Agency $agency;
 
     private User $matchmaker;
@@ -385,6 +383,218 @@ class ProspectListSearchTest extends TestCase
             );
     }
 
+    public function test_agency_prospects_search_finds_by_phone(): void
+    {
+        $target = User::factory()->create([
+            'name' => 'Phone Target',
+            'phone' => '+212612345678',
+            'status' => 'prospect',
+            'assigned_matchmaker_id' => $this->matchmaker->id,
+            'agency_id' => $this->agency->id,
+            'rejection_reason' => null,
+        ]);
+        $target->assignRole('user');
+
+        $other = User::factory()->create([
+            'name' => 'Other Phone',
+            'phone' => '+212698765432',
+            'status' => 'prospect',
+            'assigned_matchmaker_id' => $this->matchmaker->id,
+            'agency_id' => $this->agency->id,
+            'rejection_reason' => null,
+        ]);
+        $other->assignRole('user');
+
+        $this->actingAs($this->matchmaker)
+            ->get(route('staff.agency-prospects', ['search' => '612345678']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('prospects.data', 1)
+                ->where('prospects.data.0.id', $target->id)
+            );
+    }
+
+    public function test_agency_prospects_search_ignores_phone_separators(): void
+    {
+        $target = User::factory()->create([
+            'name' => 'Spaced Phone',
+            'phone' => '+212 612-345.678',
+            'status' => 'prospect',
+            'assigned_matchmaker_id' => $this->matchmaker->id,
+            'agency_id' => $this->agency->id,
+            'rejection_reason' => null,
+        ]);
+        $target->assignRole('user');
+
+        $this->actingAs($this->matchmaker)
+            ->get(route('staff.agency-prospects', ['search' => '212612345678']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('prospects.data', 1)
+                ->where('prospects.data.0.id', $target->id)
+            );
+    }
+
+    public function test_phone_search_matches_local_and_international_forms(): void
+    {
+        $international = User::factory()->create([
+            'name' => 'International Phone',
+            'phone' => '+212612345678',
+            'status' => 'prospect',
+            'assigned_matchmaker_id' => $this->matchmaker->id,
+            'agency_id' => $this->agency->id,
+            'rejection_reason' => null,
+        ]);
+        $international->assignRole('user');
+
+        $local = User::factory()->create([
+            'name' => 'Local Phone',
+            'phone' => '0699988877',
+            'status' => 'prospect',
+            'assigned_matchmaker_id' => $this->matchmaker->id,
+            'agency_id' => $this->agency->id,
+            'rejection_reason' => null,
+        ]);
+        $local->assignRole('user');
+
+        $this->actingAs($this->matchmaker)
+            ->get(route('staff.agency-prospects', ['search' => '0612345678']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('prospects.data', 1)
+                ->where('prospects.data.0.id', $international->id)
+            );
+
+        $this->actingAs($this->matchmaker)
+            ->get(route('staff.agency-prospects', ['search' => '+212 699-988.877']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('prospects.data', 1)
+                ->where('prospects.data.0.id', $local->id)
+            );
+    }
+
+    public function test_phone_search_still_respects_rejection_filter(): void
+    {
+        $target = User::factory()->create([
+            'name' => 'Rejected Phone',
+            'phone' => '0699988877',
+            'status' => 'prospect',
+            'assigned_matchmaker_id' => $this->matchmaker->id,
+            'agency_id' => $this->agency->id,
+            'rejection_reason' => 'Hors critères',
+            'rejected_by' => $this->matchmaker->id,
+            'rejected_at' => now(),
+        ]);
+        $target->assignRole('user');
+
+        $this->actingAs($this->matchmaker)
+            ->get(route('staff.agency-prospects', ['search' => '0699988877']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('prospects.data', 0)
+            );
+
+        $this->actingAs($this->matchmaker)
+            ->get(route('staff.agency-prospects', [
+                'search' => '0699988877',
+                'status_filter' => 'rejected',
+            ]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('prospects.data', 1)
+                ->where('prospects.data.0.id', $target->id)
+            );
+    }
+
+    public function test_agency_prospects_search_finds_cin_passport_and_driver_license(): void
+    {
+        $cin = $this->makeAssignedProspectWithDocument('CIN Holder', 'ab123456', 'cin');
+        $passport = $this->makeAssignedProspectWithDocument('Passport Holder', 'P-998877', 'passport');
+        $license = $this->makeAssignedProspectWithDocument('License Holder', 'DL445566', 'driver_license');
+
+        $this->actingAs($this->matchmaker)
+            ->get(route('staff.agency-prospects', ['search' => 'ab 123456']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('prospects.data', 1)
+                ->where('prospects.data.0.id', $cin->id)
+            );
+
+        $this->actingAs($this->matchmaker)
+            ->get(route('staff.agency-prospects', ['search' => 'p-998877']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('prospects.data', 1)
+                ->where('prospects.data.0.id', $passport->id)
+            );
+
+        $this->actingAs($this->matchmaker)
+            ->get(route('staff.agency-prospects', ['search' => 'DL445566']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('prospects.data', 1)
+                ->where('prospects.data.0.id', $license->id)
+            );
+    }
+
+    public function test_document_search_does_not_match_a_partial_number(): void
+    {
+        $this->makeAssignedProspectWithDocument('Partial CIN', 'AB123456', 'cin');
+
+        $this->actingAs($this->matchmaker)
+            ->get(route('staff.agency-prospects', ['search' => 'AB123']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('prospects.data', 0)
+            );
+    }
+
+    public function test_validated_prospects_search_finds_member_by_phone_and_client_by_document(): void
+    {
+        $member = User::factory()->create([
+            'name' => 'Member Phone',
+            'phone' => '0611223344',
+            'status' => 'member',
+            'assigned_matchmaker_id' => $this->matchmaker->id,
+            'agency_id' => $this->agency->id,
+        ]);
+        $member->assignRole('user');
+
+        $client = User::factory()->create([
+            'name' => 'Client Document',
+            'phone' => '0655667788',
+            'status' => 'client',
+            'assigned_matchmaker_id' => $this->matchmaker->id,
+            'agency_id' => $this->agency->id,
+        ]);
+        $client->assignRole('user');
+        Profile::create([
+            'user_id' => $client->id,
+            'document_type' => 'passport',
+            'cin_hash' => $this->documentHash('ZX99881'),
+        ]);
+
+        $this->actingAs($this->matchmaker)
+            ->get(route('staff.prospects.validated', ['search' => '0611223344']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('prospects.data', 1)
+                ->where('prospects.data.0.id', $member->id)
+            );
+
+        $this->actingAs($this->matchmaker)
+            ->get(route('staff.prospects.validated', [
+                'search' => 'zx99881',
+                'status' => 'client',
+            ]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('prospects.data', 1)
+                ->where('prospects.data.0.id', $client->id)
+            );
+    }
+
     public function test_search_without_special_characters_still_works(): void
     {
         $target = $this->seedAssignedProspectsWithPageTwoTarget();
@@ -397,5 +607,39 @@ class ProspectListSearchTest extends TestCase
                 ->has('prospects.data', 1)
                 ->where('prospects.data.0.id', $target->id)
             );
+    }
+
+    private function makeAssignedProspectWithDocument(string $name, string $number, string $documentType): User
+    {
+        $prospect = User::factory()->create([
+            'name' => $name,
+            'status' => 'prospect',
+            'assigned_matchmaker_id' => $this->matchmaker->id,
+            'agency_id' => $this->agency->id,
+            'rejection_reason' => null,
+            'is_traite' => false,
+        ]);
+        $prospect->assignRole('user');
+
+        Profile::create([
+            'user_id' => $prospect->id,
+            'document_type' => $documentType,
+            'cin_hash' => $this->documentHash($number),
+        ]);
+
+        return $prospect;
+    }
+
+    private function documentHash(string $number): string
+    {
+        $appKey = (string) config('app.key');
+        if (str_starts_with($appKey, 'base64:')) {
+            $decoded = base64_decode(substr($appKey, 7));
+            if ($decoded !== false) {
+                $appKey = $decoded;
+            }
+        }
+
+        return hash_hmac('sha256', strtoupper($number), $appKey);
     }
 }

@@ -6,7 +6,6 @@ use App\Http\Controllers\MatchmakerStatisticsController;
 use App\Models\Agency;
 use App\Models\MonthlyObjective;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use ReflectionMethod;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -24,7 +23,6 @@ use Tests\TestCase;
  */
 class MatchmakerStatisticsObjectivesTest extends TestCase
 {
-    use RefreshDatabase;
 
     private Agency $agency;
     private User $manager;

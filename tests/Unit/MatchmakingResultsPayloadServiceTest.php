@@ -7,13 +7,11 @@ use App\Models\Proposition;
 use App\Models\PropositionRequest;
 use App\Models\User;
 use App\Services\MatchmakingResultsPayloadService;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class MatchmakingResultsPayloadServiceTest extends TestCase
 {
-    use RefreshDatabase;
 
     protected function makeMatchmaker(): User
     {

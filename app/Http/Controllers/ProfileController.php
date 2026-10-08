@@ -80,6 +80,7 @@ class ProfileController extends Controller
                 'situationMatrimonialeRecherche' => is_array($profile->situation_matrimoniale_recherche) 
                     ? $profile->situation_matrimoniale_recherche 
                     : ($profile->situation_matrimoniale_recherche ? [$profile->situation_matrimoniale_recherche] : []),
+                'rechercheEnfants' => $profile->recherche_enfants,
                 'paysRecherche' => is_array($profile->pays_recherche) 
                     ? $profile->pays_recherche 
                     : ($profile->pays_recherche ? [$profile->pays_recherche] : []),
@@ -253,8 +254,16 @@ class ProfileController extends Controller
             }
         }
 
-        // If divorced, require children details if hasChildren = true
-        if ($request->etatMatrimonial === 'divorce') {
+        // Married status is only available for men.
+        $profileOwner = Auth::user();
+        if ($profileOwner && $profileOwner->gender === 'female' && $request->etatMatrimonial === 'marie') {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'etatMatrimonial' => ['La situation marié(e) est réservée aux profils masculins.'],
+            ]);
+        }
+
+        // If divorced or widowed, require children details if hasChildren = true
+        if (in_array($request->etatMatrimonial, ['divorce', 'veuf'], true)) {
             if ($request->boolean('hasChildren')) {
                 $rules['childrenCount'] = 'required|integer|min:1|max:20';
                 $rules['childrenGuardian'] = 'required|in:mother,father';
@@ -284,6 +293,12 @@ class ProfileController extends Controller
         if (!is_array($situationArray) || count($situationArray) === 0) {
             throw \Illuminate\Validation\ValidationException::withMessages([
                 'situationMatrimonialeRecherche' => ['Au moins une situation matrimoniale doit être sélectionnée.'],
+            ]);
+        }
+
+        if (count(array_intersect($situationArray, ['divorce', 'veuf'])) > 0 && ! in_array($request->input('rechercheEnfants'), ['with', 'without'], true)) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'rechercheEnfants' => ['Indiquez si le profil recherché peut avoir des enfants.'],
             ]);
         }
         
@@ -409,6 +424,11 @@ class ProfileController extends Controller
         } else {
             $profile->situation_matrimoniale_recherche = is_array($situationMatrimonialeRecherche) ? $situationMatrimonialeRecherche : [$situationMatrimonialeRecherche];
         }
+
+        $savedSituations = is_array($profile->situation_matrimoniale_recherche) ? $profile->situation_matrimoniale_recherche : [];
+        $profile->recherche_enfants = count(array_intersect($savedSituations, ['divorce', 'veuf'])) > 0
+            ? $request->input('rechercheEnfants')
+            : null;
         
         // Handle paysRecherche as array or string
         $paysRecherche = $request->paysRecherche;

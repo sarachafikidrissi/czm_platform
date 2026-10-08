@@ -780,7 +780,7 @@ export default function ValidatedProspects() {
                             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                             <Input
                                 type="text"
-                                placeholder="Rechercher par nom, email, username ou code commercial..."
+                                placeholder="Rechercher par nom, email, username, téléphone, document ou code commercial..."
                                 value={searchQuery}
                                 onChange={(e) => {
                                     setSearchQuery(e.target.value);

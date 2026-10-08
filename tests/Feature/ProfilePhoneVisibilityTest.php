@@ -3,14 +3,12 @@
 namespace Tests\Feature;
 
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class ProfilePhoneVisibilityTest extends TestCase
 {
-    use RefreshDatabase;
 
     protected function makeUserWithRole(string $role, array $overrides = []): User
     {

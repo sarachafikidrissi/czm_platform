@@ -9,14 +9,12 @@ use App\Models\User;
 use App\Models\UserActivity;
 use App\Models\UserAssignment;
 use App\Models\UserSubscription;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class AccountActivationReassignmentTest extends TestCase
 {
-    use RefreshDatabase;
 
     private Agency $agency;
 

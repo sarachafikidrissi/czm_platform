@@ -533,7 +533,7 @@
         "notDispatched": "Non répartis",
         "dispatched": "Répartis",
         "reset": "Réinitialiser",
-        "searchPlaceholder": "Rechercher par nom, email ou username...",
+        "searchPlaceholder": "Rechercher par nom, email, username, téléphone ou document...",
         "noResults": "Aucun résultat trouvé pour \"{{query}}\". Veuillez essayer une autre recherche.",
         "tableHeaders": {
             "name": "Nom",

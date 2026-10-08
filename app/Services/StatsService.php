@@ -36,10 +36,10 @@ use Illuminate\Support\Facades\Cache;
  *    A UI tooltip reads: "Les statistiques reflètent le conseiller actuellement assigné."
  *
  * 4. MEMBER VALIDATION (new_this_month vs total_active)
- *    "new_this_month" = prospect validations in the selected month (approved_at timestamp),
- *    including users who have since become client or client_expire. Aligns with
- *    ObjectiveMetricsService realized membres. "total_active" = live members only
- *    (status = 'member' today).
+ *    Both numbers count users whose current status is still 'member'.
+ *    "new_this_month" = members approved in the selected month (approved_at).
+ *    Promoting a member to client or client_expire removes them from this card.
+ *    "total_active" = live members regardless of approval month.
  *
  * PER-METRIC SHAPE (returned by each getter):
  *   [
@@ -157,12 +157,10 @@ class StatsService
                 ->orWhereIn('validated_by_manager_id', $mmIds);
         });
 
-        // Monthly validations (approved_at) — include downstream statuses so promoting
-        // a member to client does not erase the validation credit for that month.
-        $validatedStatuses = ['member', 'client', 'client_expire'];
+        // Only people who are still members. Promoting a member to client removes them.
         $monthlyBase = $scope()
-            ->whereNotNull('approved_at')
-            ->whereIn('status', $validatedStatuses);
+            ->where('status', 'member')
+            ->whereNotNull('approved_at');
 
         $new = (clone $monthlyBase)->whereBetween('approved_at', [$start, $end])->count();
 
@@ -357,15 +355,15 @@ class StatsService
         $period = sprintf('%d-%02d', $year, $month);
 
         return match ($scope) {
-            'personal' => sprintf('kpi_stats:personal:mm%d:%s', $viewer->id, $period),
+            'personal' => sprintf('kpi_stats:v2:personal:mm%d:%s', $viewer->id, $period),
             'agency' => sprintf(
-                'kpi_stats:agency:a%d:%s:m%d',
+                'kpi_stats:v2:agency:a%d:%s:m%d',
                 $agencyId ?? $viewer->agency_id ?? 0,
                 $period,
                 $matchmakerId ?? 0
             ),
             'platform' => sprintf(
-                'kpi_stats:platform:%s:a%d:m%d',
+                'kpi_stats:v2:platform:%s:a%d:m%d',
                 $period,
                 $agencyId ?? 0,
                 $matchmakerId ?? 0
@@ -388,16 +386,16 @@ class StatsService
             $date = $now->copy()->subMonths($offset);
             $period = sprintf('%d-%02d', $date->year, $date->month);
 
-            Cache::forget(sprintf('kpi_stats:personal:mm%d:%s', $matchmakerId, $period));
+            Cache::forget(sprintf('kpi_stats:v2:personal:mm%d:%s', $matchmakerId, $period));
 
-            Cache::forget(sprintf('kpi_stats:platform:%s:a0:m0', $period));
-            Cache::forget(sprintf('kpi_stats:platform:%s:a0:m%d', $period, $matchmakerId));
+            Cache::forget(sprintf('kpi_stats:v2:platform:%s:a0:m0', $period));
+            Cache::forget(sprintf('kpi_stats:v2:platform:%s:a0:m%d', $period, $matchmakerId));
 
             if ($agencyId) {
-                Cache::forget(sprintf('kpi_stats:agency:a%d:%s:m0', $agencyId, $period));
-                Cache::forget(sprintf('kpi_stats:agency:a%d:%s:m%d', $agencyId, $period, $matchmakerId));
-                Cache::forget(sprintf('kpi_stats:platform:%s:a%d:m0', $period, $agencyId));
-                Cache::forget(sprintf('kpi_stats:platform:%s:a%d:m%d', $period, $agencyId, $matchmakerId));
+                Cache::forget(sprintf('kpi_stats:v2:agency:a%d:%s:m0', $agencyId, $period));
+                Cache::forget(sprintf('kpi_stats:v2:agency:a%d:%s:m%d', $agencyId, $period, $matchmakerId));
+                Cache::forget(sprintf('kpi_stats:v2:platform:%s:a%d:m0', $period, $agencyId));
+                Cache::forget(sprintf('kpi_stats:v2:platform:%s:a%d:m%d', $period, $agencyId, $matchmakerId));
             }
         }
     }

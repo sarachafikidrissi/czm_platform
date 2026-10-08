@@ -404,6 +404,7 @@ class MatchmakerController extends Controller
                 'approved_at' => now(),
                 'validated_by_manager_id' => $validatedByManagerId,
                 'matchmaker_assignment_history' => $history,
+                'to_rappeler' => false,
                 // Note: agency_id is preserved to maintain original agency tracking
             ]);
 
@@ -622,14 +623,6 @@ class MatchmakerController extends Controller
     {
         $user = User::findOrFail($id);
 
-        // Check if user is a rejected prospect OR an expired client
-        $isRejectedProspect = $user->rejection_reason && $user->status === 'prospect';
-        $isExpiredClient = $user->status === 'client_expire';
-
-        if (! $isRejectedProspect && ! $isExpiredClient) {
-            return redirect()->back()->with('error', 'Seuls les prospects rejetés ou les clients expirés peuvent être marqués comme "A rappeler".');
-        }
-
         $me = Auth::user();
         if (! $me) {
             abort(403, 'Unauthorized.');
@@ -646,20 +639,14 @@ class MatchmakerController extends Controller
         if ($roleName === 'admin') {
             $canMarkRappeler = true;
         } elseif ($roleName === 'matchmaker') {
-            // For rejected prospects: matchmaker can mark if assigned to them OR if prospect is from their agency
-            if ($isRejectedProspect) {
-                if ($user->assigned_matchmaker_id === $me->id) {
-                    $canMarkRappeler = true;
-                }
-                if ($user->agency_id === $me->agency_id && $user->assigned_matchmaker_id === null) {
-                    $canMarkRappeler = true;
-                }
+            if ($user->assigned_matchmaker_id === $me->id) {
+                $canMarkRappeler = true;
             }
-            // For expired clients: matchmaker can mark if they validated them OR if assigned to them
-            if ($isExpiredClient) {
-                if ($user->approved_by === $me->id || $user->assigned_matchmaker_id === $me->id) {
-                    $canMarkRappeler = true;
-                }
+            if ($user->agency_id === $me->agency_id && $user->assigned_matchmaker_id === null) {
+                $canMarkRappeler = true;
+            }
+            if ($user->approved_by === $me->id) {
+                $canMarkRappeler = true;
             }
         } elseif ($roleName === 'manager') {
             // Manager can mark if the user is from their agency
@@ -681,7 +668,7 @@ class MatchmakerController extends Controller
             'to_rappeler' => true,
         ]);
 
-        $userType = $isRejectedProspect ? 'Prospect' : 'Utilisateur';
+        $userType = $user->status === 'prospect' ? 'Prospect' : 'Utilisateur';
 
         return redirect()->back()->with('success', $userType.' marqué comme "A rappeler" avec succès.');
     }
@@ -730,10 +717,13 @@ class MatchmakerController extends Controller
             abort(403, 'You are not authorized to toggle this prospect\'s status.');
         }
 
-        // Toggle the is_traite status
-        $prospect->update([
-            'is_traite' => ! $prospect->is_traite,
-        ]);
+        $nextIsTraite = ! $prospect->is_traite;
+        // Marking as treated clears "A rappeler".
+        $updates = ['is_traite' => $nextIsTraite];
+        if ($nextIsTraite) {
+            $updates['to_rappeler'] = false;
+        }
+        $prospect->update($updates);
 
         $status = $prospect->is_traite ? 'traité' : 'pas traité';
 
@@ -1494,10 +1484,11 @@ class MatchmakerController extends Controller
             $durationMonths = $profile->matrimonialPack?->duration ?? 6;
             UserActivityService::log($user->id, Auth::id(), 'subscription', "Abonnement ajouté : {$packName}, {$durationMonths} mois.", []);
 
-            // Update user status to client (preserve original agency assignment)
+            // Update user status to client (preserve original agency assignment).
+            // A renewed client is no longer "A rappeler".
             $lockedUser = User::query()->whereKey($user->id)->lockForUpdate()->firstOrFail();
             $previousStatus = $lockedUser->status;
-            $lockedUser->update(['status' => 'client']);
+            $lockedUser->update(['status' => 'client', 'to_rappeler' => false]);
 
             UserActivityService::log(
                 $lockedUser->id,
@@ -1660,7 +1651,6 @@ class MatchmakerController extends Controller
         } elseif ($statusFilter === 'rappeler') {
             // Show only prospects marked as "A rappeler"
             $query->where('to_rappeler', true);
-            $query->whereNotNull('rejection_reason');
         } elseif ($statusFilter === 'traite') {
             // Show only treated prospects (but still active, not rejected)
             $query->where('is_traite', true);
@@ -2307,10 +2297,17 @@ class MatchmakerController extends Controller
             'childrenCount' => $profile->children_count,
             'childrenGuardian' => $profile->children_guardian,
             'hijabChoice' => $profile->hijab_choice,
+            'veil' => $profile->veil,
+            'specificVeilWish' => $profile->specific_veil_wish,
+            'niqabAcceptance' => $profile->niqab_acceptance,
+            'polygamy' => $profile->polygamy,
+            'foreignMarriage' => $profile->foreign_marriage,
+            'workAfterMarriage' => $profile->work_after_marriage,
             'situationSante' => $profile->situation_sante,
             'ageMinimum' => $profile->age_minimum,
             'ageMaximum' => $profile->age_maximum,
             'situationMatrimonialeRecherche' => $profile->situation_matrimoniale_recherche,
+            'rechercheEnfants' => $profile->recherche_enfants,
             'paysRecherche' => $profile->pays_recherche,
             'villesRecherche' => $profile->villes_recherche,
             'niveauEtudesRecherche' => $profile->niveau_etudes_recherche,
@@ -2508,6 +2505,12 @@ class MatchmakerController extends Controller
             'childrenCount' => 'nullable|integer|min:0|max:20',
             'childrenGuardian' => 'nullable|in:mother,father',
             'hijabChoice' => 'nullable|in:voile,non_voile,niqab,idea_niqab,idea_hijab',
+            'veil' => 'nullable|in:veiled,non_veiled',
+            'specificVeilWish' => 'nullable|in:hijab,niqab,neither',
+            'niqabAcceptance' => 'nullable|in:yes,no,to_discuss',
+            'polygamy' => 'nullable|in:accepted,not_accepted,to_discuss',
+            'foreignMarriage' => 'nullable|in:yes,no,maybe_discuss',
+            'workAfterMarriage' => 'nullable|in:yes,no,maybe,depending_situation',
             'situationSante' => 'nullable',
             'heardAboutUs' => 'required|string|in:recommande,passage,pub,online_ads,google_search,youtube_video,facebook_post,instagram_post,tiktok_video,collaboration,phone_call,commercial_terrain',
             'heardAboutReference' => 'nullable|string|max:255',
@@ -2528,7 +2531,17 @@ class MatchmakerController extends Controller
             }
         }
 
-        if ($request->etatMatrimonial === 'divorce') {
+        $prospectId = $request->route('user');
+        $prospectGender = $prospectId instanceof \App\Models\User
+            ? $prospectId->gender
+            : \App\Models\User::query()->whereKey($prospectId)->value('gender');
+        if ($prospectGender === 'female' && $request->etatMatrimonial === 'marie') {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'etatMatrimonial' => ['La situation marié(e) est réservée aux profils masculins.'],
+            ]);
+        }
+
+        if (in_array($request->etatMatrimonial, ['divorce', 'veuf'], true)) {
             if ($request->boolean('hasChildren')) {
                 $rules['childrenCount'] = 'required|integer|min:1|max:20';
                 $rules['childrenGuardian'] = 'required|in:mother,father';
@@ -2556,6 +2569,12 @@ class MatchmakerController extends Controller
         if (! is_array($situationArray) || count($situationArray) === 0) {
             throw \Illuminate\Validation\ValidationException::withMessages([
                 'situationMatrimonialeRecherche' => ['Au moins une situation matrimoniale doit être sélectionnée.'],
+            ]);
+        }
+
+        if (count(array_intersect($situationArray, ['divorce', 'veuf'])) > 0 && ! in_array($request->input('rechercheEnfants'), ['with', 'without'], true)) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'rechercheEnfants' => ['Indiquez si le profil recherché peut avoir des enfants.'],
             ]);
         }
 
@@ -2655,6 +2674,12 @@ class MatchmakerController extends Controller
         $profile->children_count = $request->childrenCount;
         $profile->children_guardian = $request->childrenGuardian;
         $profile->hijab_choice = $request->hijabChoice;
+        $profile->veil = $request->input('veil');
+        $profile->specific_veil_wish = $request->input('specificVeilWish');
+        $profile->niqab_acceptance = $request->input('niqabAcceptance');
+        $profile->polygamy = $request->input('polygamy');
+        $profile->foreign_marriage = $request->input('foreignMarriage');
+        $profile->work_after_marriage = $request->input('workAfterMarriage');
 
         $situationSante = $request->situationSante;
         if (is_string($situationSante)) {
@@ -2680,6 +2705,11 @@ class MatchmakerController extends Controller
         } else {
             $profile->situation_matrimoniale_recherche = is_array($situationMatrimonialeRecherche) ? $situationMatrimonialeRecherche : [$situationMatrimonialeRecherche];
         }
+
+        $savedSituations = is_array($profile->situation_matrimoniale_recherche) ? $profile->situation_matrimoniale_recherche : [];
+        $profile->recherche_enfants = count(array_intersect($savedSituations, ['divorce', 'veuf'])) > 0
+            ? $request->input('rechercheEnfants')
+            : null;
 
         $paysRecherche = $request->paysRecherche;
         if (is_string($paysRecherche)) {

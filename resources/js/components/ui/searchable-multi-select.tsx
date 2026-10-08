@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ChevronDownIcon, X } from 'lucide-react';
 import { Checkbox } from './checkbox';
-import { cn } from '@/lib/utils';
+import { cn, normalizeSearchText } from '@/lib/utils';
 
 interface Option {
     value: string;
@@ -17,6 +17,7 @@ interface SearchableMultiSelectProps {
     emptyMessage?: string;
     disabled?: boolean;
     className?: string;
+    maxVisibleOptions?: number;
 }
 
 export function SearchableMultiSelect({
@@ -28,6 +29,7 @@ export function SearchableMultiSelect({
     emptyMessage = 'Aucun résultat trouvé',
     disabled = false,
     className,
+    maxVisibleOptions,
 }: SearchableMultiSelectProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
@@ -35,9 +37,13 @@ export function SearchableMultiSelect({
     const searchInputRef = useRef<HTMLInputElement>(null);
 
     // Filter options based on search query
+    const normalizedQuery = normalizeSearchText(searchQuery);
     const filteredOptions = options.filter((option) =>
-        option.label.toLowerCase().includes(searchQuery.toLowerCase())
+        normalizeSearchText(option.label).startsWith(normalizedQuery)
     );
+    const visibleOptions =
+        typeof maxVisibleOptions === 'number' ? filteredOptions.slice(0, maxVisibleOptions) : filteredOptions;
+    const hiddenCount = filteredOptions.length - visibleOptions.length;
 
     // Handle click outside
     useEffect(() => {
@@ -151,7 +157,7 @@ export function SearchableMultiSelect({
 
                     {/* Options List */}
                     <div className="max-h-[300px] overflow-y-auto p-1">
-                        {filteredOptions.length === 0 ? (
+                        {visibleOptions.length === 0 ? (
                             <div className="px-3 py-2 text-sm text-muted-foreground">{emptyMessage}</div>
                         ) : (
                             <>
@@ -176,7 +182,7 @@ export function SearchableMultiSelect({
                                 </div>
 
                                 {/* Options */}
-                                {filteredOptions.map((option) => {
+                                {visibleOptions.map((option) => {
                                     const isSelected = selectedValues.includes(option.value);
                                     return (
                                         <div
@@ -205,6 +211,11 @@ export function SearchableMultiSelect({
                                         </div>
                                     );
                                 })}
+                                {hiddenCount > 0 && (
+                                    <div className="border-t border-gray-200 px-3 py-2 text-xs text-muted-foreground">
+                                        {hiddenCount} autre{hiddenCount > 1 ? 's' : ''} résultat{hiddenCount > 1 ? 's' : ''}. Affinez la recherche.
+                                    </div>
+                                )}
                             </>
                         )}
                     </div>

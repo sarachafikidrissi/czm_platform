@@ -128,19 +128,25 @@ const PersonalInfo = ({ formData, setFormData, gender }) => {
     const residenceCities = useMemo(() => {
         if (!selectedResidenceCountry) return [];
         const cities = countryCodeToCities[selectedResidenceCountry] || [];
-        return cities.sort().map((city) => ({
-            value: city,
-            label: city,
-        }));
+        const options = Array.from(new Set(cities.filter((city) => typeof city === 'string' && city.trim() !== '')))
+            .sort((a, b) => a.localeCompare(b, 'fr'))
+            .map((city) => ({
+                value: city,
+                label: city,
+            }));
+        return options;
     }, [selectedResidenceCountry, countryCodeToCities]);
 
     const originCities = useMemo(() => {
         if (!selectedOriginCountry) return [];
         const cities = countryCodeToCities[selectedOriginCountry] || [];
-        return cities.sort().map((city) => ({
-            value: city,
-            label: city,
-        }));
+        const options = Array.from(new Set(cities.filter((city) => typeof city === 'string' && city.trim() !== '')))
+            .sort((a, b) => a.localeCompare(b, 'fr'))
+            .map((city) => ({
+                value: city,
+                label: city,
+            }));
+        return options;
     }, [selectedOriginCountry, countryCodeToCities]);
 
     const handleResidenceCountryChange = (countryCode) => {
@@ -464,6 +470,7 @@ const PersonalInfo = ({ formData, setFormData, gender }) => {
                                 placeholder="Sélectionnez la ville"
                                 searchPlaceholder="Rechercher une ville..."
                                 emptyMessage="Aucune ville trouvée"
+                                maxVisibleOptions={80}
                             />
                         )}
                     </div>
@@ -514,6 +521,7 @@ const PersonalInfo = ({ formData, setFormData, gender }) => {
                                 placeholder="Sélectionnez la ville"
                                 searchPlaceholder="Rechercher une ville..."
                                 emptyMessage="Aucune ville trouvée"
+                                maxVisibleOptions={80}
                             />
                         )}
                     </div>

@@ -6,13 +6,11 @@ use App\Models\Agency;
 use App\Models\MonthlyObjective;
 use App\Models\User;
 use App\Services\ObjectiveMetricsService;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class ObjectiveMetricsServiceTest extends TestCase
 {
-    use RefreshDatabase;
 
     private Agency $agency;
     private User $manager;

@@ -5,13 +5,11 @@ namespace Tests\Feature;
 use App\Models\Agency;
 use App\Models\MonthlyObjective;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class ObjectiveStoreTest extends TestCase
 {
-    use RefreshDatabase;
 
     private User $admin;
     private Agency $agencyA;

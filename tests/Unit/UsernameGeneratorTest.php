@@ -4,12 +4,10 @@ namespace Tests\Unit;
 
 use App\Models\User;
 use App\Support\UsernameGenerator;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class UsernameGeneratorTest extends TestCase
 {
-    use RefreshDatabase;
 
     public function test_slug_is_taken_from_the_name(): void
     {

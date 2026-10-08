@@ -54,7 +54,6 @@ export default function UserProfile({
     const { t } = useTranslation();
     const { auth } = usePage().props;
     const { showToast } = useToast();
-    
 
     // Use Number conversion to handle string/number type differences in IDs
     // Also check with string comparison as fallback

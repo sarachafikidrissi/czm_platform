@@ -56,6 +56,7 @@ export default function ProfileInfo() {
         ageMinimum: profile?.ageMinimum || '',
         ageMaximum: profile?.ageMaximum || '',
         situationMatrimonialeRecherche: profile?.situationMatrimonialeRecherche || [],
+        rechercheEnfants: profile?.rechercheEnfants || '',
         paysRecherche: profile?.paysRecherche || [],
         villesRecherche: profile?.villesRecherche || [],
         niveauEtudesRecherche: profile?.niveauEtudesRecherche || '',
@@ -94,7 +95,7 @@ export default function ProfileInfo() {
                 if (!formData.etatMatrimonial || !formData.logement) return false;
                 if (!formData.heardAboutUs) return false;
                 // heardAboutReference is optional for all options
-                if (formData.etatMatrimonial === 'divorce' && formData.hasChildren === true) {
+                if ((formData.etatMatrimonial === 'divorce' || formData.etatMatrimonial === 'veuf') && formData.hasChildren === true) {
                     if (!formData.childrenCount || !formData.childrenGuardian) return false;
                 }
                 return true;
@@ -107,7 +108,7 @@ export default function ProfileInfo() {
                     : (formData.paysRecherche ? [formData.paysRecherche] : []);
                 const ageValid = formData.ageMinimum && formData.ageMaximum && 
                     parseInt(formData.ageMaximum) > parseInt(formData.ageMinimum);
-                return ageValid && situationMatrimonialeArray.length > 0 && paysRechercheArray.length > 0;
+                return ageValid && situationMatrimonialeArray.length > 0 && paysRechercheArray.length > 0 && (!(situationMatrimonialeArray.includes('divorce') || situationMatrimonialeArray.includes('veuf')) || !!formData.rechercheEnfants);
             case 4:
                 // CNI and front picture are optional for prospects (will be filled by matchmaker if needed)
                 // Profile picture is also optional
@@ -299,6 +300,7 @@ export default function ProfileInfo() {
             ageMinimum: profile?.ageMinimum || '',
             ageMaximum: profile?.ageMaximum || '',
             situationMatrimonialeRecherche: profile?.situationMatrimonialeRecherche || [],
+            rechercheEnfants: profile?.rechercheEnfants || '',
             paysRecherche: profile?.paysRecherche || [],
             villesRecherche: profile?.villesRecherche || [],
             niveauEtudesRecherche: profile?.niveauEtudesRecherche || '',

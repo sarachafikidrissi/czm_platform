@@ -12,6 +12,13 @@ function PartnerInfo({ formData, setFormData }) {
     const [loadingCities, setLoadingCities] = useState(false);
     const [errorCountries, setErrorCountries] = useState('');
 
+    const soughtSituations = Array.isArray(formData.situationMatrimonialeRecherche)
+        ? formData.situationMatrimonialeRecherche
+        : formData.situationMatrimonialeRecherche
+          ? [formData.situationMatrimonialeRecherche]
+          : [];
+    const showsChildrenPreference = soughtSituations.some((option) => option === 'divorce' || option === 'veuf');
+
     // Initialize selected countries from formData
     useEffect(() => {
         if (countries.length > 0 && formData.paysRecherche && selectedCountryCodes.length === 0) {
@@ -121,10 +128,11 @@ function PartnerInfo({ formData, setFormData }) {
             cities.forEach((city) => allCities.add(city));
         });
         
-        return Array.from(allCities).sort().map((city) => ({
+        const options = Array.from(allCities).sort().map((city) => ({
             value: city,
             label: city,
         }));
+        return options;
     }, [selectedCountryCodes, countryCodeToCities]);
 
     // Handle country selection
@@ -320,9 +328,11 @@ function PartnerInfo({ formData, setFormData }) {
                                             const newValue = e.target.checked
                                                 ? [...current, option]
                                                 : current.filter((v) => v !== option);
+                                            const stillNeedsChildrenPreference = newValue.includes('divorce') || newValue.includes('veuf');
                                             setFormData((prev) => ({
                                                 ...prev,
                                                 situationMatrimonialeRecherche: newValue,
+                                                rechercheEnfants: stillNeedsChildrenPreference ? prev.rechercheEnfants : '',
                                             }));
                                         }}
                                         className="text-info focus:ring-info"
@@ -335,6 +345,37 @@ function PartnerInfo({ formData, setFormData }) {
                         })}
                     </div>
                 </div>
+
+                {showsChildrenPreference && (
+                    <div>
+                        <label className="mb-2 block text-sm font-medium text-gray-700">Avec ou sans enfants ? *</label>
+                        <p className="mb-1 text-sm font-medium text-gray-700" dir="rtl">مع أطفال أو بدون أطفال؟</p>
+                        <div className="flex flex-wrap gap-6">
+                            <label className="inline-flex items-center">
+                                <input
+                                    type="radio"
+                                    name="rechercheEnfants"
+                                    value="with"
+                                    checked={formData.rechercheEnfants === 'with'}
+                                    onChange={() => setFormData((prev) => ({ ...prev, rechercheEnfants: 'with' }))}
+                                    className="text-info focus:ring-info"
+                                />
+                                <span className="ml-2 text-sm text-foreground">Avec enfants</span>
+                            </label>
+                            <label className="inline-flex items-center">
+                                <input
+                                    type="radio"
+                                    name="rechercheEnfants"
+                                    value="without"
+                                    checked={formData.rechercheEnfants === 'without'}
+                                    onChange={() => setFormData((prev) => ({ ...prev, rechercheEnfants: 'without' }))}
+                                    className="text-info focus:ring-info"
+                                />
+                                <span className="ml-2 text-sm text-foreground">Sans enfants</span>
+                            </label>
+                        </div>
+                    </div>
+                )}
 
                 {/* Pays - Searchable Multi-Select */}
                 <div>
@@ -386,6 +427,7 @@ function PartnerInfo({ formData, setFormData }) {
                             placeholder="Sélectionnez les villes"
                             searchPlaceholder="Search for Location"
                             emptyMessage="Aucune ville trouvée"
+                            maxVisibleOptions={80}
                         />
                     )}
                 </div>

@@ -6,13 +6,11 @@ use App\Http\Controllers\PropositionRequestController;
 use App\Models\PropositionRequest;
 use App\Models\Rdv;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class PropositionRequestRespondRdvGuardTest extends TestCase
 {
-    use RefreshDatabase;
 
     protected function makeUserWithRole(string $role, array $overrides = []): User
     {

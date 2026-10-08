@@ -278,7 +278,7 @@ export default function AgencyProspects() {
                             <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 transform" />
                             <Input
                                 type="text"
-                                placeholder="Rechercher par nom, email, username ou code commercial..."
+                                placeholder="Rechercher par nom, email, username, téléphone, document ou code commercial..."
                                 value={searchQuery}
                                 onChange={(e) => {
                                     setSearchQuery(e.target.value);

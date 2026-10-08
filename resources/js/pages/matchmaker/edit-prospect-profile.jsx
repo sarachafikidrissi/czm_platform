@@ -51,12 +51,19 @@ export default function EditProspectProfile() {
         childrenCount: profile?.childrenCount ?? '',
         childrenGuardian: profile?.childrenGuardian || '',
         hijabChoice: profile?.hijabChoice || '',
+        veil: profile?.veil || '',
+        specificVeilWish: profile?.specificVeilWish || '',
+        niqabAcceptance: profile?.niqabAcceptance || '',
+        polygamy: profile?.polygamy || '',
+        foreignMarriage: profile?.foreignMarriage || '',
+        workAfterMarriage: profile?.workAfterMarriage || '',
         situationSante: profile?.situationSante ? (Array.isArray(profile.situationSante) ? profile.situationSante : [profile.situationSante]) : [],
 
         // Step 3
         ageMinimum: profile?.ageMinimum || '',
         ageMaximum: profile?.ageMaximum || '',
         situationMatrimonialeRecherche: profile?.situationMatrimonialeRecherche || [],
+        rechercheEnfants: profile?.rechercheEnfants || '',
         paysRecherche: profile?.paysRecherche || [],
         villesRecherche: profile?.villesRecherche || [],
         niveauEtudesRecherche: profile?.niveauEtudesRecherche || '',
@@ -95,7 +102,7 @@ export default function EditProspectProfile() {
             case 2:
                 if (!formData.etatMatrimonial || !formData.logement) return false;
                 if (!formData.heardAboutUs) return false;
-                if (formData.etatMatrimonial === 'divorce' && formData.hasChildren === true) {
+                if ((formData.etatMatrimonial === 'divorce' || formData.etatMatrimonial === 'veuf') && formData.hasChildren === true) {
                     if (!formData.childrenCount || !formData.childrenGuardian) return false;
                 }
                 return true;
@@ -108,7 +115,7 @@ export default function EditProspectProfile() {
                     : (formData.paysRecherche ? [formData.paysRecherche] : []);
                 const ageValid = formData.ageMinimum && formData.ageMaximum && 
                     parseInt(formData.ageMaximum) > parseInt(formData.ageMinimum);
-                return ageValid && situationMatrimonialeArray.length > 0 && paysRechercheArray.length > 0;
+                return ageValid && situationMatrimonialeArray.length > 0 && paysRechercheArray.length > 0 && (!(situationMatrimonialeArray.includes('divorce') || situationMatrimonialeArray.includes('veuf')) || !!formData.rechercheEnfants);
             case 4:
                 return true;
             default:

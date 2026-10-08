@@ -5,14 +5,12 @@ namespace Tests\Feature;
 use App\Models\Agency;
 use App\Models\User;
 use App\Models\UserAssignment;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class UntreatedProspectCountTest extends TestCase
 {
-    use RefreshDatabase;
 
     private Agency $agency;
 

@@ -10,8 +10,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
+
+const CITY_RESULTS_LIMIT = 80;
 
 export default function AddProspect() {
     const { t } = useTranslation();
@@ -82,10 +85,18 @@ export default function AddProspect() {
         };
     }, []);
 
+    const countryOptions = useMemo(
+        () => countries.map((country) => ({ value: country.iso2, label: country.frenchName })),
+        [countries],
+    );
+
     const availableCities = useMemo(() => {
         if (!selectedCountryCode) return [];
         const list = countryCodeToCities[selectedCountryCode] || [];
-        return list;
+        const uniqueCities = Array.from(new Set(list.filter((city) => typeof city === 'string' && city.trim() !== ''))).sort((a, b) =>
+            a.localeCompare(b, 'fr'),
+        );
+        return uniqueCities.map((city) => ({ value: city, label: city }));
     }, [selectedCountryCode, countryCodeToCities]);
 
     const submit = (e) => {
@@ -257,27 +268,22 @@ export default function AddProspect() {
                                         <Label htmlFor="country" className="text-sm font-medium text-slate-700">
                                             Pays
                                         </Label>
-                                        <Select
+                                        <SearchableSelect
+                                            options={countryOptions}
                                             value={selectedCountryCode}
                                             onValueChange={(value) => {
-                                                setSelectedCountryCode(value);
                                                 const selected = countries.find((c) => c.iso2 === value);
+                                                setSelectedCountryCode(value);
                                                 setData('country', selected ? selected.frenchName : '');
                                                 setData('city', '');
                                             }}
-                                            disabled={processing || loadingCountries}
-                                        >
-                                            <SelectTrigger className={getSelectTriggerClassName('country')}>
-                                                <SelectValue placeholder={loadingCountries ? 'Chargement des pays…' : 'Sélectionnez le pays'} />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {countries.map((c) => (
-                                                    <SelectItem key={c.iso2} value={c.iso2}>
-                                                        {c.frenchName}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
+                                            disabled={processing || loadingCountries || countryOptions.length === 0}
+                                            placeholder={loadingCountries ? 'Chargement des pays…' : 'Sélectionnez le pays'}
+                                            searchPlaceholder="Rechercher un pays"
+                                            emptyMessage="Aucun pays trouvé"
+                                            className="w-full"
+                                            triggerClassName={getSelectTriggerClassName('country')}
+                                        />
                                         {errorCountries && <p className="text-xs text-destructive">{errorCountries}</p>}
                                         <InputError message={errors.country} className="text-xs" />
                                     </div>
@@ -287,30 +293,24 @@ export default function AddProspect() {
                                     <Label htmlFor="city" className="text-sm font-medium text-slate-700">
                                         Ville
                                     </Label>
-                                    <Select
+                                    <SearchableSelect
+                                        options={availableCities}
                                         value={data.city}
                                         onValueChange={(value) => setData('city', value)}
                                         disabled={processing || !selectedCountryCode || availableCities.length === 0}
-                                    >
-                                        <SelectTrigger className={getSelectTriggerClassName('city')}>
-                                            <SelectValue
-                                                placeholder={
-                                                    !selectedCountryCode
-                                                        ? "Sélectionnez d'abord un pays"
-                                                        : availableCities.length
-                                                          ? 'Sélectionnez la ville'
-                                                          : 'Aucune ville disponible'
-                                                }
-                                            />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {availableCities.map((city) => (
-                                                <SelectItem key={city} value={city}>
-                                                    {city}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                        maxVisibleOptions={CITY_RESULTS_LIMIT}
+                                        placeholder={
+                                            !selectedCountryCode
+                                                ? "Sélectionnez d'abord un pays"
+                                                : availableCities.length
+                                                  ? 'Sélectionnez la ville'
+                                                  : 'Aucune ville disponible'
+                                        }
+                                        searchPlaceholder="Rechercher une ville"
+                                        emptyMessage="Aucune ville trouvée"
+                                        className="w-full"
+                                        triggerClassName={getSelectTriggerClassName('city')}
+                                    />
                                     <InputError message={errors.city} className="text-xs" />
                                 </div>
 

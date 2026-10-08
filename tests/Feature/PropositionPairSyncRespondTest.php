@@ -4,14 +4,12 @@ namespace Tests\Feature;
 
 use App\Models\Proposition;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class PropositionPairSyncRespondTest extends TestCase
 {
-    use RefreshDatabase;
 
     protected function makeUserWithRole(string $role, array $overrides = []): User
     {

@@ -6,14 +6,12 @@ use App\Models\MatrimonialPack;
 use App\Models\Profile;
 use App\Models\Service;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Crypt;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class ValidateProspectTest extends TestCase
 {
-    use RefreshDatabase;
 
     private User $matchmaker;
 

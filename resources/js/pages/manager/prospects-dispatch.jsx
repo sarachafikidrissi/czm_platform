@@ -270,7 +270,7 @@ export default function ManagerProspectsDispatch() {
                             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-muted-foreground" />
                             <Input
                                 type="text"
-                                placeholder="Search by name, email or username..."
+                                placeholder="Search by name, email, username, phone, or document..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 className="pl-10"

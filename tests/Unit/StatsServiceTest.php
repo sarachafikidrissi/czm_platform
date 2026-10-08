@@ -10,14 +10,12 @@ use App\Models\User;
 use App\Models\UserAssignment;
 use App\Services\StatsService;
 use Carbon\Carbon;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class StatsServiceTest extends TestCase
 {
-    use RefreshDatabase;
 
     private StatsService $service;
     private Agency $agency;
@@ -250,7 +248,7 @@ class StatsServiceTest extends TestCase
     // -------------------------------------------------------------------------
 
     /** @test */
-    public function member_new_this_month_includes_client_and_client_expire_validated_in_period(): void
+    public function member_new_this_month_counts_only_users_who_are_still_members(): void
     {
         Role::findOrCreate('user', 'web');
         $base = ['assigned_matchmaker_id' => $this->matchmaker->id, 'approved_at' => now()];
@@ -266,13 +264,12 @@ class StatsServiceTest extends TestCase
 
         $stats = $this->service->compute($this->matchmaker, now()->month, now()->year, 'personal', null, null);
 
-        // All three were validated this month; only the live member counts in total_active
-        $this->assertEquals(3, $stats['membres']['new_this_month']);
+        $this->assertEquals(1, $stats['membres']['new_this_month']);
         $this->assertEquals(1, $stats['membres']['total_active']);
     }
 
     /** @test */
-    public function member_promoted_to_client_still_counts_in_new_this_month(): void
+    public function member_promoted_to_client_is_excluded_from_new_this_month(): void
     {
         Role::findOrCreate('user', 'web');
         $user = User::factory()->create([
@@ -284,7 +281,7 @@ class StatsServiceTest extends TestCase
 
         $stats = $this->service->compute($this->matchmaker, now()->month, now()->year, 'personal', null, null);
 
-        $this->assertEquals(1, $stats['membres']['new_this_month']);
+        $this->assertEquals(0, $stats['membres']['new_this_month']);
         $this->assertEquals(0, $stats['membres']['total_active']);
     }
 

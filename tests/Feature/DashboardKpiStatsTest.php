@@ -4,14 +4,12 @@ namespace Tests\Feature;
 
 use App\Models\Agency;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class DashboardKpiStatsTest extends TestCase
 {
-    use RefreshDatabase;
 
     private Agency $agency;
     private Agency $otherAgency;

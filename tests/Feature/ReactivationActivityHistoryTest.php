@@ -5,13 +5,11 @@ namespace Tests\Feature;
 use App\Models\Profile;
 use App\Models\ReactivationRequest;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class ReactivationActivityHistoryTest extends TestCase
 {
-    use RefreshDatabase;
 
     protected function setUp(): void
     {

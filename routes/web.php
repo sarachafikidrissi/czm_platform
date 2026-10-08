@@ -75,6 +75,7 @@ Route::middleware(['auth'])->group(function () {
                 'situationMatrimonialeRecherche' => is_array($profile->situation_matrimoniale_recherche)
                     ? $profile->situation_matrimoniale_recherche
                     : ($profile->situation_matrimoniale_recherche ? [$profile->situation_matrimoniale_recherche] : []),
+                'rechercheEnfants' => $profile->recherche_enfants,
                 'paysRecherche' => is_array($profile->pays_recherche)
                     ? $profile->pays_recherche
                     : ($profile->pays_recherche ? [$profile->pays_recherche] : []),

@@ -236,6 +236,6 @@ class User extends Authenticatable
             return;
         }
 
-        $this->update(['is_traite' => true]);
+        $this->update(['is_traite' => true, 'to_rappeler' => false]);
     }
 }

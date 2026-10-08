@@ -212,7 +212,7 @@ export function useProspectProfileActions({ services = [], matrimonialPacks = []
     };
 
     const canMarkAsRappeler = (prospect) => {
-        if (!prospect || !prospect.rejection_reason) return false;
+        if (!prospect) return false;
         if (!userRole || !userId) return false;
         if (userRole === 'admin') return true;
         if (userRole === 'matchmaker') {

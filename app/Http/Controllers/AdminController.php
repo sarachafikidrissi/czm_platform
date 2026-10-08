@@ -106,7 +106,7 @@ class AdminController extends Controller
         if ($statusFilter === 'rejected') {
             $query->whereNotNull('rejection_reason');
         } elseif ($statusFilter === 'rappeler') {
-            $query->where('to_rappeler', true)->whereNotNull('rejection_reason');
+            $query->where('to_rappeler', true);
         } elseif ($statusFilter === 'traite') {
             $query->where('is_traite', true)->whereNull('rejection_reason');
         } elseif ($statusFilter === 'non_traite') {
@@ -870,7 +870,7 @@ class AdminController extends Controller
         if ($statusFilter === 'rejected') {
             $query->whereNotNull('rejection_reason');
         } elseif ($statusFilter === 'rappeler') {
-            $query->where('to_rappeler', true)->whereNotNull('rejection_reason');
+            $query->where('to_rappeler', true);
         } elseif ($statusFilter === 'traite') {
             $query->where('is_traite', true)->whereNull('rejection_reason');
         } elseif ($statusFilter === 'non_traite') {

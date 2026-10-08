@@ -45,6 +45,7 @@ class Profile extends Model
         'work_after_marriage',
         'situation_sante',
         // Step3 extensions
+        'recherche_enfants',
         'profil_recherche_description',
         // Account status
         'account_status',

@@ -530,7 +530,7 @@
         "notDispatched": "Not Dispatched",
         "dispatched": "Dispatched",
         "reset": "Reset",
-        "searchPlaceholder": "Search by name, email or username...",
+        "searchPlaceholder": "Search by name, email, username, phone, or document...",
         "noResults": "No results found for \"{{query}}\". Please try another search.",
         "tableHeaders": {
             "name": "Name",

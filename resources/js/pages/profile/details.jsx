@@ -1,7 +1,14 @@
+import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
 function Details({ formData, setFormData, gender }) {
     const { t } = useTranslation();
+
+    useEffect(() => {
+        if (gender === 'female' && formData.etatMatrimonial === 'marie') {
+            setFormData((prev) => ({ ...prev, etatMatrimonial: '' }));
+        }
+    }, [gender, formData.etatMatrimonial, setFormData]);
     // const [formData, setFormData] = useState({
     //   etatMatrimonial: '',
     //   logement: '',
@@ -66,6 +73,7 @@ function Details({ formData, setFormData, gender }) {
                             />
                             <span className="ml-2 text-sm text-gray-700">{t('profile.matrimonialSituationSingle')}</span>
                         </label>
+                        {gender === 'male' && (
                         <label className="inline-flex items-center">
                             <input
                                 type="radio"
@@ -77,6 +85,7 @@ function Details({ formData, setFormData, gender }) {
                             />
                             <span className="ml-2 text-sm text-gray-700">{t('profile.matrimonialSituationMarried')}</span>
                         </label>
+                        )}
                         <label className="inline-flex items-center">
                             <input
                                 type="radio"
@@ -142,8 +151,8 @@ function Details({ formData, setFormData, gender }) {
                     </div>
                 </div>
 
-                {/* Divorce: children details */}
-                {formData.etatMatrimonial === 'divorce' && (
+                {/* Divorce or widowed: children details */}
+                {(formData.etatMatrimonial === 'divorce' || formData.etatMatrimonial === 'veuf') && (
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                         <div>
                             <label className="mb-2 block text-sm font-medium text-gray-700">Avez-vous des enfants ?</label>

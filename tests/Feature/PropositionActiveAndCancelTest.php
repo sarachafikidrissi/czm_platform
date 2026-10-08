@@ -7,7 +7,6 @@ use App\Models\Proposition;
 use App\Models\PropositionRequest;
 use App\Models\User;
 use App\Models\UserActivity;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Permission\Models\Role;
@@ -15,7 +14,6 @@ use Tests\TestCase;
 
 class PropositionActiveAndCancelTest extends TestCase
 {
-    use RefreshDatabase;
 
     protected function makeUserWithRole(string $role, array $overrides = []): User
     {

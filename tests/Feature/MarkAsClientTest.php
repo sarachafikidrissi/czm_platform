@@ -8,7 +8,6 @@ use App\Models\MatrimonialPack;
 use App\Models\Profile;
 use App\Models\User;
 use App\Models\UserActivity;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Mail\Events\MessageSent;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Log;
@@ -18,7 +17,6 @@ use Tests\TestCase;
 
 class MarkAsClientTest extends TestCase
 {
-    use RefreshDatabase;
 
     private User $matchmaker;
 
