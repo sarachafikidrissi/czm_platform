@@ -1,4 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
+import { dashboardLinks } from '@/lib/dashboard-links';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -58,6 +59,7 @@ function AdminDashboardContent({ agencies = [], stats = { totalUsers: 0, pending
 
                     <KpiStatsGrid
                         cards={kpiStats.cards}
+                        links={dashboardLinks('admin').kpi}
                         loading={false}
                         error={kpiStats.error}
                         month={month}

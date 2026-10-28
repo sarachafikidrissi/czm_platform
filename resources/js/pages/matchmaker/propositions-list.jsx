@@ -16,6 +16,7 @@ const STATUS_TABS = [
     { key: 'accepted', label: 'Acceptées' },
     { key: 'closed', label: 'Clôturées' },
     { key: 'expired', label: 'Expirées' },
+    { key: 'rejected', label: 'Refusées' },
 ];
 
 export default function PropositionsList() {

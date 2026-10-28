@@ -17,6 +17,7 @@ use App\Models\User;
 use App\Models\UserAssignment;
 use App\Models\UserPhoto;
 use App\Models\UserSubscription;
+use App\Policies\UserProfileActionPolicy;
 use App\Services\MatchmakingResultsPayloadService;
 use App\Services\MatchmakingService;
 use App\Services\StatsService;
@@ -120,6 +121,11 @@ class MatchmakerController extends Controller
             $query->whereNull('rejection_reason');
         } elseif ($statusFilter === 'non_traite') {
             UntreatedProspectStats::constrainToUntreated($query);
+        } elseif ($statusFilter === 'en_retard') {
+            // Late: active prospects created more than 7 days ago and still not validated (news feed "Mes prospects").
+            $query->whereNull('rejection_reason')
+                ->whereNull('approved_at')
+                ->where('created_at', '<', now()->subDays(7));
         } else {
             // Default to active (non-rejected) prospects - show ALL active prospects regardless of is_traite
             // is_traite is just a marker to show if matchmaker has seen/contacted, not a filter
@@ -180,6 +186,54 @@ class MatchmakerController extends Controller
         ]);
     }
 
+    /**
+     * "S'affecter" (news feed comment): any matchmaker or manager takes an unassigned prospect.
+     * Race-safe: only one staff member can win; the others get the name of whoever took it.
+     */
+    public function selfAssignProspect(User $user)
+    {
+        $me = Auth::user();
+        abort_unless($me && $me->hasAnyRole(['matchmaker', 'manager']), 403, 'Unauthorized.');
+
+        if (! $user->hasRole('user') || $user->status !== 'prospect') {
+            return response()->json(['message' => 'Seuls les prospects peuvent être affectés.'], 422);
+        }
+
+        $taken = DB::transaction(function () use ($user, $me) {
+            $updates = ['assigned_matchmaker_id' => $me->id];
+            if ($me->agency_id) {
+                $updates['agency_id'] = $me->agency_id;
+            }
+
+            // Compare-and-set: only succeeds while the prospect is still unassigned.
+            $won = User::query()->whereKey($user->id)->whereNull('assigned_matchmaker_id')->update($updates) === 1;
+            if (! $won) {
+                return false;
+            }
+
+            UserAssignment::recordAssignment($user->id, $me->id, $me->id, 'self_assigned');
+            UserActivityService::log($user->id, $me->id, 'matchmaker_assigned', "Prospect affecté à {$me->name} (depuis un commentaire).", [
+                'new_matchmaker_id' => $me->id,
+            ]);
+
+            return true;
+        });
+
+        $owner = User::query()->select(['id', 'name'])->find($user->fresh()->assigned_matchmaker_id);
+
+        if (! $taken) {
+            return response()->json([
+                'message' => 'Ce prospect vient d\'être affecté à '.($owner?->name ?? 'un autre matchmaker').'.',
+                'assigned_matchmaker' => $owner ? ['id' => $owner->id, 'name' => $owner->name] : null,
+            ], 409);
+        }
+
+        return response()->json([
+            'message' => 'Prospect affecté à vous.',
+            'assigned_matchmaker' => ['id' => $me->id, 'name' => $me->name],
+        ]);
+    }
+
     public function validateProspect(Request $request, $id)
     {
         $prospect = User::findOrFail($id);
@@ -189,6 +243,15 @@ class MatchmakerController extends Controller
         if (! $prospect->assigned_matchmaker_id) {
             return response()->json([
                 'message' => 'Ce prospect doit d\'abord être affecté à un matchmaker avant de pouvoir être validé.',
+            ], 422);
+        }
+
+        // Business-rule precondition: the prospect's profile must be complete before validation.
+        if (! $profile || ! $profile->is_completed) {
+            return response()->json([
+                'message' => 'Le profil de ce prospect n\'est pas encore complet. Complétez-le avant de le valider.',
+                'error' => 'profile_incomplete',
+                'edit_url' => '/staff/prospects/'.$prospect->id.'/profile/edit',
             ], 422);
         }
 
@@ -410,7 +473,7 @@ class MatchmakerController extends Controller
 
             // Only record a new assignment row if the matchmaker is actually changing
             if ($assignedId && (int) $assignedId !== (int) $oldAssignedId) {
-                UserAssignment::recordAssignment($prospect->id, $assignedId, Auth::id(), 'initial');
+                UserAssignment::recordAssignment($prospect->id, $assignedId, Auth::id(), 'initial', $oldAssignedId);
             }
         });
 
@@ -559,8 +622,8 @@ class MatchmakerController extends Controller
             ->value('roles.name');
 
         // Same server rule as account reactivation: any matchmaker, manager, or admin
-        // (no assignment / agency check).
-        if (! in_array($roleName, ['matchmaker', 'manager', 'admin'], true)) {
+        // (no assignment / agency check). Shared with the profile page via UserProfileActionPolicy.
+        if (! app(UserProfileActionPolicy::class)->reactivateProspect($me, $prospect)->allowed()) {
             abort(403, 'Vous n\'êtes pas autorisé à accepter ce prospect.');
         }
 
@@ -600,7 +663,7 @@ class MatchmakerController extends Controller
                     ->where('status', 'active')
                     ->update(['assigned_matchmaker_id' => $me->id]);
 
-                UserAssignment::recordAssignment($prospect->id, $me->id, $me->id, 'activation_reassign');
+                UserAssignment::recordAssignment($prospect->id, $me->id, $me->id, 'activation_reassign', $previousMatchmakerId);
 
                 UserActivityService::log(
                     $prospect->id,
@@ -633,33 +696,8 @@ class MatchmakerController extends Controller
             ->where('model_has_roles.model_id', $me->id)
             ->value('roles.name');
 
-        // Check authorization: admin, assigned matchmaker, or manager assigned to the user
-        $canMarkRappeler = false;
-
-        if ($roleName === 'admin') {
-            $canMarkRappeler = true;
-        } elseif ($roleName === 'matchmaker') {
-            if ($user->assigned_matchmaker_id === $me->id) {
-                $canMarkRappeler = true;
-            }
-            if ($user->agency_id === $me->agency_id && $user->assigned_matchmaker_id === null) {
-                $canMarkRappeler = true;
-            }
-            if ($user->approved_by === $me->id) {
-                $canMarkRappeler = true;
-            }
-        } elseif ($roleName === 'manager') {
-            // Manager can mark if the user is from their agency
-            if ($user->agency_id === $me->agency_id) {
-                $canMarkRappeler = true;
-            }
-            // Or if they validated the user
-            if ($user->validated_by_manager_id === $me->id) {
-                $canMarkRappeler = true;
-            }
-        }
-
-        if (! $canMarkRappeler) {
+        // Authorization shared with the profile page via UserProfileActionPolicy.
+        if (! app(UserProfileActionPolicy::class)->callBack($me, $user)->allowed()) {
             abort(403, 'Vous n\'êtes pas autorisé à marquer cet utilisateur comme "A rappeler".');
         }
 
@@ -957,6 +995,22 @@ class MatchmakerController extends Controller
                 $query->whereHas('profile', function ($profileQuery) {
                     $profileQuery->where('account_status', 'desactivated');
                 });
+            } elseif ($status === 'en_rdv') {
+                // Clients with an RDV in progress (news feed "Mes Clients — En RDV").
+                $query->where('status', 'client')
+                    ->whereExists(fn ($q) => $q->selectRaw('1')->from('rdvs')
+                        ->where('rdvs.status', Rdv::STATUS_EN_COURS)
+                        ->where(fn ($w) => $w->whereColumn('rdvs.reference_user_id', 'users.id')
+                            ->orWhereColumn('rdvs.compatible_user_id', 'users.id')));
+            } elseif ($status === 'attente_rdv') {
+                // Members/clients with a proposition accepted by both sides and no RDV yet ("Pas en RDV").
+                Proposition::constrainToAcceptedByBothWithoutRdv($query->whereIn('status', ['member', 'client']));
+            } elseif ($status === 'pas_a_jour') {
+                // Members not up to date: incomplete profile or no active subscription ("Mes Membres Actifs").
+                $query->where('status', 'member')
+                    ->where(fn ($w) => $w->whereHas('profile', fn ($p) => $p->where('is_completed', false))
+                        ->orWhereDoesntHave('subscriptions', fn ($sub) => $sub->where('status', 'active')
+                            ->where('subscription_end', '>=', now())));
             } else {
                 $query->where('status', $status);
             }
@@ -1657,10 +1711,23 @@ class MatchmakerController extends Controller
             $query->whereNull('rejection_reason');
         } elseif ($statusFilter === 'non_traite') {
             UntreatedProspectStats::constrainToUntreated($query);
+        } elseif ($statusFilter === 'en_retard') {
+            // Late: active prospects created more than 7 days ago and still not validated (news feed "Mes prospects").
+            $query->whereNull('rejection_reason')
+                ->whereNull('approved_at')
+                ->where('created_at', '<', now()->subDays(7));
         } else {
             // Default to active (non-rejected) prospects - show ALL active prospects regardless of is_traite
             // is_traite is just a marker to show if matchmaker has seen/contacted, not a filter
             $query->whereNull('rejection_reason');
+        }
+
+        // Profile completeness (same rule as validation: no profile or not completed = incomplete).
+        $profileFilter = $request->string('filter')->toString(); // all | complete | incomplete
+        if ($profileFilter === 'complete') {
+            $query->whereHas('profile', fn ($q) => $q->where('is_completed', true));
+        } elseif ($profileFilter === 'incomplete') {
+            $query->whereDoesntHave('profile', fn ($q) => $q->where('is_completed', true));
         }
 
         if ($roleName === 'admin') {
@@ -1745,6 +1812,7 @@ class MatchmakerController extends Controller
         return Inertia::render('matchmaker/agency-prospects', [
             'prospects' => $prospects,
             'statusFilter' => $statusFilter ?: 'active',
+            'profileFilter' => in_array($profileFilter, ['complete', 'incomplete'], true) ? $profileFilter : 'all',
             'commercialOnly' => $commercialOnly,
             'scope' => $effectiveScope,
             'agencyId' => $me?->agency_id,
@@ -2216,53 +2284,11 @@ class MatchmakerController extends Controller
         $prospect = User::findOrFail($id);
         $profile = $prospect->profile;
 
-        // Check authorization
-        if ($me->hasRole('admin')) {
-            // Admin can edit any prospect profile
-        } elseif ($roleName === 'matchmaker') {
-            // Matchmaker can edit if:
-            // 1. Prospect/member/client is assigned to them, OR
-            // 2. User is a member/client with incomplete profile and was approved by them
-            $canEdit = false;
-
-            if ($prospect->assigned_matchmaker_id === $me->id) {
-                $canEdit = true;
-            } elseif (in_array($prospect->status, ['member', 'client', 'client_expire'])) {
-                // For members/clients, allow if profile is incomplete and they approved them
-                if (! $profile || ! $profile->is_completed) {
-                    if ($prospect->approved_by === $me->id) {
-                        $canEdit = true;
-                    }
-                }
-            }
-
-            if (! $canEdit) {
-                abort(403, 'You can only edit prospects assigned to you or members/clients with incomplete profiles that you approved.');
-            }
-        } elseif ($roleName === 'manager') {
-            // Manager can edit if:
-            // 1. Prospect is not dispatched yet (assigned_matchmaker_id is null) and from their agency, OR
-            // 2. Prospect/member/client is assigned to them, OR
-            // 3. User is a member/client with incomplete profile and was validated by them
-            $canEdit = false;
-
-            // If prospect is not dispatched and from manager's agency, manager can edit
-            if ($prospect->status === 'prospect' && ! $prospect->assigned_matchmaker_id && $prospect->agency_id === $me->agency_id) {
-                $canEdit = true;
-            } elseif ($prospect->assigned_matchmaker_id === $me->id) {
-                $canEdit = true;
-            } elseif (in_array($prospect->status, ['member', 'client', 'client_expire'])) {
-                // For members/clients, allow if profile is incomplete and they validated them
-                if (! $profile || ! $profile->is_completed) {
-                    if ($prospect->validated_by_manager_id === $me->id) {
-                        $canEdit = true;
-                    }
-                }
-            }
-
-            if (! $canEdit) {
-                abort(403, 'You can only edit prospects that are not dispatched (from your agency), prospects assigned to you, or members/clients with incomplete profiles that you validated.');
-            }
+        // Authorization shared with the profile page via UserProfileActionPolicy.
+        if (! app(UserProfileActionPolicy::class)->editProfile($me, $prospect)->allowed()) {
+            abort(403, $roleName === 'manager'
+                ? 'You can only edit prospects that are not dispatched (from your agency), prospects assigned to you, or members/clients with incomplete profiles that you validated.'
+                : 'You can only edit prospects assigned to you or members/clients with incomplete profiles that you approved.');
         }
 
         // Format profile data for frontend (similar to ProfileController)
@@ -2358,21 +2384,8 @@ class MatchmakerController extends Controller
             return redirect()->back()->with('error', 'Profil utilisateur non trouvé.');
         }
 
-        // Check authorization
-        $canCreate = false;
-        if ($roleName === 'admin') {
-            $canCreate = true;
-        } elseif ($roleName === 'matchmaker') {
-            if ($user->assigned_matchmaker_id === $me->id) {
-                $canCreate = true;
-            }
-        } elseif ($roleName === 'manager') {
-            if ($user->agency_id === $me->agency_id || $user->assigned_matchmaker_id === $me->id) {
-                $canCreate = true;
-            }
-        }
-
-        if (! $canCreate) {
+        // Authorization shared with the profile page via UserProfileActionPolicy.
+        if (! app(UserProfileActionPolicy::class)->createBill($me, $user)->allowed()) {
             abort(403, 'Vous n\'êtes pas autorisé à créer un abonnement pour cet utilisateur.');
         }
 
@@ -2854,8 +2867,8 @@ class MatchmakerController extends Controller
             return redirect()->back()->with('error', 'Selected user is not a matchmaker.');
         }
 
-        // Check if user is assigned to current matchmaker
-        if ($roleName === 'matchmaker' && $user->assigned_matchmaker_id !== $me->id) {
+        // Authorization shared with the profile page via UserProfileActionPolicy.
+        if (! app(UserProfileActionPolicy::class)->transfer($me, $user)->allowed()) {
             abort(403, 'You can only transfer users assigned to you.');
         }
 
@@ -3010,14 +3023,14 @@ class MatchmakerController extends Controller
             ];
         }
 
-        DB::transaction(function () use ($user, $me, $history, $transferRequest) {
+        DB::transaction(function () use ($user, $me, $history, $transferRequest, $oldMatchmakerId) {
             // Update user's assigned matchmaker and history
             $user->update([
                 'assigned_matchmaker_id' => $me->id,
                 'matchmaker_assignment_history' => $history,
             ]);
 
-            UserAssignment::recordAssignment($user->id, $me->id, $me->id, 'transfer');
+            UserAssignment::recordAssignment($user->id, $me->id, $me->id, 'transfer', $oldMatchmakerId);
 
             // Update transfer request status
             $transferRequest->update([
@@ -3353,6 +3366,22 @@ class MatchmakerController extends Controller
             }
         }
 
+        $userA = User::find($userAId);
+        if ($me && $userA && ! app(UserProfileActionPolicy::class)->viewMatchmakingResults($me, $userA)->allowed()) {
+            abort(403, 'Vous ne pouvez consulter les résultats de matchmaking que pour vos propres membres.');
+        }
+
+        // A prospect must be validated before matchmaking: show a notice instead of computing matches.
+        if ($userA && $userA->status === 'prospect') {
+            return Inertia::render('matchmaker/matchmaking-prospect-notice', [
+                'userA' => [
+                    'id' => $userA->id,
+                    'name' => $userA->name,
+                    'username' => $userA->username,
+                ],
+            ]);
+        }
+
         $matchmakingService = new MatchmakingService;
 
         // Get filter overrides from request
@@ -3433,6 +3462,7 @@ class MatchmakerController extends Controller
             );
 
             return Inertia::render('matchmaker/matchmaking-results', [
+                'resultFilterOptions' => MatchmakingResultsPayloadService::filterOptions(),
                 'userA' => [
                     'id' => $result['userA']->id,
                     'name' => $result['userA']->name,
@@ -3460,6 +3490,85 @@ class MatchmakerController extends Controller
     }
 
     /**
+     * Search the whole base of opposite-gender profiles for User A (not only the compatible results):
+     * by name / username / email, agency and matchmaker, 6 per page, scored like the results.
+     * Prospects, rejected, deactivated or incomplete profiles are listed with a flag and cannot be proposed.
+     */
+    public function searchMatchmakingProfiles(Request $request, $userAId)
+    {
+        $me = Auth::user();
+        $userA = User::with('profile')->findOrFail($userAId);
+
+        if (! app(UserProfileActionPolicy::class)->viewMatchmakingResults($me, $userA)->allowed()) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+        if ($userA->status === 'prospect' || ! $userA->profile?->is_completed || ! in_array($userA->gender, ['male', 'female'], true)) {
+            return response()->json(['error' => 'reference_not_ready'], 422);
+        }
+
+        $data = $request->validate([
+            'q' => ['nullable', 'string', 'max:100'],
+            'agency' => ['nullable', 'string', 'max:20'],
+            'matchmaker' => ['nullable', 'string', 'max:20'],
+            'page' => ['nullable', 'integer', 'min:1'],
+        ]);
+        $term = trim((string) ($data['q'] ?? ''));
+        $agencyId = ctype_digit((string) ($data['agency'] ?? '')) ? (int) $data['agency'] : null;
+        $matchmaker = $data['matchmaker'] ?? null;
+        if (mb_strlen($term) < 2 && ! $agencyId && ! $matchmaker) {
+            return response()->json(['error' => 'criteria_required'], 422);
+        }
+
+        $query = User::query()
+            ->where('id', '!=', $userA->id)
+            ->where('gender', $userA->gender === 'male' ? 'female' : 'male')
+            // Profiles only: staff accounts also carry the "user" role.
+            ->whereHas('roles', fn ($q) => $q->where('name', 'user'))
+            ->whereDoesntHave('roles', fn ($q) => $q->whereIn('name', ['admin', 'manager', 'matchmaker']))
+            ->whereHas('profile')
+            ->with(['profile', 'assignedMatchmaker']);
+
+        if (mb_strlen($term) >= 2) {
+            $like = '%'.addcslashes($term, '%_\\').'%';
+            $query->where(fn ($q) => $q->where('name', 'like', $like)->orWhere('username', 'like', $like)->orWhere('email', 'like', $like));
+        }
+        if ($agencyId) {
+            // Same rule as the cards: the profile's agency, else its matchmaker's.
+            $query->where(fn ($q) => $q->where('agency_id', $agencyId)
+                ->orWhere(fn ($q2) => $q2->whereNull('agency_id')->whereHas('assignedMatchmaker', fn ($m) => $m->where('agency_id', $agencyId))));
+        }
+        if ($matchmaker === 'unassigned') {
+            $query->whereNull('assigned_matchmaker_id');
+        } elseif (ctype_digit((string) $matchmaker)) {
+            $query->where('assigned_matchmaker_id', (int) $matchmaker);
+        }
+
+        $page = $query->orderBy('name')->orderBy('id')->paginate(6);
+
+        $scored = (new MatchmakingService)->scoreCandidatesFor($userA, $page->getCollection());
+        $rows = MatchmakingResultsPayloadService::formatMatchesForMatchmaker($scored, $me, (int) $userA->id);
+        $candidates = $page->getCollection()->keyBy('id');
+        $rows = array_map(function (array $row) use ($candidates, $userA) {
+            $restriction = MatchmakingResultsPayloadService::candidateRestriction($candidates[$row['user']['id']], $userA);
+            $row['restriction'] = $restriction;
+            if ($restriction) {
+                $row['can_propose'] = false;
+                $row['can_propose_from_request'] = false;
+            }
+
+            return $row;
+        }, $rows);
+
+        return response()->json([
+            'data' => array_values($rows),
+            'current_page' => $page->currentPage(),
+            'last_page' => $page->lastPage(),
+            'total' => $page->total(),
+            'per_page' => $page->perPage(),
+        ]);
+    }
+
+    /**
      * API endpoint for dynamic filtering
      * Allows matchmaker to update filters and get refreshed results
      */
@@ -3480,6 +3589,18 @@ class MatchmakerController extends Controller
             if ($me->approval_status !== 'approved') {
                 return response()->json(['error' => 'Unauthorized'], 403);
             }
+        }
+
+        $userA = User::find($userAId);
+        if ($me && $userA && ! app(UserProfileActionPolicy::class)->viewMatchmakingResults($me, $userA)->allowed()) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        if ($userA && $userA->status === 'prospect') {
+            return response()->json([
+                'error' => 'prospect_not_validated',
+                'message' => 'Ce profil est encore un prospect. Validez-le avant de lancer le matchmaking.',
+            ], 422);
         }
 
         $matchmakingService = new MatchmakingService;

@@ -784,6 +784,8 @@ class AdminController extends Controller
                     // Set assigned_matchmaker_id to new matchmaker to assign to new matchmaker
                     // Set agency_id to NULL to remove from old agency's list and ensure only new matchmaker sees it
                     // Single conditional update so only rows satisfying conditions at update time are updated (no TOCTOU)
+                    // Previous matchmakers, so their history moves to the new one (recordAssignment).
+                    $previousMatchmakerIds = User::whereIn('id', $validated['prospect_ids'])->pluck('assigned_matchmaker_id', 'id');
                     $updated = User::whereIn('id', $validated['prospect_ids'])
                         ->where('status', 'prospect')
                         ->where(function ($q) {
@@ -798,7 +800,7 @@ class AdminController extends Controller
                         ->pluck('id');
                     foreach ($idsUpdated as $userId) {
                         UserActivityService::log($userId, Auth::id(), 'matchmaker_assigned', "Prospect réassigné à {$matchmaker->name} (marieuse).", []);
-                        UserAssignment::recordAssignment($userId, $matchmaker->id, Auth::id(), 'reassign');
+                        UserAssignment::recordAssignment($userId, $matchmaker->id, Auth::id(), 'reassign', $previousMatchmakerIds[$userId] ?? null);
                     }
                     $message = "{$updated} prospects reassigned to matchmaker successfully.";
                 });

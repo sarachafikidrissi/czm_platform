@@ -25,6 +25,7 @@ export default function AgencyProspects() {
     const {
         prospects = [],
         statusFilter = 'active',
+        profileFilter = 'all',
         commercialOnly = false,
         scope = 'agency',
         search: initialSearch = '',
@@ -85,6 +86,11 @@ export default function AgencyProspects() {
 
         if (!('commercial_only' in overrides) && commercialOnly) {
             params.commercial_only = 1;
+        }
+
+        // Profile completeness filter (complete | incomplete), kept across pagination and other filters.
+        if (!('filter' in overrides) && profileFilter && profileFilter !== 'all') {
+            params.filter = profileFilter;
         }
 
         if (!('scope' in overrides) && isManager && prospectScope === 'mine') {
@@ -320,9 +326,36 @@ export default function AgencyProspects() {
                                 <SelectContent>
                                     <SelectItem value="active">Actifs</SelectItem>
                                     <SelectItem value="non_traite">Non traités</SelectItem>
+                                    <SelectItem value="en_retard">En retard</SelectItem>
                                     <SelectItem value="rejected">Rejetés</SelectItem>
                                     <SelectItem value="rappeler">A rappeler</SelectItem>
                                     <SelectItem value="traite">Traité</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Label className="text-muted-foreground text-sm">Profil</Label>
+                            <Select
+                                value={profileFilter || 'all'}
+                                onValueChange={(v) => {
+                                    const params = buildProspectsUrlParams({ filter: v, page: 1 });
+                                    if (v === 'all') {
+                                        delete params.filter;
+                                    }
+                                    router.get(
+                                        '/staff/agency-prospects',
+                                        params,
+                                        withLoadingVisit({ preserveScroll: true, preserveState: true, replace: true }),
+                                    );
+                                }}
+                            >
+                                <SelectTrigger className="h-9 w-[160px]">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">Tous</SelectItem>
+                                    <SelectItem value="complete">Profil complet</SelectItem>
+                                    <SelectItem value="incomplete">Profil incomplet</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>

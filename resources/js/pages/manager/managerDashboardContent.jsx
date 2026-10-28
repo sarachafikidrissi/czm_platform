@@ -1,4 +1,5 @@
 import { router, usePage, Link } from '@inertiajs/react';
+import { dashboardLinks } from '@/lib/dashboard-links';
 import { useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -58,6 +59,7 @@ export default function ManagerDashboardContent({ stats = { prospectsReceived: 0
                     </div>
                     <KpiStatsGrid
                         cards={personal.cards}
+                        links={dashboardLinks('manager', 'mine').kpi}
                         loading={false}
                         error={personal.error}
                         month={month}
@@ -118,6 +120,7 @@ export default function ManagerDashboardContent({ stats = { prospectsReceived: 0
 
                     <KpiStatsGrid
                         cards={agency.cards}
+                        links={dashboardLinks('manager', 'agency').kpi}
                         loading={false}
                         error={agency.error}
                         month={month}

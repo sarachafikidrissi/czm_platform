@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Mail\CommentReplyNotification;
 use App\Models\Activity;
 use App\Models\Agency;
-use App\Models\AppointmentRequest;
 use App\Models\Bill;
 use App\Models\MonthlyObjective;
 use App\Models\Post;
@@ -13,11 +12,15 @@ use App\Models\PostComment;
 use App\Models\PostLike;
 use App\Models\Proposition;
 use App\Models\PropositionRequest;
+use App\Models\Rdv;
 use App\Models\TransferRequest;
 use App\Models\User;
 use App\Services\ObjectiveCommissionCalculator;
 use App\Services\ObjectiveMetricsService;
+use App\Services\StatsService;
+use App\Support\UntreatedProspectStats;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -35,7 +38,7 @@ class PostController extends Controller
             'likes.user.profile',
             'comments' => function ($query) {
                 $query->whereNull('parent_id')
-                    ->with(['user.roles', 'user.profile', 'replies.user.roles', 'replies.user.profile']);
+                    ->with(['user.roles', 'user.profile', 'user.assignedMatchmaker:id,name,agency_id', 'replies.user.roles', 'replies.user.profile', 'replies.user.assignedMatchmaker:id,name,agency_id']);
             },
         ])
             ->orderBy('created_at', 'desc')
@@ -293,11 +296,8 @@ class PostController extends Controller
         $user = Auth::user();
         $comment->load('user');
 
-        $isOwner = $comment->user_id === $user->id;
-        $isAdmin = $user->hasRole('admin');
-        $matchmakerDeletingUserComment = $user->hasRole('matchmaker') && $comment->user && $comment->user->hasRole('user');
-
-        if (! $isOwner && ! $isAdmin && ! $matchmakerDeletingUserComment) {
+        // Author, admin, the profile's assigned matchmaker/manager, or a manager of the profile's agency.
+        if (! $comment->canBeDeletedBy($user)) {
             abort(403, 'Unauthorized');
         }
 
@@ -364,7 +364,7 @@ class PostController extends Controller
             'likes.user.profile',
             'comments' => function ($query) {
                 $query->whereNull('parent_id')
-                    ->with(['user.roles', 'user.profile', 'replies.user.roles', 'replies.user.profile']);
+                    ->with(['user.roles', 'user.profile', 'user.assignedMatchmaker:id,name,agency_id', 'replies.user.roles', 'replies.user.profile', 'replies.user.assignedMatchmaker:id,name,agency_id']);
             },
         ])
             ->whereIn('user_id', $staffIds)
@@ -415,11 +415,11 @@ class PostController extends Controller
             'likes.user.profile',
             'comments' => function ($query) {
                 $query->whereNull('parent_id')
-                    ->with(['user.roles', 'user.profile', 'replies.user.roles', 'replies.user.profile']);
+                    ->with(['user.roles', 'user.profile', 'user.assignedMatchmaker:id,name,agency_id', 'replies.user.roles', 'replies.user.profile', 'replies.user.assignedMatchmaker:id,name,agency_id']);
             },
         ];
 
-        $allowedActivityTypes = ['member.added', 'prospect.added', 'post.commented', 'post.liked'];
+        $allowedActivityTypes = ['member.added', 'prospect.added', 'rdv.created', 'post.commented', 'post.liked'];
         foreach ($activitiesQuery as $activity) {
             if (! in_array($activity->type, $allowedActivityTypes, true)) {
                 continue;
@@ -521,6 +521,7 @@ class PostController extends Controller
         return match ($activity->type) {
             'member.added' => 'Nouveau membre : '.($username ?? $meta['member_name'] ?? '—'),
             'prospect.added' => 'Nouveau prospect : '.($username ?? $meta['prospect_name'] ?? '—'),
+            'rdv.created' => 'Nouveau RDV : '.(collect($meta['profiles'] ?? [])->pluck('name')->implode(' et ') ?: '—'),
             'post.commented' => ($activity->actor?->name ?? 'Staff').' a commenté une publication de @'.($postOwner ?? '—'),
             'post.liked' => ($activity->actor?->name ?? 'Staff').' a aimé une publication de @'.($postOwner ?? '—'),
             default => ($activity->actor?->name ?? 'Staff').' a effectué une action',
@@ -571,6 +572,10 @@ class PostController extends Controller
                 'activity' => 'Nouveau prospect : ',
                 'username' => $username ?? $meta['prospect_name'] ?? '—',
             ],
+            'rdv.created' => [
+                'activity' => 'Nouveau RDV : ',
+                'username' => collect($meta['profiles'] ?? [])->pluck('name')->implode(' et ') ?: '—',
+            ],
             'post.commented' => [
                 'activity' => ($activity->actor?->name ?? 'Staff').' a commenté une publication de ',
                 'username' => $postOwnerDisplay,
@@ -583,6 +588,18 @@ class PostController extends Controller
                 'activity' => ($activity->actor?->name ?? 'Staff').' a effectué une action',
                 'username' => null,
             ],
+        };
+
+        // Profiles named in the activity, so the page can link each name to its profile.
+        $result['profiles'] = match ($activity->type) {
+            'member.added', 'prospect.added' => $subject instanceof \App\Models\User
+                ? [['name' => $subject->name, 'username' => $subject->username ?: (string) $subject->id]]
+                : [],
+            'rdv.created' => collect($meta['profiles'] ?? [])
+                ->map(fn ($p) => ['name' => $p['name'] ?? '—', 'username' => ($p['username'] ?? null) ?: (string) ($p['id'] ?? '')])
+                ->values()
+                ->all(),
+            default => [],
         };
 
         return $result;
@@ -667,6 +684,33 @@ class PostController extends Controller
             ->value('roles.name');
     }
 
+    /**
+     * "Mes Clients" card, for a scope of profiles (a matchmaker's, an agency's, or all):
+     * - inAppointment: clients with an RDV in progress;
+     * - notInAppointment: members/clients with a proposition accepted by both members and no RDV created yet
+     *   (same rule as RDV creation, see Proposition::constrainToAcceptedByBothWithoutRdv);
+     * - untreatedProspects: prospects not treated yet (same definition as the untreated-prospects lists).
+     */
+    private function clientRdvStats(Builder $scope): array
+    {
+        $involved = fn (string $table) => function ($q) use ($table) {
+            $q->whereColumn("{$table}.reference_user_id", 'users.id')
+                ->orWhereColumn("{$table}.compatible_user_id", 'users.id');
+        };
+
+        return [
+            'inAppointment' => (clone $scope)->where('status', 'client')
+                ->whereExists(fn ($q) => $q->selectRaw('1')->from('rdvs')
+                    ->where('rdvs.status', Rdv::STATUS_EN_COURS)
+                    ->where($involved('rdvs')))
+                ->count(),
+            'notInAppointment' => Proposition::constrainToAcceptedByBothWithoutRdv(
+                (clone $scope)->whereIn('status', ['member', 'client'])
+            )->count(),
+            'untreatedProspects' => UntreatedProspectStats::constrainToUntreated((clone $scope)->where('status', 'prospect'))->count(),
+        ];
+    }
+
     private function getStaffStatistics(User $user, ?string $role): array
     {
         $stats = [];
@@ -683,23 +727,16 @@ class PostController extends Controller
             $clientsQuery = (clone $baseQuery)->whereIn('status', ['client', 'en_rdv']);
             $membersQuery = (clone $baseQuery)->where('status', 'member');
 
-            // For untreated prospects, we need prospects assigned to this matchmaker that are not validated
-            $untreatedProspectsQuery = User::role('user')
-                ->where('status', 'prospect')
-                ->where('assigned_matchmaker_id', $user->id)
-                ->whereNull('approved_at');
-
-            $appointmentsInProgress = AppointmentRequest::query()
-                ->where('assigned_matchmaker_id', $user->id)
-                ->where('treatment_status', 'pending')
+            // RDVs in progress that I organised (not website appointment requests).
+            $appointmentsInProgress = Rdv::query()
+                ->where('matchmaker_id', $user->id)
+                ->where('status', Rdv::STATUS_EN_COURS)
                 ->count();
 
-            // A proposition is stored as 1 row per recipient_user_id, so count 1 per pair.
-            $pendingPropositions = (int) (Proposition::query()
-                ->where('matchmaker_id', $user->id)
-                ->where('status', 'pending')
-                ->selectRaw("COUNT(DISTINCT CONCAT_WS('-', reference_user_id, compatible_user_id)) as aggregate")
-                ->value('aggregate') ?? 0);
+            // A proposition is stored as 1 row per recipient_user_id, so count 1 per pair (same as the dashboard KPI).
+            $pendingPropositions = StatsService::countPropositionPairs(
+                Proposition::query()->where('matchmaker_id', $user->id)->where('status', Proposition::STATUS_PENDING)
+            );
 
             $pendingPropositionRequests = PropositionRequest::query()
                 ->where('status', 'pending')
@@ -725,9 +762,10 @@ class PostController extends Controller
                 })
                 ->count();
 
+            // Same definition as the members list "En attente de paiement" filter.
             $clientsAwaitingPayment = User::role('user')
                 ->where('assigned_matchmaker_id', $user->id)
-                ->where('status', 'client_expire')
+                ->whereIn('status', ['member', 'client', 'client_expire'])
                 ->whereHas('bills', function ($billQuery) {
                     $billQuery->where('status', 'unpaid');
                 })
@@ -762,8 +800,9 @@ class PostController extends Controller
             $stats = [
                 'prospects' => [
                     'total' => $prospectsQuery->count(),
-                    'late' => $prospectsQuery->where('created_at', '<', now()->subDays(7))->whereNull('approved_at')->count(),
-                    'untreated' => $untreatedProspectsQuery->count(),
+                    'late' => (clone $prospectsQuery)->whereNull('rejection_reason')->where('created_at', '<', now()->subDays(7))->whereNull('approved_at')->count(),
+                    // Same definition as the "Non traités" prospects filter (not rejected, not marked traité).
+                    'untreated' => UntreatedProspectStats::constrainToUntreated(clone $prospectsQuery)->count(),
                 ],
                 'activities' => [
                     'appointmentsInProgress' => (int) $appointmentsInProgress,
@@ -774,15 +813,7 @@ class PostController extends Controller
                     'clientsAwaitingPayment' => (int) $clientsAwaitingPayment,
                 ],
                 'objectives' => $objectives,
-                'clients' => [
-                    'total' => $clientsQuery->count(),
-                    'inAppointment' => (clone $baseQuery)->where('status', 'en_rdv')->count(),
-                    'notInAppointment' => (clone $baseQuery)->where('status', 'client')->count(),
-                    'notContacted' => (clone $baseQuery)->where('status', 'client')->where(function ($q) {
-                        $q->where('updated_at', '<', now()->subWeek())
-                            ->orWhereNull('updated_at');
-                    })->count(),
-                ],
+                'clients' => ['total' => $clientsQuery->count()] + $this->clientRdvStats($baseQuery),
                 'activeMembers' => [
                     'total' => $membersQuery->count(),
                     'notUpToDate' => $membersQuery->where(function ($q) {
@@ -828,12 +859,6 @@ class PostController extends Controller
             $prospectsQuery = (clone $baseQuery)->where('status', 'prospect');
             $clientsQuery = (clone $baseQuery)->whereIn('status', ['client', 'en_rdv']);
             $membersQuery = (clone $baseQuery)->where('status', 'member');
-
-            // For untreated prospects, we need prospects from manager's agency that are not validated
-            $untreatedProspectsQuery = User::role('user')
-                ->where('status', 'prospect')
-                ->where('agency_id', $user->agency_id)
-                ->whereNull('approved_at');
 
             // Objectives: agency sum of producer targets (matchmakers + manager); personal via resolveManagerPersonalObjective
             $month = now()->month;
@@ -934,23 +959,16 @@ class PostController extends Controller
             $stats = [
                 'prospects' => [
                     'total' => $prospectsQuery->count(),
-                    'late' => $prospectsQuery->where('created_at', '<', now()->subDays(7))->whereNull('approved_at')->count(),
-                    'untreated' => $untreatedProspectsQuery->count(),
+                    'late' => (clone $prospectsQuery)->whereNull('rejection_reason')->where('created_at', '<', now()->subDays(7))->whereNull('approved_at')->count(),
+                    // Same definition as the "Non traités" prospects filter (not rejected, not marked traité).
+                    'untreated' => UntreatedProspectStats::constrainToUntreated(clone $prospectsQuery)->count(),
                 ],
                 // Backward-compatible: keep 'objectives' as agency productivity
                 'objectives' => $objectivesAgency,
                 'objectivesManager' => $objectivesManager,
                 'objectivesAgency' => $objectivesAgency,
                 'teamProduction' => $teamProduction,
-                'clients' => [
-                    'total' => $clientsQuery->count(),
-                    'inAppointment' => (clone $baseQuery)->where('status', 'en_rdv')->count(),
-                    'notInAppointment' => (clone $baseQuery)->where('status', 'client')->count(),
-                    'notContacted' => (clone $baseQuery)->where('status', 'client')->where(function ($q) {
-                        $q->where('updated_at', '<', now()->subWeek())
-                            ->orWhereNull('updated_at');
-                    })->count(),
-                ],
+                'clients' => ['total' => $clientsQuery->count()] + $this->clientRdvStats($baseQuery),
                 'activeMembers' => [
                     'total' => $membersQuery->count(),
                     'notUpToDate' => $membersQuery->where(function ($q) {
@@ -966,7 +984,7 @@ class PostController extends Controller
                     ->where('agency_id', $user->agency_id)
                     ->where('approval_status', 'approved')
                     ->limit(5)
-                    ->get(['id', 'name', 'email', 'profile_picture']),
+                    ->get(['id', 'name', 'email', 'username', 'profile_picture']),
                 'latestMembers' => (clone $baseQuery)
                     ->whereIn('status', ['member', 'client'])
                     ->with([
@@ -996,26 +1014,14 @@ class PostController extends Controller
             $clientsQuery = User::role('user')->whereIn('status', ['client', 'en_rdv']);
             $membersQuery = User::role('user')->where('status', 'member');
 
-            // For untreated prospects, we need all prospects that are not validated
-            $untreatedProspectsQuery = User::role('user')
-                ->where('status', 'prospect')
-                ->whereNull('approved_at');
-
             $stats = [
                 'prospects' => [
                     'total' => $prospectsQuery->count(),
-                    'late' => $prospectsQuery->where('created_at', '<', now()->subDays(7))->whereNull('approved_at')->count(),
-                    'untreated' => $untreatedProspectsQuery->count(),
+                    'late' => (clone $prospectsQuery)->whereNull('rejection_reason')->where('created_at', '<', now()->subDays(7))->whereNull('approved_at')->count(),
+                    // Same definition as the "Non traités" prospects filter (not rejected, not marked traité).
+                    'untreated' => UntreatedProspectStats::constrainToUntreated(clone $prospectsQuery)->count(),
                 ],
-                'clients' => [
-                    'total' => $clientsQuery->count(),
-                    'inAppointment' => User::role('user')->where('status', 'en_rdv')->count(),
-                    'notInAppointment' => User::role('user')->where('status', 'client')->count(),
-                    'notContacted' => User::role('user')->where('status', 'client')->where(function ($q) {
-                        $q->where('updated_at', '<', now()->subWeek())
-                            ->orWhereNull('updated_at');
-                    })->count(),
-                ],
+                'clients' => ['total' => $clientsQuery->count()] + $this->clientRdvStats(User::role('user')),
                 'activeMembers' => [
                     'total' => $membersQuery->count(),
                     'notUpToDate' => $membersQuery->where(function ($q) {
@@ -1031,7 +1037,7 @@ class PostController extends Controller
                 'matchmakers' => User::role('matchmaker')
                     ->where('approval_status', 'approved')
                     ->limit(5)
-                    ->get(['id', 'name', 'email', 'profile_picture']),
+                    ->get(['id', 'name', 'email', 'username', 'profile_picture']),
                 'latestMembers' => User::role('user')
                     ->whereIn('status', ['member', 'client'])
                     ->with('profile:id,user_id,profile_picture_path')

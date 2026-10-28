@@ -7,6 +7,7 @@ use App\Models\PropositionRequest;
 use App\Models\Rdv;
 use App\Models\User;
 use App\Models\UserActivity;
+use App\Services\MatchmakingResultsPayloadService;
 use App\Services\PropositionStaffPayloadService;
 use App\Services\UserActivityService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -354,6 +355,13 @@ class PropositionController extends Controller
 
         $referenceUser = User::select('id', 'assigned_matchmaker_id')->findOrFail($data['reference_user_id']);
         $compatibleUser = User::select('id', 'assigned_matchmaker_id')->findOrFail($data['compatible_user_id']);
+        // Never propose to a prospect (validated or rejected) or a deactivated account.
+        if ($blocked = MatchmakingResultsPayloadService::propositionBlockedFor(User::with('profile')->find($compatibleUser->id))) {
+            return response()->json([
+                'message' => MatchmakingResultsPayloadService::RESTRICTION_LABELS[$blocked],
+                'error' => 'compatible_not_eligible',
+            ], 422);
+        }
         if ($this->hasBlockingRdvForEitherProfile((int) $referenceUser->id, (int) $compatibleUser->id)) {
             return response()->json([
                 'message' => self::MESSAGE_ACTIVE_RDV_IN_PROGRESS,
@@ -661,9 +669,11 @@ class PropositionController extends Controller
             && $recipient
             && $recipient->id === $me->id;
 
-        $canRespondAsMatchmaker = $me->hasRole('matchmaker')
+        // The recipient's matchmaker, or the proposition's creator still following one of its profiles;
+        // see PropositionPolicy::respondFor.
+        $canRespondAsMatchmaker = ! $canRespondAsUser
             && $recipient
-            && $recipient->assigned_matchmaker_id === $me->id;
+            && $me->can('respondFor', $proposition);
 
         if (! $canRespondAsUser && ! $canRespondAsMatchmaker) {
             abort(403, 'Unauthorized.');

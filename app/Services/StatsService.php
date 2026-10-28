@@ -8,6 +8,7 @@ use App\Models\Rdv;
 use App\Models\User;
 use App\Models\UserAssignment;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 
@@ -198,20 +199,32 @@ class StatsService
     {
         $base = Proposition::whereIn('matchmaker_id', $mmIds);
 
-        $new = (clone $base)->whereBetween('created_at', [$start, $end])->count();
+        // A proposition sent to both profiles is stored as one row per recipient: count it once (per pair).
+        $sentThisMonth = self::countPropositionPairs((clone $base)->whereBetween('created_at', [$start, $end]));
+        $sentLastMonth = self::countPropositionPairs((clone $base)->whereBetween('created_at', [$prevStart, $prevEnd]));
 
-        $prevNew = (clone $base)->whereBetween('created_at', [$prevStart, $prevEnd])->count();
+        // Main figure ("en attente retour"): propositions still waiting for an answer.
+        $pending = self::countPropositionPairs((clone $base)->where('status', Proposition::STATUS_PENDING));
 
-        // "Active" = propositions that are still open (not terminal)
+        // "en cours": propositions still open (not terminal).
         $terminalStatuses = [
             Proposition::STATUS_NOT_INTERESTED,
             Proposition::STATUS_CANCELLED,
             Proposition::STATUS_EXPIRED,
             Proposition::STATUS_CLOSED,
         ];
-        $total = (clone $base)->whereNotIn('status', $terminalStatuses)->count();
+        $total = self::countPropositionPairs((clone $base)->whereNotIn('status', $terminalStatuses));
 
-        return $this->metric($new, $total, $new - $prevNew, $targets['propositions'] ?? null);
+        return $this->metric($pending, $total, $sentThisMonth - $sentLastMonth, $targets['propositions'] ?? null);
+    }
+
+    /** Number of propositions, counting the rows of one pair (one per recipient) once. */
+    public static function countPropositionPairs(Builder $query): int
+    {
+        $paired = (clone $query)->whereNotNull('pair_id')->distinct()->count('pair_id');
+        $single = (clone $query)->whereNull('pair_id')->count();
+
+        return $paired + $single;
     }
 
     private function rdvStats(array $mmIds, Carbon $start, Carbon $end, Carbon $prevStart, Carbon $prevEnd, array $targets): array

@@ -406,6 +406,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/prospects/{user}/activity', [\App\Http\Controllers\ActivityHistoryController::class, 'forUser'])->name('prospects.activity');
         Route::get('/prospects/{user}/subscription', [\App\Http\Controllers\MatchmakerController::class, 'createSubscriptionPage'])->name('prospects.subscription');
         Route::post('/prospects/{user}/validate', [\App\Http\Controllers\MatchmakerController::class, 'validateProspect'])->name('prospects.validate');
+        Route::middleware(['role:matchmaker|manager'])->post('/prospects/{user}/self-assign', [\App\Http\Controllers\MatchmakerController::class, 'selfAssignProspect'])->name('prospects.self-assign');
         Route::post('/prospects/{user}/validation-info', [\App\Http\Controllers\MatchmakerController::class, 'updateValidationInfo'])->name('prospects.validation-info.update');
         Route::post('/prospects/{user}/reject', [\App\Http\Controllers\MatchmakerController::class, 'rejectProspect'])->name('prospects.reject');
         Route::post('/prospects/{user}/accept', [\App\Http\Controllers\MatchmakerController::class, 'acceptRejectedProspect'])->name('prospects.accept');
@@ -448,6 +449,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::middleware(['role:matchmaker|manager'])->patch('/propositions/{proposition}/cancel', [\App\Http\Controllers\PropositionController::class, 'cancel'])->name('propositions.cancel');
         Route::middleware(['role:matchmaker|manager'])->delete('/propositions/{proposition}/cancel', [\App\Http\Controllers\PropositionController::class, 'cancel'])->name('propositions.cancel.delete');
         Route::middleware(['role:matchmaker|manager'])->post('/proposition-requests', [\App\Http\Controllers\PropositionRequestController::class, 'store'])->name('proposition-requests.store');
+        Route::middleware(['role:matchmaker|manager'])->get('/proposition-requests/eligible-references/{user}', [\App\Http\Controllers\PropositionRequestController::class, 'eligibleReferences'])->name('proposition-requests.eligible-references');
+        // Staff profile tabs: propositions and RDVs made over one profile (JSON, loaded when the tab opens).
+        Route::get('/users/{user}/propositions-history', [\App\Http\Controllers\StaffProfileHistoryController::class, 'propositions'])->name('users.propositions-history');
+        Route::get('/users/{user}/rdvs-history', [\App\Http\Controllers\StaffProfileHistoryController::class, 'rdvs'])->name('users.rdvs-history');
         Route::middleware(['role:matchmaker|manager'])->post('/proposition-requests/{propositionRequest}/respond', [\App\Http\Controllers\PropositionRequestController::class, 'respond'])->name('proposition-requests.respond');
         Route::get('/matchmaker/propositions', [\App\Http\Controllers\MatchmakerController::class, 'propositionsList'])->name('matchmaker.propositions');
         Route::get('/propositions/{proposition}', [\App\Http\Controllers\PropositionController::class, 'show'])
@@ -460,6 +465,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/match/search', [\App\Http\Controllers\MatchmakerController::class, 'searchMatchProfiles'])->name('match.search');
         Route::get('/match/results/{userAId}', [\App\Http\Controllers\MatchmakerController::class, 'matchmakingResults'])->name('match.results');
         Route::post('/match/filters/{userAId}', [\App\Http\Controllers\MatchmakerController::class, 'updateMatchmakingFilters'])->name('match.filters.update');
+        Route::get('/match/search/{userAId}', [\App\Http\Controllers\MatchmakerController::class, 'searchMatchmakingProfiles'])->name('match.search.profiles');
         // RDV routes for matchmaker
         Route::patch('/rdv/{rdv}/status', [\App\Http\Controllers\RdvController::class, 'updateStatus'])
             ->name('rdv.update-status')

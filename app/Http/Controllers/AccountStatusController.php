@@ -8,6 +8,7 @@ use App\Models\ReactivationRequest;
 use App\Models\Activity;
 use App\Models\UserAssignment;
 use App\Models\UserSubscription;
+use App\Policies\UserProfileActionPolicy;
 use App\Services\UserActivityService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -142,7 +143,7 @@ class AccountStatusController extends Controller
                     ->where('status', 'active')
                     ->update(['assigned_matchmaker_id' => $me->id]);
 
-                UserAssignment::recordAssignment($user->id, $me->id, $me->id, 'activation_reassign');
+                UserAssignment::recordAssignment($user->id, $me->id, $me->id, 'activation_reassign', $previousMatchmakerId);
             }
 
             UserActivityService::log($user->id, $me->id, 'status_change', 'Compte activé. ' . $request->reason, []);
@@ -195,23 +196,11 @@ class AccountStatusController extends Controller
                 return redirect()->back()->with('error', 'Can only deactivate member or client accounts.');
             }
 
-            if ($roleName === 'matchmaker') {
-                // Check if matchmaker is assigned to this user
-                if ($user->assigned_matchmaker_id !== $me->id) {
-                    abort(403, 'You can only deactivate accounts assigned to you.');
-                }
-            } elseif ($roleName === 'manager') {
-                // Manager can deactivate users from their agency or validated by them
-                $canDeactivate = false;
-                if ($me->agency_id && $user->agency_id === $me->agency_id) {
-                    $canDeactivate = true;
-                }
-                if ($user->validated_by_manager_id === $me->id) {
-                    $canDeactivate = true;
-                }
-                if (!$canDeactivate) {
-                    abort(403, 'You can only deactivate accounts from your agency or validated by you.');
-                }
+            // Ownership rule shared with the profile page via UserProfileActionPolicy.
+            if (! app(UserProfileActionPolicy::class)->deactivateAccount($me, $user)->allowed()) {
+                abort(403, $roleName === 'matchmaker'
+                    ? 'You can only deactivate accounts assigned to you.'
+                    : 'You can only deactivate accounts from your agency or validated by you.');
             }
         }
 

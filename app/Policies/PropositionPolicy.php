@@ -18,8 +18,9 @@ class PropositionPolicy
             return true;
         }
 
+        // Matchmakers: creator only (above). Managers keep access to propositions involving their profiles.
         $service = app(PropositionStaffPayloadService::class);
-        if ($user->hasAnyRole(['matchmaker', 'manager'])
+        if ($user->hasRole('manager')
             && $service->userIsAssignedMatchmakerToParties($user, $proposition)) {
             return true;
         }
@@ -43,7 +44,37 @@ class PropositionPolicy
     }
 
     /**
-     * Matchmaker assigned to the recipient, reference profile, or compatible profile may cancel.
+     * Staff answering (or updating the answer) on behalf of this proposition's recipient.
+     * - Matchmaker/manager assigned to the recipient: always (unchanged behaviour).
+     * - Matchmaker/manager who created the proposition: for both profiles, at any time, as long as
+     *   they still follow one of its profiles (after a transfer, the new matchmaker takes over).
+     * Any other staff, including a matchmaker linked to the other profile only, cannot answer for it.
+     */
+    public function respondFor(User $user, Proposition $proposition): bool
+    {
+        if (! $user->hasAnyRole(['matchmaker', 'manager'])) {
+            return false;
+        }
+
+        if (self::isAssignedToRecipient($user, $proposition)) {
+            return true;
+        }
+
+        return (int) $proposition->matchmaker_id === (int) $user->id
+            && app(PropositionStaffPayloadService::class)->userIsAssignedMatchmakerToParties($user, $proposition);
+    }
+
+    public static function isAssignedToRecipient(User $user, Proposition $proposition): bool
+    {
+        $recipient = app(PropositionStaffPayloadService::class)->resolvePropositionParties($proposition)[0] ?? null;
+
+        return $recipient !== null
+            && $recipient->assigned_matchmaker_id !== null
+            && (int) $recipient->assigned_matchmaker_id === (int) $user->id;
+    }
+
+    /**
+     * The creator may cancel. Managers keep cancelling propositions involving their profiles.
      */
     public function cancel(User $user, Proposition $proposition): bool
     {
@@ -51,7 +82,11 @@ class PropositionPolicy
             return false;
         }
 
-        return app(PropositionStaffPayloadService::class)
-            ->userIsAssignedMatchmakerToParties($user, $proposition);
+        if ((int) $proposition->matchmaker_id === (int) $user->id) {
+            return true;
+        }
+
+        return $user->hasRole('manager')
+            && app(PropositionStaffPayloadService::class)->userIsAssignedMatchmakerToParties($user, $proposition);
     }
 }

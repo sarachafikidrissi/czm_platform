@@ -164,13 +164,17 @@ class ValidateProspectTest extends TestCase
 
     private function attachReadyProfile(User $prospect): Profile
     {
-        return Profile::create([
+        $profile = Profile::create([
             'user_id' => $prospect->id,
             'cin' => Crypt::encryptString('AB12345'),
             'document_type' => 'cin',
             'identity_card_front_path' => 'identity-cards/test-front.jpg',
             'identity_card_front_hash' => 'testhash',
         ]);
+        // Validation requires a completed profile.
+        $profile->forceFill(['is_completed' => true])->save();
+
+        return $profile;
     }
 
     private function validPayload(): array

@@ -200,7 +200,7 @@ class PropositionActiveAndCancelTest extends TestCase
         $this->assertSame(Proposition::STATUS_CANCELLED, $p2->fresh()->status);
     }
 
-    public function test_other_matchmakers_recipient_can_cancel_and_cascade_pair(): void
+    public function test_only_the_creator_cancels_and_cascades_the_pair(): void
     {
         $mmSender = $this->makeUserWithRole('matchmaker');
         $mmA = $this->makeUserWithRole('matchmaker');
@@ -232,7 +232,13 @@ class PropositionActiveAndCancelTest extends TestCase
             'status' => 'pending',
         ]);
 
-        $this->actingAs($mmA)->patchJson(route('staff.propositions.cancel', $pRef))->assertOk()
+        // Matchmakers who follow the profiles but did not create the proposition cannot cancel it.
+        $this->actingAs($mmA)->patchJson(route('staff.propositions.cancel', $pRef))->assertForbidden();
+        $this->actingAs($mmB)->patchJson(route('staff.propositions.cancel', $pComp))->assertForbidden();
+        $this->assertSame('pending', $pRef->fresh()->status);
+
+        // The creator cancels: the whole pair is cancelled.
+        $this->actingAs($mmSender)->patchJson(route('staff.propositions.cancel', $pRef))->assertOk()
             ->assertJsonPath('pair_was_cancelled', true);
         $this->assertSame(Proposition::STATUS_CANCELLED, $pRef->fresh()->status);
         $this->assertSame(Proposition::STATUS_CANCELLED, $pComp->fresh()->status);
@@ -261,7 +267,7 @@ class PropositionActiveAndCancelTest extends TestCase
             'status' => 'pending',
         ]);
 
-        $this->actingAs($mmB)->patchJson(route('staff.propositions.cancel', $pComp2))->assertOk()
+        $this->actingAs($mmSender)->patchJson(route('staff.propositions.cancel', $pComp2))->assertOk()
             ->assertJsonPath('pair_was_cancelled', true);
         $this->assertSame(Proposition::STATUS_CANCELLED, $pRef2->fresh()->status);
         $this->assertSame(Proposition::STATUS_CANCELLED, $pComp2->fresh()->status);

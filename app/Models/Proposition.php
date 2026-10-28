@@ -84,6 +84,45 @@ class Proposition extends Model
             });
     }
 
+    /**
+     * Constrain a users query to profiles with a proposition accepted by BOTH members and no RDV created yet.
+     * Same "both accepted" rule as RDV creation (PropositionStaffPayloadService::buildStaffContext):
+     * for the same pair (either orientation), an accepted row whose recipient is this profile and an accepted
+     * row whose recipient is the other member; and no RDV in progress or successful for that pair.
+     * A single-recipient proposition answered by one member does not count.
+     */
+    public static function constrainToAcceptedByBothWithoutRdv(Builder $users): Builder
+    {
+        $accepted = [self::STATUS_INTERESTED, self::STATUS_ACCEPTED];
+        $samePair = function ($query, string $a, string $b) {
+            $query->where(fn ($w) => $w->whereColumn("{$b}.reference_user_id", "{$a}.reference_user_id")
+                ->whereColumn("{$b}.compatible_user_id", "{$a}.compatible_user_id"))
+                ->orWhere(fn ($w) => $w->whereColumn("{$b}.reference_user_id", "{$a}.compatible_user_id")
+                    ->whereColumn("{$b}.compatible_user_id", "{$a}.reference_user_id"));
+        };
+
+        return $users->whereExists(function ($mine) use ($accepted, $samePair) {
+            $mine->selectRaw('1')->from('propositions as mine')
+                ->whereIn('mine.status', $accepted)
+                ->whereColumn('mine.recipient_user_id', 'users.id')
+                ->where(fn ($w) => $w->whereColumn('mine.reference_user_id', 'users.id')
+                    ->orWhereColumn('mine.compatible_user_id', 'users.id'))
+                ->whereExists(function ($other) use ($accepted, $samePair) {
+                    $other->selectRaw('1')->from('propositions as other')
+                        ->whereIn('other.status', $accepted)
+                        ->whereColumn('other.recipient_user_id', '!=', 'users.id')
+                        ->where(fn ($w) => $w->whereColumn('other.recipient_user_id', 'other.reference_user_id')
+                            ->orWhereColumn('other.recipient_user_id', 'other.compatible_user_id'))
+                        ->where(fn ($w) => $samePair($w, 'mine', 'other'));
+                })
+                ->whereNotExists(function ($rdv) use ($samePair) {
+                    $rdv->selectRaw('1')->from('rdvs')
+                        ->whereIn('rdvs.status', [Rdv::STATUS_EN_COURS, Rdv::STATUS_REUSSI])
+                        ->where(fn ($w) => $samePair($w, 'mine', 'rdvs'));
+                });
+        });
+    }
+
     public static function hasActiveProposition(int $userId, ?int $excludePropositionId = null): bool
     {
         return static::query()
@@ -341,7 +380,13 @@ class Proposition extends Model
      */
     public function canBeCancelledByMatchmaker(): bool
     {
-        return ! in_array($this->status, [self::STATUS_CANCELLED, self::STATUS_EXPIRED, self::STATUS_CLOSED], true);
+        // A refused proposition is already over: nothing left to cancel.
+        return ! in_array($this->status, [
+            self::STATUS_CANCELLED,
+            self::STATUS_EXPIRED,
+            self::STATUS_CLOSED,
+            self::STATUS_NOT_INTERESTED,
+        ], true);
     }
 
     /**
@@ -523,7 +568,12 @@ class Proposition extends Model
             return $p->responded_at !== null && self::isPositiveUserResponse($p->user_response);
         });
 
-        if ($allAnsweredPositive) {
+        // Sent to one member only (no pair yet): the other member has not been asked, so one "yes" keeps it
+        // pending, exactly like a pair whose second row has not answered. "Envoyer au profil restant" adds
+        // the second row; when that member also says yes, the pair becomes interested.
+        $waitingForOtherMember = $rows->count() === 1 && $rows->first()->pair_id === null;
+
+        if ($allAnsweredPositive && ! $waitingForOtherMember) {
             return self::STATUS_INTERESTED;
         }
 

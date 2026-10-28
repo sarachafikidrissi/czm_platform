@@ -183,7 +183,7 @@ class DashboardController extends Controller
      */
     private function getManagerPosts(User $user)
     {
-        $posts = Post::with(['user.profile', 'agency', 'likes.user.profile', 'comments.user.roles', 'comments.user.profile'])
+        $posts = Post::with(['user.profile', 'agency', 'likes.user.profile', 'comments.user.roles', 'comments.user.profile', 'comments.user.assignedMatchmaker:id,name,agency_id'])
             ->where('agency_id', $user->agency_id)
             ->orderBy('created_at', 'desc')
             ->paginate(10);
@@ -502,7 +502,7 @@ class DashboardController extends Controller
             'agency',
             'likes.user.profile',
             'comments.user.roles',
-            'comments.user.profile'
+            'comments.user.profile', 'comments.user.assignedMatchmaker:id,name,agency_id'
         ])
         ->whereIn('user_id', $staffIds)
         ->orderBy('created_at', 'desc')

@@ -75,8 +75,9 @@ const CARD_DEFS = [
  *   month      number
  *   year       number
  *   extraParams object       forwarded to retry router.get
+ *   links      object        optional page URL per card key (cards become clickable)
  */
-export default function KpiStatsGrid({ cards, loading = false, error = null, month, year, extraParams = {} }) {
+export default function KpiStatsGrid({ cards, loading = false, error = null, month, year, extraParams = {}, links = {} }) {
     if (loading) {
         return (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -134,6 +135,7 @@ export default function KpiStatsGrid({ cards, loading = false, error = null, mon
                         target={data.target ?? null}
                         deltaTooltip={def.deltaTooltip}
                         iconTooltip={def.iconTooltip ?? null}
+                        href={links[def.key] ?? null}
                     />
                 );
             })}

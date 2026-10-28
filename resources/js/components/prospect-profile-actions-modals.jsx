@@ -27,6 +27,7 @@ import {
     XCircle,
 } from 'lucide-react';
 import { useState } from 'react';
+import ProspectIncompleteProfileAlert from '@/components/prospect-incomplete-profile-alert';
 import { useTranslation } from 'react-i18next';
 
 const PACK_ADVANTAGES = [
@@ -46,6 +47,8 @@ const PACK_ADVANTAGES = [
 ];
 
 export function ProspectProfileActionsModals({
+    incompleteProspect = null,
+    setIncompleteProspect = () => {},
     services = [],
     matrimonialPacks = [],
     data,
@@ -127,6 +130,7 @@ export function ProspectProfileActionsModals({
 
     return (
         <>
+            <ProspectIncompleteProfileAlert prospect={incompleteProspect} onClose={() => setIncompleteProspect(null)} />
             <Dialog open={!!validatingProspect} onOpenChange={(open) => !open && closeValidationDialog()}>
                 <DialogContent className="overflow-y-auto sm:max-h-[90vh] sm:w-[500px]">
                     <DialogHeader>

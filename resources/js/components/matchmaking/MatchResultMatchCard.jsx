@@ -163,10 +163,34 @@ export default function MatchResultMatchCard({
                 ) : (
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">Non assigné</div>
                 )}
+                {match.agency?.name && <div className="text-sm text-muted-foreground">Agence : {match.agency.name}</div>}
+                {match.outside_compatible && (
+                    <Badge variant="outline" className="w-fit rounded-md text-xs text-muted-foreground">
+                        Hors résultats compatibles
+                    </Badge>
+                )}
 
                 <Separator className="my-3" />
 
-                {referenceActivePairMode ? (
+                {match.restriction ? (
+                    // Found by the whole-base search but cannot receive a proposition: say why, no action.
+                    <div className="flex flex-col gap-2">
+                        <div className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900">
+                            {match.restriction.label}
+                        </div>
+                        <Button
+                            variant="outline"
+                            className="w-full rounded-lg py-2.5 text-sm font-medium"
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                window.open(`/profile/${match.user.username || match.user.id}`, '_blank', 'noopener,noreferrer');
+                            }}
+                        >
+                            <User className="mr-2 h-4 w-4" />
+                            Voir le profil
+                        </Button>
+                    </div>
+                ) : referenceActivePairMode ? (
                     <div className="flex flex-col gap-2">
                         {referencePendingResponsePropositionId && onOpenRespondDialog && (
                             <Button

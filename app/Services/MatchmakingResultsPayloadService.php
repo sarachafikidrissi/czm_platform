@@ -2,10 +2,13 @@
 
 namespace App\Services;
 
+use App\Models\Agency;
 use App\Models\Proposition;
 use App\Models\PropositionRequest;
 use App\Models\Rdv;
 use App\Models\User;
+use App\Http\Controllers\PropositionRequestController;
+use App\Policies\UserProfileActionPolicy;
 use Illuminate\Support\Facades\Schema;
 
 /**
@@ -13,6 +16,113 @@ use Illuminate\Support\Facades\Schema;
  */
 class MatchmakingResultsPayloadService
 {
+    /** Identity-document fields never sent with a match card (the cards do not use them). */
+    public const SENSITIVE_PROFILE_FIELDS = ['cin', 'cin_hash', 'identity_card_front_path', 'identity_card_front_hash'];
+
+    /** Profile data for a match card, without identity-document fields. */
+    public static function cardProfile($profile): array
+    {
+        return $profile ? (clone $profile)->makeHidden(self::SENSITIVE_PROFILE_FIELDS)->toArray() : [];
+    }
+
+    /** Flag shown on a searched profile that cannot receive a proposition. */
+    public const RESTRICTION_LABELS = [
+        'deactivated' => 'Compte désactivé — proposition impossible',
+        'rejected' => 'Prospect rejeté — proposition impossible',
+        'prospect' => 'Prospect non validé — proposition impossible',
+        'incomplete' => 'Profil incomplet — proposition impossible',
+        'not_member' => 'Statut non éligible — proposition impossible',
+        'same_gender' => 'Même sexe — proposition impossible',
+    ];
+
+    /**
+     * Server-side rule for sending a proposition / request to $candidate: never to a prospect (validated or
+     * rejected) or a deactivated account. Returns the reason code, or null when allowed.
+     */
+    public static function propositionBlockedFor(?User $candidate): ?string
+    {
+        if (! $candidate) {
+            return null;
+        }
+        if (UserProfileActionPolicy::isDeactivated($candidate)) {
+            return 'deactivated';
+        }
+        if ($candidate->status === 'prospect') {
+            return UserProfileActionPolicy::isRejectedProspect($candidate) ? 'rejected' : 'prospect';
+        }
+
+        return null;
+    }
+
+    /**
+     * Why $candidate cannot receive a proposition with $userA (same rules as the engine's candidates), or null.
+     *
+     * @return array{code: string, label: string}|null
+     */
+    public static function candidateRestriction(User $candidate, User $userA): ?array
+    {
+        if (UserProfileActionPolicy::isDeactivated($candidate)) {
+            $code = 'deactivated';
+        } elseif (UserProfileActionPolicy::isRejectedProspect($candidate)) {
+            $code = 'rejected';
+        } else {
+            $code = PropositionRequestController::referenceIneligibility($candidate, $userA);
+        }
+
+        return $code === null ? null : ['code' => $code, 'label' => self::RESTRICTION_LABELS[$code]];
+    }
+
+    /**
+     * Options for the results "agency" and "matchmaker" filters: every agency and every approved
+     * matchmaker / manager (profiles can be assigned to either), sorted by name.
+     *
+     * @return array{agencies: array<int, array{id: int, name: string}>, matchmakers: array<int, array{id: int, name: string}>}
+     */
+    public static function filterOptions(): array
+    {
+        return [
+            'agencies' => Agency::orderBy('name')->get(['id', 'name'])
+                ->map(static fn ($a) => ['id' => (int) $a->id, 'name' => $a->name])->values()->all(),
+            'matchmakers' => User::query()
+                ->whereHas('roles', static fn ($q) => $q->whereIn('name', ['matchmaker', 'manager']))
+                ->where('approval_status', 'approved')
+                ->orderBy('name')
+                ->get(['id', 'name'])
+                ->map(static fn ($u) => ['id' => (int) $u->id, 'name' => $u->name])->values()->all(),
+        ];
+    }
+
+    /**
+     * Who follows each match and in which agency (the profile's agency, else its matchmaker's), keyed by user id.
+     *
+     * @param  array<int, array{user: User}>  $matches
+     * @return array<int, array{assigned_matchmaker: ?array, isAssignedToMe: bool, agency: ?array}>
+     */
+    public static function assignmentInfo(array $matches, User $me): array
+    {
+        $agencyIdFor = static fn (User $user) => $user->agency_id ?: $user->assignedMatchmaker?->agency_id;
+        $agencyIds = array_values(array_unique(array_filter(array_map(static fn ($m) => $agencyIdFor($m['user']), $matches))));
+        $agencyNames = $agencyIds === [] ? collect() : Agency::whereIn('id', $agencyIds)->pluck('name', 'id');
+
+        $info = [];
+        foreach ($matches as $match) {
+            $user = $match['user'];
+            $matchmaker = $user->assignedMatchmaker;
+            $agencyId = $agencyIdFor($user);
+            $info[(int) $user->id] = [
+                'assigned_matchmaker' => $matchmaker ? [
+                    'id' => $matchmaker->id,
+                    'name' => $matchmaker->name,
+                    'username' => $matchmaker->username,
+                ] : null,
+                'isAssignedToMe' => (int) $user->assigned_matchmaker_id === (int) $me->id,
+                'agency' => $agencyId && isset($agencyNames[$agencyId]) ? ['id' => (int) $agencyId, 'name' => $agencyNames[$agencyId]] : null,
+            ];
+        }
+
+        return $info;
+    }
+
     /**
      * @param  array<int, array{user: User, profile: mixed, score: float|int, scoreDetails: array, completeness: float|int}>  $matches
      * @return array<int, array<string, mixed>>
@@ -20,6 +130,7 @@ class MatchmakingResultsPayloadService
     public static function formatMatchesForMatchmaker(array $matches, User $me, int $referenceUserId): array
     {
         $compatibleIds = array_map(static fn ($m) => $m['user']->id, $matches);
+        $assignmentInfo = self::assignmentInfo($matches, $me);
 
         $userAHasActiveProposition = Proposition::hasActiveProposition((int) $referenceUserId);
         $compatibleRecipientActiveMap = [];
@@ -168,7 +279,8 @@ class MatchmakingResultsPayloadService
                     && $pairActions[$counterpartId]['pending_response_proposition'] === null) {
                     $pairActions[$counterpartId]['pending_response_proposition'] = ['id' => $prop->id];
                 }
-                if ($prop->canBeCancelledByMatchmaker() && $pairActions[$counterpartId]['cancellable_proposition'] === null) {
+                if ($prop->canBeCancelledByMatchmaker() && $me->can('cancel', $prop)
+                    && $pairActions[$counterpartId]['cancellable_proposition'] === null) {
                     $pairActions[$counterpartId]['cancellable_proposition'] = ['id' => $prop->id];
                 }
             }
@@ -338,7 +450,7 @@ class MatchmakingResultsPayloadService
             $successfulRdvCompatIds = $successfulRdvMap;
         }
 
-        return array_map(function ($match) use ($me, $referenceUserId, $statusMap, $requestMetaMap, $propositionStatusMap, $userAHasActiveProposition, $compatibleRecipientActiveMap, $compatibleHasBlockingRdvMap, $pairActions, $mutualInterestedCompatIds, $closedOnlyRecreationCompatIds, $failedRdvIdForClosedRecreationCompat, $bothAcceptedCompatIds, $rdvExistsCompatIds, $successfulRdvCompatIds, $failedEchecCompatIds, $recreationAllowedCompatIds) {
+        return array_map(function ($match) use ($referenceUserId, $statusMap, $requestMetaMap, $propositionStatusMap, $userAHasActiveProposition, $compatibleRecipientActiveMap, $compatibleHasBlockingRdvMap, $pairActions, $mutualInterestedCompatIds, $closedOnlyRecreationCompatIds, $failedRdvIdForClosedRecreationCompat, $bothAcceptedCompatIds, $rdvExistsCompatIds, $successfulRdvCompatIds, $failedEchecCompatIds, $recreationAllowedCompatIds, $assignmentInfo) {
             $compatId = $match['user']->id;
             $requestMeta = $requestMetaMap[$compatId] ?? null;
             $canProposeFromRequest = ($requestMeta['status'] ?? null) === 'accepted';
@@ -374,13 +486,10 @@ class MatchmakingResultsPayloadService
                     'updated_at' => $match['user']->updated_at,
                     'assigned_matchmaker_id' => $match['user']->assigned_matchmaker_id,
                 ],
-                'assigned_matchmaker' => $match['user']->assignedMatchmaker ? [
-                    'id' => $match['user']->assignedMatchmaker->id,
-                    'name' => $match['user']->assignedMatchmaker->name,
-                    'username' => $match['user']->assignedMatchmaker->username,
-                ] : null,
-                'isAssignedToMe' => (int) $match['user']->assigned_matchmaker_id === (int) $me->id,
-                'profile' => $match['profile']->toArray(),
+                'assigned_matchmaker' => $assignmentInfo[$compatId]['assigned_matchmaker'],
+                'isAssignedToMe' => $assignmentInfo[$compatId]['isAssignedToMe'],
+                'agency' => $assignmentInfo[$compatId]['agency'],
+                'profile' => self::cardProfile($match['profile']),
                 'score' => $match['score'],
                 'scoreDetails' => $match['scoreDetails'],
                 'completeness' => $match['completeness'],

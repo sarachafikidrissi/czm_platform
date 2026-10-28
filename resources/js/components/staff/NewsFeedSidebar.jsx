@@ -1,6 +1,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { AlertTriangle, ArrowRightLeft, Calendar, ClipboardList, HandCoins, Hourglass, User } from 'lucide-react';
+import { Link } from '@inertiajs/react';
+import { dashboardLinks } from '@/lib/dashboard-links';
 
 const fmtMAD = (n) => {
     if (n == null || !isFinite(Number(n))) return '— MAD';
@@ -8,6 +10,9 @@ const fmtMAD = (n) => {
 };
 
 const fmtPct = (n) => Number(n ?? 0).toFixed(2);
+
+// Sidebar rows/blocks open the list behind their number.
+const ROW_LINK = 'block transition-colors hover:bg-[#f3ece9] focus-visible:outline-2 focus-visible:outline-[#890505]';
 
 const pctColor = (pct) => {
     if (pct >= 80) return '#1D9E75';
@@ -47,7 +52,7 @@ function VentesBar({ percentage, muted = false }) {
     );
 }
 
-function PersonalProductionCard({ title, data }) {
+function PersonalProductionCard({ title, data, href }) {
     const target = data?.target_ventes ?? 0;
     const realized = data?.realized_ventes ?? 0;
     const pct = data?.progress?.ventes ?? 0;
@@ -57,7 +62,9 @@ function PersonalProductionCard({ title, data }) {
         <Card className="rounded-[18px] border border-black/[0.06] bg-white shadow-sm">
             <CardHeader className="px-6 pb-2 pt-6">
                 <CardTitle className="font-serif text-xl font-bold tracking-tight text-neutral-900">
+                    <Link href={href} className="hover:underline">
                     {title}
+                    </Link>
                 </CardTitle>
                 <p className="text-muted-foreground text-xs">{monthYearLabel(data)}</p>
             </CardHeader>
@@ -87,6 +94,7 @@ function PersonalProductionCard({ title, data }) {
 }
 
 export default function NewsFeedSidebar({ statistics, role }) {
+    const links = dashboardLinks(role, role === 'manager' ? 'agency' : 'mine').sidebar;
     if (!statistics) {
         return null;
     }
@@ -103,7 +111,9 @@ export default function NewsFeedSidebar({ statistics, role }) {
                     <Card className="rounded-[18px] border border-black/[0.06] bg-white shadow-sm">
                         <CardHeader className="px-6 pb-2 pt-6">
                             <CardTitle className="font-serif text-xl font-bold tracking-tight text-neutral-900">
+                                <Link href={links.objectives} className="hover:underline">
                                 Production par agence
+                                </Link>
                             </CardTitle>
                             <p className="text-muted-foreground text-xs">
                                 {monthYearLabel(statistics.objectivesAgency, ' · classement par ventes')}
@@ -168,7 +178,7 @@ export default function NewsFeedSidebar({ statistics, role }) {
 
             {/* Manager: Ma production + Production de l'équipe */}
             {role === 'manager' && statistics.objectivesManager && (
-                <PersonalProductionCard title="Ma production" data={statistics.objectivesManager} />
+                <PersonalProductionCard href={links.objectives} title="Ma production" data={statistics.objectivesManager} />
             )}
 
             {role === 'manager' && (() => {
@@ -178,7 +188,9 @@ export default function NewsFeedSidebar({ statistics, role }) {
                         <Card className="rounded-[18px] border border-black/[0.06] bg-white shadow-sm">
                             <CardHeader className="px-6 pb-2 pt-6">
                                 <CardTitle className="font-serif text-xl font-bold tracking-tight text-neutral-900">
+                                    <Link href={links.objectives} className="hover:underline">
                                     Production de l'équipe
+                                    </Link>
                                 </CardTitle>
                                 <p className="text-muted-foreground text-xs">
                                     {monthYearLabel(statistics.objectivesManager)}
@@ -199,7 +211,9 @@ export default function NewsFeedSidebar({ statistics, role }) {
                     <Card className="rounded-[18px] border border-black/[0.06] bg-white shadow-sm">
                         <CardHeader className="px-6 pb-2 pt-6">
                             <CardTitle className="font-serif text-xl font-bold tracking-tight text-neutral-900">
+                                <Link href={links.objectives} className="hover:underline">
                                 Production de l'équipe
+                                </Link>
                             </CardTitle>
                             <p className="text-muted-foreground text-xs">
                                 {monthYearLabel(statistics.objectivesManager)}
@@ -275,7 +289,7 @@ export default function NewsFeedSidebar({ statistics, role }) {
 
             {/* Matchmaker: Ma production */}
             {role === 'matchmaker' && statistics.objectives && (
-                <PersonalProductionCard title="Ma production" data={statistics.objectives} />
+                <PersonalProductionCard href={links.objectives} title="Ma production" data={statistics.objectives} />
             )}
 
             {/* Mes prospects */}
@@ -283,22 +297,24 @@ export default function NewsFeedSidebar({ statistics, role }) {
                 <Card className="rounded-2xl border border-black/5 bg-white shadow-sm">
                     <CardHeader className="px-5 pt-4 pb-2">
                         <CardTitle className="text-lg font-semibold tracking-tight text-[#4b2a24]">
-                            Mes prospects <span className="text-foreground ml-1 font-semibold tabular-nums">{statistics.prospects.total || 0}</span>
+                            <Link href={links.prospects} className="hover:underline">
+                                Mes prospects <span className="text-foreground ml-1 font-semibold tabular-nums">{statistics.prospects.total || 0}</span>
+                            </Link>
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3 px-5 pt-1 pb-5 text-sm">
-                        <div className="rounded-xl border border-black/5 bg-[#fbfaf9] px-4 py-3">
+                        <Link href={links.prospectsLate} className={`rounded-xl border border-black/5 bg-[#fbfaf9] px-4 py-3 ${ROW_LINK}`}>
                             <div className="flex items-center justify-between gap-3">
                                 <span className="text-muted-foreground">Prospects en retard :</span>
                                 <span className="font-semibold text-[#b42318] tabular-nums">{statistics.prospects.late || 0}</span>
                             </div>
-                        </div>
-                        <div className="rounded-xl border border-black/5 bg-[#fbfaf9] px-4 py-3">
+                        </Link>
+                        <Link href={links.prospectsUntreated} className={`rounded-xl border border-black/5 bg-[#fbfaf9] px-4 py-3 ${ROW_LINK}`}>
                             <div className="flex items-center justify-between gap-3">
                                 <span className="text-muted-foreground">Prospects non traités :</span>
                                 <span className="font-semibold text-[#b42318] tabular-nums">{statistics.prospects.untreated || 0}</span>
                             </div>
-                        </div>
+                        </Link>
                     </CardContent>
                 </Card>
             )}
@@ -308,22 +324,24 @@ export default function NewsFeedSidebar({ statistics, role }) {
                 <Card className="rounded-2xl border border-black/5 bg-white shadow-sm">
                     <CardHeader className="px-5 pt-4 pb-2">
                         <CardTitle className="text-lg font-semibold tracking-tight text-[#4b2a24]">
-                            Mes Clients <span className="text-foreground ml-1 font-semibold tabular-nums">{statistics.clients.total || 0}</span>
+                            <Link href={links.clients} className="hover:underline">
+                                Mes Clients <span className="text-foreground ml-1 font-semibold tabular-nums">{statistics.clients.total || 0}</span>
+                            </Link>
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-2 px-5 pt-1 pb-5 text-sm">
-                        <div className="flex items-center justify-between gap-3 rounded-xl border border-black/5 bg-[#fbfaf9] px-4 py-3">
+                        <Link href={links.clientsInRdv} className={`flex items-center justify-between gap-3 rounded-xl border border-black/5 bg-[#fbfaf9] px-4 py-3 ${ROW_LINK}`}>
                             <span className="text-muted-foreground">En RDV :</span>
                             <span className="font-semibold text-[#067647] tabular-nums">{statistics.clients.inAppointment || 0} 😊</span>
-                        </div>
-                        <div className="flex items-center justify-between gap-3 rounded-xl border border-black/5 bg-[#fbfaf9] px-4 py-3">
+                        </Link>
+                        <Link href={links.clientsAwaitingRdv} className={`flex items-center justify-between gap-3 rounded-xl border border-black/5 bg-[#fbfaf9] px-4 py-3 ${ROW_LINK}`}>
                             <span className="text-muted-foreground">Pas en RDV :</span>
                             <span className="font-semibold text-[#b42318] tabular-nums">{statistics.clients.notInAppointment || 0} 😐</span>
-                        </div>
-                        <div className="flex items-center justify-between gap-3 rounded-xl border border-black/5 bg-[#fbfaf9] px-4 py-3">
-                            <span className="text-muted-foreground">Les clients non contactés pour plus d'une semaine :</span>
-                            <span className="font-semibold text-[#b42318] tabular-nums">{statistics.clients.notContacted || 0}</span>
-                        </div>
+                        </Link>
+                        <Link href={links.prospectsUntreated} className={`flex items-center justify-between gap-3 rounded-xl border border-black/5 bg-[#fbfaf9] px-4 py-3 ${ROW_LINK}`}>
+                            <span className="text-muted-foreground">Prospects non traités :</span>
+                            <span className="font-semibold text-[#b42318] tabular-nums">{statistics.clients.untreatedProspects || 0}</span>
+                        </Link>
                     </CardContent>
                 </Card>
             )}
@@ -336,20 +354,20 @@ export default function NewsFeedSidebar({ statistics, role }) {
                     </CardHeader>
                     <CardContent className="px-5 pt-2 pb-5">
                         <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-1">
+                            <Link href={links.activeMembers} className="space-y-1 rounded-lg hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-white">
                                 <div className="text-sm/5 text-white/80">Vous avez </div>
                                 <div className="text-3xl leading-none font-semibold text-white tabular-nums">
                                     {statistics.activeMembers.total || 0}
                                 </div>
                                 <div className="text-sm/5 text-white/80">membres</div>
-                            </div>
-                            <div className="space-y-1 border-l border-white/15 pl-4">
+                            </Link>
+                            <Link href={links.membersNotUpToDate} className="space-y-1 border-l border-white/15 pl-4 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-white">
                                 <div className="text-sm/5 text-white/80">&gt; </div>
                                 <div className="text-3xl leading-none font-semibold text-[#f5c84c] tabular-nums">
                                     {statistics.activeMembers.notUpToDate || 0}
                                 </div>
                                 <div className="text-sm/5 text-white/80">ne sont pas à jour.</div>
-                            </div>
+                            </Link>
                         </div>
                     </CardContent>
                 </Card>
@@ -364,7 +382,7 @@ export default function NewsFeedSidebar({ statistics, role }) {
                     </CardHeader>
                     <CardContent className="px-0 pt-0 pb-2">
                         <div className="divide-y divide-black/5">
-                            <div className="flex items-center gap-4 px-5 py-4">
+                            <Link href={links.rdvInProgress} className={`flex items-center gap-4 px-5 py-4 ${ROW_LINK}`}>
                                 <div className="bg-muted/60 flex h-12 w-12 items-center justify-center rounded-full">
                                     <Calendar className="text-muted-foreground h-5 w-5" />
                                 </div>
@@ -372,9 +390,9 @@ export default function NewsFeedSidebar({ statistics, role }) {
                                 <div className="bg-muted text-foreground rounded-full px-3 py-1 text-sm font-semibold tabular-nums">
                                     {String(statistics.activities.appointmentsInProgress ?? 0).padStart(2, '0')}
                                 </div>
-                            </div>
+                            </Link>
 
-                            <div className="flex items-center gap-4 px-5 py-4">
+                            <Link href={links.pendingPropositions} className={`flex items-center gap-4 px-5 py-4 ${ROW_LINK}`}>
                                 <div className="bg-muted/60 flex h-12 w-12 items-center justify-center rounded-full">
                                     <Hourglass className="text-muted-foreground h-5 w-5" />
                                 </div>
@@ -382,9 +400,9 @@ export default function NewsFeedSidebar({ statistics, role }) {
                                 <div className="rounded-full bg-amber-100 px-3 py-1 text-sm font-semibold text-amber-700 tabular-nums">
                                     {String(statistics.activities.pendingPropositions ?? 0).padStart(2, '0')}
                                 </div>
-                            </div>
+                            </Link>
 
-                            <div className="flex items-center gap-4 px-5 py-4">
+                            <Link href={links.pendingRequests} className={`flex items-center gap-4 px-5 py-4 ${ROW_LINK}`}>
                                 <div className="bg-muted/60 flex h-12 w-12 items-center justify-center rounded-full">
                                     <ClipboardList className="text-muted-foreground h-5 w-5" />
                                 </div>
@@ -392,9 +410,9 @@ export default function NewsFeedSidebar({ statistics, role }) {
                                 <div className="bg-muted text-foreground rounded-full px-3 py-1 text-sm font-semibold tabular-nums">
                                     {statistics.activities.pendingRequests ?? 0}
                                 </div>
-                            </div>
+                            </Link>
 
-                            <div className="flex items-center gap-4 px-5 py-4">
+                            <Link href={links.transferRequests} className={`flex items-center gap-4 px-5 py-4 ${ROW_LINK}`}>
                                 <div className="bg-muted/60 flex h-12 w-12 items-center justify-center rounded-full">
                                     <ArrowRightLeft className="text-muted-foreground h-5 w-5" />
                                 </div>
@@ -402,9 +420,9 @@ export default function NewsFeedSidebar({ statistics, role }) {
                                 <div className="bg-muted rounded-full px-3 py-1 text-sm font-semibold text-[#4b2a24] tabular-nums">
                                     {String(statistics.activities.pendingTransferRequests ?? 0).padStart(2, '0')}
                                 </div>
-                            </div>
+                            </Link>
 
-                            <div className="flex items-center gap-4 px-5 py-4">
+                            <Link href={links.expiredClients} className={`flex items-center gap-4 px-5 py-4 ${ROW_LINK}`}>
                                 <div className="bg-muted/60 flex h-12 w-12 items-center justify-center rounded-full">
                                     <AlertTriangle className="text-muted-foreground h-5 w-5" />
                                 </div>
@@ -412,9 +430,9 @@ export default function NewsFeedSidebar({ statistics, role }) {
                                 <div className="rounded-full bg-red-100 px-3 py-1 text-sm font-semibold text-red-600 tabular-nums">
                                     {String(statistics.activities.expiredClients ?? 0).padStart(2, '0')}
                                 </div>
-                            </div>
+                            </Link>
 
-                            <div className="flex items-center gap-4 px-5 py-4">
+                            <Link href={links.awaitingPayment} className={`flex items-center gap-4 px-5 py-4 ${ROW_LINK}`}>
                                 <div className="bg-muted/60 flex h-12 w-12 items-center justify-center rounded-full">
                                     <HandCoins  className="text-muted-foreground h-5 w-5" />
                                 </div>
@@ -422,7 +440,7 @@ export default function NewsFeedSidebar({ statistics, role }) {
                                 <div className="rounded-full bg-orange-100 px-3 py-1 text-sm font-semibold text-orange-700 tabular-nums">
                                     {String(statistics.activities.clientsAwaitingPayment ?? 0).padStart(2, '0')}
                                 </div>
-                            </div>
+                            </Link>
                         </div>
                     </CardContent>
                 </Card>
@@ -430,7 +448,10 @@ export default function NewsFeedSidebar({ statistics, role }) {
 
             {/* Objectifs (tableau) */}
             {role !== 'manager' && statistics.objectives && (
-                <div className="overflow-hidden rounded-lg border border-black/5 bg-white shadow-sm">
+                <Link
+                    href={links.objectives}
+                    className="block overflow-hidden rounded-lg border border-black/5 bg-white shadow-sm transition-shadow hover:shadow-md focus-visible:outline-2 focus-visible:outline-[#890505]"
+                >
                     <div className="bg-black px-4 py-2">
                         <div className="grid grid-cols-4 items-center gap-2 text-xs font-semibold text-white">
                             <div className="text-left">Métrique</div>
@@ -489,13 +510,13 @@ export default function NewsFeedSidebar({ statistics, role }) {
                             </div>
                         ))}
                     </div>
-                </div>
+                </Link>
             )}
 
             {/* Manager: Ma production + Production d'agence */}
             {role === 'manager' && statistics.objectivesManager && (
                 <div className="space-y-3">
-                    <div className="text-sm font-semibold text-[#4b2a24]">Ma production</div>
+                    <Link href={links.objectives} className="block text-sm font-semibold text-[#4b2a24] hover:underline">Ma production</Link>
                     <div className="overflow-hidden rounded-lg border border-black/5 bg-white shadow-sm">
                         <div className="bg-black px-4 py-2">
                             <div className="grid grid-cols-4 items-center gap-2 text-xs font-semibold text-white">
@@ -561,7 +582,7 @@ export default function NewsFeedSidebar({ statistics, role }) {
 
             {role === 'manager' && statistics.objectivesAgency && (
                 <div className="space-y-3">
-                    <div className="text-sm font-semibold text-[#4b2a24]">Production d'agence</div>
+                    <Link href={links.objectives} className="block text-sm font-semibold text-[#4b2a24] hover:underline">Production d'agence</Link>
                     <div className="overflow-hidden rounded-lg border border-black/5 bg-white shadow-sm">
                         <div className="bg-black px-4 py-2">
                             <div className="grid grid-cols-4 items-center gap-2 text-xs font-semibold text-white">
@@ -643,9 +664,10 @@ export default function NewsFeedSidebar({ statistics, role }) {
                             };
 
                             return (
-                                <div
+                                <Link
                                     key={member.id}
-                                    className="flex items-start gap-3 rounded-2xl border border-black/5 bg-[#fbfaf9] p-3 shadow-sm transition-colors hover:bg-[#f7f4f2]"
+                                    href={links.profile(member.username || member.id)}
+                                    className="flex items-start gap-3 rounded-2xl border border-black/5 bg-[#fbfaf9] p-3 shadow-sm transition-colors hover:bg-[#f7f4f2] focus-visible:outline-2 focus-visible:outline-[#890505]"
                                 >
                                     <div className="bg-muted h-12 w-12 flex-shrink-0 overflow-hidden rounded-full">
                                         {member.profile_picture ? (
@@ -678,7 +700,7 @@ export default function NewsFeedSidebar({ statistics, role }) {
                                             {member.agency_name && <p className="text-muted-foreground text-xs">Agence: {member.agency_name}</p>}
                                         </div>
                                     </div>
-                                </div>
+                                </Link>
                             );
                         })}
                     </CardContent>
@@ -693,7 +715,11 @@ export default function NewsFeedSidebar({ statistics, role }) {
                     </CardHeader>
                     <CardContent className="space-y-3 px-5 pt-1 pb-5">
                         {statistics.matchmakers.map((matchmaker) => (
-                            <div key={matchmaker.id} className="flex items-center gap-3 rounded-xl border border-black/5 bg-[#fbfaf9] px-3 py-2">
+                            <Link
+                                key={matchmaker.id}
+                                href={links.profile(matchmaker.username || matchmaker.id)}
+                                className={`flex items-center gap-3 rounded-xl border border-black/5 bg-[#fbfaf9] px-3 py-2 ${ROW_LINK}`}
+                            >
                                 <div className="bg-muted h-10 w-10 overflow-hidden rounded-full">
                                     {matchmaker.profile_picture ? (
                                         <img
@@ -713,7 +739,7 @@ export default function NewsFeedSidebar({ statistics, role }) {
                                     <p className="text-foreground truncate text-sm font-semibold">{matchmaker.name}</p>
                                     <p className="text-muted-foreground truncate text-xs">{matchmaker.email}</p>
                                 </div>
-                            </div>
+                            </Link>
                         ))}
                     </CardContent>
                 </Card>

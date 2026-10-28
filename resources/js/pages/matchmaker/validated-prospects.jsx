@@ -741,7 +741,7 @@ export default function ValidatedProspects() {
                                 <Table2 className="w-4 h-4" />
                                 Table
                             </Button>
-                            <Button
+                            {/* <Button
                                 variant="outline"
                                 size="sm"
                                 onClick={() => setTestExpirationOpen(true)}
@@ -758,7 +758,7 @@ export default function ValidatedProspects() {
                             >
                                 <TestTube className="w-4 h-4" />
                                 Test 3-Day Reminder
-                            </Button>
+                            </Button> */}
                         </div>
                         
                         {/* Pagination Info */}
@@ -839,7 +839,7 @@ export default function ValidatedProspects() {
                                 url.searchParams.delete('page');
                                 router.visit(url.toString(), withLoadingVisit({ preserveScroll: true, preserveState: true, replace: true }));
                             }}>
-                                <SelectTrigger className="h-9 w-[160px]"><SelectValue /></SelectTrigger>
+                                <SelectTrigger className="h-9 w-[230px]"><SelectValue /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="all">All</SelectItem>
                                     <SelectItem value="member">Member</SelectItem>
@@ -848,6 +848,9 @@ export default function ValidatedProspects() {
                                     <SelectItem value="expiring_in_3_days">Expire dans 3 jours</SelectItem>
                                     <SelectItem value="rappeler">A rappeler</SelectItem>
                                     <SelectItem value="en_attente_paiement">En attente de paiement</SelectItem>
+                                    <SelectItem value="en_rdv">Clients en RDV</SelectItem>
+                                    <SelectItem value="attente_rdv">Proposition acceptée sans RDV</SelectItem>
+                                    <SelectItem value="pas_a_jour">Membres pas à jour</SelectItem>
                                     <SelectItem value="deactivated">Désactivé</SelectItem>
                                 </SelectContent>
                             </Select>
@@ -1390,7 +1393,7 @@ export default function ValidatedProspects() {
             </Dialog>
 
             {/* Test Subscription Expiration Dialog */}
-            <Dialog open={testExpirationOpen} onOpenChange={setTestExpirationOpen}>
+            {/* <Dialog open={testExpirationOpen} onOpenChange={setTestExpirationOpen}>
                 <DialogContent className="max-w-md">
                     <DialogHeader>
                         <DialogTitle>Test Subscription Expiration</DialogTitle>
@@ -1460,10 +1463,10 @@ export default function ValidatedProspects() {
                         </div>
                     </div>
                 </DialogContent>
-            </Dialog>
+            </Dialog> */}
 
             {/* Test 3-Day Reminder Dialog */}
-            <Dialog open={testThreeDayReminderOpen} onOpenChange={setTestThreeDayReminderOpen}>
+            {/* <Dialog open={testThreeDayReminderOpen} onOpenChange={setTestThreeDayReminderOpen}>
                 <DialogContent className="max-w-md">
                     <DialogHeader>
                         <DialogTitle>Test 3-Day Reminder</DialogTitle>
@@ -1533,7 +1536,7 @@ export default function ValidatedProspects() {
                         </div>
                     </div>
                 </DialogContent>
-            </Dialog>
+            </Dialog> */}
 
             {/* Activate Account Dialog */}
             <Dialog open={activateDialogOpen} onOpenChange={setActivateDialogOpen}>

@@ -1,6 +1,7 @@
 import { useToast } from '@/hooks/use-toast';
 import { router, useForm } from '@inertiajs/react';
 import { useState } from 'react';
+import { isProfileComplete } from '@/components/prospect-incomplete-profile-alert';
 
 export const DOCUMENT_TYPE_OPTIONS = [
     { value: 'cin', label: 'CIN' },
@@ -47,6 +48,8 @@ export function useProspectProfileActions({ services = [], matrimonialPacks = []
     });
 
     const [validatingProspect, setValidatingProspect] = useState(null);
+    // Prospect whose profile is not complete: shown an alert instead of the validation form.
+    const [incompleteProspect, setIncompleteProspect] = useState(null);
     const [cinConfirm, setCinConfirm] = useState('');
     const [cinConfirmError, setCinConfirmError] = useState(null);
 
@@ -456,6 +459,10 @@ export function useProspectProfileActions({ services = [], matrimonialPacks = []
     };
 
     const handleValidateClick = (prospect) => {
+        if (!isProfileComplete(prospect)) {
+            setIncompleteProspect(prospect);
+            return;
+        }
         setValidatingProspect(prospect);
         setCinConfirm('');
         setCinConfirmError(null);
@@ -543,6 +550,8 @@ export function useProspectProfileActions({ services = [], matrimonialPacks = []
     };
 
     return {
+        incompleteProspect,
+        setIncompleteProspect,
         services,
         matrimonialPacks,
         data,

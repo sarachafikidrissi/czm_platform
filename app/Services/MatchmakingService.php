@@ -119,11 +119,12 @@ class MatchmakingService
         $appliedFilters = array_merge($defaultFilters, $filterOverrides);
 
         // Build base query with hard filters (always applied)
-        // Only member or client (exclude prospects, rejected prospects, and client_expire)
+        // Only member, client or expired client (exclude prospects and rejected prospects).
+        // An expired client is still a member whose last paid bill has expired.
         $query = User::role('user')
             ->where('id', '!=', $userAId)
             ->where('gender', $targetGender)
-            ->whereIn('status', ['member', 'client'])
+            ->whereIn('status', ['member', 'client', 'client_expire'])
             ->whereHas('profile', function($q) {
                 $q->where('is_completed', true)
                   ->where('account_status', 'active');
@@ -1037,6 +1038,21 @@ class MatchmakingService
         });
 
         return $query;
+    }
+
+    /**
+     * Score any candidates against User A with the engine's scoring (no preference filtering),
+     * e.g. profiles found by the "search the whole base" bar. Candidates without a profile are skipped.
+     */
+    public function scoreCandidatesFor(User $userA, $candidates): array
+    {
+        $profileA = $userA->profile;
+        if (! $profileA) {
+            return [];
+        }
+        $userAAge = $profileA->date_naissance ? Carbon::parse($profileA->date_naissance)->age : null;
+
+        return $this->scoreAndRankMatches($candidates, $profileA, $userAAge);
     }
 
     /**

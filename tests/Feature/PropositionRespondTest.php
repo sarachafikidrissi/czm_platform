@@ -159,7 +159,7 @@ class PropositionRespondTest extends TestCase
             );
     }
 
-    public function test_assigned_matchmaker_sees_proposition_created_by_another_matchmaker(): void
+    public function test_assigned_matchmaker_does_not_see_proposition_created_by_another_matchmaker(): void
     {
         $assignedMatchmaker = $this->makeUserWithRole('matchmaker');
         $authorMatchmaker = $this->makeUserWithRole('matchmaker');
@@ -181,12 +181,21 @@ class PropositionRespondTest extends TestCase
             'responded_at' => now()->subDay(),
         ]);
 
+        // Only the creator lists and opens it; the assigned matchmaker answers from the profile instead.
         $this->actingAs($assignedMatchmaker)
+            ->get('/staff/matchmaker/propositions')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->has('entries', 0));
+
+        $this->actingAs($assignedMatchmaker)
+            ->get(route('staff.staff.propositions.show', $proposition))
+            ->assertForbidden();
+
+        $this->actingAs($authorMatchmaker)
             ->get('/staff/matchmaker/propositions')
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('entries.0.recipients.'.$recipient->id.'.id', $proposition->id)
-                ->where('entries.0.recipients.'.$recipient->id.'.can_update_response', true)
             );
     }
 }

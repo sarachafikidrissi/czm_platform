@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\ProfileOwnershipTransferService;
 use App\Services\StatsService;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
@@ -91,11 +92,20 @@ class UserAssignment extends Model
         int $userId,
         int $matchmakerId,
         ?int $assignedBy,
-        string $reason
+        string $reason,
+        ?int $previousMatchmakerId = null
     ): void {
         $now = Carbon::now();
 
-        static::closeActiveForUser($userId, $now);
+        $closedMatchmakerId = static::closeActiveForUser($userId, $now);
+
+        // Previous matchmaker: given by the caller, else the assignment just closed, else the last one
+        // in the history (profile sent back to the agency pool before being reassigned).
+        $previousMatchmakerId ??= $closedMatchmakerId ?? static::where('user_id', $userId)
+            ->whereNotNull('unassigned_at')
+            ->orderByDesc('unassigned_at')
+            ->orderByDesc('id')
+            ->value('matchmaker_id');
 
         static::create([
             'user_id'       => $userId,
@@ -105,6 +115,13 @@ class UserAssignment extends Model
             'unassigned_at' => null,
             'reason'        => $reason,
         ]);
+
+        // The new matchmaker takes over everything the previous one handled for this profile
+        // (propositions, RDVs, bills, subscriptions, requests), so stats follow the profile.
+        if ($previousMatchmakerId !== null && (int) $previousMatchmakerId !== $matchmakerId) {
+            app(ProfileOwnershipTransferService::class)
+                ->moveHistory($userId, (int) $previousMatchmakerId, $matchmakerId, $assignedBy);
+        }
 
         // Invalidate the new matchmaker's KPI cache (and related admin/agency caches).
         // closeActiveForUser already handles the old matchmaker; this covers the new one.

@@ -1,6 +1,7 @@
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { Link } from '@inertiajs/react';
 import { TrendingDown, TrendingUp } from 'lucide-react';
 
 /**
@@ -19,6 +20,20 @@ import { TrendingDown, TrendingUp } from 'lucide-react';
  *   deltaTooltip  string|null optional tooltip on delta badge
  *   iconTooltip   string|null optional tooltip on icon (used for Matchs)
  */
+function CardShell({ href, children }) {
+    const className = 'rounded-xl border bg-white py-5 px-6 shadow-sm hover:shadow-md transition-shadow duration-200 flex flex-col gap-0';
+    if (!href) return <div className={className}>{children}</div>;
+
+    return (
+        <Link
+            href={href}
+            className={cn(className, 'cursor-pointer hover:border-[#e8b4b4] focus-visible:outline-2 focus-visible:outline-[#890505]')}
+        >
+            {children}
+        </Link>
+    );
+}
+
 export default function KpiStatCard({
     label,
     subLabel = 'nouveaux ce mois-ci',
@@ -31,6 +46,7 @@ export default function KpiStatCard({
     color = 'blue',
     deltaTooltip = null,
     iconTooltip = null,
+    href = null,
 }) {
     const colorMap = {
         blue:    { bg: 'bg-blue-50',    icon: 'text-blue-500',    fill: 'bg-blue-500' },
@@ -73,7 +89,8 @@ export default function KpiStatCard({
 
     return (
         <TooltipProvider>
-            <div className="rounded-xl border bg-white py-5 px-6 shadow-sm hover:shadow-md transition-shadow duration-200 flex flex-col gap-0">
+            {/* Clickable when href is given: opens the matching list page. */}
+            <CardShell href={href}>
                 {/* Row 1: label + icon chip */}
                 <div className="flex items-start justify-between gap-2">
                     <span className="text-sm font-medium text-muted-foreground">{label}</span>
@@ -127,7 +144,7 @@ export default function KpiStatCard({
                     <span className="text-sm font-bold text-foreground">{totalActive}</span>
                     <span className="text-xs text-muted-foreground">{totalLabel}</span>
                 </div>
-            </div>
+            </CardShell>
         </TooltipProvider>
     );
 }

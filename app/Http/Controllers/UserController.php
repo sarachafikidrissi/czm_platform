@@ -7,7 +7,9 @@ use App\Models\Proposition;
 use App\Models\PropositionRequest;
 use App\Models\Rdv;
 use App\Models\User;
+use App\Models\UserActivity;
 use App\Models\UserAssignment;
+use App\Policies\UserProfileActionPolicy;
 use App\Services\BillSubscriptionLinkService;
 use App\Services\MatchmakingResultsPayloadService;
 use App\Services\MatchmakingService;
@@ -95,7 +97,7 @@ class UserController extends Controller
                 $join->on('posts.user_id', '=', 'latest_posts.user_id')
                     ->on('posts.created_at', '=', 'latest_posts.latest_created_at');
             })
-            ->with(['user.profile', 'user.agency', 'likes.user.profile', 'comments.user.roles', 'comments.user.profile'])
+            ->with(['user.profile', 'user.agency', 'likes.user.profile', 'comments.user.roles', 'comments.user.profile', 'comments.user.assignedMatchmaker:id,name,agency_id'])
             ->orderBy('posts.created_at', 'desc')
             ->paginate(10);
 
@@ -157,8 +159,14 @@ class UserController extends Controller
     {
         $currentUser = Auth::user();
 
+        // A regular member: has the "user" role and no staff role. Staff accounts also carry the "user"
+        // role (given at registration), so hasRole('user') alone would treat them as members.
+        $viewerIsMember = $currentUser
+            && $currentUser->hasRole('user')
+            && ! $currentUser->hasAnyRole(['admin', 'manager', 'matchmaker']);
+
         // If current user is a regular user (not admin/manager/matchmaker), check their account status
-        if ($currentUser && $currentUser->hasRole('user')) {
+        if ($viewerIsMember) {
             $currentProfile = $currentUser->profile;
             if ($currentProfile && $currentProfile->account_status === 'desactivated') {
                 return redirect()->route('dashboard');
@@ -172,7 +180,7 @@ class UserController extends Controller
             'assignedMatchmaker:id,agency_id,name,email',
             'assignedMatchmaker.agency:id,name',
             'posts' => function ($query) {
-                $query->with(['user.profile', 'user', 'likes.user.profile', 'comments.user.roles', 'comments.user.profile'])
+                $query->with(['user.profile', 'user', 'likes.user.profile', 'comments.user.roles', 'comments.user.profile', 'comments.user.assignedMatchmaker:id,name,agency_id'])
                     ->orderBy('created_at', 'desc');
             },
             'photos',
@@ -187,8 +195,9 @@ class UserController extends Controller
             abort(404);
         }
 
-        // Check if the profile being viewed belongs to a desactivated account (if viewer is a regular user)
-        if ($currentUser && $currentUser->hasRole('user')) {
+        // Check if the profile being viewed belongs to a desactivated account (if viewer is a regular user).
+        // Staff must still open it, e.g. to activate the account.
+        if ($viewerIsMember) {
             $viewedProfile = $user->profile;
             if ($viewedProfile && $viewedProfile->account_status === 'desactivated') {
                 return redirect()->route('dashboard')->with('error', 'Ce profil n\'est pas accessible.');
@@ -347,10 +356,24 @@ class UserController extends Controller
         $subscriptions = collect([]);
         $matchmakingSearch = null;
         $matchmakingResults = null;
+        $matchmakingAppliedFilters = null;
+        $canFilterMatchmaking = false;
+        $resultFilterOptions = null;
         $hasBill = false;
 
-        if ($currentUser && ($currentUser->hasRole('matchmaker') || $currentUser->hasRole('admin') || $currentUser->hasRole('manager'))) {
-            if ($userRole === 'user') {
+        $viewerIsStaff = $currentUser && ($currentUser->hasRole('matchmaker') || $currentUser->hasRole('admin') || $currentUser->hasRole('manager'));
+        $profileActionPolicy = app(UserProfileActionPolicy::class);
+        // OWN gate: bills, subscriptions and matchmaking results are only for the user's own matchmaker
+        // (admin and manager keep their previous access).
+        $canViewStaffData = $viewerIsStaff && $profileActionPolicy->viewStaffData($currentUser, $user)->allowed();
+
+        if ($viewerIsStaff && $userRole === 'user') {
+            // The action is available only while the member's current bill is unpaid.
+            $hasBill = $user->latestBill()->first()?->status === 'unpaid';
+        }
+
+        if ($viewerIsStaff) {
+            if ($userRole === 'user' && $canViewStaffData) {
                 // Load bills
                 $bills = $user->bills()
                     ->with([
@@ -388,9 +411,6 @@ class UserController extends Controller
                             'member_gender' => $bill->user?->gender,
                         ];
                     });
-
-                // The action is available only while the member's current bill is unpaid.
-                $hasBill = $user->latestBill()->first()?->status === 'unpaid';
 
                 // Load subscriptions
                 $subscriptions = $user->subscriptions()
@@ -434,11 +454,16 @@ class UserController extends Controller
                 ];
             }
 
-            // Load matchmaking results (À proposer functionality)
-            if ($user->profile && $user->profile->is_completed) {
+            // Load matchmaking results (À proposer functionality).
+            // A prospect must be validated before matchmaking, so no results are computed for them.
+            if ($canViewStaffData && $user->status !== 'prospect' && $user->profile && $user->profile->is_completed) {
                 try {
                     $matchmakingService = new MatchmakingService;
                     $result = $matchmakingService->findMatches($user->id);
+                    $matchmakingAppliedFilters = $result['appliedFilters'] ?? [];
+                    // "Filtres de recherche" drawer: same rule as the results page / filters endpoint.
+                    $canFilterMatchmaking = app(UserProfileActionPolicy::class)->viewMatchmakingResults($currentUser, $user)->allowed();
+                    $resultFilterOptions = MatchmakingResultsPayloadService::filterOptions();
 
                     if ($currentUser->hasRole('matchmaker')) {
                         $matchmakingResults = MatchmakingResultsPayloadService::formatMatchesForMatchmaker(
@@ -447,7 +472,8 @@ class UserController extends Controller
                             (int) $user->id
                         );
                     } else {
-                        $matchmakingResults = array_map(static function ($match) {
+                        $assignmentInfo = MatchmakingResultsPayloadService::assignmentInfo($result['matches'], $currentUser);
+                        $matchmakingResults = array_map(static function ($match) use ($assignmentInfo) {
                             return [
                                 'user' => [
                                     'id' => $match['user']->id,
@@ -456,7 +482,8 @@ class UserController extends Controller
                                     'username' => $match['user']->username,
                                     'gender' => $match['user']->gender,
                                 ],
-                                'profile' => $match['profile']->toArray(),
+                                ...$assignmentInfo[(int) $match['user']->id],
+                                'profile' => MatchmakingResultsPayloadService::cardProfile($match['profile']),
                                 'score' => $match['score'],
                                 'scoreDetails' => $match['scoreDetails'],
                                 'completeness' => $match['completeness'],
@@ -581,6 +608,58 @@ class UserController extends Controller
             $memberFailedRdv = Rdv::latestFailedSnapshotForUser((int) $user->id);
         }
 
+        // The proposition status is only shown to whoever may open that proposition (its creator;
+        // managers/admin keep their access). Staff who do not follow the profile do not even receive it;
+        // the profile's own matchmaker still does, because the matchmaking tab relies on it.
+        $memberPropositionVisible = false;
+        if ($currentUser && ($memberProposition['exists'] ?? false)) {
+            $displayedPropositionId = ($latestMemberProposition['exists'] ?? false)
+                ? $latestMemberProposition['proposition_id']
+                : $memberProposition['proposition_id'];
+            $displayedProposition = $displayedPropositionId ? Proposition::find($displayedPropositionId) : null;
+            $memberPropositionVisible = $displayedProposition !== null && $currentUser->can('view', $displayedProposition);
+
+            if (! $memberPropositionVisible && ! UserProfileActionPolicy::followsProfile($currentUser, $user)) {
+                $memberProposition = null;
+                $latestMemberProposition = null;
+            }
+        }
+
+        // Same rule for the RDV: only whoever may open it (its organiser; agency manager/admin) sees its status.
+        $memberRdvVisible = false;
+        if ($currentUser && ($memberRdv['exists'] ?? false)) {
+            $displayedRdv = Rdv::find($memberRdv['rdv_id']);
+            $memberRdvVisible = $displayedRdv !== null && $currentUser->can('view', $displayedRdv);
+        }
+        if ($currentUser && ! UserProfileActionPolicy::followsProfile($currentUser, $user)) {
+            if (! $memberRdvVisible) {
+                $memberRdv = null;
+            }
+            $failedRdv = ($memberFailedRdv['exists'] ?? false) ? Rdv::find($memberFailedRdv['rdv_id']) : null;
+            if (! $failedRdv || ! $currentUser->can('view', $failedRdv)) {
+                $memberFailedRdv = null;
+            }
+        }
+
+        // Staff profile header: abilities (same policy as the endpoints) and summary counts.
+        $profileAbilities = null;
+        $profileStats = null;
+        $validationServices = [];
+        $validationPacks = [];
+        if ($viewerIsStaff && $userRole === 'user') {
+            $profileAbilities = $profileActionPolicy->abilities($currentUser, $user, [
+                'has_unpaid_bill' => $hasBill,
+            ]);
+            // Validation form lists (only when this viewer may validate the prospect from its profile).
+            if ($profileAbilities['actions']['validerProspect']['allowed'] ?? false) {
+                $validationServices = \App\Models\Service::all(['id', 'name']);
+                $validationPacks = \App\Models\MatrimonialPack::all(['id', 'name', 'duration']);
+            }
+            $profileStats = UserProfileActionPolicy::followsProfile($currentUser, $user)
+                ? $this->profileStats($user, $canViewStaffData)
+                : null;
+        }
+
         // Member phone: only the member, their assigned matchmaker, authorized manager, or admin.
         // (Members do not create posts — no nested post.user scrub needed.)
         $canSeeMemberPhone = $currentUser && (
@@ -605,15 +684,73 @@ class UserController extends Controller
             'subscriptions' => $subscriptions,
             'matchmakingSearch' => $matchmakingSearch,
             'matchmakingResults' => $matchmakingResults ?? null,
+            'matchmakingAppliedFilters' => $matchmakingAppliedFilters,
+            'canFilterMatchmaking' => $canFilterMatchmaking,
+            'resultFilterOptions' => $resultFilterOptions,
             'propositionToRespond' => $propositionToRespond,
             'memberProposition' => $memberProposition,
             'latestMemberProposition' => $latestMemberProposition,
+            'memberPropositionVisible' => $memberPropositionVisible,
+            'memberRdvVisible' => $memberRdvVisible,
             'memberRdv' => $memberRdv,
             'memberFailedRdv' => $memberFailedRdv,
             'userSubscription' => $userSubscription,
             'agencyManager' => $agencyManager,
             'staffPerformance' => $staffPerformance,
+            'profileAbilities' => $profileAbilities,
+            'validationServices' => $validationServices,
+            'validationPacks' => $validationPacks,
+            'profileStats' => $profileStats,
         ]);
+    }
+
+    /**
+     * Summary counts for the staff profile header. Bill details only for OWN viewers.
+     */
+    private function profileStats(User $user, bool $canViewBills): array
+    {
+        $propositions = Proposition::query()->where('recipient_user_id', $user->id);
+        $rdvs = Rdv::query()->where(function ($q) use ($user) {
+            $q->where('reference_user_id', $user->id)->orWhere('compatible_user_id', $user->id);
+        });
+
+        $bills = null;
+        if ($canViewBills) {
+            $latestBill = $user->bills()->latest('bill_date')->latest('id')->first(['id', 'bill_date']);
+            $bills = [
+                'total' => $user->bills()->count(),
+                'unpaid' => $user->bills()->where('status', 'unpaid')->count(),
+                'last_date' => $latestBill?->bill_date,
+            ];
+        }
+
+        $lastActivity = UserActivity::query()
+            ->where('user_id', $user->id)
+            ->with('performer:id,name')
+            ->latest('created_at')
+            ->latest('id')
+            ->first();
+
+        return [
+            'propositions' => [
+                'total' => (clone $propositions)->count(),
+                'active' => (clone $propositions)->active()->count(),
+                'accepted' => (clone $propositions)->where('status', Proposition::STATUS_ACCEPTED)->count(),
+                'refused' => (clone $propositions)->where('status', Proposition::STATUS_NOT_INTERESTED)->count(),
+            ],
+            'rdv' => [
+                'total' => (clone $rdvs)->count(),
+                'en_cours' => (clone $rdvs)->where('status', Rdv::STATUS_EN_COURS)->count(),
+                'reussi' => (clone $rdvs)->where('status', Rdv::STATUS_REUSSI)->count(),
+                'echec' => (clone $rdvs)->where('status', Rdv::STATUS_ECHEC)->count(),
+            ],
+            'bills' => $bills,
+            'last_activity' => $lastActivity ? [
+                'at' => $lastActivity->created_at,
+                'description' => $lastActivity->description,
+                'by' => $lastActivity->performer?->name,
+            ] : null,
+        ];
     }
 
     public function subscription()

@@ -71,8 +71,10 @@ class Activity extends Model
             return null;
         }
 
-        $staffIds = \App\Models\User::role(['matchmaker', 'manager', 'admin'])->pluck('id')->all();
-        if (! in_array($actorId, $staffIds, true)) {
+        // Check the actor's own roles (a role-scoped query throws when a role is not seeded,
+        // which must never break the action being recorded, e.g. creating an RDV).
+        $actor = \App\Models\User::find($actorId);
+        if (! $actor || ! $actor->hasAnyRole(['matchmaker', 'manager', 'admin'])) {
             return null;
         }
 

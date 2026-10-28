@@ -2,32 +2,16 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useMemo, useState } from 'react';
 import axios from 'axios';
 import AppLayout from '@/layouts/app-layout';
-import { useToast } from '@/hooks/use-toast';
-import { propositionToastFr } from '@/lib/proposition-toast-messages';
+import RespondToPropositionRequestDialog from '@/components/matchmaking/RespondToPropositionRequestDialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { AlertTriangle, Eye, XCircle } from 'lucide-react';
 
-function firstValidationMessage(errors, key) {
-    const value = errors?.[key];
-    if (Array.isArray(value)) {
-        return value[0];
-    }
-    if (typeof value === 'string') {
-        return value;
-    }
-    return undefined;
-}
-
 export default function PropositionRequests() {
-    const { showToast } = useToast();
     const { receivedRequests = [], sentRequests = [] } = usePage().props;
     const urlParams = new URLSearchParams(window.location.search);
     const type = urlParams.get('type') || 'received';
@@ -37,12 +21,6 @@ export default function PropositionRequests() {
     const [selectedRequest, setSelectedRequest] = useState(null);
     const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
     const [detailsRequest, setDetailsRequest] = useState(null);
-    const [status, setStatus] = useState('accepted');
-    const [rejectionReason, setRejectionReason] = useState('');
-    const [sharePhone, setSharePhone] = useState(false);
-    const [organizer, setOrganizer] = useState('');
-    const [responseMessage, setResponseMessage] = useState('');
-    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const [closePropositionDialog, setClosePropositionDialog] = useState({ open: false, propositionId: null, userName: '' });
     const [isClosing, setIsClosing] = useState(false);
@@ -85,47 +63,12 @@ export default function PropositionRequests() {
 
     const openRespondDialog = (request) => {
         setSelectedRequest(request);
-        const canAccept = request.can_accept !== false;
-        setStatus(canAccept ? 'accepted' : 'rejected');
-        setRejectionReason('');
-        setSharePhone(false);
-        setOrganizer('');
-        setResponseMessage('');
         setRespondDialogOpen(true);
     };
 
     const openDetailsDialog = (request) => {
         setDetailsRequest(request);
         setDetailsDialogOpen(true);
-    };
-
-    const handleSubmitResponse = () => {
-        if (!selectedRequest) return;
-        if (status === 'rejected' && !rejectionReason.trim()) return;
-        if (status === 'accepted' && !organizer) return;
-        if (status === 'accepted' && selectedRequest.can_accept === false) return;
-
-        setIsSubmitting(true);
-        router.post(`/staff/proposition-requests/${selectedRequest.id}/respond`, {
-            status,
-            rejection_reason: rejectionReason || null,
-            share_phone: status === 'accepted' ? sharePhone : false,
-            organizer: status === 'accepted' ? organizer : null,
-            response_message: responseMessage || null,
-        }, {
-            onSuccess: () => {
-                setRespondDialogOpen(false);
-                setSelectedRequest(null);
-                setIsSubmitting(false);
-            },
-            onError: (errors) => {
-                setIsSubmitting(false);
-                const acceptMsg = firstValidationMessage(errors, 'accept');
-                if (acceptMsg === propositionToastFr.acceptRequestBlockedRdvInProgress) {
-                    showToast(propositionToastFr.acceptRequestBlockedRdvInProgress, undefined, 'warning');
-                }
-            },
-        });
     };
 
     const currentRequests = useMemo(() => {
@@ -291,7 +234,7 @@ export default function PropositionRequests() {
                                                                                 Voir la proposition
                                                                             </Link>
                                                                         </Button>
-                                                                    ) : (
+                                                                    ) : request.compatible_user_proposition_can_cancel ? (
                                                                         <Button
                                                                             size="sm"
                                                                             variant="outline"
@@ -305,11 +248,13 @@ export default function PropositionRequests() {
                                                                             <XCircle className="h-3.5 w-3.5" />
                                                                             Clôturer la proposition
                                                                         </Button>
-                                                                    )}
+                                                                    ) : null}
                                                                     <p className="text-[10px] text-muted-foreground leading-tight max-w-[160px]">
                                                                         {compPendingResponse
                                                                             ? 'En attente de réponse du profil compatible.'
-                                                                            : 'Clôturez la proposition en cours avant de répondre.'}
+                                                                            : request.compatible_user_proposition_can_cancel
+                                                                              ? 'Clôturez la proposition en cours avant de répondre.'
+                                                                              : 'Une proposition est en cours. Seul le matchmaker qui l\'a créée peut la clôturer.'}
                                                                     </p>
                                                                 </div>
                                                             ) : isReceivedPending ? (
@@ -459,120 +404,12 @@ export default function PropositionRequests() {
                 </DialogContent>
             </Dialog>
 
-            <Dialog open={respondDialogOpen} onOpenChange={setRespondDialogOpen}>
-                <DialogContent className="max-w-lg">
-                    <DialogHeader>
-                        <DialogTitle>Répondre à la demande</DialogTitle>
-                        <DialogDescription>
-                            Acceptez ou refusez la demande de propositions.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4">
-                        <div>
-                            <Label>Décision</Label>
-                            <div className="mt-2 flex flex-wrap gap-2">
-                                {selectedRequest?.can_accept !== false ? (
-                                    <Button
-                                        type="button"
-                                        variant={status === 'accepted' ? 'default' : 'outline'}
-                                        onClick={() => setStatus('accepted')}
-                                    >
-                                        Accepter
-                                    </Button>
-                                ) : (
-                                    <TooltipProvider delayDuration={200}>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <span className="inline-flex">
-                                                    <Button type="button" variant="outline" disabled>
-                                                        Accepter
-                                                    </Button>
-                                                </span>
-                                            </TooltipTrigger>
-                                            <TooltipContent side="bottom" className="max-w-xs text-center">
-                                                Un RDV est en cours pour le profil concerné — acceptation impossible.
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    </TooltipProvider>
-                                )}
-                                <Button
-                                    type="button"
-                                    variant={status === 'rejected' ? 'default' : 'outline'}
-                                    onClick={() => setStatus('rejected')}
-                                >
-                                    Rejeter
-                                </Button>
-                            </div>
-                        </div>
-
-                        {status === 'accepted' && (
-                            <>
-                                <div>
-                                    <Label>Partager le numéro de téléphone</Label>
-                                    <Select value={sharePhone ? 'yes' : 'no'} onValueChange={(value) => setSharePhone(value === 'yes')}>
-                                        <SelectTrigger className="mt-2">
-                                            <SelectValue placeholder="Choisir" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="yes">Oui</SelectItem>
-                                            <SelectItem value="no">Non</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div>
-                                    <Label>Qui organise le rendez-vous</Label>
-                                    <Select value={organizer} onValueChange={setOrganizer}>
-                                        <SelectTrigger className="mt-2">
-                                            <SelectValue placeholder="Choisir" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="vous">Vous</SelectItem>
-                                            <SelectItem value="moi">Moi</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            </>
-                        )}
-
-                        {status === 'rejected' && (
-                            <div>
-                                <Label>Motif de refus</Label>
-                                <textarea
-                                    className="mt-2 w-full rounded-md border border-gray-300 p-3 focus:border-[#096725] focus:outline-none focus:ring-1 focus:ring-[#096725]"
-                                    rows={3}
-                                    value={rejectionReason}
-                                    onChange={(event) => setRejectionReason(event.target.value)}
-                                    placeholder="Motif du refus..."
-                                    required
-                                />
-                            </div>
-                        )}
-
-                        <div>
-                            <Label>Message</Label>
-                            <textarea
-                                className="mt-2 w-full rounded-md border border-gray-300 p-3 focus:border-[#096725] focus:outline-none focus:ring-1 focus:ring-[#096725]"
-                                rows={3}
-                                value={responseMessage}
-                                onChange={(event) => setResponseMessage(event.target.value)}
-                                placeholder="Message complémentaire..."
-                            />
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => setRespondDialogOpen(false)}
-                        >
-                            Annuler
-                        </Button>
-                        <Button onClick={handleSubmitResponse} disabled={isSubmitting}>
-                            {isSubmitting ? 'Envoi...' : 'Envoyer'}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+            <RespondToPropositionRequestDialog
+                open={respondDialogOpen}
+                onOpenChange={setRespondDialogOpen}
+                request={selectedRequest}
+                onSuccess={() => setSelectedRequest(null)}
+            />
         </AppLayout>
     );
 }

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { dashboardLinks } from '@/lib/dashboard-links';
 import { usePage, Link } from '@inertiajs/react';
 import axios from 'axios';
 import { useTranslation } from 'react-i18next';
@@ -137,6 +138,7 @@ function MatchMakerDashboardContent({ expiringClients = [] }) {
                         </div>
                         <KpiStatsGrid
                             cards={kpiStats.cards}
+                            links={dashboardLinks('matchmaker').kpi}
                             loading={false}
                             error={kpiStats.error}
                             month={kpiStats.month}
@@ -217,6 +219,7 @@ function MatchMakerDashboardContent({ expiringClients = [] }) {
                         </div>
                         <KpiStatsGrid
                             cards={kpiStats.cards}
+                            links={dashboardLinks('matchmaker').kpi}
                             loading={false}
                             error={kpiStats.error}
                             month={kpiStats.month}
@@ -249,6 +252,7 @@ function MatchMakerDashboardContent({ expiringClients = [] }) {
                     </div>
                     <KpiStatsGrid
                         cards={kpiStats.cards}
+                        links={dashboardLinks('matchmaker').kpi}
                         loading={false}
                         error={kpiStats.error}
                         month={kpiStats.month}

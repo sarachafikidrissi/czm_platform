@@ -5,16 +5,86 @@ import { Textarea } from '@/components/ui/textarea';
 import { Link, router, usePage } from '@inertiajs/react';
 import { ChevronLeft, ChevronRight, Heart, MessageCircle, Trash2, Edit2, X, Send } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
+import axios from 'axios';
+
+const profileHref = (person) => (person ? `/profile/${person.username || person.id}` : null);
+
+// Comment authors (photo and name) open their profile in a new tab.
+function AuthorLink({ person, className = '', children }) {
+    const href = profileHref(person);
+    if (!href) return children;
+    return (
+        <a href={href} target="_blank" rel="noopener noreferrer" className={className}>
+            {children}
+        </a>
+    );
+}
 
 export default function PostCard({ post, activity }) {
     const isActivity = Boolean(activity);
     const { auth } = usePage().props;
-    const isMatchmaker = auth?.user?.roles?.[0]?.name === 'matchmaker';
-    const isAdmin = auth?.user?.roles?.some((role) => role.name === 'admin');
+    const viewerRoles = auth?.user?.roles?.map((role) => role.name) || [];
+    const isAdmin = viewerRoles.includes('admin');
+    const isManager = viewerRoles.includes('manager');
+    const isStaffMatchmaker = viewerRoles.includes('matchmaker') || isManager;
+    // Same rule as PostComment::canBeDeletedBy: admin, the profile's assigned matchmaker/manager,
+    // or a manager of the profile's agency (the author's own comments are handled separately).
     const canDeleteOtherComment = (commentUserId, commentUser) => {
         if (Number(auth?.user?.id) === Number(commentUserId)) return false;
         if (isAdmin) return true;
-        return isMatchmaker && commentUser?.roles?.[0]?.name === 'user';
+        if (!commentUser || !commentUser.roles?.some((role) => role.name === 'user')) return false;
+        const author = withAssignment(commentUser);
+        if (isStaffMatchmaker && author.assigned_matchmaker_id != null && Number(author.assigned_matchmaker_id) === Number(auth?.user?.id)) {
+            return true;
+        }
+        const authorAgencyId = author.agency_id ?? author.assigned_matchmaker?.agency_id;
+        return isManager && auth?.user?.agency_id != null && authorAgencyId != null && Number(authorAgencyId) === Number(auth.user.agency_id);
+    };
+
+    // "S'affecter": prospects assigned from this card (keyed by user id), so every comment of that
+    // prospect switches to "Affecté à <nom>" at once.
+    const [assignedHere, setAssignedHere] = useState({});
+    const [assigningUserId, setAssigningUserId] = useState(null);
+    const withAssignment = (person) =>
+        person && assignedHere[person.id]
+            ? { ...person, assigned_matchmaker_id: assignedHere[person.id].id, assigned_matchmaker: assignedHere[person.id] }
+            : person;
+    const selfAssign = async (person) => {
+        setAssigningUserId(person.id);
+        try {
+            const { data } = await axios.post(`/staff/prospects/${person.id}/self-assign`);
+            setAssignedHere((prev) => ({ ...prev, [person.id]: data.assigned_matchmaker }));
+        } catch (error) {
+            // Someone else took it first: show who.
+            const owner = error?.response?.data?.assigned_matchmaker;
+            if (owner) setAssignedHere((prev) => ({ ...prev, [person.id]: owner }));
+        } finally {
+            setAssigningUserId(null);
+        }
+    };
+    // Shown for staff on comments written by a prospect: "S'affecter" while unassigned, then "Affecté à <nom>".
+    const ProspectAssignment = ({ person }) => {
+        const author = withAssignment(person);
+        if (!isStaffMatchmaker || !author || author.status !== 'prospect' || !author.roles?.some((role) => role.name === 'user')) {
+            return null;
+        }
+        if (author.assigned_matchmaker_id) {
+            return (
+                <span className="cursor-default text-gray-500" aria-disabled="true">
+                    Affecté à {author.assigned_matchmaker?.name || 'un matchmaker'}
+                </span>
+            );
+        }
+        return (
+            <button
+                type="button"
+                className="font-semibold text-[#890505] hover:underline disabled:opacity-60"
+                disabled={assigningUserId === author.id}
+                onClick={() => selfAssign(author)}
+            >
+                S'affecter
+            </button>
+        );
     };
     const [showComments, setShowComments] = useState(true);
     const [newComment, setNewComment] = useState('');
@@ -509,12 +579,16 @@ export default function PostCard({ post, activity }) {
         return match ? match[1] : null;
     };
 
+    // Post author opens their profile; without a known author, no link (avoids an Inertia visit to "#").
+    const authorHref = profileHref(displayUser);
+    const AuthorHeader = authorHref ? Link : 'div';
+
     return (
         <Card className="mb-4">
             <CardContent className="p-6">
                 {/* Post Header */}
                 <div className="mb-4 flex items-start justify-between">
-                    <div className="flex items-center gap-3">
+                    <AuthorHeader {...(authorHref ? { href: authorHref } : {})} className="flex items-center gap-3 hover:opacity-90">
                         <div className="bg-muted flex h-15 w-15 items-center justify-center rounded-full border-2 border-[#096725]">
                             {displayUser?.profile_picture ? (
                                 <img
@@ -527,10 +601,10 @@ export default function PostCard({ post, activity }) {
                             )}
                         </div>
                         <div>
-                            <h3 className="font-semibold text-red-800">{displayUser?.name || 'Unknown User'}</h3>
+                            <h3 className="font-semibold text-red-800 hover:underline">{displayUser?.name || 'Unknown User'}</h3>
                             <p className="text-muted-foreground text-sm">{formatTimeAgo(displayCreatedAt)}</p>
                         </div>
-                    </div>
+                    </AuthorHeader>
                     {!isActivity && auth?.user?.id === post?.user_id && (
                         <Button variant="ghost" size="sm" onClick={() => setShowDeleteDialog(true)} className="text-error hover:opacity-80">
                             <Trash2 className="h-4 w-4" />
@@ -544,8 +618,19 @@ export default function PostCard({ post, activity }) {
                         {displayContentStructured ? (
                             <>
                                 <span className='text-gray-600'>{displayContentStructured.activity}</span>
-                                {displayContentStructured.username != null && displayContentStructured.username !== '' && (
-                                    <span className="font-semibold text-[#890505]">{displayContentStructured.username}</span>
+                                {displayContentStructured.profiles?.length > 0 ? (
+                                    displayContentStructured.profiles.map((person, index) => (
+                                        <span key={`${person.username}-${index}`}>
+                                            {index > 0 && <span className="text-gray-600"> et </span>}
+                                            <Link href={`/profile/${person.username}`} className="font-semibold text-[#890505] hover:underline">
+                                                {person.name}
+                                            </Link>
+                                        </span>
+                                    ))
+                                ) : (
+                                    displayContentStructured.username != null && displayContentStructured.username !== '' && (
+                                        <span className="font-semibold text-[#890505]">{displayContentStructured.username}</span>
+                                    )
                                 )}
                             </>
                         ) : (
@@ -673,6 +758,7 @@ export default function PostCard({ post, activity }) {
                                 {comments.map((comment) => (
                                     <div key={comment.id} className="space-y-2">
                                         <div className="flex items-start gap-3">
+                                            <AuthorLink person={comment.user} className="shrink-0">
                                             <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-red-600 bg-gray-200">
                                                 {comment.user?.roles?.[0]?.name !== 'user' && comment.user?.profile_picture ? (
                                                     <img
@@ -692,6 +778,7 @@ export default function PostCard({ post, activity }) {
                                                     </span>
                                                 )}
                                             </div>
+                                            </AuthorLink>
                                             <div className="flex-1">
                                                 {editingCommentId === comment.id ? (
                                                     <form onSubmit={(e) => handleUpdateComment(e, comment.id)} className="space-y-2">
@@ -712,7 +799,11 @@ export default function PostCard({ post, activity }) {
                                                 ) : (
                                                     <>
                                                         <div className="bg-muted rounded-lg p-3">
-                                                            <h4 className="text-foreground text-sm font-medium">{comment.user?.name || 'Unknown User'}</h4>
+                                                            <h4 className="text-foreground text-sm font-medium">
+                                                                <AuthorLink person={comment.user} className="hover:underline">
+                                                                    {comment.user?.name || 'Unknown User'}
+                                                                </AuthorLink>
+                                                            </h4>
                                                             <p className="text-foreground mt-1 text-sm">{comment.content}</p>
                                                         </div>
                                                         <div className="text-muted-foreground mt-2 flex items-center gap-4 text-xs">
@@ -750,6 +841,7 @@ export default function PostCard({ post, activity }) {
                                                                     Supprimer
                                                                 </button>
                                                             )}
+                                                            <ProspectAssignment person={comment.user} />
                                                         </div>
                                                     </>
                                                 )}
@@ -783,6 +875,7 @@ export default function PostCard({ post, activity }) {
                                             <div className="ml-11 mt-2 space-y-2 border-l-2 border-gray-200 pl-4">
                                                 {comment.replies.map((reply) => (
                                                     <div key={reply.id} className="flex items-start gap-2">
+                                                        <AuthorLink person={reply.user} className="shrink-0">
                                                         <div className="flex h-6 w-6 items-center justify-center rounded-full border border-red-600 bg-gray-200">
                                                             {reply.user?.roles?.[0]?.name !== 'user' && reply.user?.profile_picture ? (
                                                                 <img
@@ -802,6 +895,7 @@ export default function PostCard({ post, activity }) {
                                                                 </span>
                                                             )}
                                                         </div>
+                                                        </AuthorLink>
                                                         <div className="flex-1">
                                                             {editingCommentId === reply.id ? (
                                                                 <form onSubmit={(e) => handleUpdateComment(e, reply.id)} className="space-y-2">
@@ -822,7 +916,11 @@ export default function PostCard({ post, activity }) {
                                                             ) : (
                                                                 <>
                                                                     <div className="bg-muted rounded-lg p-2">
-                                                                        <h5 className="text-foreground text-xs font-medium">{reply.user?.name || 'Unknown User'}</h5>
+                                                                        <h5 className="text-foreground text-xs font-medium">
+                                                                            <AuthorLink person={reply.user} className="hover:underline">
+                                                                                {reply.user?.name || 'Unknown User'}
+                                                                            </AuthorLink>
+                                                                        </h5>
                                                                         <p className="text-foreground mt-1 text-xs">{reply.content}</p>
                                                                     </div>
 <div className="text-muted-foreground mt-1 flex items-center gap-3 text-xs">
@@ -851,6 +949,7 @@ export default function PostCard({ post, activity }) {
                                                                                 Supprimer
                                                                             </button>
                                                                         )}
+                                                                        <ProspectAssignment person={reply.user} />
                                                                         </div>
                                                                 </>
                                                             )}
@@ -916,9 +1015,10 @@ export default function PostCard({ post, activity }) {
                                 {comments.map((comment) => (
                                     <li key={comment.id} className="space-y-2">
                                         <div className="flex items-start gap-3">
-                                            <Link
+                                            <a
                                                 href={`/profile/${comment.user?.username || comment.user?.id}`}
-                                                onClick={() => setShowCommentsModal(false)}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
                                                 className="shrink-0"
                                             >
                                                 <div className="relative h-9 w-9 overflow-hidden rounded-full border-2 border-red-500 bg-muted">
@@ -934,15 +1034,16 @@ export default function PostCard({ post, activity }) {
                                                         </span>
                                                     )}
                                                 </div>
-                                            </Link>
+                                            </a>
                                             <div className="min-w-0 flex-1">
-                                                <Link
+                                                <a
                                                     href={`/profile/${comment.user?.username || comment.user?.id}`}
-                                                    onClick={() => setShowCommentsModal(false)}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
                                                     className="text-foreground hover:underline text-sm font-medium"
                                                 >
                                                     {comment.user?.name || 'Utilisateur'}
-                                                </Link>
+                                                </a>
                                                 <p className="text-foreground mt-0.5 text-sm">{comment.content}</p>
                                                 <span className="text-muted-foreground text-xs">{formatTimeAgoLong(comment.created_at)}</span>
                                             </div>
@@ -951,9 +1052,10 @@ export default function PostCard({ post, activity }) {
                                             <div className="ml-11 space-y-2 border-l-2 border-red-200 pl-3">
                                                 {comment.replies.map((reply) => (
                                                     <div key={reply.id} className="flex items-start gap-2">
-                                                        <Link
+                                                        <a
                                                             href={`/profile/${reply.user?.username || reply.user?.id}`}
-                                                            onClick={() => setShowCommentsModal(false)}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
                                                             className="shrink-0"
                                                         >
                                                             <div className="relative h-7 w-7 overflow-hidden rounded-full border-2 border-red-500 bg-muted">
@@ -969,15 +1071,16 @@ export default function PostCard({ post, activity }) {
                                                                     </span>
                                                                 )}
                                                             </div>
-                                                        </Link>
+                                                        </a>
                                                         <div className="min-w-0 flex-1">
-                                                            <Link
+                                                            <a
                                                                 href={`/profile/${reply.user?.username || reply.user?.id}`}
-                                                                onClick={() => setShowCommentsModal(false)}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
                                                                 className="text-foreground hover:underline text-sm font-medium"
                                                             >
                                                                 {reply.user?.name || 'Utilisateur'}
-                                                            </Link>
+                                                            </a>
                                                             <p className="text-foreground mt-0.5 text-sm">{reply.content}</p>
                                                             <span className="text-muted-foreground text-xs">{formatTimeAgoLong(reply.created_at)}</span>
                                                         </div>

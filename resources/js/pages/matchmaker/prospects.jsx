@@ -13,6 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { CheckCircle, User, XCircle, Pencil } from 'lucide-react';
 import { useState } from 'react';
 import AppLayout from '@/layouts/app-layout';
+import ProspectIncompleteProfileAlert, { isProfileComplete } from '@/components/prospect-incomplete-profile-alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getCommercialCodeDisplay } from '@/lib/heard-about';
 
@@ -41,6 +42,8 @@ export default function MatchmakerProspects() {
     const { prospects = [], filter, statusFilter = 'active', commercialOnly = false, services = [], matrimonialPacks = [], auth } = usePage().props;
     const isLoading = prospects === null || prospects === undefined;
     const [selectedProspect, setSelectedProspect] = useState(null);
+    // Prospect whose profile is not complete: alert instead of the validation form.
+    const [incompleteProspect, setIncompleteProspect] = useState(null);
     const [notes, setNotes] = useState('');
     const [contactType, setContactType] = useState('');
     const [serviceId, setServiceId] = useState('');
@@ -156,6 +159,10 @@ export default function MatchmakerProspects() {
     };
 
     const handleValidate = (prospect) => {
+        if (!isProfileComplete(prospect)) {
+            setIncompleteProspect(prospect);
+            return;
+        }
         setSelectedProspect(prospect);
         setNotes(prospect.profile?.notes || '');
         setContactType('');
@@ -298,6 +305,7 @@ export default function MatchmakerProspects() {
 
     return (
         <AppLayout>
+            <ProspectIncompleteProfileAlert prospect={incompleteProspect} onClose={() => setIncompleteProspect(null)} />
             <Head title="Prospects" />
             <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
             <div className="flex flex-col gap-3">
@@ -337,6 +345,8 @@ export default function MatchmakerProspects() {
                             <SelectTrigger className="h-9 w-[160px]"><SelectValue /></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="active">Actifs</SelectItem>
+                                <SelectItem value="non_traite">Non traités</SelectItem>
+                                <SelectItem value="en_retard">En retard</SelectItem>
                                 <SelectItem value="rejected">Rejetés</SelectItem>
                                 <SelectItem value="traite">Traité</SelectItem>
                             </SelectContent>

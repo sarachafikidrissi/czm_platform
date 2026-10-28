@@ -2,18 +2,17 @@ import { Head, router } from '@inertiajs/react';
 import MatchResultMatchCard from '@/components/matchmaking/MatchResultMatchCard';
 import MatchmakingProposeRequestModals from '@/components/matchmaking/MatchmakingProposeRequestModals';
 import MatchmakerRespondToPropositionDialog from '@/components/matchmaking/MatchmakerRespondToPropositionDialog';
+import MatchmakingFiltersSheet from '@/components/matchmaking/MatchmakingFiltersSheet';
+import { useMatchmakingFilters } from '@/hooks/use-matchmaking-filters';
+import MatchResultsToolbar, { MatchResultsPagination } from '@/components/matchmaking/MatchResultsToolbar';
+import { useMatchResultsBrowser } from '@/hooks/use-match-results-browser';
 import { useMatchmakingProposeRequestFlow } from '@/hooks/use-matchmaking-propose-request-flow';
-import { getProfilePicture, getAge, getLocation, getScoreColor, MATCH_PRIMARY } from '@/lib/matchmaking-result-display';
+import { getProfilePicture, getAge, getLocation, getScoreColor } from '@/lib/matchmaking-result-display';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import AppLayout from '@/layouts/app-layout';
 import { Card, CardContent } from '@/components/ui/card';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { SearchableMultiSelect } from '@/components/ui/searchable-multi-select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { 
     ArrowLeft, 
@@ -28,34 +27,13 @@ import {
     TrendingUp,
     CheckCircle2,
     XCircle,
-    Info,
-    ChevronLeft,
-    ChevronRight
+    Info
 } from 'lucide-react';
 import axios from 'axios';
 import { useToast } from '@/hooks/use-toast';
 import { propositionToastFr } from '@/lib/proposition-toast-messages';
 
-const PER_PAGE = 3;
-
-const ETAT_MATRIMONIAL_OPTIONS = [
-    { value: 'celibataire', label: 'Célibataire' },
-    { value: 'marie', label: 'Marié(e)' },
-    { value: 'divorce', label: 'Divorcé(e)' },
-    { value: 'veuf', label: 'Veuf/Veuve' },
-];
-
-const SITUATION_SANTE_OPTIONS = [
-    { value: 'sante_tres_bonne', label: 'Santé très bonne' },
-    { value: 'maladie_chronique', label: 'Maladie chronique' },
-    { value: 'personne_handicap', label: 'Personne en situation de handicap' },
-    { value: 'non_voyant_malvoyant', label: 'Non voyant / Malvoyant' },
-    { value: 'cecite_totale', label: 'مكفوف (Cécité totale)' },
-    { value: 'troubles_psychiques', label: 'Troubles psychiques' },
-    { value: 'autres', label: 'Autres' },
-];
-
-export default function MatchmakingResults({ userA, matches: initialMatches, defaultFilters, appliedFilters: initialAppliedFilters }) {
+export default function MatchmakingResults({ userA, matches: initialMatches, defaultFilters, appliedFilters: initialAppliedFilters, resultFilterOptions = null }) {
     const { showToast } = useToast();
     const [matches, setMatches] = useState(initialMatches || []);
     const proposeFlow = useMatchmakingProposeRequestFlow(userA, {
@@ -66,14 +44,12 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
     });
     const [cancellingPropositionId, setCancellingPropositionId] = useState(null);
     const [respondDialog, setRespondDialog] = useState({ open: false, propositionId: null });
-    const [appliedFilters, setAppliedFilters] = useState(initialAppliedFilters || {});
-    const [isLoading, setIsLoading] = useState(false);
-    const [showFilters, setShowFilters] = useState(false);
+    const matchFilters = useMatchmakingFilters({ userId: userA?.id, initialAppliedFilters, onResults: setMatches });
+    const { filters, isLoading, showFilters, setShowFilters, handleResetFilters, activeFilterCount } = matchFilters;
     const [selectedMatch, setSelectedMatch] = useState(null);
     const [showCompatibilityModal, setShowCompatibilityModal] = useState(false);
     const [pendingOpenProposeId, setPendingOpenProposeId] = useState(null);
     const [hasOpenedProposeFromQuery, setHasOpenedProposeFromQuery] = useState(false);
-    const [currentPage, setCurrentPage] = useState(1);
 
     const lockedPairCounterpartId = useMemo(() => {
         if (userA?.id == null) {
@@ -110,336 +86,6 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
     const handleRefreshMatchmakingPage = useCallback(() => {
         router.reload({ only: ['matches', 'appliedFilters', 'defaultFilters', 'userA'] });
     }, []);
-
-    // Countries and cities state
-    const [countries, setCountries] = useState([]);
-    const [countryCodeToCities, setCountryCodeToCities] = useState({});
-    const [selectedCountryCodes, setSelectedCountryCodes] = useState([]);
-    const [loadingCountries, setLoadingCountries] = useState(false);
-    const [loadingCities, setLoadingCities] = useState(false);
-    const [errorCountries, setErrorCountries] = useState('');
-
-    // Filter state
-    const [filters, setFilters] = useState({
-        age_min: appliedFilters.age_min || '',
-        age_max: appliedFilters.age_max || '',
-        religion: appliedFilters.religion || '',
-        revenu_minimum: appliedFilters.revenu_minimum || '',
-        niveau_etudes: appliedFilters.niveau_etudes || '',
-        situation_professionnelle: appliedFilters.situation_professionnelle || '',
-        etat_matrimonial: Array.isArray(appliedFilters.etat_matrimonial) ? appliedFilters.etat_matrimonial : (appliedFilters.etat_matrimonial ? [appliedFilters.etat_matrimonial] : []),
-        pays_recherche: Array.isArray(appliedFilters.pays_recherche) ? appliedFilters.pays_recherche : (appliedFilters.pays_recherche ? [appliedFilters.pays_recherche] : []),
-        villes_recherche: Array.isArray(appliedFilters.villes_recherche) ? appliedFilters.villes_recherche : (appliedFilters.villes_recherche ? [appliedFilters.villes_recherche] : []),
-        etat_sante: appliedFilters.etat_sante || '',
-        fumeur: appliedFilters.fumeur || '',
-        buveur: appliedFilters.buveur || '',
-        has_children: appliedFilters.has_children || '',
-        origine: appliedFilters.origine || '',
-        logement: appliedFilters.logement || '',
-        taille_min: appliedFilters.taille_min || '',
-        taille_max: appliedFilters.taille_max || '',
-        poids_min: appliedFilters.poids_min || '',
-        poids_max: appliedFilters.poids_max || '',
-        pays_residence: appliedFilters.pays_residence || '',
-        pays_origine: appliedFilters.pays_origine || '',
-        ville_residence: appliedFilters.ville_residence || '',
-        ville_origine: appliedFilters.ville_origine || '',
-        situation_sante: Array.isArray(appliedFilters.situation_sante) ? appliedFilters.situation_sante : (appliedFilters.situation_sante ? [appliedFilters.situation_sante] : []),
-        motorise: appliedFilters.motorise || '',
-        children_count: appliedFilters.children_count || '',
-        hijab_choice: appliedFilters.hijab_choice || '',
-        veil: appliedFilters.veil || '',
-        niqab_acceptance: appliedFilters.niqab_acceptance || '',
-        sport: appliedFilters.sport || '',
-        secteur: appliedFilters.secteur || '',
-        polygamy: appliedFilters.polygamy || '',
-        foreign_marriage: appliedFilters.foreign_marriage || '',
-        work_after_marriage: appliedFilters.work_after_marriage || '',
-    });
-
-    // Update filters when appliedFilters change
-    useEffect(() => {
-        setAppliedFilters(initialAppliedFilters || {});
-        
-        // Handle etat_matrimonial - keep as array for multi-select
-        let etatMatrimonial = [];
-        if (initialAppliedFilters?.etat_matrimonial) {
-            if (Array.isArray(initialAppliedFilters.etat_matrimonial)) {
-                etatMatrimonial = initialAppliedFilters.etat_matrimonial;
-            } else {
-                etatMatrimonial = [initialAppliedFilters.etat_matrimonial];
-            }
-        }
-        
-        // Handle pays_recherche - keep as array for multi-select
-        let paysRecherche = [];
-        if (initialAppliedFilters?.pays_recherche) {
-            if (Array.isArray(initialAppliedFilters.pays_recherche)) {
-                paysRecherche = initialAppliedFilters.pays_recherche;
-            } else {
-                paysRecherche = [initialAppliedFilters.pays_recherche];
-            }
-        }
-        
-        // Handle villes_recherche - keep as array for multi-select
-        let villesRecherche = [];
-        if (initialAppliedFilters?.villes_recherche) {
-            if (Array.isArray(initialAppliedFilters.villes_recherche)) {
-                villesRecherche = initialAppliedFilters.villes_recherche;
-            } else {
-                villesRecherche = [initialAppliedFilters.villes_recherche];
-            }
-        }
-        
-        // Handle situation_sante - keep as array for multi-select
-        let situationSante = [];
-        if (initialAppliedFilters?.situation_sante) {
-            if (Array.isArray(initialAppliedFilters.situation_sante)) {
-                situationSante = initialAppliedFilters.situation_sante;
-            } else {
-                situationSante = [initialAppliedFilters.situation_sante];
-            }
-        }
-        
-        // Handle has_children - convert boolean to 'yes'/'no' string
-        let hasChildren = '';
-        if (initialAppliedFilters?.has_children !== undefined && initialAppliedFilters?.has_children !== '') {
-            if (typeof initialAppliedFilters.has_children === 'boolean') {
-                hasChildren = initialAppliedFilters.has_children ? 'yes' : 'no';
-            } else if (initialAppliedFilters.has_children === true || initialAppliedFilters.has_children === 'true' || initialAppliedFilters.has_children === 1) {
-                hasChildren = 'yes';
-            } else if (initialAppliedFilters.has_children === false || initialAppliedFilters.has_children === 'false' || initialAppliedFilters.has_children === 0) {
-                hasChildren = 'no';
-            } else {
-                hasChildren = initialAppliedFilters.has_children;
-            }
-        }
-        
-        setFilters({
-            age_min: initialAppliedFilters?.age_min || '',
-            age_max: initialAppliedFilters?.age_max || '',
-            religion: initialAppliedFilters?.religion || '',
-            revenu_minimum: initialAppliedFilters?.revenu_minimum || '',
-            niveau_etudes: initialAppliedFilters?.niveau_etudes || '',
-            situation_professionnelle: initialAppliedFilters?.situation_professionnelle || '',
-            etat_matrimonial: etatMatrimonial,
-            pays_recherche: paysRecherche,
-            villes_recherche: villesRecherche,
-            etat_sante: initialAppliedFilters?.etat_sante || '',
-            situation_sante: situationSante,
-            fumeur: initialAppliedFilters?.fumeur || '',
-            buveur: initialAppliedFilters?.buveur || '',
-            has_children: hasChildren,
-            origine: initialAppliedFilters?.origine || '',
-            logement: initialAppliedFilters?.logement || '',
-            taille_min: initialAppliedFilters?.taille_min || '',
-            taille_max: initialAppliedFilters?.taille_max || '',
-            poids_min: initialAppliedFilters?.poids_min || '',
-            poids_max: initialAppliedFilters?.poids_max || '',
-            pays_residence: Array.isArray(initialAppliedFilters?.pays_residence) 
-                ? initialAppliedFilters.pays_residence[0] || '' 
-                : initialAppliedFilters?.pays_residence || '',
-            pays_origine: Array.isArray(initialAppliedFilters?.pays_origine) 
-                ? initialAppliedFilters.pays_origine[0] || '' 
-                : initialAppliedFilters?.pays_origine || '',
-            ville_residence: Array.isArray(initialAppliedFilters?.ville_residence) 
-                ? initialAppliedFilters.ville_residence[0] || '' 
-                : initialAppliedFilters?.ville_residence || '',
-            ville_origine: Array.isArray(initialAppliedFilters?.ville_origine) 
-                ? initialAppliedFilters.ville_origine[0] || '' 
-                : initialAppliedFilters?.ville_origine || '',
-            motorise: initialAppliedFilters?.motorise || '',
-            children_count: initialAppliedFilters?.children_count || '',
-            hijab_choice: initialAppliedFilters?.hijab_choice || '',
-            veil: initialAppliedFilters?.veil || '',
-            niqab_acceptance: initialAppliedFilters?.niqab_acceptance || '',
-            sport: initialAppliedFilters?.sport || '',
-            secteur: initialAppliedFilters?.secteur || '',
-            polygamy: initialAppliedFilters?.polygamy || '',
-            foreign_marriage: initialAppliedFilters?.foreign_marriage || '',
-            work_after_marriage: initialAppliedFilters?.work_after_marriage || '',
-        });
-    }, [initialAppliedFilters]);
-
-    // Fetch countries and cities from API
-    useEffect(() => {
-        let isMounted = true;
-        const fetchCountries = async () => {
-            try {
-                setLoadingCountries(true);
-                setErrorCountries('');
-                const response = await axios.get('/locations');
-                if (!isMounted) return;
-                
-                const countriesData = Array.isArray(response.data?.countries) ? response.data.countries : [];
-                
-                const normalized = countriesData
-                    .filter((item) => item?.iso2)
-                    .map((item) => ({
-                        iso2: item.iso2,
-                        iso3: item.iso3,
-                        englishName: item.name,
-                        frenchName: item.frenchName || item.name,
-                        cities: Array.isArray(item.cities) ? item.cities : [],
-                    }))
-                    .sort((a, b) => a.frenchName.localeCompare(b.frenchName, 'fr'));
-
-                const codeToCities = normalized.reduce((acc, item) => {
-                    acc[item.iso2] = item.cities;
-                    return acc;
-                }, {});
-
-                if (isMounted) {
-                    setCountries(normalized);
-                    setCountryCodeToCities(codeToCities);
-                }
-            } catch (err) {
-                if (!isMounted) return;
-                setErrorCountries('Impossible de charger la liste des pays.');
-            } finally {
-                if (isMounted) setLoadingCountries(false);
-            }
-        };
-        fetchCountries();
-        return () => {
-            isMounted = false;
-        };
-    }, []);
-
-    // Initialize selectedCountryCodes from pays_recherche
-    useEffect(() => {
-        if (countries.length > 0 && filters.pays_recherche && filters.pays_recherche.length > 0 && selectedCountryCodes.length === 0) {
-            const paysArray = Array.isArray(filters.pays_recherche) ? filters.pays_recherche : [filters.pays_recherche];
-            const codes = paysArray
-                .map(pays => {
-                    const country = countries.find(c => 
-                        c.frenchName.toLowerCase() === pays.toLowerCase() || 
-                        c.iso2.toLowerCase() === pays.toLowerCase() ||
-                        c.iso3.toLowerCase() === pays.toLowerCase()
-                    );
-                    return country?.iso2;
-                })
-                .filter(Boolean);
-            
-            if (codes.length > 0) {
-                setSelectedCountryCodes(codes);
-            }
-        }
-    }, [countries, filters.pays_recherche, selectedCountryCodes.length]);
-
-    // Prepare countries options for SearchableMultiSelect
-    const countryOptions = useMemo(() => {
-        return countries.map((country) => ({
-            value: country.iso2,
-            label: country.frenchName,
-        }));
-    }, [countries]);
-
-    // Get available cities for selected countries
-    const availableCities = useMemo(() => {
-        if (selectedCountryCodes.length === 0) return [];
-        
-        const allCities = new Set();
-        selectedCountryCodes.forEach((code) => {
-            const cities = countryCodeToCities[code] || [];
-            cities.forEach((city) => allCities.add(city));
-        });
-        
-        return Array.from(allCities).sort().map((city) => ({
-            value: city,
-            label: city,
-        }));
-    }, [selectedCountryCodes, countryCodeToCities]);
-
-    // Handle country selection
-    const handleCountryChange = (selectedCodes) => {
-        setSelectedCountryCodes(selectedCodes);
-        
-        // Update filters with country names (frenchName) for backend
-        const selectedCountries = selectedCodes.map((code) => {
-            const country = countries.find((c) => c.iso2 === code);
-            return country ? country.frenchName : code;
-        });
-        
-        setFilters((prev) => ({
-            ...prev,
-            pays_recherche: selectedCountries,
-        }));
-
-        // Clear cities if no countries selected
-        if (selectedCodes.length === 0) {
-            setFilters((prev) => ({
-                ...prev,
-                villes_recherche: [],
-            }));
-        } else {
-            // Filter out cities that are not in the selected countries
-            const currentVilles = Array.isArray(filters.villes_recherche) ? filters.villes_recherche : [];
-            const validCities = availableCities.map((c) => c.value);
-            const filteredVilles = currentVilles.filter((ville) => validCities.includes(ville));
-            
-            if (filteredVilles.length !== currentVilles.length) {
-                setFilters((prev) => ({
-                    ...prev,
-                    villes_recherche: filteredVilles,
-                }));
-            }
-        }
-    };
-
-    // Apply filters
-    const handleApplyFilters = async () => {
-        setIsLoading(true);
-        try {
-            const response = await axios.post(`/staff/match/filters/${userA.id}`, filters);
-            setMatches(response.data.matches);
-            setAppliedFilters(response.data.appliedFilters);
-            setShowFilters(false);
-        } catch (error) {
-            console.error('Error applying filters:', error);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    // Reset filters to default
-    const handleResetFilters = async () => {
-        setIsLoading(true);
-        try {
-            // Clear all filters
-            const emptyFilters = {};
-            const response = await axios.post(`/staff/match/filters/${userA.id}`, emptyFilters);
-            setMatches(response.data.matches);
-            setAppliedFilters(response.data.appliedFilters);
-            setFilters({
-                age_min: '',
-                age_max: '',
-                religion: '',
-                revenu_minimum: '',
-                niveau_etudes: '',
-                situation_professionnelle: '',
-                etat_matrimonial: [],
-                pays_recherche: [],
-                villes_recherche: [],
-                situation_sante: [],
-                etat_sante: '',
-                fumeur: '',
-                buveur: '',
-                has_children: '',
-                origine: '',
-                logement: '',
-                taille_min: '',
-                taille_max: '',
-                poids_min: '',
-                poids_max: '',
-            });
-            setShowFilters(false);
-        } catch (error) {
-            console.error('Error resetting filters:', error);
-        } finally {
-            setIsLoading(false);
-        }
-    };
 
     const getCompatibilityDetails = (scoreDetails, profileA, profileB) => {
         const details = [];
@@ -937,58 +583,9 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
         // eslint-disable-next-line react-hooks/exhaustive-deps -- avoid re-running when flow object identity changes
     }, [pendingOpenProposeId, hasOpenedProposeFromQuery, matches]);
 
-    // Reset to first page when matches list changes (e.g. after applying filters)
-    useEffect(() => {
-        setCurrentPage(1);
-    }, [matches.length, displayMatches.length]);
-
-    const totalPages = Math.max(1, Math.ceil(displayMatches.length / PER_PAGE));
-    const from = displayMatches.length === 0 ? 0 : (currentPage - 1) * PER_PAGE + 1;
-    const to = Math.min(currentPage * PER_PAGE, displayMatches.length);
-    const paginatedMatches = displayMatches.slice((currentPage - 1) * PER_PAGE, currentPage * PER_PAGE);
-
-    const activeFilterCount = useMemo(() => {
-        const scalarCount = [
-            filters.age_min,
-            filters.age_max,
-            filters.religion,
-            filters.revenu_minimum,
-            filters.niveau_etudes,
-            filters.situation_professionnelle,
-            filters.etat_sante,
-            filters.fumeur,
-            filters.buveur,
-            filters.has_children,
-            filters.origine,
-            filters.logement,
-            filters.motorise,
-            filters.hijab_choice,
-            filters.veil,
-            filters.niqab_acceptance,
-            filters.sport,
-            filters.secteur,
-            filters.polygamy,
-            filters.foreign_marriage,
-            filters.work_after_marriage,
-            filters.pays_residence,
-            filters.pays_origine,
-            filters.ville_residence,
-            filters.ville_origine,
-            filters.children_count,
-            filters.taille_min,
-            filters.taille_max,
-            filters.poids_min,
-            filters.poids_max,
-        ].filter((v) => v !== '' && v !== null && v !== undefined).length;
-
-        const arrayCount =
-            (filters.etat_matrimonial?.length > 0 ? 1 : 0) +
-            (filters.pays_recherche?.length > 0 ? 1 : 0) +
-            (filters.villes_recherche?.length > 0 ? 1 : 0) +
-            (filters.situation_sante?.length > 0 ? 1 : 0);
-
-        return scalarCount + arrayCount;
-    }, [filters]);
+    // Search, agency / matchmaker filters and pages of 6 (back to page 1 when the list changes).
+    const resultsBrowser = useMatchResultsBrowser(displayMatches, resultFilterOptions, userA?.id ? `/staff/match/search/${userA.id}` : null);
+    const { totalPages, from, to, pageRows: paginatedMatches } = resultsBrowser;
 
     return (
         <AppLayout>
@@ -1050,7 +647,7 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
                             <div className="flex items-center gap-4">
                                 <div className="relative shrink-0">
                                     <img
-                                        src={getProfilePicture(userA)}
+                                        src={getProfilePicture(userA, userA.profile)}
                                         alt={userA.name}
                                         className="h-16 w-16 rounded-full object-cover"
                                     />
@@ -1094,531 +691,7 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
                 </section>
 
                 {/* Filters Panel */}
-                <Sheet
-                    open={showFilters}
-                    onOpenChange={(open) => {
-                        if (!open) setFilters({ ...appliedFilters });
-                        setShowFilters(open);
-                    }}
-                >
-                    <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto p-4">
-                        <SheetHeader className="mb-6">
-                            <SheetTitle>Filtres de recherche</SheetTitle>
-                        </SheetHeader>
-
-                        <div className="grid grid-cols-1 gap-5">
-                                {/* Age Range */}
-                                <div className="space-y-2">
-                                    <Label>Âge minimum</Label>
-                                    <Input
-                                        type="number"
-                                        value={filters.age_min}
-                                        onChange={(e) => setFilters({ ...filters, age_min: e.target.value })}
-                                        placeholder="Ex: 25"
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Âge maximum</Label>
-                                    <Input
-                                        type="number"
-                                        value={filters.age_max}
-                                        onChange={(e) => setFilters({ ...filters, age_max: e.target.value })}
-                                        placeholder="Ex: 35"
-                                    />
-                                </div>
-
-                                {/* Pays recherché - Searchable Multi-Select */}
-                                <div className="space-y-2">
-                                    <Label>Pays recherché</Label>
-                                    {loadingCountries ? (
-                                        <div className="rounded-lg border border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
-                                            Chargement des pays...
-                                        </div>
-                                    ) : (
-                                        <SearchableMultiSelect
-                                            options={countryOptions}
-                                            selectedValues={selectedCountryCodes}
-                                            onSelectionChange={handleCountryChange}
-                                            placeholder="Sélectionnez les pays"
-                                            searchPlaceholder="Search for Location"
-                                            emptyMessage="Aucun pays trouvé"
-                                        />
-                                    )}
-                                    {errorCountries && <p className="mt-1 text-xs text-red-500">{errorCountries}</p>}
-                                </div>
-
-                                {/* Villes recherchées - Searchable Multi-Select */}
-                                <div className="space-y-2">
-                                    <Label>Villes recherchées</Label>
-                                    {selectedCountryCodes.length === 0 ? (
-                                        <div className="rounded-lg border border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
-                                            Veuillez d'abord sélectionner au moins un pays
-                                        </div>
-                                    ) : loadingCities ? (
-                                        <div className="rounded-lg border border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
-                                            Chargement des villes...
-                                        </div>
-                                    ) : (
-                                        <SearchableMultiSelect
-                                            options={availableCities}
-                                            selectedValues={Array.isArray(filters.villes_recherche) ? filters.villes_recherche : []}
-                                            onSelectionChange={(values) => {
-                                                setFilters((prev) => ({
-                                                    ...prev,
-                                                    villes_recherche: values,
-                                                }));
-                                            }}
-                                            placeholder="Sélectionnez les villes"
-                                            searchPlaceholder="Search for Location"
-                                            emptyMessage="Aucune ville trouvée"
-                                        />
-                                    )}
-                                </div>
-
-                                {/* Religion */}
-                                <div className="space-y-2">
-                                    <Label>Religion</Label>
-                                    <Select
-                                        value={filters.religion || 'all'}
-                                        onValueChange={(value) => setFilters({ ...filters, religion: value === 'all' ? '' : value })}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Toutes" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="all">Toutes</SelectItem>
-                                            <SelectItem value="pratiquant">Pratiquant(e)</SelectItem>
-                                            <SelectItem value="non-pratiquant">Non pratiquant(e)</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-
-                                {/* Education */}
-                                <div className="space-y-2">
-                                    <Label>Niveau d'études</Label>
-                                    <Select
-                                        value={filters.niveau_etudes || 'all'}
-                                        onValueChange={(value) => setFilters({ ...filters, niveau_etudes: value === 'all' ? '' : value })}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Tous" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="all">Tous</SelectItem>
-                                            <SelectItem value="moins-bac">Moins Bac</SelectItem>
-                                            <SelectItem value="bac">Bac</SelectItem>
-                                            <SelectItem value="bac+2">Bac +2</SelectItem>
-                                            <SelectItem value="bac+3-4">Bac +3/4</SelectItem>
-                                            <SelectItem value="bac+5-master">Bac +5/Master</SelectItem>
-                                            <SelectItem value="bac+8-doctorat">Bac +8/Doctorat</SelectItem>
-                                            <SelectItem value="peu-importe">Peu importe</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-
-                                {/* Employment Status */}
-                                <div className="space-y-2">
-                                    <Label>Situation professionnelle</Label>
-                                    <Select
-                                        value={filters.situation_professionnelle || 'all'}
-                                        onValueChange={(value) => setFilters({ ...filters, situation_professionnelle: value === 'all' ? '' : value })}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Toutes" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="all">Toutes</SelectItem>
-                                            <SelectItem value="etudiant">Étudiant</SelectItem>
-                                            <SelectItem value="emploi-salarie">Emploi salarié</SelectItem>
-                                            <SelectItem value="propre-patron">Propre patron</SelectItem>
-                                            <SelectItem value="sans-emploi">Sans emploi</SelectItem>
-                                            <SelectItem value="retraite">Retraité</SelectItem>
-                                            <SelectItem value="recherche-emploi">À la recherche d'emploi</SelectItem>
-                                            <SelectItem value="femme-au-foyer">Femme au foyer</SelectItem>
-                                            <SelectItem value="autre">Autre</SelectItem>
-                                            <SelectItem value="peu-importe">Peu importe</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-
-                                {/* Minimum Income */}
-                                <div className="space-y-2">
-                                    <Label>Revenu minimum</Label>
-                                    <Select
-                                        value={filters.revenu_minimum || 'all'}
-                                        onValueChange={(value) => setFilters({ ...filters, revenu_minimum: value === 'all' ? '' : value })}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Tous" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="all">Tous</SelectItem>
-                                            <SelectItem value="0-2500">0-2500 MAD</SelectItem>
-                                            <SelectItem value="2500-5000">2500-5000 MAD</SelectItem>
-                                            <SelectItem value="5000-10000">5000-10000 MAD</SelectItem>
-                                            <SelectItem value="10000-20000">10000-20000 MAD</SelectItem>
-                                            <SelectItem value="20000-50000">20000-50000 MAD</SelectItem>
-                                            <SelectItem value="50000+">+50000 MAD</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-
-                                {/* Marital Status - Multi-select */}
-                                <div className="space-y-2">
-                                    <Label>État matrimonial</Label>
-                                    <SearchableMultiSelect
-                                        options={ETAT_MATRIMONIAL_OPTIONS}
-                                        selectedValues={
-                                            Array.isArray(filters.etat_matrimonial)
-                                                ? filters.etat_matrimonial
-                                                : []
-                                        }
-                                        onSelectionChange={(values) =>
-                                            setFilters({
-                                                ...filters,
-                                                etat_matrimonial: values,
-                                            })
-                                        }
-                                        placeholder="Sélectionner..."
-                                    />
-                                </div>
-
-                                {/* Smoker */}
-                                <div className="space-y-2">
-                                    <Label>Fumeur</Label>
-                                    <Select
-                                        value={filters.fumeur || 'all'}
-                                        onValueChange={(value) => setFilters({ ...filters, fumeur: value === 'all' ? '' : value })}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Tous" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="all">Tous</SelectItem>
-                                            <SelectItem value="oui">Oui</SelectItem>
-                                            <SelectItem value="non">Non</SelectItem>
-                                            <SelectItem value="parfois">Parfois</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-
-                                {/* Drinker */}
-                                <div className="space-y-2">
-                                    <Label>Buveur</Label>
-                                    <Select
-                                        value={filters.buveur || 'all'}
-                                        onValueChange={(value) => setFilters({ ...filters, buveur: value === 'all' ? '' : value })}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Tous" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="all">Tous</SelectItem>
-                                            <SelectItem value="oui">Oui</SelectItem>
-                                            <SelectItem value="non">Non</SelectItem>
-                                            <SelectItem value="parfois">Parfois</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-
-                                {/* Has Children */}
-                                <div className="space-y-2">
-                                    <Label>Enfants</Label>
-                                    <Select
-                                        value={filters.has_children || 'all'}
-                                        onValueChange={(value) => setFilters({ ...filters, has_children: value === 'all' ? '' : value })}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Tous" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="all">Tous</SelectItem>
-                                            <SelectItem value="yes">Avec enfants</SelectItem>
-                                            <SelectItem value="no">Sans enfants</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-
-                                {/* Number of Children */}
-                                <div className="space-y-2">
-                                    <Label>Nombre d'enfants</Label>
-                                    <Input
-                                        type="number"
-                                        value={filters.children_count}
-                                        onChange={(e) => setFilters({ ...filters, children_count: e.target.value })}
-                                        placeholder="Ex: 2"
-                                        min="0"
-                                        max="20"
-                                    />
-                                </div>
-
-                                {/* Origin */}
-                                <div className="space-y-2">
-                                    <Label>Origine</Label>
-                                    <Input
-                                        type="text"
-                                        value={filters.origine}
-                                        onChange={(e) => setFilters({ ...filters, origine: e.target.value })}
-                                        placeholder="Ex: sahraoui"
-                                    />
-                                </div>
-
-                                {/* Country of Residence */}
-                                <div className="space-y-2">
-                                    <Label>Pays de résidence</Label>
-                                    <Input
-                                        type="text"
-                                        value={filters.pays_residence}
-                                        onChange={(e) => setFilters({ ...filters, pays_residence: e.target.value })}
-                                        placeholder="Ex: Maroc"
-                                    />
-                                </div>
-
-                                {/* Country of Origin */}
-                                <div className="space-y-2">
-                                    <Label>Pays d'origine</Label>
-                                    <Input
-                                        type="text"
-                                        value={filters.pays_origine}
-                                        onChange={(e) => setFilters({ ...filters, pays_origine: e.target.value })}
-                                        placeholder="Ex: Maroc"
-                                    />
-                                </div>
-
-                                {/* City of Residence */}
-                                <div className="space-y-2">
-                                    <Label>Ville de résidence</Label>
-                                    <Input
-                                        type="text"
-                                        value={filters.ville_residence}
-                                        onChange={(e) => setFilters({ ...filters, ville_residence: e.target.value })}
-                                        placeholder="Ex: Casablanca"
-                                    />
-                                </div>
-
-                                {/* City of Origin */}
-                                <div className="space-y-2">
-                                    <Label>Ville d'origine</Label>
-                                    <Input
-                                        type="text"
-                                        value={filters.ville_origine}
-                                        onChange={(e) => setFilters({ ...filters, ville_origine: e.target.value })}
-                                        placeholder="Ex: Casablanca"
-                                    />
-                                </div>
-
-                                {/* Housing */}
-                                <div className="space-y-2">
-                                    <Label>Logement</Label>
-                                    <Input
-                                        type="text"
-                                        value={filters.logement}
-                                        onChange={(e) => setFilters({ ...filters, logement: e.target.value })}
-                                        placeholder="Ex: familial"
-                                    />
-                                </div>
-
-                                {/* Health Situation - Multi-select */}
-                                <div className="space-y-2">
-                                    <Label>Situation de santé</Label>
-                                    <SearchableMultiSelect
-                                        options={SITUATION_SANTE_OPTIONS}
-                                        selectedValues={
-                                            Array.isArray(filters.situation_sante)
-                                                ? filters.situation_sante
-                                                : []
-                                        }
-                                        onSelectionChange={(values) =>
-                                            setFilters({
-                                                ...filters,
-                                                situation_sante: values,
-                                            })
-                                        }
-                                        placeholder="Sélectionner..."
-                                    />
-                                </div>
-
-                                {/* Motorized */}
-                                <div className="space-y-2">
-                                    <Label>Motorisé</Label>
-                                    <Select
-                                        value={filters.motorise || 'all'}
-                                        onValueChange={(value) => setFilters({ ...filters, motorise: value === 'all' ? '' : value })}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Tous" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="all">Tous</SelectItem>
-                                            <SelectItem value="oui">Oui</SelectItem>
-                                            <SelectItem value="non">Non</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-
-                                {/* Sport */}
-                                <div className="space-y-2">
-                                    <Label>Sport</Label>
-                                    <Select
-                                        value={filters.sport || 'all'}
-                                        onValueChange={(value) => setFilters({ ...filters, sport: value === 'all' ? '' : value })}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Tous" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="all">Tous</SelectItem>
-                                            <SelectItem value="oui">Oui</SelectItem>
-                                            <SelectItem value="non">Non</SelectItem>
-                                            <SelectItem value="parfois">Parfois</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-
-                                {/* Sector */}
-                                <div className="space-y-2">
-                                    <Label>Secteur d'activité</Label>
-                                    <Input
-                                        type="text"
-                                        value={filters.secteur}
-                                        onChange={(e) => setFilters({ ...filters, secteur: e.target.value })}
-                                        placeholder="Ex: informatique-telecoms"
-                                    />
-                                </div>
-
-                                {/* Female-specific filters - only show when looking for female profiles */}
-                                {userA?.gender === 'male' && (
-                                    <>
-                                        {/* Hijab Choice (for women) */}
-                                        <div className="space-y-2">
-                                            <Label>Choix de hijab</Label>
-                                            <Select
-                                                value={filters.hijab_choice || 'all'}
-                                                onValueChange={(value) => setFilters({ ...filters, hijab_choice: value === 'all' ? '' : value })}
-                                            >
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Tous" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="all">Tous</SelectItem>
-                                                    <SelectItem value="voile">Voile</SelectItem>
-                                                    <SelectItem value="non_voile">Non voilé</SelectItem>
-                                                    <SelectItem value="niqab">Niqab</SelectItem>
-                                                    <SelectItem value="idea_niqab">Idée niqab</SelectItem>
-                                                    <SelectItem value="idea_hijab">Idée hijab</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-
-                                        {/* Veil (for women) */}
-                                        <div className="space-y-2">
-                                            <Label>Voile</Label>
-                                            <Select
-                                                value={filters.veil || 'all'}
-                                                onValueChange={(value) => setFilters({ ...filters, veil: value === 'all' ? '' : value })}
-                                            >
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Tous" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="all">Tous</SelectItem>
-                                                    <SelectItem value="veiled">Voilée</SelectItem>
-                                                    <SelectItem value="non_veiled">Non voilée</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-
-                                        {/* Niqab Acceptance (for women) */}
-                                        <div className="space-y-2">
-                                            <Label>Acceptation du niqab</Label>
-                                            <Select
-                                                value={filters.niqab_acceptance || 'all'}
-                                                onValueChange={(value) => setFilters({ ...filters, niqab_acceptance: value === 'all' ? '' : value })}
-                                            >
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Tous" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="all">Tous</SelectItem>
-                                                    <SelectItem value="yes">Oui</SelectItem>
-                                                    <SelectItem value="no">Non</SelectItem>
-                                                    <SelectItem value="to_discuss">À discuter</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-
-                                        {/* Polygamy (for women) */}
-                                        <div className="space-y-2">
-                                            <Label>Polygamie</Label>
-                                            <Select
-                                                value={filters.polygamy || 'all'}
-                                                onValueChange={(value) => setFilters({ ...filters, polygamy: value === 'all' ? '' : value })}
-                                            >
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Tous" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="all">Tous</SelectItem>
-                                                    <SelectItem value="accepted">Acceptée</SelectItem>
-                                                    <SelectItem value="not_accepted">Non acceptée</SelectItem>
-                                                    <SelectItem value="to_discuss">À discuter</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-
-                                        {/* Foreign Marriage (for women) */}
-                                        <div className="space-y-2">
-                                            <Label>Mariage avec une personne étrangère</Label>
-                                            <Select
-                                                value={filters.foreign_marriage || 'all'}
-                                                onValueChange={(value) => setFilters({ ...filters, foreign_marriage: value === 'all' ? '' : value })}
-                                            >
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Tous" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="all">Tous</SelectItem>
-                                                    <SelectItem value="yes">Oui</SelectItem>
-                                                    <SelectItem value="no">Non</SelectItem>
-                                                    <SelectItem value="maybe_discuss">Peut-être / À discuter</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-
-                                        {/* Work After Marriage (for women) */}
-                                        <div className="space-y-2">
-                                            <Label>Travail après le mariage</Label>
-                                            <Select
-                                                value={filters.work_after_marriage || 'all'}
-                                                onValueChange={(value) => setFilters({ ...filters, work_after_marriage: value === 'all' ? '' : value })}
-                                            >
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Tous" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="all">Tous</SelectItem>
-                                                    <SelectItem value="yes">Oui</SelectItem>
-                                                    <SelectItem value="no">Non</SelectItem>
-                                                    <SelectItem value="maybe">Peut-être</SelectItem>
-                                                    <SelectItem value="depending_situation">Selon la situation</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                    </>
-                                )}
-                        </div>
-
-                        <div className="mt-6 flex justify-end border-t border-border/50 pt-6">
-                            <Button
-                                onClick={handleApplyFilters}
-                                disabled={isLoading}
-                                className="rounded-lg focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50"
-                            >
-                                {isLoading ? 'Application...' : 'Appliquer les filtres'}
-                            </Button>
-                        </div>
-                    </SheetContent>
-                </Sheet>
+                <MatchmakingFiltersSheet filtersState={matchFilters} gender={userA?.gender} />
 
                 {/* Results */}
                 <section className="space-y-4">
@@ -1632,14 +705,16 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
                                 </span>
                             ) : null}
                         </h2>
-                        {displayMatches.length > 0 && totalPages > 1 && (
+                        {resultsBrowser.total > 0 && (totalPages > 1 || resultsBrowser.hasCriteria) && (
                             <p className="text-sm text-muted-foreground">
-                                {from}&ndash;{to} sur {displayMatches.length}
+                                {from}&ndash;{to} sur {resultsBrowser.total}
                             </p>
                         )}
                     </div>
+                    {/* Search the whole base (hidden while the profile has an active proposition / RDV). */}
+                    {!userA?.proposition?.exists && !userA?.rdv?.exists && <MatchResultsToolbar browser={resultsBrowser} />}
 
-                    {matches.length === 0 ? (
+                    {matches.length === 0 && !resultsBrowser.serverMode ? (
                         <Card className="overflow-hidden rounded-xl border border-border shadow-sm">
                             <CardContent className="py-16 text-center space-y-3">
                                 <p className="text-muted-foreground">
@@ -1656,7 +731,7 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
                                 ) : null}
                             </CardContent>
                         </Card>
-                    ) : showActivePairMissingInList ? (
+                    ) : showActivePairMissingInList && !resultsBrowser.serverMode ? (
                         <Card className="overflow-hidden rounded-xl border border-border shadow-sm">
                             <CardContent className="py-16 text-center space-y-3">
                                 <p className="text-muted-foreground">
@@ -1670,6 +745,9 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
                         </Card>
                     ) : (
                         <>
+                        {resultsBrowser.total === 0 && !resultsBrowser.loading && (
+                            <p className="py-10 text-center text-sm text-muted-foreground">Aucun profil ne correspond à cette recherche.</p>
+                        )}
                         <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
                             {paginatedMatches.map((match) => {
                                 const isActivePairCard =
@@ -1705,46 +783,7 @@ export default function MatchmakingResults({ userA, matches: initialMatches, def
                             })}
                         </div>
 
-                        {totalPages > 1 && (
-                            <div className="flex flex-wrap items-center justify-center gap-2 pt-4">
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                                    disabled={currentPage <= 1}
-                                    className="rounded-lg border-border focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50"
-                                >
-                                    <ChevronLeft className="h-4 w-4" />
-                                    Précédent
-                                </Button>
-                                <div className="flex items-center gap-1">
-                                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
-                                        <Button
-                                            key={pageNum}
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => setCurrentPage(pageNum)}
-                                            className={`min-w-[2.25rem] rounded-lg focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
-                                                currentPage === pageNum ? 'text-white' : 'border-border'
-                                            }`}
-                                            style={currentPage === pageNum ? { backgroundColor: MATCH_PRIMARY, borderColor: MATCH_PRIMARY } : undefined}
-                                        >
-                                            {pageNum}
-                                        </Button>
-                                    ))}
-                                </div>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                                    disabled={currentPage >= totalPages}
-                                    className="rounded-lg border-border focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50"
-                                >
-                                    Suivant
-                                    <ChevronRight className="h-4 w-4" />
-                                </Button>
-                            </div>
-                        )}
+                        <MatchResultsPagination browser={resultsBrowser} />
                         </>
                     )}
                 </section>

@@ -41,12 +41,18 @@ class PropositionStaffPayloadService
             });
         }
 
-        return Proposition::query()->where(function ($query) use ($me) {
-            $query->where('matchmaker_id', $me->id)
-                ->orWhereHas('recipientUser', fn ($q) => $q->where('assigned_matchmaker_id', $me->id))
-                ->orWhereHas('referenceUser', fn ($q) => $q->where('assigned_matchmaker_id', $me->id))
-                ->orWhereHas('compatibleUser', fn ($q) => $q->where('assigned_matchmaker_id', $me->id));
-        });
+        // Manager without an agency: propositions they created or involving their profiles (unchanged).
+        if ($me->hasRole('manager')) {
+            return Proposition::query()->where(function ($query) use ($me) {
+                $query->where('matchmaker_id', $me->id)
+                    ->orWhereHas('recipientUser', fn ($q) => $q->where('assigned_matchmaker_id', $me->id))
+                    ->orWhereHas('referenceUser', fn ($q) => $q->where('assigned_matchmaker_id', $me->id))
+                    ->orWhereHas('compatibleUser', fn ($q) => $q->where('assigned_matchmaker_id', $me->id));
+            });
+        }
+
+        // Matchmaker: only the propositions they created.
+        return Proposition::query()->where('matchmaker_id', $me->id);
     }
 
     public function applyAgencyNarrowingFilter(Builder $query, int $agencyId): Builder
@@ -301,7 +307,7 @@ class PropositionStaffPayloadService
             'can_update_response' => $proposition->recipientUser
                 && $proposition->status !== Proposition::STATUS_CANCELLED
                 && $proposition->status !== Proposition::STATUS_CLOSED
-                && (int) $proposition->recipientUser->assigned_matchmaker_id === (int) $me->id,
+                && $me->can('respondFor', $proposition),
             'recipient_user' => $this->mapUserSummary($proposition->recipientUser),
             'reference_user' => $this->mapUserSummary($proposition->referenceUser),
             'compatible_user' => $this->mapUserSummary($proposition->compatibleUser),
@@ -436,6 +442,51 @@ class PropositionStaffPayloadService
             $groups,
             fn ($entry) => ($entry['aggregate_status'] ?? 'pending') === $statusFilter
         ));
+    }
+
+    /**
+     * RDV the viewer can create from one of *their* propositions involving $subject (both sides accepted),
+     * computed exactly like the proposition details page (same context, same can_create_rdv rules).
+     *
+     * @return array{proposition_id: int, is_recreation_context: bool, recreate_from_failed_rdv_id: ?int, counterpart_name: ?string}|null
+     */
+    public function rdvCreationFor(User $me, User $subject): ?array
+    {
+        $raw = Proposition::query()
+            ->where('matchmaker_id', $me->id)
+            ->where(function ($q) use ($subject) {
+                $q->where('reference_user_id', $subject->id)->orWhere('compatible_user_id', $subject->id);
+            })
+            ->with([
+                'recipientUser:id,name,username,assigned_matchmaker_id',
+                'referenceUser:id,name,username',
+                'compatibleUser:id,name,username',
+            ])
+            ->orderByDesc('id')
+            ->get();
+
+        if ($raw->isEmpty()) {
+            return null;
+        }
+
+        $context = $this->buildStaffContext($raw, $me);
+        foreach ($raw as $proposition) {
+            $row = $this->mapStaffRow($proposition, $me, $context);
+            if (! empty($row['can_create_rdv'])) {
+                $counterpart = (int) $proposition->reference_user_id === (int) $subject->id
+                    ? $proposition->compatibleUser
+                    : $proposition->referenceUser;
+
+                return [
+                    'proposition_id' => (int) $row['id'],
+                    'is_recreation_context' => (bool) ($row['is_recreation_context'] ?? false),
+                    'recreate_from_failed_rdv_id' => $row['recreate_from_failed_rdv_id'] ?? null,
+                    'counterpart_name' => $counterpart?->name,
+                ];
+            }
+        }
+
+        return null;
     }
 
     public function mapUserSummary(?User $user, bool $fullProfile = false): ?array

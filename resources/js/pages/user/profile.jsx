@@ -1,4 +1,10 @@
 import CreatePost from '@/components/posts/CreatePost';
+import { ProspectProfileActionsModals } from '@/components/prospect-profile-actions-modals';
+import { useProspectProfileActions } from '@/hooks/use-prospect-profile-actions';
+import MatchmakingFiltersSheet from '@/components/matchmaking/MatchmakingFiltersSheet';
+import MatchResultsToolbar, { MatchResultsPagination } from '@/components/matchmaking/MatchResultsToolbar';
+import { useMatchmakingFilters } from '@/hooks/use-matchmaking-filters';
+import { useMatchResultsBrowser } from '@/hooks/use-match-results-browser';
 import PostCard from '@/components/posts/PostCard';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -17,18 +23,26 @@ import {
 } from '@/components/ui/dropdown-menu';
 import AppLayout from '@/layouts/app-layout';
 import { Head, router, usePage } from '@inertiajs/react';
-import { BookOpen, Building, Building2, Camera, ChevronRight, Eye, Facebook, Heart, Instagram, Link, Linkedin, Mail, MapPin, MessageSquareWarning, User, X, Youtube, Trash2, MoreVertical, UserCircle, UserCheck, Image, ThumbsUp, CheckCircle, Coffee, CreditCard, Lightbulb, Phone, ArrowRightLeft, Pencil, FileText, Calendar, Search, ShoppingCart, GraduationCap, Briefcase, Star, Tag, Users, ShieldCheck, Check } from 'lucide-react';
+import { BookOpen, Building, Building2, Camera, ChevronRight, Eye, Facebook, Heart, Instagram, Link, Linkedin, Mail, MapPin, MessageSquareWarning, User, X, Youtube, Trash2, MoreVertical, UserCircle, UserCheck, Image, ThumbsUp, CheckCircle, Coffee, CreditCard, Lightbulb, Phone, ArrowRightLeft, Pencil, FileText, Calendar, Search, ShoppingCart, GraduationCap, Briefcase, Star, Tag, Users, ShieldCheck, Check, Filter, RotateCcw } from 'lucide-react';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import MatchResultMatchCard from '@/components/matchmaking/MatchResultMatchCard';
 import MatchmakingProposeRequestModals from '@/components/matchmaking/MatchmakingProposeRequestModals';
 import MatchmakerRespondToPropositionDialog from '@/components/matchmaking/MatchmakerRespondToPropositionDialog';
 import { useMatchmakingProposeRequestFlow } from '@/hooks/use-matchmaking-propose-request-flow';
-import { getProfilePicture, getAge, getLocation, getScoreColor } from '@/lib/matchmaking-result-display';
+// Candidate photo helper, renamed: this page has its own getProfilePicture() for the visited profile.
+import { getProfilePicture as getMatchProfilePicture, getAge, getLocation, getScoreColor } from '@/lib/matchmaking-result-display';
 import { useTranslation } from 'react-i18next';
 import { useToast } from '@/hooks/use-toast';
 import { propositionToastFr, rdvToastFr } from '@/lib/proposition-toast-messages';
 import { formatMemberGender } from '@/lib/objectives';
 import axios from 'axios';
+import { ProfilePropositionsHistory, ProfileRdvsHistory } from '@/components/profile/ProfileHistoryLists';
+import CreateRdvModal from '@/components/rdv/CreateRdvModal';
+import RespondToPropositionRequestDialog from '@/components/matchmaking/RespondToPropositionRequestDialog';
+import AcceptedRequestProposeModal from '@/components/matchmaking/AcceptedRequestProposeModal';
+import RequestPropositionDialog from '@/components/matchmaking/RequestPropositionDialog';
+import ProspectMatchmakingNotice from '@/components/matchmaking/ProspectMatchmakingNotice';
+import StaffProfileHeader, { hasOwnershipEffect, OwnershipEffectNote } from '@/components/profile/StaffProfileHeader';
 
 export default function UserProfile({
     user,
@@ -41,19 +55,30 @@ export default function UserProfile({
     subscriptions = [],
     matchmakingSearch = null,
     matchmakingResults = null,
+    matchmakingAppliedFilters = null,
+    canFilterMatchmaking = false,
+    resultFilterOptions = null,
     propositionToRespond = null,
     evaluationAccessLevel = 'none',
     memberProposition = null,
     latestMemberProposition = null,
+    memberPropositionVisible = false,
+    memberRdvVisible = false,
     memberRdv = null,
     memberFailedRdv = null,
     userSubscription = null,
     agencyManager = null,
     staffPerformance = null,
+    profileAbilities = null,
+    profileStats = null,
+    validationServices = [],
+    validationPacks = [],
 }) {
     const { t } = useTranslation();
     const { auth } = usePage().props;
     const { showToast } = useToast();
+    // Prospect validation form (same modal as the prospect lists), opened from the header.
+    const prospectValidation = useProspectProfileActions({ services: validationServices, matrimonialPacks: validationPacks, auth });
 
     // Use Number conversion to handle string/number type differences in IDs
     // Also check with string comparison as fallback
@@ -248,6 +273,18 @@ export default function UserProfile({
         }
         return rows.filter((m) => Number(m.user?.id) === lockedPairCounterpartIdProfile);
     }, [staffMatchmakingRows, memberProposition?.exists, memberRdv?.exists, lockedPairCounterpartIdProfile]);
+
+    // Matchmaking tab: search, agency / matchmaker filters, pages of 6, and the "Filtres de recherche" drawer.
+    const profileResultsBrowser = useMatchResultsBrowser(
+        staffMatchmakingDisplayRows,
+        resultFilterOptions,
+        canFilterMatchmaking && user?.id ? `/staff/match/search/${user.id}` : null,
+    );
+    const profileMatchFilters = useMatchmakingFilters({
+        userId: user?.id,
+        initialAppliedFilters: matchmakingAppliedFilters,
+        onResults: setStaffMatchmakingRows,
+    });
 
     const showStaffActivePairMissingInList = Boolean(
         (memberProposition?.exists || memberRdv?.exists) &&
@@ -892,7 +929,11 @@ export default function UserProfile({
     });
 
     // Active matchmaker action tab state (for matchmakers viewing user profiles)
-    const [activeMatchmakerTab, setActiveMatchmakerTab] = useState('actions');
+    const [activeMatchmakerTab, setActiveMatchmakerTab] = useState('photos');
+    const [requestPropositionOpen, setRequestPropositionOpen] = useState(false);
+    const [acceptedProposeLink, setAcceptedProposeLink] = useState(null);
+    const [respondRequestLink, setRespondRequestLink] = useState(null);
+    const [createRdvOpen, setCreateRdvOpen] = useState(false);
 
     // Transfer dialog state
     const [transferDialogOpen, setTransferDialogOpen] = useState(false);
@@ -907,6 +948,83 @@ export default function UserProfile({
     const [deactivateDialogOpen, setDeactivateDialogOpen] = useState(false);
     const [reactivateProspectDialogOpen, setReactivateProspectDialogOpen] = useState(false);
     const [statusReason, setStatusReason] = useState('');
+
+    // Actions from the staff profile header. Each one reuses the flow the old "Actions du membre" card used.
+    const handleHeaderAction = (key, payload = null) => {
+        switch (key) {
+            case 'proposerDemande':
+                if (payload) setAcceptedProposeLink(payload);
+                break;
+            case 'repondreDemande':
+                if (payload) setRespondRequestLink(payload);
+                break;
+            case 'ouvrirOnglet':
+                // Stats cards: open the matching profile tab, or the activity history page.
+                if (payload === 'historique') {
+                    router.visit(`/staff/prospects/${user.id}/activity`);
+                } else if (payload) {
+                    setActiveMatchmakerTab(payload);
+                    document.getElementById('staff-profile-tabs')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+                break;
+            case 'creerRdv':
+                if (profileAbilities?.rdv_creation) setCreateRdvOpen(true);
+                break;
+            case 'repondreProposition':
+                if (profileAbilities?.pending_proposition_id) {
+                    setProfileRespondDialog({ open: true, propositionId: profileAbilities.pending_proposition_id });
+                }
+                break;
+            case 'reactiver':
+                setStatusReason('');
+                setReactivateProspectDialogOpen(true);
+                break;
+            case 'activer':
+                setStatusReason('');
+                setActivateDialogOpen(true);
+                break;
+            case 'desactiver':
+                setStatusReason('');
+                setDeactivateDialogOpen(true);
+                break;
+            case 'transferer':
+                handleTransferClick();
+                break;
+            case 'rappeler':
+                router.post(`/staff/prospects/${user.id}/rappeler`, {}, {
+                    onSuccess: () => router.reload(),
+                });
+                break;
+            case 'creerFacture':
+                router.visit(`/staff/prospects/${user.id}/subscription`);
+                break;
+            case 'marquerClient':
+                router.post('/staff/mark-as-client', { user_id: user.id });
+                break;
+            case 'modifier':
+            case 'completerProfil':
+                router.visit(`/staff/prospects/${user.id}/profile/edit`);
+                break;
+            case 'validerProspect':
+                prospectValidation.handleValidateClick({ ...user, profile });
+                break;
+            case 'historique':
+                router.visit(`/staff/prospects/${user.id}/activity`);
+                break;
+            case 'demander':
+                setRequestPropositionOpen(true);
+                break;
+            case 'proposer':
+                if (isStaffViewingUserWithActions) {
+                    setActiveMatchmakerTab('matchmaking');
+                } else {
+                    router.visit(`/staff/match/results/${user.id}`);
+                }
+                break;
+            default:
+                break;
+        }
+    };
 
     // Check if current staff can see user action tabs (icon bar + tab content)
     // - Admin viewing any member profile
@@ -1585,7 +1703,8 @@ export default function UserProfile({
                                                 </div>
                                             )}
                                             {(() => {
-                                                if (memberRdv?.exists) {
+                                                // Only for whoever may open that RDV (its organiser; manager/admin).
+                                                if (memberRdv?.exists && memberRdvVisible) {
                                                     const rdvLabel = memberRdv.status === 'reussi' ? 'RDV réussi' : 'En RDV';
                                                     return (
                                                         <div className="flex items-center justify-between gap-3 border-t border-gray-100/80 py-2.5">
@@ -1601,16 +1720,12 @@ export default function UserProfile({
                                                     );
                                                 }
 
-                                                if (memberProposition?.exists) {
+                                                // Only for whoever may open that proposition (its creator; managers/admin).
+                                                if (memberProposition?.exists && memberPropositionVisible) {
                                                     const propositionForDisplay = latestMemberProposition?.exists ? latestMemberProposition : memberProposition;
-                                                    const rawStatus = String(propositionForDisplay?.status ?? '').trim().toLowerCase();
-                                                    const rawUserResponse = String(propositionForDisplay?.user_response ?? '').trim().toLowerCase();
-                                                    const displayState =
-                                                        rawStatus === 'cancelled' || rawStatus === 'expired'
-                                                            ? rawStatus
-                                                            : rawUserResponse !== ''
-                                                              ? rawUserResponse
-                                                              : rawStatus;
+                                                    // The proposition's status, not this member's own answer: a single "yes"
+                                                    // keeps it "en cours" until both members have accepted.
+                                                    const displayState = String(propositionForDisplay?.status ?? '').trim().toLowerCase();
                                                     const normalizedState = String(displayState ?? '').trim().toLowerCase();
 
                                                     const label =
@@ -1746,29 +1861,69 @@ export default function UserProfile({
 
                         {/* Main Content Area */}
                         <div className="space-y-6 lg:col-span-9">
+                            {/* Staff profile header: state, owner, counts, main action + grouped menu (server abilities) */}
+                            {profileAbilities && (
+                                <StaffProfileHeader
+                                    user={user}
+                                    displayName={user?.name}
+                                    avatarUrl={profilePictureSrc}
+                                    packName={user?.profile?.matrimonial_pack?.name ?? user?.profile?.matrimonialPack?.name ?? null}
+                                    abilities={profileAbilities}
+                                    stats={profileStats}
+                                    authUserId={auth?.user?.id}
+                                    onAction={handleHeaderAction}
+                                />
+                            )}
+                            <RespondToPropositionRequestDialog
+                                open={respondRequestLink !== null}
+                                onOpenChange={(open) => {
+                                    if (!open) setRespondRequestLink(null);
+                                }}
+                                request={respondRequestLink}
+                                visitOptions={{ preserveScroll: true }}
+                            />
+                            {createRdvOpen && profileAbilities?.rdv_creation && (
+                                <CreateRdvModal
+                                    open={createRdvOpen}
+                                    propositionId={profileAbilities.rdv_creation.is_recreation_context ? null : profileAbilities.rdv_creation.proposition_id}
+                                    fromFailedRdvId={
+                                        profileAbilities.rdv_creation.is_recreation_context
+                                            ? profileAbilities.rdv_creation.recreate_from_failed_rdv_id
+                                            : null
+                                    }
+                                    isRecreationContext={Boolean(profileAbilities.rdv_creation.is_recreation_context)}
+                                    onClose={() => setCreateRdvOpen(false)}
+                                    onSuccess={() => {
+                                        setCreateRdvOpen(false);
+                                        router.reload({ only: ['profileAbilities', 'profileStats', 'memberProposition', 'latestMemberProposition', 'memberRdv', 'memberFailedRdv'] });
+                                    }}
+                                />
+                            )}
+                            {acceptedProposeLink && (
+                                <AcceptedRequestProposeModal
+                                    key={acceptedProposeLink.id}
+                                    link={acceptedProposeLink}
+                                    onClose={() => setAcceptedProposeLink(null)}
+                                    onSent={() => router.reload({ only: ['profileAbilities', 'profileStats', 'memberProposition', 'latestMemberProposition'] })}
+                                />
+                            )}
+                            {profileAbilities?.actions?.demander?.allowed && (
+                                <RequestPropositionDialog
+                                    open={requestPropositionOpen}
+                                    onOpenChange={setRequestPropositionOpen}
+                                    subject={user}
+                                    onSent={() => router.reload({ only: ['profileAbilities', 'profileStats'] })}
+                                />
+                            )}
                             {/* Staff Action Tabs Navigation - for assigned matchmaker or manager with rights */}
                             {isStaffViewingUserWithActions && (
-                                <div className="w-full">
+                                <div className="w-full" id="staff-profile-tabs">
                                     {/* <div className="mb-2 flex items-center justify-end">
                                         <span className="rounded bg-red-600 px-3 py-1 text-sm font-semibold text-white">
                                             Message prive
                                         </span>
                                     </div> */}
                                     <div className="flex items-center gap-1 rounded-lg border border-black bg-[#F5F5DC] p-1">
-                                        <button
-                                            type="button"
-                                            onClick={(e) => {
-                                                e.preventDefault();
-                                                setActiveMatchmakerTab('actions');
-                                            }}
-                                            className={`flex flex-1 items-center justify-center gap-2 rounded px-3 py-2 text-sm font-medium transition-colors ${
-                                                activeMatchmakerTab === 'actions'
-                                                    ? 'bg-red-600 text-white'
-                                                    : 'text-red-600 hover:bg-red-50'
-                                            }`}
-                                        >
-                                            <UserCircle className="h-5 w-5" />
-                                        </button>
                                         <button
                                             type="button"
                                             onClick={(e) => {
@@ -1796,6 +1951,22 @@ export default function UserProfile({
                                             }`}
                                         >
                                             <ThumbsUp className="h-5 w-5" />
+                                        </button>
+                                        <button
+                                            type="button"
+                                            aria-label={t('profile.tabPropositions')}
+                                            title={t('profile.tabPropositions')}
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                setActiveMatchmakerTab('propositions');
+                                            }}
+                                            className={`flex flex-1 items-center justify-center gap-2 rounded px-3 py-2 text-sm font-medium transition-colors ${
+                                                activeMatchmakerTab === 'propositions'
+                                                    ? 'bg-red-600 text-white'
+                                                    : 'text-red-600 hover:bg-red-50'
+                                            }`}
+                                        >
+                                            <Heart className="h-5 w-5" />
                                         </button>
                                         <button
                                             type="button"
@@ -1860,178 +2031,6 @@ export default function UserProfile({
                             {/* Staff Action Tabs Content - for assigned matchmaker or manager with rights */}
                             {isStaffViewingUserWithActions && (
                                 <div className="w-full">
-                                    {/* Actions Tab */}
-                                    {activeMatchmakerTab === 'actions' && (
-                                            <div className="mt-6 space-y-4">
-                                                <Card className="border-gray-200 bg-white">
-                                                    <CardContent className="p-6">
-                                                        <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-gray-900">
-                                                            <UserCircle className="h-5 w-5 text-red-600" />
-                                                            Actions du membre
-                                                        </h3>
-                                                        
-                                                        {/* Step and Status Display */}
-                                                        <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2">
-                                                            <div>
-                                                                <p className="text-sm font-medium text-gray-600 mb-2">Étape</p>
-                                                                <Badge className="bg-foreground text-background">
-                                                                    {getStep()}
-                                                                </Badge>
-                                                            </div>
-                                                            <div>
-                                                                <p className="text-sm font-medium text-gray-600 mb-2">Statut</p>
-                                                                {(() => {
-                                                                    const badge = getStatusBadgeInfo();
-                                                                    const StatusIcon = badge.icon;
-                                                                    return (
-                                                                        <span className={badge.className}>
-                                                                            {StatusIcon && <StatusIcon className="h-3.5 w-3.5" strokeWidth={2.5} />}
-                                                                            {badge.label}
-                                                                        </span>
-                                                                    );
-                                                                })()}
-                                                            </div>
-                                                            {(user?.profile?.account_status || user?.rejection_reason) && (
-                                                                <div>
-                                                                    <p className="text-sm font-medium text-gray-600 mb-2">Statut du compte</p>
-                                                                    {user?.profile?.account_status === 'desactivated' ? (
-                                                                        <Badge className="bg-red-500 text-white">Désactivé</Badge>
-                                                                    ) : user?.rejection_reason ? (
-                                                                        <Badge className="bg-red-500 text-white">Rejeté</Badge>
-                                                                    ) : (
-                                                                        <Badge className={user.profile.account_status === 'active' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}>
-                                                                            {user.profile.account_status === 'active' ? 'Actif' : 'Désactivé'}
-                                                                        </Badge>
-                                                                    )}
-                                                                </div>
-                                                            )}
-                                                        </div>
-
-                                                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                                                            {canWrite && (user?.status === 'member' || user?.status === 'client_expire') && !user?.has_bill && (
-                                                                <Button
-                                                                    variant="default"
-                                                                    size="sm"
-                                                                    className="bg-info hover:opacity-90"
-                                                                    onClick={() => router.visit(`/staff/prospects/${user.id}/subscription`)}
-                                                                >
-                                                                    <CreditCard className="w-4 h-4 mr-2" />
-                                                                    Abonnement
-                                                                </Button>
-                                                            )}
-                                                            {canWrite && (user?.status === 'member' || user?.status === 'client_expire') && user?.has_bill && (
-                                                                <Button
-                                                                    variant="default"
-                                                                    size="sm"
-                                                                    className="bg-success hover:opacity-90"
-                                                                    onClick={() => {
-                                                                        router.post('/staff/mark-as-client', {
-                                                                            user_id: user.id
-                                                                        });
-                                                                    }}
-                                                                >
-                                                                    <CheckCircle className="w-4 h-4 mr-2" />
-                                                                    Marquer comme Client
-                                                                </Button>
-                                                            )}
-                                                            {canWrite && (
-                                                                <Button
-                                                                    variant="outline"
-                                                                    size="sm"
-                                                                    className="border-blue-500 text-blue-600 hover:bg-blue-50"
-                                                                    onClick={() => router.visit(`/staff/prospects/${user.id}/profile/edit`)}
-                                                                >
-                                                                    <Pencil className="w-4 h-4 mr-2" />
-                                                                    Modifier le profil
-                                                                </Button>
-                                                            )}
-                                                            {canManage && (
-                                                                <Button
-                                                                    variant="outline"
-                                                                    size="sm"
-                                                                    onClick={() => router.visit(`/staff/prospects/${user.id}/activity`)}
-                                                                >
-                                                                    <FileText className="w-4 h-4 mr-2" />
-                                                                    Historique d'activité
-                                                                </Button>
-                                                            )}
-                                                            {canWrite && user?.status === 'client_expire' && !user?.to_rappeler && (
-                                                                <Button
-                                                                    variant="default"
-                                                                    size="sm"
-                                                                    className="bg-warning hover:opacity-90"
-                                                                    onClick={() => {
-                                                                        router.post(`/staff/prospects/${user.id}/rappeler`, {}, {
-                                                                            onSuccess: () => router.reload()
-                                                                        });
-                                                                    }}
-                                                                >
-                                                                    <Phone className="w-4 h-4 mr-2" />
-                                                                    Rappeler
-                                                                </Button>
-                                                            )}
-                                                            {canWrite && (
-                                                                <Button
-                                                                    variant="outline"
-                                                                    size="sm"
-                                                                    onClick={handleTransferClick}
-                                                                >
-                                                                    <ArrowRightLeft className="w-4 h-4 mr-2" />
-                                                                    Transférer
-                                                                </Button>
-                                                            )}
-                                                            {canActivateAccount && (
-                                                                <Button
-                                                                    variant="default"
-                                                                    size="sm"
-                                                                    className="bg-green-600 hover:bg-green-700"
-                                                                    onClick={() => {
-                                                                        setStatusReason('');
-                                                                        setActivateDialogOpen(true);
-                                                                    }}
-                                                                >
-                                                                    <CheckCircle className="w-4 h-4 mr-2" />
-                                                                    Activer le compte
-                                                                </Button>
-                                                            )}
-                                                            {canReactivateRejectedProspect && (
-                                                                <Button
-                                                                    variant="default"
-                                                                    size="sm"
-                                                                    className="bg-green-600 hover:bg-green-700"
-                                                                    onClick={() => {
-                                                                        setStatusReason('');
-                                                                        setReactivateProspectDialogOpen(true);
-                                                                    }}
-                                                                >
-                                                                    <CheckCircle className="w-4 h-4 mr-2" />
-                                                                    Réactiver le prospect
-                                                                </Button>
-                                                            )}
-                                                            {canWrite && user?.profile?.account_status !== 'desactivated' && (
-                                                                <Button
-                                                                    variant="destructive"
-                                                                    size="sm"
-                                                                    onClick={() => {
-                                                                        setStatusReason('');
-                                                                        setDeactivateDialogOpen(true);
-                                                                    }}
-                                                                >
-                                                                    <X className="w-4 h-4 mr-2" />
-                                                                    Désactiver le compte
-                                                                </Button>
-                                                            )}
-                                                            {(!canWrite &&
-                                                              !canActivateAccount &&
-                                                              !canReactivateRejectedProspect) && (
-                                                                <p className="text-gray-500 text-sm">Aucune action disponible pour ce membre.</p>
-                                                            )}
-                                                        </div>
-                                                    </CardContent>
-                                                </Card>
-                                            </div>
-                                        )}
-
                                         {/* Subscription Details Tab */}
                                         {activeMatchmakerTab === 'subscription' && (
                                             <div className="mt-6 space-y-4">
@@ -2155,28 +2154,13 @@ export default function UserProfile({
                                         {/* Rendez-vous Details Tab */}
                                         {activeMatchmakerTab === 'rdv' && (
                                             <div className="mt-6 space-y-4">
-                                                <Card className="border-gray-200 bg-white">
-                                                    <CardContent className="p-6">
-                                                        <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-gray-900">
-                                                            <Calendar className="h-5 w-5 text-red-600" />
-                                                            Détails des rendez-vous
-                                                        </h3>
-                                                        <div className="space-y-4">
-                                                            <div>
-                                                                <p className="text-sm font-medium text-gray-600">Statut</p>
-                                                                <Badge className={user?.status === 'en_rdv' ? 'bg-blue-600' : 'bg-gray-400'}>
-                                                                    {user?.status === 'en_rdv' ? 'En rendez-vous' : 'Pas de rendez-vous'}
-                                                                </Badge>
-                                                            </div>
-                                                            {user?.status === 'en_rdv' && (
-                                                                <div>
-                                                                    <p className="text-sm font-medium text-gray-600">Informations</p>
-                                                                    <p className="text-base text-gray-700">Le membre est actuellement en rendez-vous.</p>
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    </CardContent>
-                                                </Card>
+                                                <ProfileRdvsHistory userId={user.id} />
+                                            </div>
+                                        )}
+
+                                        {activeMatchmakerTab === 'propositions' && (
+                                            <div className="mt-6 space-y-4">
+                                                <ProfilePropositionsHistory userId={user.id} profileName={user?.name} />
                                             </div>
                                         )}
 
@@ -2264,12 +2248,15 @@ export default function UserProfile({
                                                     </CardContent>
                                                 </Card>
 
+                                                {/* A prospect must be validated before matchmaking */}
+                                                {user?.status === 'prospect' && <ProspectMatchmakingNotice />}
+
                                                 {/* Matchmaking Results (À proposer) */}
                                                 {staffCanViewMemberInsights &&
+                                                    user?.status !== 'prospect' &&
                                                     ((staffMatchmakingRows && staffMatchmakingRows.length > 0) ||
                                                         memberProposition?.exists ||
-                                                        memberRdv?.exists ||
-                                                        memberFailedRdv?.exists) && (
+                                                        memberRdv?.exists) && (
                                                     <Card className="border-gray-200 bg-white">
                                                         <CardContent className="p-6">
                                                             {memberRdv?.exists ? (
@@ -2292,23 +2279,6 @@ export default function UserProfile({
                                                                             onClick={() => setCancelMatchDialogOpen(true)}
                                                                         >
                                                                             Annuler le match
-                                                                        </Button>
-                                                                    )}
-                                                                </div>
-                                                            ) : memberFailedRdv?.exists ? (
-                                                                <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2">
-                                                                    <Badge className="bg-rose-700 text-white hover:bg-rose-700">
-                                                                        Match annulé (RDV échoué)
-                                                                    </Badge>
-                                                                    {canRestoreMatch && (
-                                                                        <Button
-                                                                            type="button"
-                                                                            size="sm"
-                                                                            variant="outline"
-                                                                            className="border-emerald-300 text-emerald-700 hover:bg-emerald-50"
-                                                                            onClick={() => setRestoreMatchDialogOpen(true)}
-                                                                        >
-                                                                            Restaurer le match
                                                                         </Button>
                                                                     )}
                                                                 </div>
@@ -2360,6 +2330,50 @@ export default function UserProfile({
                                                                     </>
                                                                 )}
                                                             </h3>
+                                                            {!memberProposition?.exists && !memberRdv?.exists && (staffMatchmakingRows.length > 0 || canFilterMatchmaking) && (
+                                                                <div className="mb-4">
+                                                                    <MatchResultsToolbar browser={profileResultsBrowser}>
+                                                                        {canFilterMatchmaking && (
+                                                                            <>
+                                                                                <Button
+                                                                                    type="button"
+                                                                                    variant="outline"
+                                                                                    size="sm"
+                                                                                    className="h-9 rounded-lg"
+                                                                                    onClick={() => profileMatchFilters.setShowFilters(true)}
+                                                                                >
+                                                                                    <Filter className="mr-1 h-4 w-4" />
+                                                                                    Filtres
+                                                                                    {profileMatchFilters.activeFilterCount > 0 && (
+                                                                                        <span className="ml-2 rounded-full bg-primary px-1.5 py-0.5 text-xs font-medium text-primary-foreground">
+                                                                                            {profileMatchFilters.activeFilterCount}
+                                                                                        </span>
+                                                                                    )}
+                                                                                </Button>
+                                                                                <Button
+                                                                                    type="button"
+                                                                                    variant="ghost"
+                                                                                    size="sm"
+                                                                                    className="h-9 rounded-lg"
+                                                                                    onClick={profileMatchFilters.handleResetFilters}
+                                                                                    disabled={profileMatchFilters.isLoading}
+                                                                                >
+                                                                                    <RotateCcw className="mr-1 h-4 w-4" />
+                                                                                    Réinitialiser
+                                                                                </Button>
+                                                                            </>
+                                                                        )}
+                                                                    </MatchResultsToolbar>
+                                                                    {canFilterMatchmaking && (
+                                                                        <MatchmakingFiltersSheet filtersState={profileMatchFilters} gender={user?.gender} />
+                                                                    )}
+                                                                    {profileResultsBrowser.hasCriteria && profileResultsBrowser.total === 0 && !profileResultsBrowser.loading && (
+                                                                        <p className="mt-4 text-center text-sm text-gray-500">
+                                                                            Aucun profil ne correspond à cette recherche.
+                                                                        </p>
+                                                                    )}
+                                                                </div>
+                                                            )}
                                                             {memberProposition?.exists &&
                                                             (!staffMatchmakingRows || staffMatchmakingRows.length === 0) ? (
                                                                 <div className="space-y-3 py-6 text-center">
@@ -2397,9 +2411,9 @@ export default function UserProfile({
                                                                         Actualiser
                                                                     </Button>
                                                                 </div>
-                                                            ) : isEnrichedStaffMatchmaking ? (
+                                                            ) : isEnrichedStaffMatchmaking || (viewerIsMatchmaker && profileResultsBrowser.serverMode) ? (
                                                                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                                                                    {staffMatchmakingDisplayRows.map((match) => {
+                                                                    {profileResultsBrowser.pageRows.map((match) => {
                                                                         const isActivePairCard =
                                                                             Boolean(memberProposition?.exists || memberRdv?.exists) &&
                                                                             Number(match.user?.id) ===
@@ -2446,7 +2460,7 @@ export default function UserProfile({
                                                                 </div>
                                                             ) : (
                                                                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                                                                    {staffMatchmakingDisplayRows.map((match) => (
+                                                                    {profileResultsBrowser.pageRows.map((match) => (
                                                                         <Card
                                                                             key={match.user.id}
                                                                             className="hover:shadow-md transition-shadow"
@@ -2454,7 +2468,7 @@ export default function UserProfile({
                                                                             <CardContent className="p-4">
                                                                                 <div className="mb-3 flex items-start gap-3">
                                                                                     <img
-                                                                                        src={getProfilePicture(match.user, match.profile)}
+                                                                                        src={getMatchProfilePicture(match.user, match.profile)}
                                                                                         alt={match.user.name}
                                                                                         className="h-12 w-12 rounded-full object-cover"
                                                                                     />
@@ -2486,6 +2500,23 @@ export default function UserProfile({
                                                                                             {getLocation(match.profile)}
                                                                                         </span>
                                                                                     </div>
+                                                                                    <div className="flex items-center gap-1">
+                                                                                        <UserCheck className="h-3 w-3" />
+                                                                                        <span className="truncate">
+                                                                                            {match.assigned_matchmaker
+                                                                                                ? `Assigné à : ${match.assigned_matchmaker.name}`
+                                                                                                : 'Non assigné'}
+                                                                                            {match.agency?.name ? ` · ${match.agency.name}` : ''}
+                                                                                        </span>
+                                                                                    </div>
+                                                                                    {match.outside_compatible && (
+                                                                                        <div className="text-gray-500 italic">Hors résultats compatibles</div>
+                                                                                    )}
+                                                                                    {match.restriction && (
+                                                                                        <div className="rounded border border-amber-300 bg-amber-50 px-2 py-1 font-medium text-amber-900">
+                                                                                            {match.restriction.label}
+                                                                                        </div>
+                                                                                    )}
                                                                                     {match.profile.niveau_etudes && (
                                                                                         <div className="flex items-center gap-1">
                                                                                             <GraduationCap className="h-3 w-3" />
@@ -2528,6 +2559,7 @@ export default function UserProfile({
                                                                     ))}
                                                                 </div>
                                                             )}
+                                                            <MatchResultsPagination browser={profileResultsBrowser} />
                                                         </CardContent>
                                                     </Card>
                                                 )}
@@ -4021,6 +4053,7 @@ export default function UserProfile({
                         </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4">
+                        {hasOwnershipEffect(profileAbilities, 'activer') && <OwnershipEffectNote />}
                         <div className="space-y-2">
                             <Label>Raison *</Label>
                             <textarea
@@ -4045,7 +4078,7 @@ export default function UserProfile({
                             disabled={!statusReason.trim()}
                         >
                             <CheckCircle className="w-4 h-4 mr-2" />
-                            Activer
+                            {hasOwnershipEffect(profileAbilities, 'activer') ? 'Activer et prendre en charge' : 'Activer'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -4061,6 +4094,7 @@ export default function UserProfile({
                         </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4">
+                        {hasOwnershipEffect(profileAbilities, 'reactiver') && <OwnershipEffectNote />}
                         {user?.rejection_reason && (
                             <div className="rounded-md bg-red-50 p-3">
                                 <p className="text-sm font-semibold mb-1">Raison du rejet précédent:</p>
@@ -4091,7 +4125,7 @@ export default function UserProfile({
                             disabled={!statusReason.trim()}
                         >
                             <CheckCircle className="w-4 h-4 mr-2" />
-                            Réactiver
+                            {hasOwnershipEffect(profileAbilities, 'reactiver') ? 'Réactiver et prendre en charge' : 'Réactiver'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -4206,7 +4240,11 @@ export default function UserProfile({
                     open={profileRespondDialog.open}
                     onOpenChange={(open) => setProfileRespondDialog((prev) => ({ ...prev, open }))}
                     propositionId={profileRespondDialog.propositionId}
-                    onSuccess={() => router.reload({ only: ['matchmakingResults', 'memberProposition', 'latestMemberProposition', 'memberRdv', 'memberFailedRdv'] })}
+                    onSuccess={() =>
+                        router.reload({
+                            only: ['matchmakingResults', 'memberProposition', 'latestMemberProposition', 'memberRdv', 'memberFailedRdv', 'profileAbilities', 'profileStats'],
+                        })
+                    }
                 />
             ) : null}
 
@@ -4267,6 +4305,7 @@ export default function UserProfile({
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+            {profileAbilities?.actions?.validerProspect?.allowed && <ProspectProfileActionsModals {...prospectValidation} />}
         </AppLayout>
     );
 }

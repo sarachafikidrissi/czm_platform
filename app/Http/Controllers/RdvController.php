@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Activity;
 use App\Models\Proposition;
 use App\Models\Rdv;
 use App\Models\RdvFeedback;
@@ -97,6 +98,24 @@ class RdvController extends Controller
                 'created_at' => $myFeedback->created_at,
             ] : null,
         ];
+    }
+
+    /** News feed: "Nouveau RDV : <profil> et <profil>" (names link to the profiles). */
+    private function recordRdvCreatedActivity(User $me, Rdv $rdv): void
+    {
+        $people = User::query()
+            ->whereIn('id', [$rdv->reference_user_id, $rdv->compatible_user_id])
+            ->get(['id', 'name', 'username'])
+            ->keyBy('id');
+
+        Activity::record('rdv.created', $me->id, $rdv, [
+            'profiles' => collect([$rdv->reference_user_id, $rdv->compatible_user_id])
+                ->map(fn ($id) => $people->get($id))
+                ->filter()
+                ->map(fn (User $u) => ['id' => $u->id, 'name' => $u->name, 'username' => $u->username])
+                ->values()
+                ->all(),
+        ]);
     }
 
     /**
@@ -197,6 +216,7 @@ class RdvController extends Controller
                 'share_phone' => (bool) ($data['share_phone'] ?? false),
                 'status' => Rdv::STATUS_EN_COURS,
             ]);
+            $this->recordRdvCreatedActivity($me, $rdv);
 
             Proposition::closeAcceptedRowsForPairAfterRdv($proposition);
         });
@@ -312,6 +332,7 @@ class RdvController extends Controller
                 'share_phone' => (bool) ($data['share_phone'] ?? false),
                 'status' => Rdv::STATUS_EN_COURS,
             ]);
+            $this->recordRdvCreatedActivity($me, $rdv);
 
             if ($propositionForClose !== null) {
                 Proposition::closeAcceptedRowsForPairAfterRdv($propositionForClose);

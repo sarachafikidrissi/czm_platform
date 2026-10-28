@@ -117,6 +117,21 @@ class Rdv extends Model
     }
 
     /**
+     * RDV that blocks new propositions and proposition requests for this user: in progress or successful.
+     * Same statuses as PropositionController::hasBlockingRdvForEitherProfile().
+     */
+    public static function hasBlockingRdvForUser(int $userId): bool
+    {
+        return static::query()
+            ->whereIn('status', [self::STATUS_EN_COURS, self::STATUS_REUSSI])
+            ->where(function ($q) use ($userId) {
+                $q->where('reference_user_id', $userId)
+                    ->orWhere('compatible_user_id', $userId);
+            })
+            ->exists();
+    }
+
+    /**
      * Returns true if the user has any RDV with status reussi.
      * Status is updated in-place so a reussi later changed to echec will not match.
      *
